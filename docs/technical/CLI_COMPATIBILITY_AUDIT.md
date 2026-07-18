@@ -161,6 +161,28 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | QA brain repair plan | `report qa-brain-repair-plan [--output <md|json>]` writes deterministic value-free repair-proposal readiness metadata from local generated-test quality, mutation readiness, evidence action-plan, routing-plan, and evidence-index states before generation, mutation/fuzz execution, provider calls, prompt execution, or Hurl execution. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report test-pyramid`, `report external-test-evidence`, `report artifact-manifest`, `report evidence-bundle`, `report design-partner-feedback`, `report runtime-card`, `report handoff`, `report notification-packet`, `report team-evidence-readiness`, `report team-access-control-plan`, `report integration-readiness`, `report devex-readiness`, `report evidence-cloud-readiness`, `report evidence-cloud-export`, `report evidence-cloud-workspace`, `report evidence-cloud-dashboard`, `report evidence-links`, `report evidence-portal`, `report pr-evidence-card`, `report evidence-action-plan`, `report work-item-draft`, `report work-item-import-bundle`, `report pilot-outcome`, `report pilot-cohort`, `report connector-intent`, `report observability-packet`, `report otel-mapping`, `report observability-adapter-readiness`, `report api-inventory`, `report mutation-readiness`, `report evidence-index`, `report qa-brain-seed`, `report qa-brain-eval-plan`, `report qa-brain-retrieval-plan`, `report qa-brain-prompt-plan`, `report qa-brain-fine-tune-readiness`, `report qa-brain-model-packaging-plan`, `report qa-brain-routing-plan`, `report qa-brain-repair-plan`, `report pilot-metrics`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
+## Experimental Report Growth Policy
+
+`docs/meta/experimental-report-growth-policy.json` is the versioned,
+machine-readable governance record for the 41 commands in the experimental
+report help panel. Its order must match the resolved panel exactly. The strict
+policy implementation has no Typer or registration dependency, and runtime
+registration does not import it. Standard Python import still initializes the
+parent `report` package, so the offline guarantee applies to loading and
+validation—no network, provider, or runtime mutation—not package-import
+isolation. Tests pass resolved command names into the completeness validator.
+
+Each entry records an owner, adoption-evidence state and pointer, proposed
+disposition, and review date. A tracking issue or other pointer identifies where
+evidence should be collected; it is not adoption proof. In particular,
+`missing` and `partial` do not justify promotion. A `promote` disposition is
+valid only with `validated` adoption evidence.
+
+This policy records review intent only. Loading or validating it does not
+promote, consolidate, retire, register, hide, or reorder commands, and it does
+not change report runtime behavior. Any such CLI change still requires its own
+compatibility issue, implementation, migration decision, and release gates.
+
 ## Compatibility Shim Retirement
 
 The tracked

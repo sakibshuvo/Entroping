@@ -1,0 +1,415 @@
+{
+  "schema_version": "entroping.experimental-report-growth-policy.v1",
+  "entries": [
+    {
+      "command": "evidence-bundle",
+      "owner": "product-evidence",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "design-partner-feedback",
+      "owner": "product-evidence",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "pilot-metrics",
+      "owner": "product-evidence",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "pilot-outcome",
+      "owner": "product-evidence",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "pilot-cohort",
+      "owner": "product-evidence",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "handoff",
+      "owner": "product-evidence",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "notification-packet",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "team-evidence-readiness",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-cloud-readiness",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-cloud-export",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-cloud-workspace",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-cloud-dashboard",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-links",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "otlp-preview",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-portal",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "pr-evidence-card",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "pr-evidence-card-summary",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-action-plan",
+      "owner": "evidence-delivery",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "work-item-draft",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "work-item-import-bundle",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "team-access-control-plan",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "integration-readiness",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "devex-readiness",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "connector-intent",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "external-test-evidence",
+      "owner": "workflow-integrations",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "observability-packet",
+      "owner": "observability",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "otel-mapping",
+      "owner": "observability",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "observability-adapter-readiness",
+      "owner": "observability",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "api-inventory",
+      "owner": "observability",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "mutation-readiness",
+      "owner": "observability",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "evidence-index",
+      "owner": "observability",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-seed",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-eval-plan",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-retrieval-plan",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-prompt-plan",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-fine-tune-readiness",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-model-packaging-plan",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-routing-plan",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "qa-brain-repair-plan",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "agent-bundle",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    },
+    {
+      "command": "mutation-readiness-replay",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
+    }
+  ]
+}

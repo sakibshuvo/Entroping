@@ -18,6 +18,16 @@ from cli_test_support import (
 from typer.core import TyperCommand, TyperGroup
 from typer.main import get_command
 
+from entroping.cli.commands.report._experimental_policy import (
+    EXPERIMENTAL_REPORT_GROWTH_POLICY_MAX_BYTES,
+    EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION,
+    ExperimentalReportAdoptionEvidence,
+    ExperimentalReportGrowthPolicy,
+    ExperimentalReportPolicyEntry,
+    ExperimentalReportPolicyError,
+    load_experimental_report_growth_policy,
+    validate_experimental_report_growth_policy,
+)
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence.api_inventory import ApiInventoryError
 from entroping.core.evidence.connector_intent import ConnectorIntentError
@@ -71,6 +81,63 @@ from entroping.core.readiness.observability_adapter_readiness import (
 )
 from entroping.core.readiness.team_evidence_readiness import TeamEvidenceReadinessError
 
+_EXPERIMENTAL_REPORT_PANEL = "Experimental Design-Partner Evidence"
+_EXPERIMENTAL_REPORT_POLICY_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "docs"
+    / "meta"
+    / "experimental-report-growth-policy.json"
+)
+_VALID_POLICY_ENTRY_JSON = """
+{
+  "command": "synthetic-command",
+  "owner": "qa-brain",
+  "adoption_evidence": {
+    "state": "missing",
+    "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+  },
+  "disposition": "retain-experimental",
+  "review_on": "2026-08-31"
+}
+"""
+
+
+def _policy_document(entry_json: str) -> str:
+    return (
+        "{"
+        f'"schema_version":"{EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION}",'
+        f'"entries":[{entry_json}]'
+        "}\n"
+    )
+
+
+def _write_policy_document(tmp_path: Path, document: str) -> Path:
+    policy_path = tmp_path / "experimental-report-growth-policy.json"
+    policy_path.write_text(document, encoding="utf-8")
+    return policy_path
+
+
+def _synthetic_policy(
+    commands: tuple[str, ...],
+) -> ExperimentalReportGrowthPolicy:
+    entries = tuple(
+        ExperimentalReportPolicyEntry(
+            command=command,
+            owner="qa-brain",
+            adoption_evidence=ExperimentalReportAdoptionEvidence(
+                state="missing",
+                pointer="https://github.com/sakibshuvo/Entroping/issues/306",
+            ),
+            disposition="retain-experimental",
+            review_on="2026-08-31",
+        )
+        for command in commands
+    )
+    return ExperimentalReportGrowthPolicy(
+        schema_version=EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION,
+        entries=entries,
+    )
+
 
 def _assert_report_description(command_name: str, expected: str) -> None:
     root_command = get_command(app)
@@ -80,6 +147,408 @@ def _assert_report_description(command_name: str, expected: str) -> None:
     command = report_command.commands[command_name]
     assert isinstance(command, TyperCommand)
     assert command.help == expected
+
+
+def test_experimental_report_growth_policy_covers_live_panel_in_order() -> None:
+    root_command = get_command(app)
+    assert isinstance(root_command, TyperGroup)
+    report_command = root_command.commands["report"]
+    assert isinstance(report_command, TyperGroup)
+    experimental_commands: list[str] = []
+    for command_name, command in report_command.commands.items():
+        assert isinstance(command, TyperCommand)
+        if command.rich_help_panel == _EXPERIMENTAL_REPORT_PANEL:
+            experimental_commands.append(command_name)
+    live_commands = tuple(experimental_commands)
+
+    policy = load_experimental_report_growth_policy(
+        _EXPERIMENTAL_REPORT_POLICY_PATH,
+    )
+    validate_experimental_report_growth_policy(policy, live_commands)
+
+    assert len(report_command.commands) == 62
+    assert len(live_commands) == 41
+    assert tuple(entry.command for entry in policy.entries) == live_commands
+    assert {entry.owner for entry in policy.entries} == {
+        "evidence-delivery",
+        "observability",
+        "product-evidence",
+        "qa-brain",
+        "workflow-integrations",
+    }
+    assert {entry.adoption_evidence.state for entry in policy.entries} == {"missing"}
+    assert {entry.adoption_evidence.pointer for entry in policy.entries} == {
+        "https://github.com/sakibshuvo/Entroping/issues/306",
+    }
+    assert {entry.disposition for entry in policy.entries} == {"retain-experimental"}
+    assert {entry.review_on for entry in policy.entries} == {"2026-08-31"}
+
+
+def test_experimental_report_growth_policy_accepts_valid_synthetic_policy() -> None:
+    policy = _synthetic_policy(("alpha", "beta"))
+
+    validate_experimental_report_growth_policy(policy, ("alpha", "beta"))
+
+    assert tuple(entry.command for entry in policy.entries) == ("alpha", "beta")
+
+
+def test_experimental_report_growth_policy_names_missing_command() -> None:
+    policy = _synthetic_policy(("alpha",))
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"entries\.command.*missing.*beta",
+    ):
+        validate_experimental_report_growth_policy(policy, ("alpha", "beta"))
+
+
+def test_experimental_report_growth_policy_names_stale_command() -> None:
+    policy = _synthetic_policy(("alpha", "stale-command"))
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"entries\.command.*stale.*stale-command",
+    ):
+        validate_experimental_report_growth_policy(policy, ("alpha",))
+
+
+def test_experimental_report_growth_policy_rejects_reordered_commands() -> None:
+    policy = _synthetic_policy(("beta", "alpha"))
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"entries\.command.*order.*position 1.*expected 'alpha'.*found 'beta'",
+    ):
+        validate_experimental_report_growth_policy(policy, ("alpha", "beta"))
+
+
+def test_experimental_report_growth_policy_rejects_duplicate_live_command() -> None:
+    policy = _synthetic_policy(("alpha",))
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"live_commands.*duplicate live command.*alpha",
+    ):
+        validate_experimental_report_growth_policy(policy, ("alpha", "alpha"))
+
+
+def test_experimental_report_growth_policy_loader_rejects_duplicate_command(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_policy_document(
+        tmp_path,
+        (
+            "{"
+            f'"schema_version":"{EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION}",'
+            f'"entries":[{_VALID_POLICY_ENTRY_JSON},{_VALID_POLICY_ENTRY_JSON}]'
+            "}\n"
+        ),
+    )
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"entries\.command.*duplicate.*synthetic-command",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+@pytest.mark.parametrize(
+    ("document", "member"),
+    (
+        (
+            (
+                "{"
+                f'"schema_version":"{EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION}",'
+                f'"schema_version":"{EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION}",'
+                f'"entries":[{_VALID_POLICY_ENTRY_JSON}]'
+                "}\n"
+            ),
+            "schema_version",
+        ),
+        (
+            _policy_document(
+                _VALID_POLICY_ENTRY_JSON.replace(
+                    '"owner": "qa-brain"',
+                    '"owner": "qa-brain", "owner": "product-evidence"',
+                ),
+            ),
+            "owner",
+        ),
+        (
+            _policy_document(
+                _VALID_POLICY_ENTRY_JSON.replace(
+                    '"state": "missing"',
+                    '"state": "missing", "state": "validated"',
+                ),
+            ),
+            "state",
+        ),
+    ),
+)
+def test_experimental_report_growth_policy_loader_rejects_duplicate_json_member(
+    tmp_path: Path,
+    document: str,
+    member: str,
+) -> None:
+    policy_path = _write_policy_document(tmp_path, document)
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=rf"document.*duplicate JSON member.*{member}",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+@pytest.mark.parametrize(
+    ("entry_json", "field"),
+    (
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"command": "synthetic-command"',
+                '"command": "   "',
+            ),
+            r"entries\[0\]\.command",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"command": "synthetic-command"',
+                '"command": " synthetic-command "',
+            ),
+            r"entries\[0\]\.command",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace('"owner": "qa-brain",', ""),
+            r"entries\[0\]\.owner",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace('"owner": "qa-brain"', '"owner": " "'),
+            r"entries\[0\]\.owner",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"owner": "qa-brain"',
+                '"owner": " qa-brain "',
+            ),
+            r"entries\[0\]\.owner",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"pointer": "https://github.com/sakibshuvo/Entroping/issues/306"',
+                '"pointer": ""',
+            ),
+            r"entries\[0\]\.adoption_evidence\.pointer",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"pointer": "https://github.com/sakibshuvo/Entroping/issues/306"',
+                '"pointer": " https://github.com/sakibshuvo/Entroping/issues/306 "',
+            ),
+            r"entries\[0\]\.adoption_evidence\.pointer",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"review_on": "2026-08-31"',
+                '"review_on": "2026-08-31", "unexpected": true',
+            ),
+            r"entries\[0\]\.unexpected",
+        ),
+    ),
+)
+def test_experimental_report_growth_policy_loader_rejects_required_and_extra_fields(
+    tmp_path: Path,
+    entry_json: str,
+    field: str,
+) -> None:
+    policy_path = _write_policy_document(tmp_path, _policy_document(entry_json))
+
+    with pytest.raises(ExperimentalReportPolicyError, match=field):
+        load_experimental_report_growth_policy(policy_path)
+
+
+@pytest.mark.parametrize(
+    ("entry_json", "field"),
+    (
+        (
+            _VALID_POLICY_ENTRY_JSON.replace('"state": "missing"', '"state": "unknown"'),
+            r"entries\[0\]\.adoption_evidence\.state",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"disposition": "retain-experimental"',
+                '"disposition": "ship-now"',
+            ),
+            r"entries\[0\]\.disposition",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"review_on": "2026-08-31"',
+                '"review_on": "2026-99-99"',
+            ),
+            r"entries\[0\]\.review_on",
+        ),
+        (
+            _VALID_POLICY_ENTRY_JSON.replace(
+                '"review_on": "2026-08-31"',
+                '"review_on": "20260831"',
+            ),
+            r"entries\[0\]\.review_on",
+        ),
+    ),
+)
+def test_experimental_report_growth_policy_loader_rejects_invalid_variants(
+    tmp_path: Path,
+    entry_json: str,
+    field: str,
+) -> None:
+    policy_path = _write_policy_document(tmp_path, _policy_document(entry_json))
+
+    with pytest.raises(ExperimentalReportPolicyError, match=field):
+        load_experimental_report_growth_policy(policy_path)
+
+
+def test_experimental_report_growth_policy_rejects_unvalidated_promotion(
+    tmp_path: Path,
+) -> None:
+    entry_json = _VALID_POLICY_ENTRY_JSON.replace(
+        '"disposition": "retain-experimental"',
+        '"disposition": "promote"',
+    )
+    policy_path = _write_policy_document(tmp_path, _policy_document(entry_json))
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=(
+            r"synthetic-command.*disposition.*promote.*"
+            r"adoption_evidence\.state.*validated"
+        ),
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+def test_experimental_report_growth_policy_accepts_validated_promotion(
+    tmp_path: Path,
+) -> None:
+    entry_json = _VALID_POLICY_ENTRY_JSON.replace(
+        '"state": "missing"',
+        '"state": "validated"',
+    ).replace(
+        '"disposition": "retain-experimental"',
+        '"disposition": "promote"',
+    )
+    policy_path = _write_policy_document(tmp_path, _policy_document(entry_json))
+
+    policy = load_experimental_report_growth_policy(policy_path)
+    validate_experimental_report_growth_policy(policy, ("synthetic-command",))
+
+    assert policy.entries[0].disposition == "promote"
+
+
+def test_experimental_report_growth_policy_loader_rejects_invalid_json(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_policy_document(tmp_path, "{not-json}\n")
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"experimental-report-growth-policy\.json.*invalid JSON",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+@pytest.mark.parametrize(
+    "hostile_value",
+    (
+        "1" * 5000,
+        ("[" * 10_000) + "0" + ("]" * 10_000),
+    ),
+)
+def test_experimental_report_growth_policy_loader_normalizes_json_parser_limits(
+    tmp_path: Path,
+    hostile_value: str,
+) -> None:
+    policy_path = _write_policy_document(
+        tmp_path,
+        (
+            "{"
+            f'"schema_version":"{EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION}",'
+            '"entries":[],'
+            f'"unexpected":{hostile_value}'
+            "}\n"
+        ),
+    )
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"document.*invalid JSON",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+@pytest.mark.parametrize("constant", ("NaN", "Infinity", "-Infinity"))
+def test_experimental_report_growth_policy_loader_rejects_nonstandard_json_constant(
+    tmp_path: Path,
+    constant: str,
+) -> None:
+    policy_path = _write_policy_document(
+        tmp_path,
+        (
+            "{"
+            f'"schema_version":"{EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION}",'
+            '"entries":[],'
+            f'"unexpected":{{"nested":{constant}}}'
+            "}\n"
+        ),
+    )
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"document.*invalid JSON",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+def test_experimental_report_growth_policy_loader_rejects_oversize_document(
+    tmp_path: Path,
+) -> None:
+    policy_path = tmp_path / "experimental-report-growth-policy.json"
+    policy_path.write_bytes(
+        b" " * (EXPERIMENTAL_REPORT_GROWTH_POLICY_MAX_BYTES + 1),
+    )
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=rf"exceeds {EXPERIMENTAL_REPORT_GROWTH_POLICY_MAX_BYTES} bytes",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+def test_experimental_report_growth_policy_loader_rejects_invalid_utf8(
+    tmp_path: Path,
+) -> None:
+    policy_path = tmp_path / "experimental-report-growth-policy.json"
+    policy_path.write_bytes(b"\xff")
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"decode.*UTF-8",
+    ):
+        load_experimental_report_growth_policy(policy_path)
+
+
+def test_experimental_report_growth_policy_loader_rejects_unsupported_schema(
+    tmp_path: Path,
+) -> None:
+    document = _policy_document(_VALID_POLICY_ENTRY_JSON).replace(
+        EXPERIMENTAL_REPORT_GROWTH_POLICY_SCHEMA_VERSION,
+        "entroping.experimental-report-growth-policy.v2",
+    )
+    policy_path = _write_policy_document(tmp_path, document)
+
+    with pytest.raises(
+        ExperimentalReportPolicyError,
+        match=r"schema_version",
+    ):
+        load_experimental_report_growth_policy(policy_path)
 
 
 @pytest.mark.parametrize(
