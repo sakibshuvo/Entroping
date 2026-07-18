@@ -11,8 +11,8 @@
       "disposition": "retain",
       "evidence": [
         "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility",
-        "tests/test_openapi_to_hurl.py::test_compile_openapi_rejects_duplicate_schema_negative_generated_paths",
-        "tests/test_openapi_to_hurl.py::test_openapi_to_hurl_package_exposes_compatibility_surface"
+        "tests/test_openapi_compatibility_shim.py::test_compile_openapi_rejects_duplicate_schema_negative_generated_paths",
+        "tests/test_openapi_compatibility_shim.py::test_openapi_to_hurl_package_exposes_compatibility_surface"
       ],
       "review_on": "2026-08-31",
       "retirement_criteria": [
