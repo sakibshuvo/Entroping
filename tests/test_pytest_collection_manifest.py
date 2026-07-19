@@ -1508,6 +1508,47 @@ def test_source_read_rejects_parent_replaced_by_symlink(
         module._read_source(root, Path("inside/test_case.py"))
 
 
+def test_source_read_closes_parent_descriptors_when_descendant_open_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_manifest_module()
+    root = tmp_path / "repo"
+    (root / "inside").mkdir(parents=True)
+    opened_descriptors: list[int] = []
+    closed_descriptors: list[int] = []
+    real_open = os.open
+    real_close = os.close
+
+    def tracking_open(
+        path: os.PathLike[str] | str,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        if os.fspath(path) == "blocked":
+            raise PermissionError("blocked")
+        if dir_fd is None:
+            descriptor = real_open(path, flags, mode)
+        else:
+            descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+        opened_descriptors.append(descriptor)
+        return descriptor
+
+    def tracking_close(descriptor: int) -> None:
+        closed_descriptors.append(descriptor)
+        real_close(descriptor)
+
+    monkeypatch.setattr(os, "open", tracking_open)
+    monkeypatch.setattr(os, "close", tracking_close)
+
+    with pytest.raises(module.ManifestError, match="source is not readable"):
+        module._read_source(root, Path("inside/blocked/test_case.py"))
+
+    assert closed_descriptors == list(reversed(opened_descriptors))
+
+
 def test_compare_rejects_unrepresentable_manifest_labels(tmp_path: Path) -> None:
     invalid_payloads = {
         "traversal source": {
