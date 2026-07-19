@@ -66,6 +66,41 @@ def _load_manifest_module() -> ModuleType:
     return module
 
 
+def _track_descriptor_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    blocked_path: str | None = None,
+) -> tuple[list[int], list[int]]:
+    opened_descriptors: list[int] = []
+    closed_descriptors: list[int] = []
+    real_open = os.open
+    real_close = os.close
+
+    def tracking_open(
+        path: os.PathLike[str] | str,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        if blocked_path is not None and os.fspath(path) == blocked_path:
+            raise PermissionError("blocked")
+        if dir_fd is None:
+            descriptor = real_open(path, flags, mode)
+        else:
+            descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+        opened_descriptors.append(descriptor)
+        return descriptor
+
+    def tracking_close(descriptor: int) -> None:
+        closed_descriptors.append(descriptor)
+        real_close(descriptor)
+
+    monkeypatch.setattr(os, "open", tracking_open)
+    monkeypatch.setattr(os, "close", tracking_close)
+    return opened_descriptors, closed_descriptors
+
+
 def _manifest(nodes: list[tuple[str, list[str]]]) -> dict[str, object]:
     return {
         "schema_version": "entroping.pytest-collection-manifest.v1",
@@ -1515,38 +1550,66 @@ def test_source_read_closes_parent_descriptors_when_descendant_open_fails(
     module = _load_manifest_module()
     root = tmp_path / "repo"
     (root / "inside").mkdir(parents=True)
-    opened_descriptors: list[int] = []
-    closed_descriptors: list[int] = []
-    real_open = os.open
-    real_close = os.close
-
-    def tracking_open(
-        path: os.PathLike[str] | str,
-        flags: int,
-        mode: int = 0o777,
-        *,
-        dir_fd: int | None = None,
-    ) -> int:
-        if os.fspath(path) == "blocked":
-            raise PermissionError("blocked")
-        if dir_fd is None:
-            descriptor = real_open(path, flags, mode)
-        else:
-            descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
-        opened_descriptors.append(descriptor)
-        return descriptor
-
-    def tracking_close(descriptor: int) -> None:
-        closed_descriptors.append(descriptor)
-        real_close(descriptor)
-
-    monkeypatch.setattr(os, "open", tracking_open)
-    monkeypatch.setattr(os, "close", tracking_close)
+    opened_descriptors, closed_descriptors = _track_descriptor_lifecycle(
+        monkeypatch,
+        blocked_path="blocked",
+    )
 
     with pytest.raises(module.ManifestError, match="source is not readable"):
         module._read_source(root, Path("inside/blocked/test_case.py"))
 
     assert closed_descriptors == list(reversed(opened_descriptors))
+
+
+def test_source_read_closes_every_descriptor_after_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_manifest_module()
+    root = tmp_path / "repo"
+    source = root / "inside" / "test_case.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("def test_case() -> None:\n    pass\n", encoding="utf-8")
+    opened_descriptors, closed_descriptors = _track_descriptor_lifecycle(monkeypatch)
+
+    payload = module._read_source(root, Path("inside/test_case.py"))
+
+    assert payload == source.read_bytes()
+    assert closed_descriptors == list(reversed(opened_descriptors))
+
+
+def test_source_read_closes_every_descriptor_when_bounded_read_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_manifest_module()
+    root = tmp_path / "repo"
+    source = root / "inside" / "test_case.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("def test_case() -> None:\n    pass\n", encoding="utf-8")
+    opened_descriptors, closed_descriptors = _track_descriptor_lifecycle(monkeypatch)
+
+    def fail_read(_descriptor: int, _label: str, _max_bytes: int) -> bytes:
+        raise RuntimeError("read failed")
+
+    monkeypatch.setattr(module, "_read_descriptor", fail_read)
+
+    with pytest.raises(RuntimeError, match="read failed"):
+        module._read_source(root, Path("inside/test_case.py"))
+
+    assert closed_descriptors == list(reversed(opened_descriptors))
+
+
+def test_source_read_rejects_descriptor_walks_deeper_than_the_recursion_budget(
+    tmp_path: Path,
+) -> None:
+    module = _load_manifest_module()
+    root = tmp_path / "repo"
+    root.mkdir()
+    relative = Path(*(["nested"] * 257), "test_case.py")
+
+    with pytest.raises(module.ManifestError, match="path depth exceeds 256 components"):
+        module._read_source(root, relative)
 
 
 def test_compare_rejects_unrepresentable_manifest_labels(tmp_path: Path) -> None:

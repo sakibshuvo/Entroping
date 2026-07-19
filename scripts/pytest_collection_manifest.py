@@ -23,6 +23,7 @@ MAX_MANIFEST_OUTPUT_WORK = 8 * 1024 * 1024
 MAX_MANIFEST_BYTES = MAX_MANIFEST_OUTPUT_WORK
 MAX_SCOPE_STATEMENTS = 100_000
 MAX_STATIC_EXPRESSION_DEPTH = 128
+MAX_DESCRIPTOR_WALK_DEPTH = 256
 COLLECTION_HOOKS = {
     "pytest_collect_file",
     "pytest_collection_modifyitems",
@@ -190,45 +191,63 @@ def _read_relative_no_follow(
 ) -> bytes:
     if not _SUPPORTS_DESCRIPTOR_WALK:
         raise ManifestError("runtime lacks descriptor-walk no-follow support")
-    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+    parts = relative.parts
+    if (
+        not parts
+        or relative.is_absolute()
+        or any(part in {"", ".", ".."} for part in parts)
+    ):
         raise ManifestError(f"{label} has an unsafe relative path")
-    directory_descriptors: list[int] = []
-    file_descriptor: int | None = None
-    try:
-        root_descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
-        directory_descriptors.append(root_descriptor)
-        root_path_stat = root.stat(follow_symlinks=False)
-        root_descriptor_stat = os.fstat(root_descriptor)
-        if (
-            not stat.S_ISDIR(root_path_stat.st_mode)
-            or not stat.S_ISDIR(root_descriptor_stat.st_mode)
-            or (root_path_stat.st_dev, root_path_stat.st_ino)
-            != (root_descriptor_stat.st_dev, root_descriptor_stat.st_ino)
-        ):
-            raise ManifestError(f"{label} root identity changed")
-        directory_descriptor = root_descriptor
-        for part in relative.parts[:-1]:
-            directory_descriptor = os.open(
+    if len(parts) > MAX_DESCRIPTOR_WALK_DEPTH:
+        raise ManifestError(
+            f"{label} path depth exceeds {MAX_DESCRIPTOR_WALK_DEPTH} components"
+        )
+
+    def read_descendant(
+        directory_descriptor: int,
+        remaining_parts: tuple[str, ...],
+    ) -> bytes:
+        part = remaining_parts[0]
+        descendants = remaining_parts[1:]
+        if not descendants:
+            file_descriptor = os.open(
                 part,
-                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                os.O_RDONLY | os.O_NOFOLLOW,
                 dir_fd=directory_descriptor,
             )
-            directory_descriptors.append(directory_descriptor)
-        file_descriptor = os.open(
-            relative.name,
-            os.O_RDONLY | os.O_NOFOLLOW,
+            try:
+                return _read_descriptor(file_descriptor, label, max_bytes)
+            finally:
+                os.close(file_descriptor)
+        child_descriptor = os.open(
+            part,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
             dir_fd=directory_descriptor,
         )
-        return _read_descriptor(file_descriptor, label, max_bytes)
+        try:
+            return read_descendant(child_descriptor, descendants)
+        finally:
+            os.close(child_descriptor)
+
+    try:
+        root_descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            root_path_stat = root.stat(follow_symlinks=False)
+            root_descriptor_stat = os.fstat(root_descriptor)
+            if (
+                not stat.S_ISDIR(root_path_stat.st_mode)
+                or not stat.S_ISDIR(root_descriptor_stat.st_mode)
+                or (root_path_stat.st_dev, root_path_stat.st_ino)
+                != (root_descriptor_stat.st_dev, root_descriptor_stat.st_ino)
+            ):
+                raise ManifestError(f"{label} root identity changed")
+            return read_descendant(root_descriptor, parts)
+        finally:
+            os.close(root_descriptor)
     except OSError as error:
         if error.errno in {errno.ELOOP, errno.ENOTDIR}:
             raise ManifestError(f"{label} has a symlink component") from error
         raise ManifestError(f"{label} is not readable") from error
-    finally:
-        if file_descriptor is not None:
-            os.close(file_descriptor)
-        for directory_descriptor in reversed(directory_descriptors):
-            os.close(directory_descriptor)
 
 
 def _read_source(root: Path, relative: Path) -> bytes:
