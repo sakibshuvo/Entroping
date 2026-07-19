@@ -109,6 +109,64 @@ end_of_record
     )
 
 
+def test_external_test_evidence_source_counts_group_each_state(
+    tmp_path: Path,
+) -> None:
+    packet = build_external_test_evidence(project_root=tmp_path)
+    states = (
+        "present",
+        "present",
+        "missing",
+        "missing",
+        "missing",
+        "invalid",
+        "invalid",
+        "unsafe",
+    )
+    sources = tuple(
+        source.model_copy(update={"state": state})
+        for source, state in zip(packet.sources, states, strict=True)
+    )
+
+    counts = external_test_evidence._source_counts(sources)
+
+    assert counts == external_test_evidence._SourceCounts(
+        present=2,
+        missing=3,
+        invalid=2,
+        unsafe=1,
+    )
+
+
+def test_external_test_evidence_event_counts_include_only_junit_sources(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+    packet = build_external_test_evidence(project_root=tmp_path)
+    sources = tuple(
+        source.model_copy(
+            update={
+                "tests": 1_000,
+                "failures": 1_000,
+                "errors": 1_000,
+                "skipped": 1_000,
+            }
+        )
+        if source.kind != "junit"
+        else source
+        for source in packet.sources
+    )
+
+    counts = external_test_evidence._event_counts(sources)
+
+    assert counts == external_test_evidence._EventCounts(
+        tests=15,
+        failures=1,
+        errors=0,
+        skipped=2,
+    )
+
+
 def test_external_test_evidence_writes_value_free_json_from_ready_sources(
     tmp_path: Path,
 ) -> None:

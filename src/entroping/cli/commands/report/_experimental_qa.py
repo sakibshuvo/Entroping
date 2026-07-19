@@ -324,6 +324,8 @@ def report_mutation_readiness_replay(
         typer.Option("--manifest", help="Path to the mutation-readiness JSON manifest."),
     ] = Path("reports") / "mutation-readiness.json",
 ) -> None:
+    """Validate a local mutation-readiness manifest for deterministic replay."""
+
     try:
         result = run_mutation_readiness_replay_validation(
             project_root=Path.cwd(),

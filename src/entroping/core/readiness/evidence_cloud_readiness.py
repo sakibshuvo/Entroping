@@ -312,6 +312,27 @@ class EvidenceCloudReadinessResult:
     packet: EvidenceCloudReadinessPacket
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceCounts:
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+
+
+@dataclass(frozen=True, slots=True)
+class _AreaCounts:
+    ready: int
+    attention: int
+    blocked: int
+
+
+@dataclass(frozen=True, slots=True)
+class _CandidateCounts:
+    ready: int
+    blocked: int
+
+
 def run_evidence_cloud_readiness_report(
     *,
     project_root: Path,
@@ -962,30 +983,63 @@ def _summary(
     upload_candidates: tuple[EvidenceCloudUploadCandidate, ...],
     next_actions: tuple[EvidenceCloudNextAction, ...],
 ) -> EvidenceCloudSummary:
-    blockers_total = len(
-        {blocker for area in areas for blocker in area.blockers}
-        | {blocker for candidate in upload_candidates for blocker in candidate.blockers}
-    )
+    source_counts = _source_counts(sources)
+    area_counts = _area_counts(areas)
+    candidate_counts = _candidate_counts(upload_candidates)
+    blockers_total = len(_unique_blockers(areas=areas, upload_candidates=upload_candidates))
     return EvidenceCloudSummary(
         status=_status(sources=sources, areas=areas, upload_candidates=upload_candidates),
         sources_total=len(sources),
-        sources_present=sum(1 for source in sources if source.state == "present"),
-        sources_missing=sum(1 for source in sources if source.state == "missing"),
-        sources_invalid=sum(1 for source in sources if source.state == "invalid"),
-        sources_unsafe=sum(1 for source in sources if source.state == "unsafe"),
+        sources_present=source_counts.present,
+        sources_missing=source_counts.missing,
+        sources_invalid=source_counts.invalid,
+        sources_unsafe=source_counts.unsafe,
         areas_total=len(areas),
-        areas_ready=sum(1 for area in areas if area.status == "ready"),
-        areas_attention=sum(1 for area in areas if area.status == "attention"),
-        areas_blocked=sum(1 for area in areas if area.status == "blocked"),
+        areas_ready=area_counts.ready,
+        areas_attention=area_counts.attention,
+        areas_blocked=area_counts.blocked,
         upload_candidates_total=len(upload_candidates),
-        upload_candidates_ready=sum(
-            1 for candidate in upload_candidates if candidate.state == "ready"
-        ),
-        upload_candidates_blocked=sum(
-            1 for candidate in upload_candidates if candidate.state == "blocked"
-        ),
+        upload_candidates_ready=candidate_counts.ready,
+        upload_candidates_blocked=candidate_counts.blocked,
         blockers_total=blockers_total,
         next_actions_total=len(next_actions),
+    )
+
+
+def _source_counts(sources: tuple[EvidenceCloudSource, ...]) -> _SourceCounts:
+    return _SourceCounts(
+        present=sum(1 for source in sources if source.state == "present"),
+        missing=sum(1 for source in sources if source.state == "missing"),
+        invalid=sum(1 for source in sources if source.state == "invalid"),
+        unsafe=sum(1 for source in sources if source.state == "unsafe"),
+    )
+
+
+def _area_counts(areas: tuple[EvidenceCloudReadinessArea, ...]) -> _AreaCounts:
+    return _AreaCounts(
+        ready=sum(1 for area in areas if area.status == "ready"),
+        attention=sum(1 for area in areas if area.status == "attention"),
+        blocked=sum(1 for area in areas if area.status == "blocked"),
+    )
+
+
+def _candidate_counts(
+    upload_candidates: tuple[EvidenceCloudUploadCandidate, ...],
+) -> _CandidateCounts:
+    return _CandidateCounts(
+        ready=sum(1 for candidate in upload_candidates if candidate.state == "ready"),
+        blocked=sum(1 for candidate in upload_candidates if candidate.state == "blocked"),
+    )
+
+
+def _unique_blockers(
+    *,
+    areas: tuple[EvidenceCloudReadinessArea, ...],
+    upload_candidates: tuple[EvidenceCloudUploadCandidate, ...],
+) -> frozenset[str]:
+    return frozenset(
+        {blocker for area in areas for blocker in area.blockers}
+        | {blocker for candidate in upload_candidates for blocker in candidate.blockers}
     )
 
 

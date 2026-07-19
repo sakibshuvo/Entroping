@@ -263,6 +263,8 @@ def report_otlp_preview(
         typer.Option("--output", help="Output format: md or json."),
     ] = "md",
 ) -> None:
+    """Write a local OTLP preview from sanitized telemetry evidence."""
+
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
         console.print(f"[yellow]Unsupported otlp-preview output: {output}[/yellow]")
@@ -345,6 +347,8 @@ def report_pr_evidence_card_summary(
         ),
     ] = None,
 ) -> None:
+    """Summarize a local PR evidence-card artifact for review."""
+
     try:
         result = run_pr_evidence_card_summary_report(
             project_root=Path.cwd(),

@@ -74,6 +74,33 @@ class _LoadedOutcome:
     packet: PilotOutcomePacket | None
 
 
+@dataclass(frozen=True, slots=True)
+class _OutcomeCounts:
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+    ready: int
+    partial: int
+    insufficient: int
+    manual_input_gaps_total: int
+
+
+@dataclass(frozen=True, slots=True)
+class _ActionCounts:
+    high: int
+    medium: int
+    low: int
+
+
+@dataclass(frozen=True, slots=True)
+class _ActionGroups:
+    repair: tuple[str, ...]
+    generate: tuple[str, ...]
+    collect: tuple[str, ...]
+    partial_review: tuple[str, ...]
+
+
 class PilotCohortError(ValueError):
     """Raised when the pilot cohort packet cannot be generated safely."""
 
@@ -435,21 +462,44 @@ def _summary(
     actions: tuple[PilotCohortAction, ...],
     signals: tuple[PilotCohortMonetizationSignal, ...],
 ) -> PilotCohortSummary:
+    outcome_counts = _outcome_counts(outcomes)
+    action_counts = _action_counts(actions)
     return PilotCohortSummary(
         status=_status(outcomes=outcomes, signals=signals),
         outcomes_total=len(outcomes),
-        outcomes_present=sum(1 for outcome in outcomes if outcome.state == "present"),
-        outcomes_missing=sum(1 for outcome in outcomes if outcome.state == "missing"),
-        outcomes_invalid=sum(1 for outcome in outcomes if outcome.state == "invalid"),
-        outcomes_unsafe=sum(1 for outcome in outcomes if outcome.state == "unsafe"),
-        pilots_ready=sum(1 for outcome in outcomes if outcome.status == "ready"),
-        pilots_partial=sum(1 for outcome in outcomes if outcome.status == "partial"),
-        pilots_insufficient=sum(1 for outcome in outcomes if outcome.status == "insufficient"),
-        manual_input_gaps_total=sum(outcome.manual_input_gaps for outcome in outcomes),
+        outcomes_present=outcome_counts.present,
+        outcomes_missing=outcome_counts.missing,
+        outcomes_invalid=outcome_counts.invalid,
+        outcomes_unsafe=outcome_counts.unsafe,
+        pilots_ready=outcome_counts.ready,
+        pilots_partial=outcome_counts.partial,
+        pilots_insufficient=outcome_counts.insufficient,
+        manual_input_gaps_total=outcome_counts.manual_input_gaps_total,
         actions_total=len(actions),
-        actions_high=sum(1 for action in actions if action.priority == "high"),
-        actions_medium=sum(1 for action in actions if action.priority == "medium"),
-        actions_low=sum(1 for action in actions if action.priority == "low"),
+        actions_high=action_counts.high,
+        actions_medium=action_counts.medium,
+        actions_low=action_counts.low,
+    )
+
+
+def _outcome_counts(outcomes: tuple[PilotCohortOutcome, ...]) -> _OutcomeCounts:
+    return _OutcomeCounts(
+        present=sum(1 for outcome in outcomes if outcome.state == "present"),
+        missing=sum(1 for outcome in outcomes if outcome.state == "missing"),
+        invalid=sum(1 for outcome in outcomes if outcome.state == "invalid"),
+        unsafe=sum(1 for outcome in outcomes if outcome.state == "unsafe"),
+        ready=sum(1 for outcome in outcomes if outcome.status == "ready"),
+        partial=sum(1 for outcome in outcomes if outcome.status == "partial"),
+        insufficient=sum(1 for outcome in outcomes if outcome.status == "insufficient"),
+        manual_input_gaps_total=sum(outcome.manual_input_gaps for outcome in outcomes),
+    )
+
+
+def _action_counts(actions: tuple[PilotCohortAction, ...]) -> _ActionCounts:
+    return _ActionCounts(
+        high=sum(1 for action in actions if action.priority == "high"),
+        medium=sum(1 for action in actions if action.priority == "medium"),
+        low=sum(1 for action in actions if action.priority == "low"),
     )
 
 
@@ -556,55 +606,44 @@ def _actions(
     signals: tuple[PilotCohortMonetizationSignal, ...],
 ) -> tuple[PilotCohortAction, ...]:
     actions: list[PilotCohortAction] = []
-    missing = tuple(outcome.id for outcome in outcomes if outcome.state == "missing")
-    repair = tuple(outcome.id for outcome in outcomes if outcome.state in {"invalid", "unsafe"})
-    partial = tuple(
-        outcome.id
-        for outcome in outcomes
-        if outcome.state == "present" and outcome.status in {"partial", "insufficient"}
-    )
-    manual = tuple(
-        outcome.id
-        for outcome in outcomes
-        if outcome.state == "present" and outcome.manual_input_gaps > 0
-    )
-    if repair:
+    groups = _action_groups(outcomes)
+    if groups.repair:
         actions.append(
             PilotCohortAction(
                 priority="high",
                 category="repair",
                 action="Repair invalid or unsafe pilot outcome packets before cohort review.",
-                outcome_ids=repair,
+                outcome_ids=groups.repair,
                 status="repair_required",
             )
         )
-    if missing:
+    if groups.generate:
         actions.append(
             PilotCohortAction(
                 priority="medium",
                 category="generate",
                 action="Generate missing pilot outcome packets before cohort review.",
-                outcome_ids=missing,
+                outcome_ids=groups.generate,
                 status="missing",
             )
         )
-    if manual:
+    if groups.collect:
         actions.append(
             PilotCohortAction(
                 priority="medium",
                 category="collect",
                 action="Collect sanitized manual inputs for partial pilot outcomes.",
-                outcome_ids=manual,
+                outcome_ids=groups.collect,
                 status="manual_input_required",
             )
         )
-    if partial:
+    if groups.partial_review:
         actions.append(
             PilotCohortAction(
                 priority="medium",
                 category="review",
                 action="Review partial or insufficient pilot outcomes before commercial follow-up.",
-                outcome_ids=partial,
+                outcome_ids=groups.partial_review,
                 status="partial",
             )
         )
@@ -618,6 +657,25 @@ def _actions(
             )
         )
     return tuple(actions)
+
+
+def _action_groups(outcomes: tuple[PilotCohortOutcome, ...]) -> _ActionGroups:
+    return _ActionGroups(
+        repair=tuple(
+            outcome.id for outcome in outcomes if outcome.state in {"invalid", "unsafe"}
+        ),
+        generate=tuple(outcome.id for outcome in outcomes if outcome.state == "missing"),
+        collect=tuple(
+            outcome.id
+            for outcome in outcomes
+            if outcome.state == "present" and outcome.manual_input_gaps > 0
+        ),
+        partial_review=tuple(
+            outcome.id
+            for outcome in outcomes
+            if outcome.state == "present" and outcome.status in {"partial", "insufficient"}
+        ),
+    )
 
 
 def _resolve_manifest_path(raw_path: Path, *, root: Path) -> Path:

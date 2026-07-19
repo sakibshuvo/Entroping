@@ -577,6 +577,171 @@ def test_pilot_cohort_rejects_unsupported_output(tmp_path: Path) -> None:
         )
 
 
+def test_pilot_cohort_outcome_counts_preserve_every_value_free_bucket() -> None:
+    outcomes = (
+        pilot_cohort.PilotCohortOutcome(
+            id="ready",
+            path="reports/ready.json",
+            state="present",
+            status="ready",
+            manual_input_gaps=1,
+            summary="ready",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="partial",
+            path="reports/partial.json",
+            state="present",
+            status="partial",
+            manual_input_gaps=2,
+            summary="partial",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="insufficient",
+            path="reports/insufficient.json",
+            state="present",
+            status="insufficient",
+            manual_input_gaps=3,
+            summary="insufficient",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="missing",
+            path="reports/missing.json",
+            state="missing",
+            summary="missing",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="invalid",
+            path="reports/invalid.json",
+            state="invalid",
+            summary="invalid",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="unsafe",
+            path="reports/unsafe.json",
+            state="unsafe",
+            summary="unsafe",
+        ),
+    )
+
+    counts = pilot_cohort._outcome_counts(outcomes)
+
+    assert counts == pilot_cohort._OutcomeCounts(
+        present=3,
+        missing=1,
+        invalid=1,
+        unsafe=1,
+        ready=1,
+        partial=1,
+        insufficient=1,
+        manual_input_gaps_total=6,
+    )
+
+
+def test_pilot_cohort_action_counts_preserve_priority_buckets() -> None:
+    actions = (
+        pilot_cohort.PilotCohortAction(
+            priority="high",
+            category="repair",
+            action="repair",
+        ),
+        pilot_cohort.PilotCohortAction(
+            priority="medium",
+            category="generate",
+            action="generate",
+        ),
+        pilot_cohort.PilotCohortAction(
+            priority="medium",
+            category="collect",
+            action="collect",
+        ),
+        pilot_cohort.PilotCohortAction(
+            priority="low",
+            category="review",
+            action="review",
+        ),
+    )
+
+    counts = pilot_cohort._action_counts(actions)
+
+    assert counts == pilot_cohort._ActionCounts(high=1, medium=2, low=1)
+
+
+def test_pilot_cohort_action_groups_preserve_overlap_and_input_order() -> None:
+    outcomes = (
+        pilot_cohort.PilotCohortOutcome(
+            id="invalid",
+            path="reports/invalid.json",
+            state="invalid",
+            summary="invalid",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="missing",
+            path="reports/missing.json",
+            state="missing",
+            summary="missing",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="partial-manual",
+            path="reports/partial-manual.json",
+            state="present",
+            status="partial",
+            manual_input_gaps=2,
+            summary="partial",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="unsafe",
+            path="reports/unsafe.json",
+            state="unsafe",
+            summary="unsafe",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="insufficient",
+            path="reports/insufficient.json",
+            state="present",
+            status="insufficient",
+            summary="insufficient",
+        ),
+        pilot_cohort.PilotCohortOutcome(
+            id="manual",
+            path="reports/manual.json",
+            state="present",
+            status="ready",
+            manual_input_gaps=1,
+            summary="ready",
+        ),
+    )
+
+    groups = pilot_cohort._action_groups(outcomes)
+
+    assert groups == pilot_cohort._ActionGroups(
+        repair=("invalid", "unsafe"),
+        generate=("missing",),
+        collect=("partial-manual", "manual"),
+        partial_review=("partial-manual", "insufficient"),
+    )
+    actions = pilot_cohort._actions(
+        outcomes=outcomes,
+        signals=(
+            pilot_cohort.PilotCohortMonetizationSignal(
+                id="hosted_aggregation",
+                yes=0,
+                no=0,
+                unclear=1,
+            ),
+        ),
+    )
+    assert tuple(
+        (action.priority, action.category, action.status, action.outcome_ids)
+        for action in actions
+    ) == (
+        ("high", "repair", "repair_required", ("invalid", "unsafe")),
+        ("medium", "generate", "missing", ("missing",)),
+        ("medium", "collect", "manual_input_required", ("partial-manual", "manual")),
+        ("medium", "review", "partial", ("partial-manual", "insufficient")),
+        ("low", "review", "unclear", ()),
+    )
+
+
 def test_pilot_cohort_private_helpers_keep_defensive_branches_covered(
     tmp_path: Path,
 ) -> None:

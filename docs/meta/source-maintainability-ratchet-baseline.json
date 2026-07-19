@@ -1,0 +1,52 @@
+{
+  "evidence": {
+    "cc_command": "uv run radon cc src tests -s -a --json",
+    "from_commit": "fe86f72f610eb1400109b4a73f03a66373125399",
+    "hotspot_definition": "Python source files with at least 500 physical lines.",
+    "issue_url": "https://github.com/sakibshuvo/Entroping/issues/1504",
+    "mi_command": "uv run radon mi src -s --json",
+    "through_commit": "c0ed9ddfe672fc72d5428e79d66e30a34cf760b8"
+  },
+  "metrics": {
+    "cyclomatic_complexity": {
+      "rank_counts": {
+        "A": 2840,
+        "B": 486,
+        "C": 139,
+        "D": 10,
+        "E": 0,
+        "F": 0
+      },
+      "weighted_score": 983,
+      "worst_rank": "D"
+    },
+    "maintainability_index": {
+      "rank_counts": {
+        "A": 188,
+        "B": 27,
+        "C": 24,
+        "D": 0,
+        "E": 0,
+        "F": 0
+      },
+      "weighted_score": 99,
+      "worst_rank": "C"
+    },
+    "source_hotspots": {
+      "count": 60,
+      "threshold_lines": 500
+    }
+  },
+  "owner": "Entroping maintainers",
+  "reviewed_on": "2026-07-17",
+  "revision": 1,
+  "schema_version": "entroping.source-maintainability-ratchet-baseline.v1",
+  "weights": {
+    "A": 0,
+    "B": 1,
+    "C": 3,
+    "D": 8,
+    "E": 13,
+    "F": 21
+  }
+}

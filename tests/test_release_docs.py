@@ -229,6 +229,20 @@ def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     assert "Do not place release runbooks or evidence ledgers" in normalized_governance
 
 
+def test_report_schema_docs_use_layout_independent_suite_pointer() -> None:
+    report_schemas = (
+        REPO_ROOT / "docs" / "technical" / "REPORT_SCHEMAS.md"
+    ).read_text(encoding="utf-8")
+    schema_suite_pattern = "tests/test_report_schema_*.py"
+    test_coverage = report_schemas.partition("## Test Coverage\n")[2].partition(
+        "\n## "
+    )[0]
+
+    assert "tests/test_report_schema_contracts.py" not in test_coverage
+    assert f"`{schema_suite_pattern}`" in test_coverage
+    assert any(path.is_file() for path in REPO_ROOT.glob(schema_suite_pattern))
+
+
 def test_qanstitution_policy_changes_have_code_owner_review_expectation() -> None:
     security = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
     normalized_security = " ".join(security.split())

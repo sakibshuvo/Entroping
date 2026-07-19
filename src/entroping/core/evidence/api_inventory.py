@@ -56,6 +56,13 @@ ApiSourceKind = Literal[
     "schema_file",
 ]
 
+
+@dataclass(frozen=True, slots=True)
+class _StyleTagRule:
+    style: ApiStyle
+    tags: frozenset[str]
+
+
 _MAX_API_INVENTORY_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 _DEFAULT_OUTPUTS: Final[dict[ApiInventoryOutput, Path]] = {
     "md": Path("reports") / "api-inventory.md",
@@ -209,6 +216,30 @@ _GRAPHQL_SIGNAL_BY_ROOT: Final[dict[str, ApiInventorySignalName]] = {
     "Mutation": "mutation",
     "Subscription": "subscription",
 }
+_STYLE_TAG_PRIORITY: Final[tuple[_StyleTagRule, ...]] = (
+    _StyleTagRule("graphql", frozenset({"graphql"})),
+    _StyleTagRule("soap_xml", frozenset({"soap", "soap_xml"})),
+    _StyleTagRule("grpc_proto", frozenset({"grpc", "grpc_proto", "proto"})),
+    _StyleTagRule("asyncapi", frozenset({"asyncapi", "async_api"})),
+    _StyleTagRule(
+        "webhook_event",
+        frozenset({"webhook", "webhooks", "event-contract", "event_contract"}),
+    ),
+    _StyleTagRule(
+        "websocket_realtime",
+        frozenset(
+            {
+                "websocket",
+                "websocket_realtime",
+                "ws",
+                "wss",
+                "socketio",
+                "realtime",
+            }
+        ),
+    ),
+    _StyleTagRule("rest_openapi", frozenset({"openapi", "rest", "rest_openapi"})),
+)
 
 
 class ApiInventoryError(ValueError):
@@ -303,6 +334,22 @@ class ApiInventoryResult:
 
     output_path: Path
     packet: ApiInventoryPacket
+
+
+@dataclass(frozen=True, slots=True)
+class _ApiInventorySourceStateCounts:
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+
+    @property
+    def total(self) -> int:
+        return self.present + self.missing + self.invalid + self.unsafe
+
+    @property
+    def unavailable(self) -> int:
+        return self.missing + self.invalid + self.unsafe
 
 
 def run_api_inventory_report(
@@ -1201,33 +1248,10 @@ def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
     AsyncAPI, webhook/event, WebSocket/realtime, REST.
     """
 
-    normalized = {tag.lower() for tag in tags}
-    if "graphql" in normalized:
-        return "graphql"
-    if "soap" in normalized or "soap_xml" in normalized:
-        return "soap_xml"
-    if "grpc" in normalized or "grpc_proto" in normalized or "proto" in normalized:
-        return "grpc_proto"
-    if "asyncapi" in normalized or "async_api" in normalized:
-        return "asyncapi"
-    if (
-        "webhook" in normalized
-        or "webhooks" in normalized
-        or "event-contract" in normalized
-        or "event_contract" in normalized
-    ):
-        return "webhook_event"
-    if (
-        "websocket" in normalized
-        or "websocket_realtime" in normalized
-        or "ws" in normalized
-        or "wss" in normalized
-        or "socketio" in normalized
-        or "realtime" in normalized
-    ):
-        return "websocket_realtime"
-    if "openapi" in normalized or "rest" in normalized or "rest_openapi" in normalized:
-        return "rest_openapi"
+    normalized = frozenset(tag.lower() for tag in tags)
+    for rule in _STYLE_TAG_PRIORITY:
+        if not rule.tags.isdisjoint(normalized):
+            return rule.style
     return None
 
 
@@ -1313,30 +1337,35 @@ def _summary(
     sources: tuple[ApiInventorySource, ...],
     styles: tuple[ApiInventoryStyleSummary, ...],
 ) -> ApiInventorySummary:
-    present = sum(1 for source in sources if source.state == "present")
-    missing = sum(1 for source in sources if source.state == "missing")
-    invalid = sum(1 for source in sources if source.state == "invalid")
-    unsafe = sum(1 for source in sources if source.state == "unsafe")
-    if present > 0 and not (missing or invalid or unsafe):
+    counts = _source_state_counts(sources)
+    present_sources = tuple(source for source in sources if source.state == "present")
+    if counts.present > 0 and counts.unavailable == 0:
         status: ApiInventoryStatus = "ready"
-    elif present > 0 or missing > 0 or invalid > 0 or unsafe > 0:
+    elif counts.total > 0:
         status = "partial"
     else:
         status = "insufficient"
     return ApiInventorySummary(
         status=status,
         sources_total=len(sources),
-        sources_present=present,
-        sources_missing=missing,
-        sources_invalid=invalid,
-        sources_unsafe=unsafe,
+        sources_present=counts.present,
+        sources_missing=counts.missing,
+        sources_invalid=counts.invalid,
+        sources_unsafe=counts.unsafe,
         styles_total=len(styles),
-        hurl_tests_total=sum(
-            1
-            for source in sources
-            if source.kind == "hurl_test" and source.state == "present"
-        ),
-        operations_total=sum(source.operations for source in sources if source.state == "present"),
+        hurl_tests_total=sum(1 for source in present_sources if source.kind == "hurl_test"),
+        operations_total=sum(source.operations for source in present_sources),
+    )
+
+
+def _source_state_counts(
+    sources: tuple[ApiInventorySource, ...],
+) -> _ApiInventorySourceStateCounts:
+    return _ApiInventorySourceStateCounts(
+        present=sum(1 for source in sources if source.state == "present"),
+        missing=sum(1 for source in sources if source.state == "missing"),
+        invalid=sum(1 for source in sources if source.state == "invalid"),
+        unsafe=sum(1 for source in sources if source.state == "unsafe"),
     )
 
 

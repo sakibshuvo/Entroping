@@ -34,9 +34,30 @@ def _write_quality_inputs(root: Path) -> dict[str, Path]:
                 "schema_version": "entroping.test-taxonomy.v1",
                 "test_file_count": 3,
                 "static_test_count": 7,
+                "strict_explicit_categories": [
+                    "integration",
+                    "regression",
+                    "security",
+                ],
                 "categories": {
-                    "behavior": {"file_count": 2, "static_test_count": 4},
-                    "security": {"file_count": 1, "static_test_count": 3},
+                    "behavior": {
+                        "file_count": 2,
+                        "static_test_count": 4,
+                        "provenance": {
+                            "explicit": {"file_count": 0, "static_test_count": 0},
+                            "inferred": {"file_count": 2, "static_test_count": 4},
+                            "mixed": {"file_count": 0, "static_test_count": 0},
+                        },
+                    },
+                    "security": {
+                        "file_count": 1,
+                        "static_test_count": 3,
+                        "provenance": {
+                            "explicit": {"file_count": 1, "static_test_count": 3},
+                            "inferred": {"file_count": 0, "static_test_count": 0},
+                            "mixed": {"file_count": 0, "static_test_count": 0},
+                        },
+                    },
                 },
             }
         ),
