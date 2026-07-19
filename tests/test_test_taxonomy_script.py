@@ -372,6 +372,14 @@ def test_test_taxonomy_excludes_uncollected_marked_functions(
                 "    pass\n\n"
                 "test_guard.__dict__['__test__'] = False\n"
             ),
+            "test_dynamic_dict_update_disabled.py": (
+                "import pytest\n\n"
+                "@pytest.mark.security\n"
+                "def test_guard() -> None:\n"
+                "    pass\n\n"
+                "enabled = False\n"
+                "test_guard.__dict__.update(__test__=enabled)\n"
+            ),
             "test_globals_module_disabled.py": (
                 "import pytest\n\n"
                 "globals()['__test__'] = False\n\n"

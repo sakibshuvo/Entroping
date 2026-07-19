@@ -980,11 +980,13 @@ def _dict_update_test_attribute_control(node: ast.AST) -> tuple[str, bool] | Non
             for key, value in zip(mapping.keys, mapping.values, strict=True)
         )
     for key, value in entries:
-        if key == "__test__" and isinstance(value, ast.Constant) and isinstance(
-            value.value,
-            bool,
-        ):
-            return node.func.value.value.id, value.value
+        if key == "__test__":
+            enabled = (
+                isinstance(value, ast.Constant)
+                and isinstance(value.value, bool)
+                and value.value
+            )
+            return node.func.value.value.id, enabled
     return None
 
 
