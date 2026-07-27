@@ -102,4 +102,44 @@ required full gate: <lane gate>
 merge authority: <who can merge>
 stop conditions: <conditions>
 ```
+
+## Sanitized User-Evidence Packet
+
+For a verified issue derived from user feedback, human-review and redact the
+canonical local downstream artifact before creating the issue or dispatching
+it to a provider. Under one `## User evidence` heading, add exactly this closed
+metadata shape:
+
+```yaml
+user_evidence:
+  schema_version: entroping.user-evidence.v1
+  evidence_status: verified
+  affected_journey: first_run
+  severity: blocker
+  source_classification: design_partner
+  verification_receipt: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
+
+Use only the enums and receipt format defined in `ISSUE_TRACKING.md`. Internal
+observations are not user evidence. A maintainer must compare the receipt with
+the sanitized local artifact before applying `evidence:user-verified`; valid
+metadata or the label alone never establishes verified user demand.
+
+Never put raw feedback, private conversations, direct quotes, private URLs,
+identifiers, or unredacted logs in GitHub or provider prompts. Provider
+dispatch may receive only the sanitized issue packet.
+
+Apply this precedence only after issue #1567's complete fresh-state,
+verification, autonomy, ownership, branch, worktree, PR, lease, overlap, and
+dependency gates pass. Then select the first non-empty bucket: `priority:p0`;
+verified `severity: blocker` user evidence; verified `priority:p1` user
+evidence; other eligible work. Within a bucket, use priority then ascending
+issue number. Malformed, repeated, unlabelled-verified, or unknown metadata
+receives no user-evidence priority and must surface a triage warning.
+
+At initial lease acquisition, snapshot exactly one of `work:product`,
+`work:factory`, or `work:mixed`; missing or conflicting labels become
+`unclassified`. Count each issue receipt once after normal finish, ignore
+retries, and report the most recent 20 or the smaller available sample plus
+`sample_size`. Later label edits do not rewrite receipts. This signal must not
+affect selection or enforce a target or fixed percentage.
