@@ -320,6 +320,24 @@ def test_pr_body_check_rejects_dependabot_pr_without_docs_declaration_for_source
     assert "Documentation Impact Declaration" in result.stderr
 
 
+def test_pr_body_check_rejects_dependabot_pr_with_mixed_dependency_and_source_files(
+    tmp_path: Path,
+) -> None:
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(_dependabot_event()), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        "package-lock.json",
+        "--changed-file",
+        "src/entroping/core/run_workflow.py",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
 def test_pr_body_check_rejects_changed_files_without_verification_lane(
     tmp_path: Path,
 ) -> None:
