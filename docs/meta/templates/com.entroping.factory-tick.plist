@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.entroping.factory-tick</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>{{FACTORYCTL_EXECUTABLE}}</string>
+      <string>tick</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>{{WORKING_DIRECTORY}}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>{{FACTORY_PATH}}</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>StartInterval</key>
+    <integer>{{TICK_INTERVAL_SECONDS}}</integer>
+
+    <key>Disabled</key>
+    <true/>
+
+    <key>Umask</key>
+    <integer>63</integer>
+
+    <key>StandardOutPath</key>
+    <string>{{LOG_DIRECTORY}}/factory-tick.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{LOG_DIRECTORY}}/factory-tick.err.log</string>
+  </dict>
+</plist>

@@ -8,6 +8,11 @@
   tie-breaking, malformed metadata, and a non-quota 20-selection work-mix
   signal are defined explicitly without routing raw feedback to providers.
 
+- Added issue #1564's disabled macOS launchd template and operator runbook.
+  The contract uses explicit paths and environment, one short tick, parsed
+  plist guardrails, and truthful activation gates for scheduler status,
+  retention, and lease safety.
+
 ## 2026-07-11
 
 - Added issue #1507's unified public web experience: Astro 7 renders the

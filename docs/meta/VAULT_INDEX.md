@@ -75,6 +75,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/DISTRIBUTION_RECOMMENDATION|DISTRIBUTION_RECOMMENDATION]] - uv, PyPI, Homebrew tap, and standalone binary sequencing.
 - [[docs/meta/archive/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT (archived)]] - historical Codex-first workflow and future OpenCode/oMLX plan.
 - [[docs/meta/AGENT_CONTROL_PLANE|AGENT_CONTROL_PLANE]] - Codex-first multi-agent control plane for Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
+- [[docs/meta/FACTORY_OPERATIONS|FACTORY_OPERATIONS]] - Entroping factory scheduler runbook and launchd operations.
 - [[docs/meta/prompt-library/README|PROMPT_LIBRARY]] - copy-paste prompt shelf for fresh sessions, issue workers, Spark-safe work, external reviews, bug bashes, launch audits, merge gates, and thread steering.
 - [[docs/meta/KNOWLEDGE_BASE_WORKFLOW|KNOWLEDGE_BASE_WORKFLOW]] - Obsidian-first brain, source-promotion rules, and hallucination controls.
 - [[docs/product/GROWTH_AND_MONETIZATION|GROWTH_AND_MONETIZATION]] - open-source credibility, hype loop, and open-core monetization path.
