@@ -2,6 +2,13 @@
 
 ## 2026-07-26
 
+- Fixed issue #1580's npm dependency security baseline: Astro 7.1.3,
+  PostCSS 8.5.23, fast-uri 3.1.4, and svgo 4.0.2 now resolve above their
+  patched floors with a clean production npm audit. The scoped Dependabot lane
+  accepts npm manifests and lockfiles while human PRs retain documentation
+  declarations, and the public-site test enforces the patched Astro floor plus
+  manifest/lock agreement.
+
 - Added issue #1563's versioned sanitized user-evidence contract. Verified
   scheduling priority now requires both a content-addressed local evidence
   receipt and a maintainer-only GitHub label; selection eligibility, buckets,
