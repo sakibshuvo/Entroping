@@ -13,6 +13,12 @@
   plist guardrails, and truthful activation gates for scheduler status,
   retention, and lease safety.
 
+- Added issue #1557's fail-closed queued-job routing preflight plus plan-first
+  quarantine and explicit requeue workflow. Legacy records retain their exact
+  bytes with receipt-first digest provenance; dispatch and requeue require
+  current issue, file, revision, and cheap-routing evidence, while a durable
+  record keeps replacement creation idempotent across every queue state.
+
 ## 2026-07-11
 
 - Added issue #1507's unified public web experience: Astro 7 renders the

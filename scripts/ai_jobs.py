@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess  # nosec B404
 import sys
@@ -13,6 +14,13 @@ from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Literal
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts import ai_job_fs  # noqa: E402
+from scripts.ai_job_runtime_fs import QueueStateHandles, open_queue_state  # noqa: E402
 
 DEFAULT_JOB_ROOT = Path(".entroping") / "ai-jobs"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
@@ -273,6 +281,8 @@ def _system_temp_root() -> Path:
 
 def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> dict[str, object]:
     files = _validate_files(repo_root, tuple(Path(path) for path in args.files))
+    source_revision = _current_revision(repo_root)
+    file_sha256 = _selected_file_digests(repo_root, files)
     if args.timeout_seconds <= 0:
         msg = "--timeout-seconds must be greater than zero"
         raise AiJobError(msg)
@@ -293,7 +303,7 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         model=model,
         instruction=args.instruction,
     )
-    job = {
+    job: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "job_id": job_id,
         "queue_status": "queued",
@@ -304,6 +314,8 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         "issue": args.issue,
         "instruction": args.instruction,
         "files": files,
+        "source_revision": source_revision,
+        "file_sha256": file_sha256,
         "timeout_seconds": args.timeout_seconds,
         "attempts": 0,
         "created_at": _now(),
@@ -504,37 +516,208 @@ def _has_symlink_component(path: Path) -> bool:
     return any(candidate.is_symlink() for candidate in (path, *path.parents))
 
 
+def _current_revision(repo_root: Path) -> str:
+    try:
+        completed = subprocess.run(  # nosec B603
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        msg = f"current revision could not be resolved: {exc}"
+        raise AiJobError(msg) from exc
+    revision = completed.stdout.strip()
+    if not revision:
+        raise AiJobError("current revision could not be resolved")
+    return revision
+
+
+def _issue_number(value: object, *, required: bool) -> str | None:
+    raw = str(value).strip() if value is not None else ""
+    if not raw:
+        if required:
+            raise AiJobError("job must name a numeric GitHub issue")
+        return None
+    issue = raw.rstrip("/").rsplit("/", maxsplit=1)[-1]
+    if not issue.isdigit():
+        raise AiJobError("job must name a numeric GitHub issue")
+    return issue
+
+
+def _github_issue_snapshot(issue: str) -> dict[str, object]:
+    try:
+        completed = subprocess.run(  # nosec B603
+            [
+                "gh",
+                "issue",
+                "view",
+                issue,
+                "--repo",
+                "sakibshuvo/Entroping",
+                "--json",
+                "state,labels",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        msg = f"GitHub issue revalidation failed for #{issue}: {exc}"
+        raise AiJobError(msg) from exc
+    if completed.returncode != 0:
+        raise AiJobError(f"GitHub issue revalidation failed for #{issue}")
+    try:
+        snapshot = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        msg = f"GitHub issue revalidation returned malformed JSON for #{issue}"
+        raise AiJobError(msg) from exc
+    if not isinstance(snapshot, dict):
+        raise AiJobError(f"GitHub issue revalidation returned invalid data for #{issue}")
+    state = snapshot.get("state")
+    ready = _labels_include_ready(snapshot.get("labels"))
+    if state != "OPEN" or not ready:
+        raise AiJobError(f"GitHub issue #{issue} must be OPEN with status:ready")
+    return {"state": state, "ready": ready}
+
+
+def _labels_include_ready(value: object) -> bool:
+    if not isinstance(value, list):
+        return False
+    return any(
+        isinstance(label, dict) and label.get("name") == "status:ready"
+        for label in value
+    )
+
+
+def _selected_file_digests(repo_root: Path, files: list[str]) -> dict[str, str]:
+    digests: dict[str, str] = {}
+    for relative_path in files:
+        path = repo_root / relative_path
+        if _has_symlink_component(path) or not path.is_file():
+            msg = f"selected file is missing or unsafe: {relative_path}"
+            raise AiJobError(msg)
+        digests[relative_path] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return digests
+
+
+def _job_structure_error(job: dict[str, object]) -> str | None:
+    required_strings = ("job_id", "queue_status", "engine", "mode", "model")
+    for field in required_strings:
+        value = job.get(field)
+        if not isinstance(value, str) or not value:
+            return f"job field {field!r} must be a non-empty string"
+    if job.get("schema_version") != SCHEMA_VERSION:
+        return f"job schema_version must be {SCHEMA_VERSION!r}"
+    if job.get("queue_status") not in QUEUE_STATES:
+        return "job queue_status is not supported"
+    if job.get("engine") not in ("opencode", "deepseek-api"):
+        return "job engine is not supported"
+    if job.get("mode") not in ("review", "patch"):
+        return "job mode is not supported"
+    files = job.get("files")
+    if not isinstance(files, list) or not files:
+        return "job files must be a non-empty list"
+    if any(not isinstance(path, str) or not path for path in files):
+        return "job files must contain non-empty strings"
+    timeout = job.get("timeout_seconds")
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+        return "job timeout_seconds must be greater than zero"
+    attempts = job.get("attempts")
+    if isinstance(attempts, bool) or not isinstance(attempts, int) or attempts < 0:
+        return "job attempts must be a non-negative integer"
+    autonomy_tier = job.get("autonomy_tier")
+    if autonomy_tier is not None and autonomy_tier not in ("tier_a", "tier_b", "tier_c"):
+        return "job autonomy_tier is not supported"
+    return None
+
+
 def _run_next(
     args: argparse.Namespace,
     repo_root: Path,
     job_root: Path,
 ) -> tuple[dict[str, object], int]:
-    _ensure_queue_dirs(job_root)
-    recovered_running_jobs = _fail_recoverable_running_jobs(job_root)
-    if recovered_running_jobs and not any(_state_dir(job_root, "queued").glob("*.json")):
+    try:
+        with open_queue_state(job_root) as queue:
+            return _run_next_pinned(args, repo_root, queue)
+    except ai_job_fs.SafeStateError as exc:
+        raise AiJobError(str(exc)) from exc
+
+
+def _run_next_pinned(
+    args: argparse.Namespace,
+    repo_root: Path,
+    queue: QueueStateHandles,
+) -> tuple[dict[str, object], int]:
+    recovered_running_jobs = _fail_recoverable_running_jobs(queue)
+    if recovered_running_jobs and not queue.names("queued"):
         return _running_recovery_result(recovered_running_jobs)
+    routing_violations = _queued_routing_violations(queue)
+    if routing_violations:
+        return (
+            {
+                "status": "routing-violations-blocked",
+                "job_root": str(queue.job_root),
+                "violation_count": len(routing_violations),
+                "violations": routing_violations,
+            },
+            1,
+        )
     artifact_root = _resolve_root(
         repo_root,
         getattr(args, "artifact_root", DEFAULT_ARTIFACT_ROOT),
         "artifact root",
     )
 
-    running_path = _claim_next_queued_job(job_root)
-    if running_path is None:
+    claimed_name = _claim_next_queued_job(queue)
+    if claimed_name is None:
         if recovered_running_jobs:
             return _running_recovery_result(recovered_running_jobs)
-        return {"status": "empty", "job_root": str(job_root)}, 0
+        return {"status": "empty", "job_root": str(queue.job_root)}, 0
+    running_path = queue.path("running", claimed_name)
 
     try:
-        job = _read_job(running_path)
-    except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
-        return _fail_corrupt_claimed_job(job_root, running_path, exc)
+        job = _decode_job_bytes(queue.read_bytes("running", claimed_name))
+    except (
+        AiJobError,
+        ai_job_fs.SafeStateError,
+        json.JSONDecodeError,
+        OSError,
+        UnicodeDecodeError,
+    ) as exc:
+        return _fail_corrupt_claimed_job(queue, claimed_name, exc)
+
+    structure_error = _job_structure_error(job)
+    if structure_error is not None:
+        return _fail_corrupt_claimed_job(
+            queue,
+            claimed_name,
+            AiJobError(structure_error),
+        )
+    dispatch_violation = _claimed_dispatch_violation(
+        repo_root,
+        running_path,
+        job,
+    )
+    if dispatch_violation is not None:
+        return _restore_dispatch_blocked_job(
+            queue,
+            claimed_name,
+            dispatch_violation,
+        )
 
     job["queue_status"] = "running"
     job["attempts"] = _int_value(job.get("attempts"), default=0) + 1
     job["started_at"] = _now()
     job["updated_at"] = _now()
-    _write_job(running_path, job)
+    queue.write_json("running", claimed_name, job)
 
     try:
         worker_payload, worker_process_returncode = _run_worker(args, repo_root, job)
@@ -582,9 +765,9 @@ def _run_next(
     job["completed_at"] = _now()
     job["updated_at"] = _now()
 
-    terminal_path = _state_dir(job_root, terminal_state) / running_path.name
-    _write_job(terminal_path, job)
-    running_path.unlink(missing_ok=True)
+    terminal_path = queue.path(terminal_state, claimed_name)
+    queue.write_json(terminal_state, claimed_name, job)
+    queue.unlink("running", claimed_name)
 
     return (
         {
@@ -604,34 +787,148 @@ def _run_next(
     )
 
 
-def _claim_next_queued_job(job_root: Path) -> Path | None:
-    running_dir = _state_dir(job_root, "running")
-    for queued_path in sorted(_state_dir(job_root, "queued").glob("*.json")):
-        running_path = running_dir / queued_path.name
-        try:
-            queued_path.rename(running_path)
-        except FileNotFoundError:
-            continue
-        except OSError as exc:
-            msg = f"could not claim queued AI job {queued_path.name}: {exc}"
-            raise AiJobError(msg) from exc
-        return running_path
+def _claim_next_queued_job(queue: QueueStateHandles) -> str | None:
+    try:
+        for name in queue.names("queued"):
+            try:
+                queue.move("queued", "running", name)
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                msg = f"could not claim queued AI job {name}: {exc}"
+                raise AiJobError(msg) from exc
+            return name
+        return None
+    except ai_job_fs.SafeStateError as exc:
+        raise AiJobError(str(exc)) from exc
+
+
+def _claimed_dispatch_violation(
+    repo_root: Path,
+    running_path: Path,
+    job: dict[str, object],
+) -> dict[str, object] | None:
+    routing_violation = _tier_a_routing_violation(job, running_path)
+    if routing_violation is not None:
+        return routing_violation
+    if job.get("autonomy_tier") != "tier_a":
+        return None
+
+    source_revision = job.get("source_revision")
+    expected_digests = job.get("file_sha256")
+    if not isinstance(source_revision, str) or not isinstance(expected_digests, dict):
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="legacy-revalidation-required",
+        )
+    try:
+        current_revision = _current_revision(repo_root)
+    except AiJobError:
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="revision-revalidation-failed",
+        )
+    if source_revision != current_revision:
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="stale-revision",
+        )
+    files = _string_list(job.get("files"))
+    try:
+        validated_files = _validate_files(
+            repo_root,
+            tuple(Path(path) for path in files),
+        )
+        actual_digests = _selected_file_digests(repo_root, validated_files)
+    except AiJobError:
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="selected-files-unavailable",
+        )
+    if expected_digests != actual_digests:
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="selected-files-changed",
+        )
+    try:
+        issue = _issue_number(job.get("issue"), required=False)
+        if issue is not None:
+            _github_issue_snapshot(issue)
+    except AiJobError:
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="issue-revalidation-failed",
+        )
     return None
 
 
-def _fail_recoverable_running_jobs(job_root: Path) -> list[tuple[dict[str, object], int]]:
+def _dispatch_violation_payload(
+    job: dict[str, object],
+    path: Path,
+    *,
+    reason: str,
+) -> dict[str, object]:
+    return {
+        "job_id": job.get("job_id", path.stem),
+        "job_path": str(path),
+        "queue_status": "queued",
+        "reason": reason,
+        "suggested_action": (
+            "run scripts/ai_job_quarantine.py quarantine and review the plan before --apply"
+        ),
+    }
+
+
+def _restore_dispatch_blocked_job(
+    queue: QueueStateHandles,
+    claimed_name: str,
+    violation: dict[str, object],
+) -> tuple[dict[str, object], int]:
+    queued_path = queue.path("queued", claimed_name)
+    try:
+        queue.move("running", "queued", claimed_name)
+    except (ai_job_fs.SafeStateError, OSError) as exc:
+        msg = f"could not restore dispatch-blocked AI job {claimed_name}: {exc}"
+        raise AiJobError(msg) from exc
+    violation["job_path"] = str(queued_path)
+    return (
+        {
+            "status": "dispatch-preflight-blocked",
+            "job_id": violation.get("job_id"),
+            "job_path": str(queued_path),
+            "violation": violation,
+        },
+        1,
+    )
+
+
+def _fail_recoverable_running_jobs(
+    queue: QueueStateHandles,
+) -> list[tuple[dict[str, object], int]]:
     recovered: list[tuple[dict[str, object], int]] = []
-    for running_path in sorted(_state_dir(job_root, "running").glob("*.json")):
+    for name in queue.names("running"):
         try:
-            job = _read_job(running_path)
-        except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
-            recovered.append(_fail_corrupt_claimed_job(job_root, running_path, exc))
+            job = _decode_job_bytes(queue.read_bytes("running", name))
+        except (
+            AiJobError,
+            ai_job_fs.SafeStateError,
+            json.JSONDecodeError,
+            OSError,
+            UnicodeDecodeError,
+        ) as exc:
+            recovered.append(_fail_corrupt_claimed_job(queue, name, exc))
             continue
         failure_status = _recoverable_running_job_status(job)
         if failure_status is None:
             continue
         recovered.append(
-            _fail_running_job(job_root, running_path, job, worker_status=failure_status)
+            _fail_running_job(queue, name, job, worker_status=failure_status)
         )
     return recovered
 
@@ -673,13 +970,13 @@ def _parse_job_timestamp(value: object) -> datetime | None:
 
 
 def _fail_running_job(
-    job_root: Path,
-    running_path: Path,
+    queue: QueueStateHandles,
+    claimed_name: str,
     job: dict[str, object],
     *,
     worker_status: str,
 ) -> tuple[dict[str, object], int]:
-    failed_path = _state_dir(job_root, "failed") / running_path.name
+    failed_path = queue.path("failed", claimed_name)
     job["queue_status"] = "failed"
     job["worker_status"] = worker_status
     job["worker_returncode"] = _int_value(job.get("worker_returncode"), default=1)
@@ -690,12 +987,12 @@ def _fail_running_job(
     job["artifact_dir"] = job.get("artifact_dir")
     job["completed_at"] = _now()
     job["updated_at"] = _now()
-    _write_job(failed_path, job)
-    running_path.unlink(missing_ok=True)
+    queue.write_json("failed", claimed_name, job)
+    queue.unlink("running", claimed_name)
     return (
         {
             "status": "failed",
-            "job_id": job.get("job_id", running_path.stem),
+            "job_id": job.get("job_id", Path(claimed_name).stem),
             "job_path": str(failed_path),
             "worker_status": worker_status,
             "artifact_dir": job.get("artifact_dir"),
@@ -705,14 +1002,14 @@ def _fail_running_job(
 
 
 def _fail_corrupt_claimed_job(
-    job_root: Path,
-    running_path: Path,
+    queue: QueueStateHandles,
+    claimed_name: str,
     exc: Exception,
 ) -> tuple[dict[str, object], int]:
-    failed_path = _state_dir(job_root, "failed") / running_path.name
-    job = {
+    failed_path = queue.path("failed", claimed_name)
+    job: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
-        "job_id": running_path.stem,
+        "job_id": Path(claimed_name).stem,
         "queue_status": "failed",
         "worker_status": "corrupt-queued-job",
         "worker_returncode": 1,
@@ -722,8 +1019,8 @@ def _fail_corrupt_claimed_job(
         "completed_at": _now(),
         "updated_at": _now(),
     }
-    _write_job(failed_path, job)
-    running_path.unlink(missing_ok=True)
+    queue.write_json("failed", claimed_name, job)
+    queue.unlink("running", claimed_name)
     return (
         {
             "status": "failed",
@@ -812,21 +1109,7 @@ def _run_worker(
     except subprocess.TimeoutExpired:
         return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
 
-    try:
-        payload = json.loads(completed.stdout)
-    except json.JSONDecodeError:
-        payload = {
-            "status": "failed",
-            "returncode": completed.returncode,
-            "artifact_dir": None,
-        }
-    if not isinstance(payload, dict):
-        payload = {
-            "status": "failed",
-            "returncode": completed.returncode,
-            "artifact_dir": None,
-        }
-    return payload, completed.returncode
+    return _parse_worker_payload(completed.stdout, completed.returncode), completed.returncode
 
 
 def _run_deepseek_worker(
@@ -888,21 +1171,21 @@ def _run_deepseek_worker(
     except subprocess.TimeoutExpired:
         return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
 
+    return _parse_worker_payload(completed.stdout, completed.returncode), completed.returncode
+
+
+def _parse_worker_payload(stdout: str, returncode: int) -> dict[str, object]:
     try:
-        payload = json.loads(completed.stdout)
+        raw_payload: object = json.loads(stdout)
     except json.JSONDecodeError:
-        payload = {
-            "status": "failed",
-            "returncode": completed.returncode,
-            "artifact_dir": None,
-        }
-    if not isinstance(payload, dict):
-        payload = {
-            "status": "failed",
-            "returncode": completed.returncode,
-            "artifact_dir": None,
-        }
-    return payload, completed.returncode
+        return {"status": "failed", "returncode": returncode, "artifact_dir": None}
+    if not isinstance(raw_payload, dict):
+        return {"status": "failed", "returncode": returncode, "artifact_dir": None}
+    payload: dict[str, object] = {}
+    for key, value in raw_payload.items():
+        if isinstance(key, str):
+            payload[key] = value
+    return payload
 
 
 def _effective_worker_instruction(job: dict[str, object]) -> str | None:
@@ -984,6 +1267,37 @@ def _audit_routing(job_root: Path) -> dict[str, object]:
     }
 
 
+def _queued_routing_violations(
+    queue: QueueStateHandles,
+) -> list[dict[str, object]]:
+    violations: list[dict[str, object]] = []
+    for name in queue.names("queued"):
+        path = queue.path("queued", name)
+        try:
+            job = _decode_job_bytes(queue.read_bytes("queued", name))
+        except ai_job_fs.SafeStateError:
+            violations.append(_unsafe_queued_job_payload(path, reason="unsafe-job-path"))
+            continue
+        except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError):
+            continue
+        violation = _tier_a_routing_violation(job, path)
+        if violation is not None:
+            violations.append(violation)
+    return violations
+
+
+def _unsafe_queued_job_payload(path: Path, *, reason: str) -> dict[str, object]:
+    return {
+        "job_id": path.stem,
+        "job_path": str(path),
+        "queue_status": "queued",
+        "reason": reason,
+        "suggested_action": (
+            "run scripts/ai_job_quarantine.py quarantine and review the plan before --apply"
+        ),
+    }
+
+
 def _tier_a_routing_violation(
     job: dict[str, object],
     path: Path,
@@ -1042,6 +1356,7 @@ def _routing_violation_payload(
         "job_id": job.get("job_id", path.stem),
         "job_path": str(path),
         "queue_status": job.get("queue_status"),
+        "reason": "tier-a-routing-violation",
         "issue": job.get("issue"),
         "engine": job.get("engine", "opencode"),
         "profile": job.get("profile"),
@@ -1114,8 +1429,13 @@ def _optional_string(value: object) -> str | None:
 
 
 def _ensure_queue_dirs(job_root: Path) -> None:
-    for state in QUEUE_STATES:
-        _state_dir(job_root, state).mkdir(parents=True, exist_ok=True)
+    try:
+        ai_job_fs.ensure_job_root(job_root)
+        for state in QUEUE_STATES:
+            with ai_job_fs.open_state_directory(job_root, state):
+                pass
+    except ai_job_fs.SafeStateError as exc:
+        raise AiJobError(str(exc)) from exc
 
 
 def _state_dir(job_root: Path, state: str) -> Path:
@@ -1123,10 +1443,20 @@ def _state_dir(job_root: Path, state: str) -> Path:
 
 
 def _read_job(path: Path) -> dict[str, object]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
+    return _decode_job_bytes(path.read_bytes(), path=path)
+
+
+def _decode_job_bytes(raw: bytes, *, path: Path | None = None) -> dict[str, object]:
+    raw_payload: object = json.loads(raw.decode("utf-8"))
+    if not isinstance(raw_payload, dict):
         msg = f"job file is not an object: {path}"
         raise AiJobError(msg)
+    payload: dict[str, object] = {}
+    for key, value in raw_payload.items():
+        if not isinstance(key, str):
+            msg = f"job file has a non-string key: {path}"
+            raise AiJobError(msg)
+        payload[key] = value
     return payload
 
 

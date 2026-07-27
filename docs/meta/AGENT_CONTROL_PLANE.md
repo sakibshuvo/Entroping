@@ -76,7 +76,23 @@ Use the artifact-first worker contract for routine cheap/open-model work. Do
 not run OpenCode interactively for routine cheap-worker work when a repo-owned
 worker harness can capture bounded artifacts. Before dispatching queued cheap
 workers, run `scripts/ai_jobs.py audit-routing --json` to surface stale Tier A
-jobs that drifted into expensive routing. After a worker finishes, use
+jobs that drifted into expensive routing. `run-next` performs both a queue-wide
+preflight and a post-claim recheck of Tier A routing, source revision, selected
+file digests, and any named GitHub issue; it restores the claimed job without
+calling a worker when that evidence is stale or unavailable. Use
+`scripts/ai_job_quarantine.py quarantine --json` to preview the exact legacy
+records that would move, then repeat with `--apply` only after review. Original
+bytes and a digest-bearing receipt remain under ignored repo-owned state. The
+receipt is committed before the move so a retry can safely finish an interrupted
+quarantine. Queue, quarantine, receipt, and requeue-record operations use
+non-following directory handles and reject symlinked or non-regular state
+entries. A current Tier A job whose named issue is no longer open and ready is
+also a quarantine candidate rather than a repeated dispatch poison pill. A
+quarantined job can return to the queue only through an explicit `requeue`
+operation that rechecks the live issue, selected files, current revision, and
+the requested cheap routing. A durable requeue record makes repeats idempotent
+across queued, running, completed, and failed states. Neither command calls a
+provider or substitutes a model automatically. After a worker finishes, use
 `scripts/factory_review_packet.py --job-id <job-id> --json` or
 `scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json` to
 build a compact review packet. Codex should review only the job metadata,
