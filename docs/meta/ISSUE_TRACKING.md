@@ -36,6 +36,87 @@ Use a small label system so the queue stays readable:
 - Security vulnerabilities should use private security advisories, not public issues.
 - A ticket is ready only when the next action is clear enough for a fresh agent to execute.
 
+## User-Evidence Metadata Contract
+
+When a ready issue is grounded in user feedback, place exactly one YAML block
+under an `## User evidence` heading. The block has this versioned, closed
+shape; unknown or repeated fields are invalid:
+
+```yaml
+user_evidence:
+  schema_version: entroping.user-evidence.v1
+  evidence_status: verified
+  affected_journey: first_run
+  severity: blocker
+  source_classification: design_partner
+  verification_receipt: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+- `evidence_status`: `unverified` or `verified`.
+- `affected_journey`: `install`, `first_run`, `author`, `run`, `report`,
+  `integrate`, or `other`.
+- `severity`: `blocker`, `major`, or `minor`. A blocker prevents completion of
+  the supported journey, major impact requires a substantial workaround or
+  loses reliability, and minor impact adds friction while completion remains
+  practical. This describes user impact; `priority:p0` through `priority:p3`
+  continue to describe scheduling urgency.
+- `source_classification`: `design_partner`, `support`, `public_issue`, or
+  `other_user_channel`. Every value means evidence supplied by a real user;
+  internal observations are not user evidence.
+- `verification_receipt`: `sha256:` plus the lowercase SHA-256 digest of the
+  canonical sanitized local downstream-feedback artifact. It must not contain
+  a path, URL, person, organization, project, quote, or source value.
+
+The body cannot self-certify verification. `evidence_status: verified` counts
+as verified user demand only while the issue also has the maintainer-controlled
+`evidence:user-verified` label. A maintainer may apply that label only after
+reviewing the canonical local artifact, confirming its digest matches the
+receipt, and completing manual redaction. Remove the label when the claim,
+metadata, or artifact changes.
+
+Never put raw feedback, private conversations, direct quotes, private URLs,
+identifiers, or unredacted logs in GitHub or provider prompts. Provider
+dispatch may receive only the sanitized issue packet. The canonical local
+downstream artifact remains product-learning evidence, not proof of market
+validation.
+
+Missing metadata leaves an issue in the ordinary ready-work bucket. Multiple
+blocks, unknown keys, invalid enums, a malformed receipt, a verified body
+without the verification label, or a label without matching valid metadata
+must fail closed from user-evidence priority and surface a triage warning; the
+issue is not rejected from ordinary ready work solely for that reason.
+
+### Deterministic selection precedence
+
+This contract defines precedence, not the complete selector safety boundary.
+Issue #1567 must first enforce its full fresh-state eligibility gates: complete
+issue contract, verification lane, autonomy ceiling, ownership, branch,
+worktree, PR, lease, overlap, and dependency checks. At minimum, a precedence
+candidate must also be open, have `status:ready`, have no other `status:*`
+label, and have no unresolved `Blocked by` dependency. Only after every #1567
+gate passes, select the first non-empty bucket:
+
+1. issues with `priority:p0`;
+2. valid verified user evidence with `severity: blocker`;
+3. valid verified user evidence with `priority:p1`;
+4. all other eligible issues.
+
+Within a bucket, sort by `priority:p0` through `priority:p3`, then by ascending
+issue number. `status:blocked` is never a blocker bucket; it makes the issue
+ineligible.
+
+The repository owns the maintainer labels `evidence:user-verified`,
+`work:product`, `work:factory`, and `work:mixed`. At initial successful lease
+acquisition, snapshot exactly one `work:*` value into the immutable selection
+receipt. Missing or conflicting work labels snapshot as `unclassified` and
+surface a triage warning. Count a receipt in the work-mix metric only after its
+issue reaches the normal finished/`status:done` boundary; retries and repeated
+selections of the same issue receipt do not add observations. Report the 20
+most recent counted receipts, or all available receipts when fewer than 20
+exist, together with `sample_size`. Later GitHub label edits do not rewrite the
+snapshot. The metric is informational only: it must not change selection,
+define a target, or enforce a fixed percentage.
+
 ## Bug Fix Flow
 
 ```text

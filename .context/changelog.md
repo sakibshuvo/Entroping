@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-07-26
+
+- Added issue #1563's versioned sanitized user-evidence contract. Verified
+  scheduling priority now requires both a content-addressed local evidence
+  receipt and a maintainer-only GitHub label; selection eligibility, buckets,
+  tie-breaking, malformed metadata, and a non-quota 20-selection work-mix
+  signal are defined explicitly without routing raw feedback to providers.
+
 ## 2026-07-11
 
 - Added issue #1507's unified public web experience: Astro 7 renders the

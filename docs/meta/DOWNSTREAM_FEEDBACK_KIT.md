@@ -105,6 +105,32 @@ Bad evidence:
 - Screenshots or logs containing private repository names or private URLs.
 - Full traffic captures.
 
+## GitHub User-Evidence Metadata
+
+After human review and manual redaction, a concrete friction issue may use the
+closed contract in [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]]:
+
+```yaml
+user_evidence:
+  schema_version: entroping.user-evidence.v1
+  evidence_status: verified
+  affected_journey: first_run
+  severity: blocker
+  source_classification: design_partner
+  verification_receipt: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+Generate `verification_receipt` from the canonical sanitized local artifact,
+then have a maintainer compare the digest before applying
+`evidence:user-verified`. The label and valid metadata are both required;
+neither is verified user demand alone. Internal observations are not user
+evidence.
+
+Never put raw feedback, private conversations, direct quotes, private URLs,
+identifiers, or unredacted logs in GitHub or provider prompts. Provider
+dispatch may receive only the sanitized issue packet. Keep the original source
+private and complete manual review before provider dispatch.
+
 ## Review Workflow
 
 1. Ask the downstream user to fill the template.

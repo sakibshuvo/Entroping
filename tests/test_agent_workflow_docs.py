@@ -4,6 +4,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _concat_text(*parts: str) -> str:
@@ -443,10 +445,103 @@ def test_backlog_triage_prompt_requires_status_ready_open_code_fields() -> None:
         "must include at least those Tier A exclusions",
         "add narrower exclusions for the specific issue when needed",
         "forbidden scope: <exact exclusions, including the minimum Tier A exclusions>",
+        "entroping.user-evidence.v1",
+        "Sanitized User-Evidence Packet",
+        "evidence_status",
+        "affected_journey",
+        "severity",
+        "source_classification",
+        "verification_receipt",
+        "evidence:user-verified",
+        "Internal observations are not user evidence",
+        "Provider dispatch may receive only the sanitized issue packet",
+        "priority:p0",
+        "ascending issue number",
+        "most recent 20",
+        "must not affect selection",
+        "fixed percentage",
     ]
 
     for term in required_terms:
         assert term in normalized
+
+
+def test_user_evidence_contract_is_closed_consistent_and_fail_closed() -> None:
+    documents = {
+        "User-Evidence Metadata Contract": REPO_ROOT
+        / "docs"
+        / "meta"
+        / "ISSUE_TRACKING.md",
+        "GitHub User-Evidence Metadata": REPO_ROOT
+        / "docs"
+        / "meta"
+        / "DOWNSTREAM_FEEDBACK_KIT.md",
+        "Sanitized User-Evidence Packet": REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "backlog-triage.md",
+    }
+    expected = {
+        "user_evidence": {
+            "schema_version": "entroping.user-evidence.v1",
+            "evidence_status": "verified",
+            "affected_journey": "first_run",
+            "severity": "blocker",
+            "source_classification": "design_partner",
+            "verification_receipt": (
+                "sha256:0123456789abcdef0123456789abcdef"
+                "0123456789abcdef0123456789abcdef"
+            ),
+        }
+    }
+    required_safety_terms = [
+        "evidence:user-verified",
+        "never put raw feedback",
+        "provider dispatch may receive only the sanitized issue packet",
+        "internal observations are not user evidence",
+    ]
+
+    for heading, path in documents.items():
+        content = path.read_text(encoding="utf-8")
+        match = re.search(
+            rf"## {re.escape(heading)}.*?```yaml\n(.*?)\n```",
+            content,
+            flags=re.DOTALL,
+        )
+        assert match is not None
+        assert yaml.safe_load(match.group(1)) == expected
+        normalized = " ".join(content.split()).lower()
+        for term in required_safety_terms:
+            assert term in normalized
+
+    issue_tracking = documents["User-Evidence Metadata Contract"].read_text(
+        encoding="utf-8"
+    )
+    normalized_issue_tracking = " ".join(issue_tracking.split())
+    assert "exactly one YAML block" in normalized_issue_tracking
+    assert "unknown or repeated fields are invalid" in normalized_issue_tracking
+    assert "Issue #1567 must first enforce its full fresh-state eligibility gates" in (
+        normalized_issue_tracking
+    )
+    assert "ownership, branch, worktree, PR, lease, overlap" in (
+        normalized_issue_tracking
+    )
+    assert "have no other `status:*` label" in normalized_issue_tracking
+    assert "have no unresolved `Blocked by` dependency" in normalized_issue_tracking
+    assert "must fail closed from user-evidence priority" in normalized_issue_tracking
+    assert "20 most recent counted receipts" in normalized_issue_tracking
+    assert "snapshot exactly one `work:*` value" in normalized_issue_tracking
+    assert "Missing or conflicting work labels snapshot as `unclassified`" in (
+        normalized_issue_tracking
+    )
+    assert "retries and repeated selections" in normalized_issue_tracking
+    assert "when fewer than 20 exist" in normalized_issue_tracking
+    assert "together with `sample_size`" in normalized_issue_tracking
+    assert "Later GitHub label edits do not rewrite the snapshot" in (
+        normalized_issue_tracking
+    )
+    assert "must not change selection" in normalized_issue_tracking
 
 
 def test_agent_workflow_docs_document_verification_lanes() -> None:

@@ -12,6 +12,7 @@ def test_downstream_feedback_kit_collects_required_safe_evidence() -> None:
         encoding="utf-8"
     )
 
+    normalized = " ".join(kit.split())
     required_terms = [
         "install path",
         "operating system",
@@ -28,7 +29,34 @@ def test_downstream_feedback_kit_collects_required_safe_evidence() -> None:
         "maintainer-controlled local smoke is not real downstream user feedback",
     ]
     for term in required_terms:
-        assert term in kit
+        assert term in normalized
+
+
+def test_downstream_feedback_kit_tracks_user_evidence_metadata() -> None:
+    kit = (REPO_ROOT / "docs" / "meta" / "DOWNSTREAM_FEEDBACK_KIT.md").read_text(
+        encoding="utf-8"
+    )
+
+    normalized = " ".join(kit.split())
+    required_terms = [
+        "GitHub User-Evidence Metadata",
+        "entroping.user-evidence.v1",
+        "evidence_status",
+        "affected_journey",
+        "severity",
+        "source_classification",
+        "verification_receipt",
+        "evidence:user-verified",
+        "verified user demand",
+        "human review",
+        "manual redaction",
+        "manual review before provider dispatch",
+        "Internal observations are not user evidence",
+        "Provider dispatch may receive only the sanitized issue packet",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
 
 
 def test_downstream_feedback_kit_is_linked_from_stable_core_and_contributor_docs() -> None:
