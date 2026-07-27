@@ -278,6 +278,7 @@ def test_ci_workflow_runs_checked_astro_public_site_build() -> None:
     assert docs_site["runs-on"] == "ubuntu-latest"
     assert docs_site["needs"] == "checks"
     assert "npm ci" in run_blocks
+    assert "npm run test:deps" in run_blocks
     assert "npm run format:check" in run_blocks
     assert "npm run check" in run_blocks
     assert "npm run build" in run_blocks

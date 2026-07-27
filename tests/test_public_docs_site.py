@@ -136,6 +136,7 @@ def test_site_scaffold_is_astro_not_mkdocs() -> None:
         (REPO_ROOT / "package-lock.json").read_text(encoding="utf-8")
     )
     assert package["scripts"]["build"] == "astro build"
+    assert package["scripts"]["test:deps"] == "npm ls --all"
     assert package["scripts"]["test:site"] == "node scripts/check-site-build.mjs"
     assert package["dependencies"]["@astrojs/starlight"] == "0.41.3"
     astro_version = package["dependencies"]["astro"]
@@ -227,6 +228,7 @@ def test_pages_workflow_builds_astro_and_deploys_with_least_privilege() -> None:
         "pages": "write",
     }
     assert "npm ci" in build_run_blocks
+    assert "npm run test:deps" in build_run_blocks
     assert "npm run format:check" in build_run_blocks
     assert "npm run check" in build_run_blocks
     assert "npm run build" in build_run_blocks

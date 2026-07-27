@@ -12,6 +12,7 @@
     "preview": "astro preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test:deps": "npm ls --all",
     "test:site": "node scripts/check-site-build.mjs"
   },
   "dependencies": {

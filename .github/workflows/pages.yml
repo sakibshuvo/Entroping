@@ -35,6 +35,9 @@ jobs:
       - name: Install site dependencies
         run: npm ci
 
+      - name: Validate site dependency graph
+        run: npm run test:deps
+
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
 
