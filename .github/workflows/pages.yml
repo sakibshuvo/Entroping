@@ -38,6 +38,9 @@ jobs:
       - name: Validate site dependency graph
         run: npm run test:deps
 
+      - name: Audit production site dependencies
+        run: npm run test:security
+
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
 

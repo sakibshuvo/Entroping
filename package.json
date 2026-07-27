@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:deps": "npm ls --all",
+    "test:security": "npm audit --omit=dev",
     "test:site": "node scripts/check-site-build.mjs"
   },
   "dependencies": {

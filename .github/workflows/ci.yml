@@ -111,6 +111,9 @@ jobs:
       - name: Validate site dependency graph
         run: npm run test:deps
 
+      - name: Audit production site dependencies
+        run: npm run test:security
+
       - name: Check site formatting
         run: npm run format:check
 
