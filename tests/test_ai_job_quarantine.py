@@ -1142,7 +1142,7 @@ def test_dispatch_restore_rejects_concurrently_swapped_queue_directory(
 
     def swap_before_restore(
         repo_root: Path,
-        running_path: Path,
+        _running_path: Path,
         job: dict[str, object],
     ) -> dict[str, object]:
         queued_path.parent.rmdir()
