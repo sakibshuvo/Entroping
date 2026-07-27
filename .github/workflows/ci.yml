@@ -67,6 +67,22 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install site dependencies
+        run: npm ci
+
+      - name: Validate site dependency graph
+        run: npm run test:deps
+
+      - name: Audit production site dependencies
+        run: npm run test:security
+
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
@@ -107,6 +123,12 @@ jobs:
 
       - name: Install site dependencies
         run: npm ci
+
+      - name: Validate site dependency graph
+        run: npm run test:deps
+
+      - name: Audit production site dependencies
+        run: npm run test:security
 
       - name: Check site formatting
         run: npm run format:check

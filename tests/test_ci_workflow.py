@@ -278,6 +278,8 @@ def test_ci_workflow_runs_checked_astro_public_site_build() -> None:
     assert docs_site["runs-on"] == "ubuntu-latest"
     assert docs_site["needs"] == "checks"
     assert "npm ci" in run_blocks
+    assert "npm run test:deps" in run_blocks
+    assert "npm run test:security" in run_blocks
     assert "npm run format:check" in run_blocks
     assert "npm run check" in run_blocks
     assert "npm run build" in run_blocks
@@ -290,6 +292,39 @@ def test_ci_workflow_runs_checked_astro_public_site_build() -> None:
         and step.get("with", {}).get("cache-dependency-path") == "package-lock.json"
         for step in steps
     )
+
+
+def test_ci_workflow_runs_npm_security_gates_in_required_quality_audit() -> None:
+    workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    quality_audit = workflow["jobs"]["quality-audit"]
+    steps = quality_audit["steps"]
+    step_names = [str(step.get("name", "")) for step in steps]
+
+    assert quality_audit["needs"] == "checks"
+    assert any(
+        step.get("uses") == _SETUP_NODE_PIN
+        and step.get("with", {}).get("node-version") == "24"
+        and step.get("with", {}).get("cache") == "npm"
+        and step.get("with", {}).get("cache-dependency-path") == "package-lock.json"
+        for step in steps
+    )
+    assert step_names.index("Install site dependencies") < step_names.index(
+        "Validate site dependency graph"
+    )
+    assert step_names.index("Validate site dependency graph") < step_names.index(
+        "Audit production site dependencies"
+    )
+    assert next(
+        step["run"]
+        for step in steps
+        if step.get("name") == "Validate site dependency graph"
+    ) == "npm run test:deps"
+    assert next(
+        step["run"]
+        for step in steps
+        if step.get("name") == "Audit production site dependencies"
+    ) == "npm run test:security"
 
 
 def test_optional_extras_smoke_script_exercises_optional_runtime_boundaries() -> None:

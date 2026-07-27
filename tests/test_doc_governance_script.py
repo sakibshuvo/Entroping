@@ -200,6 +200,28 @@ def test_pr_body_check_accepts_scoped_dependabot_pr_without_docs_declaration(
     assert "dependency automation lane" in result.stdout
 
 
+def test_pr_body_check_accepts_scoped_dependabot_npm_pr_without_docs_declaration(
+    tmp_path: Path,
+) -> None:
+    event = _dependabot_event()
+    pull_request = event["pull_request"]
+    assert isinstance(pull_request, dict)
+    pull_request["title"] = "build(deps): bump astro from 7.0.7 to 7.1.3"
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        "package.json",
+        "--changed-file",
+        "package-lock.json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "dependency automation lane" in result.stdout
+
+
 def test_pr_body_check_rejects_malformed_dependabot_title_without_docs_declaration(
     tmp_path: Path,
 ) -> None:
@@ -239,6 +261,28 @@ def test_pr_body_check_rejects_human_pr_without_docs_declaration_for_dependency_
     assert "Documentation Impact Declaration" in result.stderr
 
 
+def test_pr_body_check_rejects_human_npm_pr_without_docs_declaration(
+    tmp_path: Path,
+) -> None:
+    event = _dependabot_event(login="sakibshuvo")
+    pull_request = event["pull_request"]
+    assert isinstance(pull_request, dict)
+    pull_request["title"] = "build(deps): bump astro from 7.0.7 to 7.1.3"
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        "package.json",
+        "--changed-file",
+        "package-lock.json",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
 def test_pr_body_check_rejects_nonstandard_dependency_author_without_docs_declaration(
     tmp_path: Path,
 ) -> None:
@@ -268,6 +312,24 @@ def test_pr_body_check_rejects_dependabot_pr_without_docs_declaration_for_source
 
     result = run_pr_body_check(
         str(event_path),
+        "--changed-file",
+        "src/entroping/core/run_workflow.py",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
+def test_pr_body_check_rejects_dependabot_pr_with_mixed_dependency_and_source_files(
+    tmp_path: Path,
+) -> None:
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(_dependabot_event()), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        "package-lock.json",
         "--changed-file",
         "src/entroping/core/run_workflow.py",
     )
