@@ -71,6 +71,8 @@ DEPENDENCY_AUTOMATION_FILE_PATTERNS = (
     "requirements*.in",
     "constraints*.txt",
     "constraints*.in",
+    "package.json",
+    "package-lock.json",
     "docs/meta/dependency-license-policy.json",
 )
 SECURITY_GATE_RE = re.compile(

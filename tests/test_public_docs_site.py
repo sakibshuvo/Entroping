@@ -132,10 +132,15 @@ def test_site_scaffold_is_astro_not_mkdocs() -> None:
     assert not (REPO_ROOT / "mkdocs.yml").exists()
 
     package = json.loads(PACKAGE.read_text(encoding="utf-8"))
+    package_lock = json.loads(
+        (REPO_ROOT / "package-lock.json").read_text(encoding="utf-8")
+    )
     assert package["scripts"]["build"] == "astro build"
     assert package["scripts"]["test:site"] == "node scripts/check-site-build.mjs"
     assert package["dependencies"]["@astrojs/starlight"] == "0.41.3"
-    assert package["dependencies"]["astro"] == "7.0.7"
+    astro_version = package["dependencies"]["astro"]
+    assert tuple(int(part) for part in astro_version.split(".")) >= (7, 1, 0)
+    assert package_lock["packages"][""]["dependencies"]["astro"] == astro_version
     assert 'PageTitle: "./src/components/docs/Empty.astro"' in (
         ASTRO_CONFIG.read_text(encoding="utf-8")
     )
