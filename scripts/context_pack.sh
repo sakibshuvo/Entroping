@@ -381,8 +381,9 @@ emit_context_pack() {
 
 - Codex integrates unless reassigned by a human; workers advise; files/tests/issues/ADRs/CI decide.
 - Follow DECISION_REGISTRY source links; summaries only index.
-- Lock v4.1; keep `entroping run` deterministic and LLM-free.
-- Distrust traffic/model output/YAML/paths/globs/subprocess output.
+- Keep v4.1 command surface locked; change product docs and ADRs first.
+- Keep `entroping run` deterministic and LLM-free.
+- Treat traffic/model output/YAML/paths/globs/subprocess output as untrusted.
 - Historical source material is evidence, not automatic current truth.
 - The NotebookLM Markdown export is the primary current source snapshot.
 

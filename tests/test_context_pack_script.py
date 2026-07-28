@@ -6,9 +6,11 @@ import subprocess
 import uuid
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Final
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "context_pack.sh"
+MINIMUM_STRESS_HEADROOM_BYTES: Final = 256
 
 
 def run_context_pack(
@@ -122,16 +124,17 @@ def test_context_pack_required_rules_stay_complete_and_compact() -> None:
         "\n## Current Git Status",
         1,
     )[0]
-    assert len(rules.encode("utf-8")) <= 438
+    assert len(rules.encode("utf-8")) <= 520
     for anchor in (
         "Codex integrates unless reassigned by a human",
         "workers advise",
         "files/tests/issues/ADRs/CI decide",
         "DECISION_REGISTRY source links",
         "summaries only index",
-        "v4.1",
+        "v4.1 command surface locked",
+        "product docs and ADRs first",
         "`entroping run` deterministic and LLM-free",
-        "traffic/model output/YAML/paths/globs/subprocess output",
+        "traffic/model output/YAML/paths/globs/subprocess output as untrusted",
         "Historical source material is evidence, not automatic current truth",
         "NotebookLM Markdown export is the primary current source snapshot",
     ):
@@ -149,12 +152,18 @@ def test_context_pack_limits_large_git_status_listing() -> None:
         strict_result = run_context_pack(
             "--mode",
             "implementation",
+            "--manifest",
             "--strict-budget",
         )
 
         assert result.returncode == 0, result.stderr
         assert strict_result.returncode == 0, strict_result.stderr
         assert "additional status line(s) omitted; run git status --short" in result.stdout
+        manifest: dict[str, int] = json.loads(strict_result.stdout)
+        assert (
+            manifest["budget_bytes"] - manifest["context_bytes"]
+            >= MINIMUM_STRESS_HEADROOM_BYTES
+        )
     finally:
         for path in paths:
             path.unlink(missing_ok=True)
