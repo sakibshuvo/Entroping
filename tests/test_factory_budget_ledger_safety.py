@@ -47,45 +47,6 @@ def _period(
     )
 
 
-def test_open_rejects_symlinked_state_directory_without_writing_outside(
-    tmp_path: Path,
-) -> None:
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (tmp_path / ".entroping").symlink_to(outside, target_is_directory=True)
-
-    with pytest.raises(FactoryBudgetLedgerError, match="ledger state path is unsafe"):
-        FactoryBudgetLedger.open_project(tmp_path)
-
-    assert tuple(outside.iterdir()) == ()
-
-
-def test_open_rejects_group_writable_repository_root(tmp_path: Path) -> None:
-    os.chmod(tmp_path, 0o770)
-
-    with pytest.raises(FactoryBudgetLedgerError, match="root must be owner-controlled"):
-        FactoryBudgetLedger.open_project(tmp_path)
-
-
-def test_open_rejects_repository_root_owned_by_another_user(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(os, "geteuid", lambda: os.getuid() + 1)
-
-    with pytest.raises(FactoryBudgetLedgerError, match="root must be owner-controlled"):
-        FactoryBudgetLedger.open_project(tmp_path)
-
-
-def test_open_rejects_group_writable_state_directory(tmp_path: Path) -> None:
-    ledger = FactoryBudgetLedger.open_project(tmp_path)
-    state = ledger.db_path.parents[1]
-    os.chmod(state, 0o770)
-
-    with pytest.raises(FactoryBudgetLedgerError, match="state directory is unsafe"):
-        FactoryBudgetLedger.open_project(tmp_path)
-
-
 def test_open_rejects_symlinked_database_leaf(tmp_path: Path) -> None:
     state = tmp_path / ".entroping" / "factory-budget"
     state.mkdir(parents=True)

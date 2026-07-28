@@ -23,7 +23,6 @@ from .factory_budget_ledger_fs import (
     fsync_regular,
     nofollow_flag,
     open_lock,
-    open_private_relative_directory,
     path_file_identity,
     recover_published_initialization,
     reject_unsafe_sidecars,
@@ -32,6 +31,7 @@ from .factory_budget_ledger_fs import (
     validated_root,
 )
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
+from .factory_budget_ledger_parent_fs import open_private_relative_directory
 from .factory_budget_ledger_schema import initialize_schema, validate_schema
 
 BUSY_TIMEOUT_MILLISECONDS = 5_000

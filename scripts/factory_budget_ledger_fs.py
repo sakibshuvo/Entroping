@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import os
 import stat
-from collections.abc import Generator
-from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from scripts.factory_retention_fs import RetentionFsError
 
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
+from .factory_budget_ledger_parent_fs import open_private_relative_directory
 
 LEDGER_DIRECTORY = (".entroping", "factory-budget")
 LEDGER_NAME = "ledger.sqlite3"
@@ -36,60 +35,14 @@ def validated_root(repo_root: Path) -> Path:
     root = repo_root.expanduser()
     if not root.is_absolute():
         root = root.absolute()
+    if any(part == ".." for part in root.parts):
+        raise FactoryBudgetLedgerError(
+            "path",
+            "repository root must not contain parent traversal",
+        )
     if not root.is_dir() or root.is_symlink():
         raise FactoryBudgetLedgerError("path", "repository root must be a real directory")
     return root
-
-
-@contextmanager
-def open_private_relative_directory(
-    repo_root: Path,
-    parts: tuple[str, ...],
-    *,
-    create: bool,
-) -> Generator[int, None, None]:
-    flags = os.O_RDONLY | _directory_flag() | nofollow_flag()
-    descriptors: list[int] = []
-    try:
-        current = os.open(repo_root, flags)
-        descriptors.append(current)
-        validate_repository_root(current)
-        for part in parts:
-            if not part or part in {".", ".."} or Path(part).name != part:
-                raise RetentionFsError("ledger directory path is invalid")
-            if create:
-                with suppress(FileExistsError):
-                    os.mkdir(part, mode=0o700, dir_fd=current)
-            child = os.open(part, flags, dir_fd=current)
-            descriptors.append(child)
-            validate_private_directory(child)
-            current = child
-    except OSError as exc:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-        raise RetentionFsError("could not open private ledger directory") from exc
-    except BaseException:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-        raise
-    try:
-        yield current
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-
-
-def validate_repository_root(directory_fd: int) -> None:
-    metadata = os.fstat(directory_fd)
-    if (
-        not stat.S_ISDIR(metadata.st_mode)
-        or metadata.st_uid != os.geteuid()
-        or stat.S_IMODE(metadata.st_mode) & 0o022
-    ):
-        raise FactoryBudgetLedgerError(
-            "path",
-            "repository root must be owner-controlled",
-        )
 
 
 def open_lock(directory_fd: int, name: str) -> int:
@@ -155,16 +108,6 @@ def reject_unsafe_sidecars(directory_fd: int) -> None:
             raise FactoryBudgetLedgerError("path", "ledger sidecar is unsafe")
 
 
-def validate_private_directory(directory_fd: int) -> None:
-    metadata = os.fstat(directory_fd)
-    if (
-        not stat.S_ISDIR(metadata.st_mode)
-        or stat.S_IMODE(metadata.st_mode) != 0o700
-        or metadata.st_uid != os.geteuid()
-    ):
-        raise FactoryBudgetLedgerError("path", "ledger state directory is unsafe")
-
-
 def recover_published_initialization(directory_fd: int) -> None:
     if not entry_exists(directory_fd, LEDGER_NAME) or not entry_exists(
         directory_fd,
@@ -227,10 +170,6 @@ def fsync_regular(directory_fd: int, name: str) -> None:
 
 def nofollow_flag() -> int:
     return getattr(os, "O_NOFOLLOW", 0)
-
-
-def _directory_flag() -> int:
-    return getattr(os, "O_DIRECTORY", 0)
 
 
 def _regular_metadata_safe(

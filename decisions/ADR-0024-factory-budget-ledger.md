@@ -51,26 +51,29 @@ temporary hard link removed safely on retry.
 
 ## Safety Boundary
 
-Descriptor-based path checks require an owner-controlled repository root and
-owner-only private state directories, and reject symlinks, special files,
-unsafe sidecars, and oversized state. Existing opens use non-creating SQLite
-URI modes and compare owner, mode, link count, device, and inode before and
-immediately after connection. A published two-link initialization inode is
-completed safely on retry after a crash. Exact schema and integrity checks
-reject malformed, partial, future, or drifted databases without automatic
-migration.
+Descriptor-based path checks walk every repository ancestor without following
+symlinks. Parents must be root-owned or owned by the effective user; writable
+parents are accepted only with sticky-directory protection for a root/user-owned
+child. The repository root and shared `.entroping` state must be owned by the
+effective user and not group/other writable; the ledger subdirectory remains
+private mode 0700. Special files, unsafe sidecars, and oversized state are
+rejected. Existing opens use non-creating SQLite URI modes and compare owner,
+mode, link count, device, and inode before and immediately after connection. A
+published two-link initialization inode is completed safely on retry after a
+crash. Exact schema and integrity checks reject malformed, partial, future, or
+drifted databases without automatic migration.
 Signed 64-bit arithmetic, a 512 MiB file cap, a 100,000-entry global cap, a
 600-period global cap, and streaming timestamp validation bound resource use.
 The ledger shares the retention lock and exposes only sanitized, read-only CLI
 summaries.
 
-The owner-controlled repository root, private state directories, and
-cooperative locks are the local trust boundary. Python's standard SQLite
-wrapper cannot bind a connection to a descriptor-opened inode, so a
-noncooperating process running as the same effective user could race an
-ordinary-file replacement. Defending against same-UID host compromise would
-require OS isolation or a custom/native SQLite VFS and is outside this local
-maintainer-only component.
+The validated repository ancestor chain, owner-controlled root/shared state,
+private ledger directory, and cooperative locks are the local trust boundary.
+Python's standard SQLite wrapper cannot bind a connection to a
+descriptor-opened inode, so a noncooperating process running as the same
+effective user could race an ordinary-file replacement. Defending against
+same-UID host compromise would require OS isolation or a custom/native SQLite
+VFS and is outside this local maintainer-only component.
 
 Provider reservation, settlement, quota observation, scheduler authorization,
 and provider calls are deliberately outside this component. Downstream factory

@@ -2297,17 +2297,21 @@ decision boundary. `journal_mode=DELETE` with `synchronous=EXTRA`
 supports crash-safe rollback-journal commits and genuinely read-only summary
 connections without creating WAL state. Initialization publishes a fully
 validated temporary database by same-directory hard link and directory sync;
-partial initialization is discarded before retry.
+unpublished partial initialization is discarded before retry.
 
-Descriptor-based path validation, an owner-controlled non-group/other-writable
-repository root, no-follow owner-only state directories, stable pre/post-open
-file identity checks, non-creating URI opens, shared retention locking, 0600
-owner-only files, 0700 directories, strict tables, foreign keys, immutable-entry
-and immutable-period-authority triggers, exact schema validation, integrity
-checks, signed 64-bit arithmetic, a 512 MiB database ceiling, a 100,000-entry
-global ceiling, a 600-period global ceiling, and a 100,000-entry period ceiling
-bound the storage surface. Retry safely removes the reserved initialization
-name when a crash leaves it hard-linked to the published validated inode.
+Descriptor-based path validation walks every no-follow repository ancestor and
+rejects parent rename authority unless the parent is root/user-owned and any
+cross-account write bits are constrained by sticky-directory protection for a
+root/user-owned child. The repository root and shared `.entroping` state are
+effective-user-owned and non-group/other-writable; existing owner-controlled
+0755 shared state is compatible, while the ledger directory is 0700. Stable
+pre/post-open file identity checks, non-creating URI opens, shared retention
+locking, 0600 owner-only files, strict tables, foreign keys, immutable-entry and
+immutable-period-authority triggers, exact schema validation, integrity checks,
+signed 64-bit arithmetic, a 512 MiB database ceiling, a 100,000-entry global
+ceiling, a 600-period global ceiling, and a 100,000-entry period ceiling bound
+the storage surface. Retry safely removes the reserved initialization name when
+a crash leaves it hard-linked to the published validated inode.
 Timestamp validation streams in fixed batches. Malformed, partial, future, or
 drifted schemas are rejected and preserved for inspection. The local trust
 boundary excludes noncooperating same-UID mutation; exact
