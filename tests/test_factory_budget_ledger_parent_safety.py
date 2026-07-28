@@ -20,7 +20,7 @@ from scripts.factory_budget_ledger import (  # noqa: E402
 def test_open_accepts_existing_owner_controlled_shared_state(tmp_path: Path) -> None:
     shared_state = tmp_path / ".entroping"
     shared_state.mkdir(mode=0o755)
-    os.chmod(shared_state, 0o755)  # codeql[py/overly-permissive-file]
+    os.chmod(shared_state, 0o755)
 
     ledger = FactoryBudgetLedger.open_project(tmp_path)
 
@@ -42,7 +42,7 @@ def test_open_rejects_symlinked_state_directory_without_writing_outside(
 
 
 def test_open_rejects_group_writable_repository_root(tmp_path: Path) -> None:
-    os.chmod(tmp_path, 0o770)  # codeql[py/overly-permissive-file]
+    os.chmod(tmp_path, 0o770)
 
     with pytest.raises(FactoryBudgetLedgerError, match="root must be owner-controlled"):
         FactoryBudgetLedger.open_project(tmp_path)
@@ -64,7 +64,7 @@ def test_open_rejects_repository_root_owned_by_another_user(
 def test_open_rejects_group_writable_state_directory(tmp_path: Path) -> None:
     ledger = FactoryBudgetLedger.open_project(tmp_path)
     shared_state = ledger.db_path.parents[1]
-    os.chmod(shared_state, 0o770)  # codeql[py/overly-permissive-file]
+    os.chmod(shared_state, 0o770)
 
     with pytest.raises(FactoryBudgetLedgerError, match="state directory is unsafe"):
         FactoryBudgetLedger.open_project(tmp_path)
@@ -73,7 +73,7 @@ def test_open_rejects_group_writable_state_directory(tmp_path: Path) -> None:
 def test_open_rejects_nonsticky_writable_repository_ancestor(tmp_path: Path) -> None:
     shared = tmp_path / "shared"
     shared.mkdir()
-    os.chmod(shared, 0o777)  # codeql[py/overly-permissive-file]
+    os.chmod(shared, 0o777)
     repo = shared / "repo"
     repo.mkdir(mode=0o755)
 
@@ -84,7 +84,7 @@ def test_open_rejects_nonsticky_writable_repository_ancestor(tmp_path: Path) -> 
 def test_open_accepts_sticky_writable_repository_ancestor(tmp_path: Path) -> None:
     shared = tmp_path / "shared"
     shared.mkdir()
-    os.chmod(shared, 0o1777)  # codeql[py/overly-permissive-file]
+    os.chmod(shared, 0o1777)
     repo = shared / "repo"
     repo.mkdir(mode=0o755)
 
