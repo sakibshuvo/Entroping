@@ -114,6 +114,30 @@ def test_context_pack_strict_budget_passes_for_default_implementation_budget() -
     assert "# Entroping Agent Context Pack" in result.stdout
 
 
+def test_context_pack_required_rules_stay_complete_and_compact() -> None:
+    result = run_context_pack("--mode", "implementation")
+
+    assert result.returncode == 0, result.stderr
+    rules = result.stdout.split("## Required Agent Rules\n\n", 1)[1].split(
+        "\n## Current Git Status",
+        1,
+    )[0]
+    assert len(rules.encode("utf-8")) <= 438
+    for anchor in (
+        "Codex integrates unless reassigned by a human",
+        "workers advise",
+        "files/tests/issues/ADRs/CI decide",
+        "DECISION_REGISTRY source links",
+        "summaries only index",
+        "v4.1",
+        "`entroping run` deterministic and LLM-free",
+        "traffic/model output/YAML/paths/globs/subprocess output",
+        "Historical source material is evidence, not automatic current truth",
+        "NotebookLM Markdown export is the primary current source snapshot",
+    ):
+        assert anchor in rules
+
+
 def test_context_pack_limits_large_git_status_listing() -> None:
     marker = f"context-pack-status-{uuid.uuid4().hex}"
     paths = [REPO_ROOT / f".{marker}-{index}.tmp" for index in range(90)]
