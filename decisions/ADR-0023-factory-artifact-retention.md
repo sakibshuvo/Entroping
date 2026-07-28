@@ -18,7 +18,8 @@ tags:
 Entroping applies one versioned, fail-closed retention policy to repo-owned
 ignored factory artifacts. The policy covers terminal job records, review
 bundles, rotated scheduler logs, finished-issue metrics archives with verified
-terminal provenance, and terminal retention journals. It defines each class's
+terminal provenance, per-ledger byte counts and SHA-256 digests, and terminal
+retention journals. It defines each class's
 terminal-state age limits and aggregate byte ceiling. Active metrics have a
 separate locked 64 MiB aggregate cap, while active tick logs are inventoried and
 protected from deletion.
@@ -36,7 +37,8 @@ deletion authority, so recovery rolls its staged entries back. A journal whose
 operations are fully staged, or which has entered purging, completes the
 recorded purge. Fingerprints and placement are checked at each safe transition;
 completed and rolled-back receipts remain auditable until their own retention
-policy expires.
+policy expires. Adopted journals use the same 4,096-operation ceiling and
+canonical transaction-trash names as newly created journals.
 
 ## Safety Boundary
 

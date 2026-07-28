@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -26,7 +27,11 @@ from scripts.factory_retention_inventory import (  # noqa: E402
     RetentionInventory,
     inventory_factory,
 )
-from scripts.factory_retention_journal import JournalOperation  # noqa: E402
+from scripts.factory_retention_journal import (  # noqa: E402
+    JournalOperation,
+    RetentionJournalError,
+    read_journal,
+)
 from scripts.factory_retention_models import (  # noqa: E402
     RetentionClassPolicy,
     RetentionPlanReport,
@@ -249,6 +254,65 @@ def test_corrupt_journal_blocks_recovery_without_touching_sources(tmp_path: Path
     assert job.exists() and review.exists()
 
 
+def test_journal_rejects_parent_alias_trash_name_before_recovery(tmp_path: Path) -> None:
+    journal_root = tmp_path / ".entroping" / "retention-journal"
+    journal_root.mkdir(parents=True)
+    transaction_id = "a" * 32
+    payload = {
+        "schema_version": "entroping.factory-retention-journal.v1",
+        "transaction_id": transaction_id,
+        "status": "purging",
+        "created_at": "2026-06-01T00:00:00Z",
+        "operations": [_journal_operation_payload(trash_name="..")],
+    }
+    _ = (journal_root / f"{transaction_id}.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+    descriptor = os.open(journal_root, os.O_RDONLY)
+    try:
+        with pytest.raises(RetentionJournalError, match="trash name"):
+            _ = read_journal(descriptor, f"{transaction_id}.json")
+    finally:
+        os.close(descriptor)
+
+
+def test_journal_rejects_recovered_operation_count_above_limit(tmp_path: Path) -> None:
+    journal_root = tmp_path / ".entroping" / "retention-journal"
+    journal_root.mkdir(parents=True)
+    transaction_id = "b" * 32
+    operation = _journal_operation_payload(trash_name="000000-0123456789abcdef")
+    payload = {
+        "schema_version": "entroping.factory-retention-journal.v1",
+        "transaction_id": transaction_id,
+        "status": "purging",
+        "created_at": "2026-06-01T00:00:00Z",
+        "operations": [operation] * 4_097,
+    }
+    _ = (journal_root / f"{transaction_id}.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+    descriptor = os.open(journal_root, os.O_RDONLY)
+    try:
+        with pytest.raises(RetentionJournalError, match="operation limit"):
+            _ = read_journal(descriptor, f"{transaction_id}.json")
+    finally:
+        os.close(descriptor)
+
+
+def _journal_operation_payload(*, trash_name: str) -> dict[str, object]:
+    return {
+        "source": ".entroping/factory-logs/factory-tick.out.log.1",
+        "trash_name": trash_name,
+        "state": "staged",
+        "kind": "file",
+        "byte_size": 1,
+        "mtime_ns": 1,
+        "sha256": "0" * 64,
+    }
+
+
 def test_nested_symlink_blocks_inventory_and_apply(tmp_path: Path) -> None:
     job, review = _fixture(tmp_path)
     outside = tmp_path / "outside"
@@ -365,15 +429,10 @@ def test_zero_operation_apply_does_not_create_a_journal_receipt(tmp_path: Path) 
 
 def test_apply_bounds_terminal_metrics_and_prior_journal_receipts(tmp_path: Path) -> None:
     _ = _fixture(tmp_path)
-    archive = (
-        tmp_path
-        / ".entroping"
-        / "factory-metrics"
-        / "finished-issues"
-        / "issue-1562"
-    )
+    archive = tmp_path / ".entroping" / "factory-metrics" / "finished-issues" / "issue-1562"
     archive.mkdir(parents=True)
-    _ = (archive / "events.jsonl").write_text("{}\n", encoding="utf-8")
+    ledger_payload = b"{}\n"
+    _ = (archive / "events.jsonl").write_bytes(ledger_payload)
     _ = (archive / "metadata.json").write_text(
         json.dumps(
             {
@@ -384,6 +443,13 @@ def test_apply_bounds_terminal_metrics_and_prior_journal_receipts(tmp_path: Path
                 "issue_state": "closed",
                 "pr_state": "merged",
                 "archived_at": "2026-06-01T00:00:00Z",
+                "ledgers": [
+                    {
+                        "path": "events.jsonl",
+                        "byte_size": len(ledger_payload),
+                        "sha256": hashlib.sha256(ledger_payload).hexdigest(),
+                    }
+                ],
             }
         ),
         encoding="utf-8",

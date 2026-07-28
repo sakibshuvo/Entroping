@@ -10,6 +10,9 @@
   are aggregate-capped at 64 MiB, tick and worker output is bounded before
   atomic persistence, and traversal, process groups, timestamps, aliases,
   malformed metadata, secrets, and crash windows have regression coverage.
+  Recovery also enforces the 4,096-operation and canonical trash-name bounds,
+  while finished metrics metadata binds each ledger path and byte count to a
+  SHA-256 digest so post-seal drift fails closed.
 
 - Added issue #1559's versioned factory cost policy and JSON schema: USD integer
   microcents now express the $200 all-in monthly cap and internal $20 reserve,

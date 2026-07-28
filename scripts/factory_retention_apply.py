@@ -18,7 +18,7 @@ from scripts.factory_retention_git import (
     tracked_paths,
 )
 from scripts.factory_retention_inventory import RetentionInventory, inventory_factory
-from scripts.factory_retention_journal import JournalOperation
+from scripts.factory_retention_journal import MAX_OPERATIONS, JournalOperation
 from scripts.factory_retention_models import RetentionPlanReport
 from scripts.factory_retention_transaction import (
     RetentionApplyError as RetentionApplyError,
@@ -30,8 +30,6 @@ from scripts.factory_retention_transaction import (
     resume_journal,
     write_journal,
 )
-
-MAX_OPERATIONS = 4_096
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,11 +66,14 @@ def apply_retention_plan(
                 journal_path=None,
             )
         journal = new_journal(transaction_id, operations)
-        with open_relative_directory(
-            repo_root, (".entroping", "retention-journal"), create=True
-        ) as journal_fd, open_relative_directory(
-            repo_root, (".entroping", "retention-trash"), create=True
-        ) as trash_root_fd:
+        with (
+            open_relative_directory(
+                repo_root, (".entroping", "retention-journal"), create=True
+            ) as journal_fd,
+            open_relative_directory(
+                repo_root, (".entroping", "retention-trash"), create=True
+            ) as trash_root_fd,
+        ):
             os.mkdir(transaction_id, mode=0o700, dir_fd=trash_root_fd)
             os.fsync(trash_root_fd)
             write_journal(journal_fd, journal, exclusive=True)
@@ -103,9 +104,12 @@ def _recover_incomplete(repo_root: Path, tracked: frozenset[str]) -> int:
     if not repo_root.joinpath(*parts).exists():
         return 0
     recovered = 0
-    with open_relative_directory(repo_root, parts) as journal_fd, open_relative_directory(
-        repo_root, (".entroping", "retention-trash"), create=True
-    ) as trash_root_fd:
+    with (
+        open_relative_directory(repo_root, parts) as journal_fd,
+        open_relative_directory(
+            repo_root, (".entroping", "retention-trash"), create=True
+        ) as trash_root_fd,
+    ):
         for name in list_names(journal_fd):
             if not name.endswith(".json"):
                 continue

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -11,8 +12,10 @@ from scripts.factory_retention_fs import FsSnapshot, RetentionFsError, read_boun
 
 JOURNAL_SCHEMA_VERSION = "entroping.factory-retention-journal.v1"
 MAX_JOURNAL_BYTES = 8_388_608
+MAX_OPERATIONS = 4_096
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _LOG_NAME = re.compile(r"factory-tick\.(?:out|err)\.log(?:\.\d+)?")
+_TRASH_NAME = re.compile(r"[0-9]{6}-[0-9a-f]{16}")
 
 type JournalStatus = Literal["moving", "purging", "completed", "rolled_back"]
 type OperationState = Literal["pending", "staged", "purged", "restored"]
@@ -125,24 +128,28 @@ def managed_source(raw: str) -> PurePosixPath:
     source = PurePosixPath(raw)
     parts = source.parts
     allowed = (
-        len(parts) == 4
-        and parts[:2] == (".entroping", "ai-jobs")
-        and parts[2] in {"completed", "failed"}
-        and parts[3].endswith(".json")
-    ) or (
-        len(parts) == 3 and parts[:2] == (".entroping", "ai-reviews")
-    ) or (
-        len(parts) == 3
-        and parts[:2] == (".entroping", "factory-logs")
-        and _LOG_NAME.fullmatch(parts[2]) is not None
-    ) or (
-        len(parts) == 4
-        and parts[:3] == (".entroping", "factory-metrics", "finished-issues")
-        and re.fullmatch(r"issue-[1-9][0-9]*", parts[3]) is not None
-    ) or (
-        len(parts) == 3
-        and parts[:2] == (".entroping", "retention-journal")
-        and re.fullmatch(r"[0-9a-f]{32}\.json", parts[2]) is not None
+        (
+            len(parts) == 4
+            and parts[:2] == (".entroping", "ai-jobs")
+            and parts[2] in {"completed", "failed"}
+            and parts[3].endswith(".json")
+        )
+        or (len(parts) == 3 and parts[:2] == (".entroping", "ai-reviews"))
+        or (
+            len(parts) == 3
+            and parts[:2] == (".entroping", "factory-logs")
+            and _LOG_NAME.fullmatch(parts[2]) is not None
+        )
+        or (
+            len(parts) == 4
+            and parts[:3] == (".entroping", "factory-metrics", "finished-issues")
+            and re.fullmatch(r"issue-[1-9][0-9]*", parts[3]) is not None
+        )
+        or (
+            len(parts) == 3
+            and parts[:2] == (".entroping", "retention-journal")
+            and re.fullmatch(r"[0-9a-f]{32}\.json", parts[2]) is not None
+        )
     )
     if not allowed or source.as_posix() != raw or any(part in {".", ".."} for part in parts):
         raise RetentionJournalError("retention journal source is outside managed roots")
@@ -152,18 +159,22 @@ def managed_source(raw: str) -> PurePosixPath:
 def _operations(value: object) -> list[JournalOperation]:
     if not isinstance(value, list):
         raise RetentionJournalError("retention journal operations are invalid")
+    items = cast(list[object], value)
+    if len(items) > MAX_OPERATIONS:
+        raise RetentionJournalError("retention journal exceeds the operation limit")
     operations: list[JournalOperation] = []
-    for raw in cast(list[object], value):
+    for index, raw in enumerate(items):
         if not isinstance(raw, dict):
             raise RetentionJournalError("retention journal operation is invalid")
         mapping = cast(dict[str, object], raw)
         expected = {"source", "trash_name", "state", "kind", "byte_size", "mtime_ns", "sha256"}
         if set(mapping) != expected:
             raise RetentionJournalError("retention journal operation fields are invalid")
+        source = managed_source(_text(mapping, "source"))
         operations.append(
             JournalOperation(
-                source=managed_source(_text(mapping, "source")),
-                trash_name=_trash_name(_text(mapping, "trash_name")),
+                source=source,
+                trash_name=_trash_name(_text(mapping, "trash_name"), source, index),
                 state=_operation_state(mapping.get("state")),
                 snapshot=_snapshot(mapping),
             )
@@ -208,8 +219,9 @@ def _integer(payload: dict[str, object], key: str) -> int:
     return value
 
 
-def _trash_name(value: str) -> str:
-    if Path(value).name != value:
+def _trash_name(value: str, source: PurePosixPath, index: int) -> str:
+    expected = f"{index:06d}-{hashlib.sha256(source.as_posix().encode('utf-8')).hexdigest()[:16]}"
+    if Path(value).name != value or _TRASH_NAME.fullmatch(value) is None or value != expected:
         raise RetentionJournalError("retention trash name is invalid")
     return value
 

@@ -113,7 +113,9 @@ fingerprint immediately before mutation, stages same-filesystem moves, and
 records a durable recovery journal under `.entroping/retention-journal/`.
 Recovery rolls back a moving journal that still has pending operations; a fully
 staged or purging journal completes its recorded purge. A persisted journal is
-never authority to stage new deletion work.
+never authority to stage new deletion work. Recovery rejects journals above
+4,096 operations and any transaction-trash name outside the generated
+six-digit-index plus digest shape before it can touch staged entries.
 
 Matching managed entries with malformed metadata, symlinks, special files,
 control-bearing names, changed fingerprints, unresolved reservations, active
@@ -133,7 +135,10 @@ tick that exceeds its output ceiling is terminated with its process group and
 fails closed. Retention inventories active stream files but protects them;
 rotated logs can expire by policy. Active factory metrics share a locked 64 MiB
 aggregate cap. `finish_issue.sh` adds verified terminal provenance to newly
-archived metrics; legacy archives without that sidecar remain protected.
+archived metrics, including the canonical relative path, exact byte count, and
+SHA-256 digest of every ledger. Inventory revalidates those digests before an
+archive can become deletion-eligible; legacy archives without that sidecar
+remain protected.
 
 ## Contract
 

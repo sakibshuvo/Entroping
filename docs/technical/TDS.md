@@ -2261,13 +2261,18 @@ trash. A durable journal authorizes only the transaction that created it:
 recovery rolls back an interrupted moving journal with pending operations, or
 completes a fully staged or purging journal. Terminal journal receipts are
 themselves subject to retention, so recovery evidence does not grow forever.
+Both new and adopted journals are capped at 4,096 operations and use canonical
+transaction-trash names, preventing recovery data from widening deletion or
+unbounded rewrite work.
 
 Traversal has finite per-directory, aggregate-entry, depth, metadata-read, and
 hashed-byte limits. Policy ceilings total at most 4 GiB inside an 8 GiB
 inventory budget, preserving bounded over-cap headroom. Malformed metadata,
 control-bearing names, special files, unknown references, unresolved
 settlements, legacy metrics archives without terminal provenance, or
-fingerprint drift fail closed. Reports expose only artifact identifiers,
+fingerprint drift fail closed. Terminal metrics provenance binds each canonical
+ledger path to its exact byte count and SHA-256 digest, which inventory
+revalidates before retention eligibility. Reports expose only artifact identifiers,
 classes, states, timestamps, relative paths, reason codes, counts, and byte
 totals; artifact contents are never rendered.
 

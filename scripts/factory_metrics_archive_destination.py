@@ -13,19 +13,16 @@ from scripts.factory_metrics_archive_errors import FactoryMetricsArchiveError
 from scripts.factory_metrics_archive_io import (
     FactoryMetricsArchiveIoError,
     LedgerSpec,
-    open_child_directory,
     open_descendant_directory,
     open_directory,
     open_or_create_child_directory,
 )
 from scripts.factory_metrics_archive_metadata import read_archive_metadata
-from scripts.factory_metrics_modules.storage import (
-    ACTIVE_METRICS_DEPTH_LIMIT,
-    ACTIVE_METRICS_ENTRY_LIMIT,
+from scripts.factory_metrics_archive_provenance import (
+    archive_ledger_paths,
 )
 from scripts.factory_retention_fs import (
     RetentionFsError,
-    list_names,
     read_bounded_regular,
 )
 
@@ -50,7 +47,7 @@ def copy_archive(
         ):
             existing = read_archive_metadata(archive_fd)
             expected_paths = {spec[0] for spec, _ in ledgers}
-            observed_paths = set(_archive_ledger_paths(archive_fd))
+            observed_paths = set(archive_ledger_paths(archive_fd))
             if existing is not None:
                 if existing != payload:
                     raise FactoryMetricsArchiveError(
@@ -98,7 +95,7 @@ def verify_empty_source_archive(
             ) as archive_fd,
         ):
             existing = read_archive_metadata(archive_fd)
-            observed = _archive_ledger_paths(archive_fd)
+            observed = archive_ledger_paths(archive_fd)
             if existing is None:
                 if observed:
                     raise FactoryMetricsArchiveError(
@@ -143,50 +140,6 @@ def _verify_terminal_archive(
             raise FactoryMetricsArchiveError(
                 "terminal factory metrics archive differs from source ledgers"
             )
-
-
-def _archive_ledger_paths(archive_fd: int) -> tuple[tuple[str, ...], ...]:
-    paths: list[tuple[str, ...]] = []
-    _archive_directory(archive_fd, prefix=(), depth=0, seen=[0], paths=paths)
-    return tuple(paths)
-
-
-def _archive_directory(
-    directory_fd: int,
-    *,
-    prefix: tuple[str, ...],
-    depth: int,
-    seen: list[int],
-    paths: list[tuple[str, ...]],
-) -> None:
-    if depth > ACTIVE_METRICS_DEPTH_LIMIT:
-        raise FactoryMetricsArchiveError(
-            "factory metrics archive exceeds the directory depth limit"
-        )
-    for name in list_names(directory_fd):
-        if not prefix and name == "metadata.json":
-            continue
-        seen[0] += 1
-        if seen[0] > ACTIVE_METRICS_ENTRY_LIMIT:
-            raise FactoryMetricsArchiveError("factory metrics archive exceeds the entry limit")
-        metadata = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
-        parts = (*prefix, name)
-        if stat.S_ISDIR(metadata.st_mode):
-            child_fd = open_child_directory(directory_fd, name)
-            try:
-                _archive_directory(
-                    child_fd,
-                    prefix=parts,
-                    depth=depth + 1,
-                    seen=seen,
-                    paths=paths,
-                )
-            finally:
-                os.close(child_fd)
-        elif stat.S_ISREG(metadata.st_mode) and name.endswith(".jsonl"):
-            paths.append(parts)
-        else:
-            raise FactoryMetricsArchiveError("factory metrics archive contains an unexpected entry")
 
 
 @contextmanager

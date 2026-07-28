@@ -1,6 +1,7 @@
 """Smoke tests for the issue-session finish script."""
 
 import fcntl
+import hashlib
 import json
 import os
 import stat
@@ -369,6 +370,18 @@ def test_finish_issue_preserves_factory_metrics_before_worktree_removal(
         "issue_state": "closed",
         "pr_state": "merged",
         "archived_at": "2026-05-30T00:00:00Z",
+        "ledgers": [
+            {
+                "path": "events.jsonl",
+                "byte_size": len(root_content.encode("utf-8")),
+                "sha256": hashlib.sha256(root_content.encode("utf-8")).hexdigest(),
+            },
+            {
+                "path": "workers/deepseek/events.jsonl",
+                "byte_size": len(nested_content.encode("utf-8")),
+                "sha256": hashlib.sha256(nested_content.encode("utf-8")).hexdigest(),
+            },
+        ],
     }
     assert not worktree.exists()
 
@@ -579,7 +592,7 @@ def test_metrics_archive_refuses_to_rewrite_different_terminal_content(
     original = archived.read_bytes()
     root_ledger.write_bytes(original + original)
 
-    with pytest.raises(FactoryMetricsArchiveError, match="differs from source"):
+    with pytest.raises(FactoryMetricsArchiveError, match="different provenance"):
         _ = preserve_archive(
             repo_root=repo,
             worktree_root=worktree,
@@ -623,6 +636,7 @@ def test_finish_issue_rejects_terminal_archive_ledgers_when_source_is_empty(
                 "issue_state": "closed",
                 "pr_state": "merged",
                 "archived_at": "2026-05-30T00:00:00Z",
+                "ledgers": [],
             }
         )
         + "\n",

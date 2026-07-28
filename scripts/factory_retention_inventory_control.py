@@ -7,6 +7,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from scripts.factory_metrics_archive_errors import FactoryMetricsArchiveError
+from scripts.factory_metrics_archive_provenance import verify_archive_manifest
 from scripts.factory_retention_fs import (
     FsSnapshot,
     RetentionFsError,
@@ -109,9 +111,7 @@ def inventory_journals(
                     RetentionJournalError,
                 ) as exc:
                     entries.append(_invalid_journal(name, snapshot))
-                    errors.append(
-                        f"invalid terminal retention journal: {type(exc).__name__}"
-                    )
+                    errors.append(f"invalid terminal retention journal: {type(exc).__name__}")
     except (OSError, RetentionFsError) as exc:
         errors.append(f"unsafe retention journal root: {type(exc).__name__}")
     return entries, errors
@@ -138,7 +138,7 @@ def _metrics_archive_entry(
             except FileNotFoundError:
                 return _legacy_metrics_archive(name, relative_path, snapshot), None
             payload = json_object(read_bounded_regular(archive_fd, "metadata.json"))
-        _validate_archive_metadata(payload, issue)
+            _validate_archive_metadata(payload, issue, archive_fd)
         created_at = payload_timestamp(
             {"completed_at": payload["archived_at"]},
             snapshot.mtime_ns,
@@ -154,14 +154,20 @@ def _metrics_archive_entry(
             state="archived",
         )
         return InventoryEntry(candidate=candidate, snapshot=snapshot), None
-    except (OSError, ValueError, ValidationError, RetentionFsError) as exc:
+    except (
+        OSError,
+        FactoryMetricsArchiveError,
+        ValueError,
+        ValidationError,
+        RetentionFsError,
+    ) as exc:
         return (
             _legacy_metrics_archive(name, relative_path, snapshot),
             f"invalid factory metrics archive {name}: {type(exc).__name__}",
         )
 
 
-def _validate_archive_metadata(payload: dict[str, object], issue: int) -> None:
+def _validate_archive_metadata(payload: dict[str, object], issue: int, archive_fd: int) -> None:
     expected = {
         "schema_version",
         "issue",
@@ -170,6 +176,7 @@ def _validate_archive_metadata(payload: dict[str, object], issue: int) -> None:
         "issue_state",
         "pr_state",
         "archived_at",
+        "ledgers",
     }
     if (
         set(payload) != expected
@@ -188,6 +195,7 @@ def _validate_archive_metadata(payload: dict[str, object], issue: int) -> None:
     ):
         raise ValueError("factory metrics archive is not terminal")
     _ = payload_timestamp({"completed_at": payload.get("archived_at")}, 0)
+    verify_archive_manifest(archive_fd, payload.get("ledgers"))
 
 
 def _legacy_metrics_archive(

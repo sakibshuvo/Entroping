@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -13,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.factory_metrics_archive import preserve_archive  # noqa: E402
 from scripts.factory_retention_fs import (  # noqa: E402
     MAX_POLICY_TOTAL_BYTES,
     RetentionFsError,
@@ -284,7 +286,8 @@ def test_finished_metrics_archive_requires_terminal_provenance_to_expire(
 ) -> None:
     archive = tmp_path / ".entroping" / "factory-metrics" / "finished-issues" / "issue-1562"
     archive.mkdir(parents=True)
-    _ = (archive / "events.jsonl").write_text("{}\n", encoding="utf-8")
+    ledger_payload = b"{}\n"
+    _ = (archive / "events.jsonl").write_bytes(ledger_payload)
 
     legacy = inventory_factory(tmp_path)
 
@@ -302,6 +305,13 @@ def test_finished_metrics_archive_requires_terminal_provenance_to_expire(
                 "issue_state": "closed",
                 "pr_state": "merged",
                 "archived_at": "2026-06-01T00:00:00Z",
+                "ledgers": [
+                    {
+                        "path": "events.jsonl",
+                        "byte_size": len(ledger_payload),
+                        "sha256": hashlib.sha256(ledger_payload).hexdigest(),
+                    }
+                ],
             }
         ),
         encoding="utf-8",
@@ -313,6 +323,39 @@ def test_finished_metrics_archive_requires_terminal_provenance_to_expire(
     assert terminal.candidates[0].state == "archived"
     assert terminal.candidates[0].metadata_valid is True
     assert terminal.candidates[0].created_at == datetime(2026, 6, 1, tzinfo=UTC)
+
+
+def test_finished_metrics_archive_content_drift_fails_closed(tmp_path: Path) -> None:
+    worktree = tmp_path / "worktree"
+    metrics = worktree / ".entroping" / "factory-metrics"
+    metrics.mkdir(parents=True)
+    event = {
+        "schema_version": "entroping.factory-metrics.v1",
+        "event_id": "archive-drift",
+        "recorded_at": "2026-05-30T00:00:00Z",
+        "event_type": "outcome",
+        "role": "integrator",
+        "agent": "codex",
+        "metrics": {},
+    }
+    _ = (metrics / "events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    destination, _ = preserve_archive(
+        repo_root=tmp_path,
+        worktree_root=worktree,
+        issue=1562,
+        pull_request=1600,
+        archived_at="2026-06-01T00:00:00Z",
+    )
+    archived = destination / "events.jsonl"
+    original = archived.read_bytes()
+    archived.write_bytes(original.replace(b'"codex"', b'"other"'))
+
+    inventory = inventory_factory(tmp_path)
+
+    assert inventory.errors == (
+        "invalid factory metrics archive issue-1562: FactoryMetricsArchiveError",
+    )
+    assert inventory.candidates[0].metadata_valid is False
 
 
 def test_inventory_includes_only_terminal_retention_journals(tmp_path: Path) -> None:
