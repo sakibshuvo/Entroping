@@ -524,3 +524,21 @@ decisions:
     related_issues: ["#1559"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0023
+    title: Factory artifact retention
+    status: accepted
+    date: "2026-07-27"
+    summary: >
+      Plan-first, bounded, crash-recoverable retention for repo-owned ignored
+      factory artifacts, with Git-tracked path protection and no-follow traversal.
+    tags: [factory, retention, security, reliability]
+    source_links:
+      - path: decisions/ADR-0023-factory-artifact-retention.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1562"]
+    supersedes: []
+    superseded_by: null

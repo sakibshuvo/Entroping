@@ -431,6 +431,63 @@ def test_factory_metrics_redacts_common_secret_shapes(tmp_path: Path) -> None:
     assert "aws_access_key_id=<redacted>" in event["note"]
 
 
+def test_factory_metrics_rejects_append_over_active_aggregate_limit(
+    tmp_path: Path,
+) -> None:
+    metrics_root = tmp_path / ".entroping" / "factory-metrics"
+    metrics_root.mkdir(parents=True)
+    filler = metrics_root / "bounded-filler.bin"
+    with filler.open("wb") as handle:
+        handle.truncate(67_108_864)
+    ledger = metrics_root / "events.jsonl"
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "dev_agent",
+        "--agent",
+        "Codex",
+        "--ledger",
+        str(ledger),
+    )
+
+    assert result.returncode == 2
+    assert "aggregate limit" in result.stderr
+    assert not ledger.exists()
+
+
+def test_factory_metrics_aggregate_excludes_finished_issue_archives(
+    tmp_path: Path,
+) -> None:
+    metrics_root = tmp_path / ".entroping" / "factory-metrics"
+    archive = metrics_root / "finished-issues" / "issue-1"
+    archive.mkdir(parents=True)
+    with (archive / "events.jsonl").open("wb") as handle:
+        handle.truncate(67_108_864)
+    ledger = metrics_root / "events.jsonl"
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "dev_agent",
+        "--agent",
+        "Codex",
+        "--ledger",
+        str(ledger),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert ledger.exists()
+
+
 def test_factory_metrics_rejects_raw_prompt_or_transcript_notes(tmp_path: Path) -> None:
     ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
 

@@ -202,6 +202,17 @@ active Entroping agent workflow and should not be requested from direct
 DeepSeek workers. This context should reduce hallucinated tool use while
 preserving Codex or human integration authority.
 
+Queued OpenCode and DeepSeek children enforce byte caps. Subprocess stream
+floods and timeouts terminate the process group and persist bounded failure
+evidence; oversized DeepSeek HTTP responses are capped in-process and fail.
+Factory retention is plan-first: inspect with
+`python -m scripts.factory_retention plan` and delete only with locked,
+fingerprint-checked `prune --apply`. Its scope is terminal jobs, reviews,
+rotated logs, verified metrics archives, and terminal retention receipts under
+`.entroping/`. Active logs are inventoried but protected; malformed,
+legacy-unproven, unsettled, or externally uncertain evidence also stays
+protected.
+
 local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
 it for source-archive summarization, duplicate-finding, wording variants, and
 offline review prompts before sending anything sensitive to cloud models.

@@ -17,15 +17,25 @@ from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Literal
 
-from ai_worker_file_safety import (
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.ai_worker_file_safety import (  # noqa: E402
     secret_like_content_reason,
     sensitive_selected_path_reason,
+)
+from scripts.bounded_process import BoundedProcessError, run_bounded_process  # noqa: E402
+from scripts.worker_output import (  # noqa: E402
+    atomic_write_text,
+    bounded_persisted_text,
 )
 
 DEFAULT_MODEL = "deepseek/deepseek-v4-pro"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_FILE_BYTES = 64_000
+DEFAULT_MAX_OUTPUT_BYTES = 262_144
 CAPABILITY_CONTEXT_VERSION = "entroping.opencode-host-capability-context.v1"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
@@ -54,6 +64,7 @@ class WorkerConfig:
     opencode_bin: Path
     timeout_seconds: float
     max_file_bytes: int
+    max_output_bytes: int
     issue: str | None
     instruction: str | None
     dry_run: bool
@@ -135,21 +146,22 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
     worker_cwd = artifact_dir / "worker-cwd"
     worker_cwd.mkdir(exist_ok=False)
     try:
-        completed = subprocess.run(  # nosec B603
+        completed = run_bounded_process(
             command,
             cwd=worker_cwd.resolve(),
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=config.timeout_seconds,
+            timeout_seconds=config.timeout_seconds,
+            max_output_bytes=config.max_output_bytes,
         )
-    except subprocess.TimeoutExpired as exc:
-        stdout = _decode_timeout_output(exc.stdout)
-        stderr = _decode_timeout_output(exc.stderr)
+    except BoundedProcessError as exc:
+        raise WorkerInputError("OpenCode bounded subprocess failed") from exc
+    if completed.timed_out:
+        stdout = completed.stdout
+        stderr = completed.stderr
         if stderr:
-            stderr = f"{stderr}\nOpenCode worker timed out after {config.timeout_seconds} seconds."
+            stderr = (
+                f"OpenCode worker timed out after {config.timeout_seconds} seconds.\n"
+                f"{stderr}"
+            )
         else:
             stderr = f"OpenCode worker timed out after {config.timeout_seconds} seconds."
         result = WorkerResult(
@@ -158,6 +170,26 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             returncode=124,
             stdout=stdout,
             stderr=stderr,
+        )
+        result = _withhold_secret_like_worker_output(result)
+        _write_execution_artifacts(config, result, command)
+        _record_factory_metrics(
+            config,
+            result,
+            duration_seconds=time.monotonic() - started_at,
+        )
+        return result
+
+    if completed.output_limit_exceeded:
+        result = WorkerResult(
+            status="failed",
+            artifact_dir=artifact_dir,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=(
+                f"OpenCode worker exceeded the {config.max_output_bytes}-byte output limit.\n"
+                f"{completed.stderr}"
+            ),
         )
         result = _withhold_secret_like_worker_output(result)
         _write_execution_artifacts(config, result, command)
@@ -234,6 +266,12 @@ def _parse_args() -> WorkerConfig:
         ),
     )
     parser.add_argument(
+        "--max-output-bytes",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_BYTES,
+        help=f"Maximum captured bytes per worker stream. Default: {DEFAULT_MAX_OUTPUT_BYTES}.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Write prompt and metadata without invoking OpenCode.",
@@ -265,6 +303,9 @@ def _parse_args() -> WorkerConfig:
     if args.max_file_bytes <= 0:
         msg = "--max-file-bytes must be greater than zero"
         raise WorkerInputError(msg)
+    if args.max_output_bytes <= 0:
+        msg = "--max-output-bytes must be greater than zero"
+        raise WorkerInputError(msg)
     max_file_bytes = int(args.max_file_bytes)
     files = _validate_files(
         repo_root,
@@ -286,6 +327,7 @@ def _parse_args() -> WorkerConfig:
         opencode_bin=opencode_bin,
         timeout_seconds=args.timeout_seconds,
         max_file_bytes=max_file_bytes,
+        max_output_bytes=int(args.max_output_bytes),
         issue=args.issue,
         instruction=args.instruction,
         dry_run=args.dry_run,
@@ -598,14 +640,6 @@ def _opencode_command(
     return command
 
 
-def _decode_timeout_output(output: bytes | str | None) -> str:
-    if output is None:
-        return ""
-    if isinstance(output, bytes):
-        return output.decode("utf-8", errors="replace")
-    return output
-
-
 def _classify_status(mode: Mode, returncode: int, stdout: str) -> Status:
     if returncode != 0:
         return "failed"
@@ -684,23 +718,15 @@ def _write_execution_artifacts(
     result: WorkerResult,
     command: list[str],
 ) -> None:
-    _write_artifact_text(result.artifact_dir / "stdout.txt", result.stdout)
-    _write_artifact_text(result.artifact_dir / "stderr.txt", result.stderr)
+    stdout = bounded_persisted_text(result.stdout, config.max_output_bytes)
+    stderr = bounded_persisted_text(result.stderr, config.max_output_bytes)
+    atomic_write_text(result.artifact_dir / "stdout.txt", stdout)
+    atomic_write_text(result.artifact_dir / "stderr.txt", stderr)
     if config.mode == "patch":
-        proposal = _extract_unified_diff(result.stdout)
+        proposal = _extract_unified_diff(stdout)
         if proposal is not None:
-            _write_artifact_text(result.artifact_dir / "proposal.diff", proposal)
+            atomic_write_text(result.artifact_dir / "proposal.diff", proposal)
     _write_metadata(config, result, command)
-
-
-def _write_artifact_text(path: Path, content: str) -> None:
-    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temp_path.write_text(content, encoding="utf-8")
-        temp_path.replace(path)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[str]) -> None:
@@ -715,12 +741,13 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "returncode": result.returncode,
         "timeout_seconds": config.timeout_seconds,
         "max_file_bytes": config.max_file_bytes,
+        "max_output_bytes": config.max_output_bytes,
         "capability_context_version": CAPABILITY_CONTEXT_VERSION,
         "command": command,
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,
     }
-    _write_artifact_text(
+    atomic_write_text(
         result.artifact_dir / "metadata.json",
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
     )

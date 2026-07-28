@@ -8,10 +8,13 @@ import sys
 from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _SCRIPT_DIR.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from factory_metrics_modules.cli import (  # noqa: F401
+from scripts.factory_metrics_modules.cli import (  # noqa: F401
     _add_common_output_args as _add_common_output_args,
     _append_command as _append_command,
     _context_scorecard_command as _context_scorecard_command,
@@ -24,7 +27,7 @@ from factory_metrics_modules.cli import (  # noqa: F401
     build_parser as build_parser,
     main as main,
 )
-from factory_metrics_modules.common import (  # noqa: F401
+from scripts.factory_metrics_modules.common import (  # noqa: F401
     FactoryMetricsError as FactoryMetricsError,
     _contains_control_character as _contains_control_character,
     _contains_secret_like as _contains_secret_like,
@@ -45,7 +48,7 @@ from factory_metrics_modules.common import (  # noqa: F401
     _validate_note as _validate_note,
     _write_report_output as _write_report_output,
 )
-from factory_metrics_modules.context_scorecard import (  # noqa: F401
+from scripts.factory_metrics_modules.context_scorecard import (  # noqa: F401
     _best_context_trial as _best_context_trial,
     _compare_context_tool_trial as _compare_context_tool_trial,
     _compare_metric as _compare_metric,
@@ -68,7 +71,7 @@ from factory_metrics_modules.context_scorecard import (  # noqa: F401
     _validate_scorecard_string_list as _validate_scorecard_string_list,
     _validate_scorecard_text as _validate_scorecard_text,
 )
-from factory_metrics_modules.events import (  # noqa: F401
+from scripts.factory_metrics_modules.events import (  # noqa: F401
     _append_jsonl as _append_jsonl,
     _context_metrics as _context_metrics,
     _event_from_args as _event_from_args,
@@ -76,7 +79,7 @@ from factory_metrics_modules.events import (  # noqa: F401
     _validate_event as _validate_event,
     _validate_non_negative as _validate_non_negative,
 )
-from factory_metrics_modules.reporting import (  # noqa: F401
+from scripts.factory_metrics_modules.reporting import (  # noqa: F401
     _add_metrics as _add_metrics,
     _empty_metric_totals as _empty_metric_totals,
     _event_text_values as _event_text_values,
@@ -113,7 +116,7 @@ from factory_metrics_modules.reporting import (  # noqa: F401
     _report_bucket as _report_bucket,
     _summary as _summary,
 )
-from factory_metrics_modules.schema import (  # noqa: F401
+from scripts.factory_metrics_modules.schema import (  # noqa: F401
     ALLOWED_EVENT_KEYS as ALLOWED_EVENT_KEYS,
     ALLOWED_METRIC_KEYS as ALLOWED_METRIC_KEYS,
     ALL_METRICS as ALL_METRICS,

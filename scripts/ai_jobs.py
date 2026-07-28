@@ -21,10 +21,15 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts import ai_job_fs  # noqa: E402
 from scripts.ai_job_runtime_fs import QueueStateHandles, open_queue_state  # noqa: E402
+from scripts.bounded_process import (  # noqa: E402
+    BoundedProcessError,
+    run_bounded_process,
+)
 
 DEFAULT_JOB_ROOT = Path(".entroping") / "ai-jobs"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
+MAX_WORKER_SUPERVISOR_OUTPUT_BYTES = 1_048_576
 STALE_RUNNING_GRACE_SECONDS = 60.0
 SCHEMA_VERSION = "entroping.ai-job.v1"
 CONTEXT_MANIFEST_COMMAND = "scripts/context_pack.sh --mode implementation --manifest"
@@ -1096,18 +1101,18 @@ def _run_worker(
 
     timeout_seconds = job_timeout_seconds + 30.0
     try:
-        completed = subprocess.run(  # nosec B603
+        completed = run_bounded_process(
             command,
             cwd=repo_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_seconds,
+            timeout_seconds=timeout_seconds,
+            max_output_bytes=MAX_WORKER_SUPERVISOR_OUTPUT_BYTES,
         )
-    except subprocess.TimeoutExpired:
+    except BoundedProcessError:
+        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
+    if completed.timed_out:
         return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
+    if completed.output_limit_exceeded:
+        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
 
     return _parse_worker_payload(completed.stdout, completed.returncode), completed.returncode
 
@@ -1158,18 +1163,18 @@ def _run_deepseek_worker(
 
     timeout_seconds = job_timeout_seconds + 30.0
     try:
-        completed = subprocess.run(  # nosec B603
+        completed = run_bounded_process(
             command,
             cwd=repo_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_seconds,
+            timeout_seconds=timeout_seconds,
+            max_output_bytes=MAX_WORKER_SUPERVISOR_OUTPUT_BYTES,
         )
-    except subprocess.TimeoutExpired:
+    except BoundedProcessError:
+        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
+    if completed.timed_out:
         return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
+    if completed.output_limit_exceeded:
+        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
 
     return _parse_worker_payload(completed.stdout, completed.returncode), completed.returncode
 

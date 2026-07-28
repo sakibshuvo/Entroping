@@ -137,38 +137,19 @@ preserve_factory_metrics() {
   local repo_root="$2"
   local issue_number="$3"
   local dry_run="$4"
-  local metrics_src="$worktree_path/.entroping/factory-metrics"
-  local metrics_dest="$repo_root/.entroping/factory-metrics/finished-issues/issue-$issue_number"
-  local copied=0
-  local found=0
-  local file
-  local rel
-  local dest
-
-  [[ -d "$metrics_src" ]] || return 0
-
-  while IFS= read -r -d '' file; do
-    [[ -L "$file" ]] && continue
-    rel="${file#"$metrics_src"/}"
-    found=$((found + 1))
-
-    if [[ "$dry_run" == "1" ]]; then
-      if ((found == 1)); then
-        printf '%s\n' "Would preserve factory metrics ledgers to $metrics_dest:"
-      fi
-      printf '  %s\n' "$rel"
-      continue
-    fi
-
-    dest="$metrics_dest/$rel"
-    mkdir -p "$(dirname "$dest")"
-    cp "$file" "$dest"
-    copied=$((copied + 1))
-  done < <(find -P "$metrics_src" -type f -name '*.jsonl' -print0)
-
-  if [[ "$dry_run" != "1" && "$copied" -gt 0 ]]; then
-    printf '%s\n' "Preserved factory metrics ledgers ($copied files): $metrics_dest"
+  local pr_number="$5"
+  local merged_at="$6"
+  local -a archive_args=(
+    --repo-root "$repo_root"
+    --source-worktree "$worktree_path"
+    --issue "$issue_number"
+    --pull-request "$pr_number"
+    --archived-at "$merged_at"
+  )
+  if [[ "$dry_run" == "1" ]]; then
+    archive_args+=(--dry-run)
   fi
+  python3 "$script_dir/factory_metrics_archive.py" "${archive_args[@]}"
 }
 
 remove_status_labels() {
@@ -361,7 +342,8 @@ if [[ "$dry_run" == "1" ]]; then
   printf '%s\n' "DRY RUN"
   if [[ "$worktree_exists" == "1" ]]; then
     printf '%s\n' "Would remove worktree: $worktree_path"
-    preserve_factory_metrics "$worktree_path" "$repo_root" "$issue_number" "1"
+    preserve_factory_metrics \
+      "$worktree_path" "$repo_root" "$issue_number" "1" "$pr_number" "$merged_at"
   else
     printf '%s\n' "No local worktree found; would skip worktree removal."
   fi
@@ -391,7 +373,8 @@ if [[ "$keep_worktree" == "1" ]]; then
 fi
 
 if [[ "$worktree_exists" == "1" ]]; then
-  preserve_factory_metrics "$worktree_path" "$repo_root" "$issue_number" "0"
+  preserve_factory_metrics \
+    "$worktree_path" "$repo_root" "$issue_number" "0" "$pr_number" "$merged_at"
   git -C "$repo_root" worktree remove "$worktree_path"
   printf '%s\n' "Removed worktree: $worktree_path"
 else

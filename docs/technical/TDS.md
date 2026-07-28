@@ -2243,6 +2243,41 @@ JSONL records must validate against `entroping.diagnostics.v1`. Datadog,
 Splunk, OpenTelemetry, or other vendor adapters stay downstream of this local
 contract and must not become prerequisites for deterministic local operation.
 
+### 17.1 Factory Artifact Retention
+
+The local software factory keeps operational artifacts only under ignored
+`.entroping/` roots. A versioned policy defines independent terminal-state age
+limits and aggregate byte ceilings for completed or failed job records,
+accepted or rejected review bundles, rotated tick logs, finished-issue metrics
+archives, and terminal retention receipts. Active tick logs are inventoried but
+protected. Active factory metrics use a separate locked 64 MiB aggregate cap;
+finished-issue archives do not consume that live allowance.
+
+Retention is deterministic and provider-free. Planning is read-only. Explicit
+apply takes an exclusive repo-local lock, rejects tracked targets, re-inventories
+bounded descriptor-based roots without following symlinks, compares content
+fingerprints, and stages selected entries into same-filesystem transaction
+trash. A durable journal authorizes only the transaction that created it:
+recovery rolls back an interrupted moving journal with pending operations, or
+completes a fully staged or purging journal. Terminal journal receipts are
+themselves subject to retention, so recovery evidence does not grow forever.
+Both new and adopted journals are capped at 4,096 operations and use canonical
+transaction-trash names, preventing recovery data from widening deletion or
+unbounded rewrite work.
+
+Traversal has finite per-directory, aggregate-entry, depth, metadata-read, and
+hashed-byte limits. Policy ceilings total at most 4 GiB inside an 8 GiB
+inventory budget, preserving bounded over-cap headroom. Malformed metadata,
+control-bearing names, special files, unknown references, unresolved
+settlements, legacy metrics archives without terminal provenance, or
+fingerprint drift fail closed. Terminal metrics provenance binds each canonical
+ledger path to its exact byte count and SHA-256 digest, which inventory
+revalidates before retention eligibility. Archive creation verifies the fully
+serialized provenance metadata fits the 64 KiB reader bound before copying any
+destination ledger. Reports expose only artifact identifiers,
+classes, states, timestamps, relative paths, reason codes, counts, and byte
+totals; artifact contents are never rendered.
+
 ## 18. Testing Strategy
 
 | Area | Tests |

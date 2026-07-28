@@ -148,6 +148,7 @@ instructions.
 - [[decisions/ADR-0018-docker-ci-image-boundary|ADR-0018]]
 - [[decisions/ADR-0021-core-flat-module-taxonomy|ADR-0021]]
 - [[decisions/ADR-0022-factory-cost-policy-contract|ADR-0022]]
+- [[decisions/ADR-0023-factory-artifact-retention|ADR-0023]]
 
 ## Working Loop
 

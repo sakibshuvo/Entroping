@@ -112,6 +112,7 @@ def test_deepseek_worker_help_documents_direct_api_options() -> None:
     assert "--api-key-env" in result.stdout
     assert "--base-url" in result.stdout
     assert "--max-file-bytes" in result.stdout
+    assert "--max-response-bytes" in result.stdout
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
     assert "Default: disabled" in result.stdout
@@ -514,6 +515,143 @@ def test_deepseek_worker_withholds_secret_like_assistant_output(
     assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
     assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stderr
     assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
+
+
+def test_deepseek_worker_bounds_oversized_http_response_before_json_parse(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    DeepSeekStubHandler.response_payload = {
+        "choices": [{"message": {"role": "assistant", "content": "x" * 20_000}}]
+    }
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--max-response-bytes",
+            "1024",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        DeepSeekStubHandler.response_payload = None
+        server.shutdown()
+        thread.join(timeout=2)
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    metadata = read_metadata(artifact_dir)
+    assert "exceeded the 1024-byte limit" in stderr
+    assert metadata["max_response_bytes"] == 1024
+    assert not (artifact_dir / "response.json").exists()
+
+
+def test_deepseek_worker_bounds_unicode_response_after_json_serialization(
+    tmp_path: Path,
+) -> None:
+    class UnicodeResponseHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            body = json.dumps(
+                {"choices": [{"message": {"content": "☁" * 40}}]},
+                ensure_ascii=False,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), UnicodeResponseHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--max-response-bytes",
+            "300",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 0
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    assert (artifact_dir / "response.json").stat().st_size <= 300
+    assert (artifact_dir / "stdout.txt").stat().st_size <= 300
+
+
+def test_deepseek_worker_rejects_invalid_utf8_response_without_persisting_it(
+    tmp_path: Path,
+) -> None:
+    class InvalidUtf8Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            body = b'{"choices": ["\xff"]}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), InvalidUtf8Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 1
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    assert "invalid UTF-8" in (artifact_dir / "stderr.txt").read_text()
+    assert not (artifact_dir / "response.json").exists()
 
 
 def test_deepseek_worker_withholds_secret_like_error_response(

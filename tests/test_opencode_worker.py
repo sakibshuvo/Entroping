@@ -595,6 +595,80 @@ def test_opencode_worker_timeout_is_inconclusive_and_bounded(tmp_path: Path) -> 
     assert "timed out" in (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
 
 
+def test_opencode_worker_kills_and_bounds_output_flood(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "i=0\n"
+            "while [ \"$i\" -lt 10000 ]; do printf '%0100d' 0; i=$((i + 1)); done\n"
+        ),
+    )
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--max-output-bytes",
+        "1024",
+        "--json",
+    )
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    stdout = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    metadata = read_metadata(artifact_dir)
+    assert len(stdout.encode("utf-8")) <= 1024
+    assert len(stderr.encode("utf-8")) <= 1024
+    assert "output truncated: byte limit exceeded" in stdout
+    assert "exceeded the 1024-byte output limit" in stderr
+    assert metadata["max_output_bytes"] == 1024
+
+
+def test_opencode_worker_bounds_stderr_flood_after_adding_failure_context(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "i=0\n"
+            "while [ \"$i\" -lt 10000 ]; do printf '%0100d' 0 >&2; i=$((i + 1)); done\n"
+        ),
+    )
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--max-output-bytes",
+        "1024",
+        "--json",
+    )
+
+    assert result.returncode == 1
+    assert result.stdout, result.stderr
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    assert len(stderr.encode("utf-8")) <= 1024
+    assert stderr.startswith("OpenCode worker exceeded the 1024-byte output limit.")
+    assert "output truncated: byte limit exceeded" in stderr
+
+
 def test_opencode_worker_rejects_missing_file_before_model_call(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()

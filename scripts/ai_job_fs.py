@@ -112,7 +112,7 @@ def atomic_write_json(
             stream.flush()
             os.fsync(file_fd)
         if exclusive:
-            _ = os.link(
+            os.link(
                 temporary_name,
                 name,
                 src_dir_fd=directory_fd,

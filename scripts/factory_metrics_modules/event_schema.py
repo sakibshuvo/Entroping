@@ -90,8 +90,10 @@ ALLOWED_EVENT_KEYS = {
 
 TEXT_FIELDS = {
     "agent",
+    "event_id",
     "tool",
     "provider",
+    "recorded_at",
     "model",
     "issue",
     "pr",
