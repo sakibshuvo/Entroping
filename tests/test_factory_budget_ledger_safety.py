@@ -156,6 +156,7 @@ def test_open_rejects_oversized_regular_sqlite_journal(tmp_path: Path) -> None:
 
 def test_open_rejects_insecure_existing_database_permissions(tmp_path: Path) -> None:
     ledger = FactoryBudgetLedger.open_project(tmp_path)
+    # lgtm[py/overly-permissive-file]
     os.chmod(ledger.db_path, 0o644)
 
     with pytest.raises(FactoryBudgetLedgerError, match="ledger database is unsafe"):

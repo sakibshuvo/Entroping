@@ -19,31 +19,70 @@ def open_private_relative_directory(
     create: bool,
 ) -> Generator[int, None, None]:
     flags = os.O_RDONLY | _directory_flag() | _nofollow_flag()
-    descriptors: list[int] = []
+    try:
+        root_descriptor = _open_repository_root(repo_root, flags)
+    except OSError as exc:
+        raise RetentionFsError("could not open private ledger directory") from exc
     try:
         try:
-            current = _open_repository_root(repo_root, flags)
-            descriptors.append(current)
-            _validate_repository_root(current)
-            for index, part in enumerate(parts):
-                if not part or part in {".", ".."} or Path(part).name != part:
-                    raise RetentionFsError("ledger directory path is invalid")
-                if create:
-                    with suppress(FileExistsError):
-                        os.mkdir(part, mode=0o700, dir_fd=current)
-                child = os.open(part, flags, dir_fd=current)
-                descriptors.append(child)
-                if index == 0:
-                    _validate_shared_state_directory(child)
-                else:
-                    _validate_private_directory(child)
-                current = child
+            _validate_repository_root(root_descriptor)
         except OSError as exc:
             raise RetentionFsError("could not open private ledger directory") from exc
-        yield current
+        with _open_relative_directory_path(
+            root_descriptor,
+            parts,
+            flags,
+            create=create,
+            shared_state=True,
+        ) as current:
+            yield current
     finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
+        os.close(root_descriptor)
+
+
+@contextmanager
+def _open_relative_directory_path(
+    parent_descriptor: int,
+    parts: tuple[str, ...],
+    flags: int,
+    *,
+    create: bool,
+    shared_state: bool,
+) -> Generator[int, None, None]:
+    if not parts:
+        yield parent_descriptor
+        return
+    part = parts[0]
+    if not part or part in {".", ".."} or Path(part).name != part:
+        raise RetentionFsError("ledger directory path is invalid")
+    if create:
+        try:
+            with suppress(FileExistsError):
+                os.mkdir(part, mode=0o700, dir_fd=parent_descriptor)
+        except OSError as exc:
+            raise RetentionFsError("could not open private ledger directory") from exc
+    try:
+        child_descriptor = os.open(part, flags, dir_fd=parent_descriptor)
+    except OSError as exc:
+        raise RetentionFsError("could not open private ledger directory") from exc
+    try:
+        try:
+            if shared_state:
+                _validate_shared_state_directory(child_descriptor)
+            else:
+                _validate_private_directory(child_descriptor)
+        except OSError as exc:
+            raise RetentionFsError("could not open private ledger directory") from exc
+        with _open_relative_directory_path(
+            child_descriptor,
+            parts[1:],
+            flags,
+            create=create,
+            shared_state=False,
+        ) as current:
+            yield current
+    finally:
+        os.close(child_descriptor)
 
 
 def _open_repository_root(repo_root: Path, flags: int) -> int:
