@@ -143,16 +143,15 @@ def _prepare_locked(root: Path, ledger_fd: int) -> None:
         )
         os.unlink(INITIALIZING_NAME, dir_fd=ledger_fd)
         os.fsync(ledger_fd)
-    except BaseException as exc:
-        with suppress(FileNotFoundError):
-            os.unlink(INITIALIZING_NAME, dir_fd=ledger_fd)
-            os.fsync(ledger_fd)
-        if isinstance(exc, (KeyboardInterrupt, SystemExit, FactoryBudgetLedgerError)):
-            raise
+    except (OSError, sqlite3.DatabaseError) as exc:
         raise FactoryBudgetLedgerError(
             "initialization",
             "could not initialize ledger",
         ) from exc
+    finally:
+        with suppress(FileNotFoundError):
+            os.unlink(INITIALIZING_NAME, dir_fd=ledger_fd)
+            os.fsync(ledger_fd)
 
 
 def _connect(

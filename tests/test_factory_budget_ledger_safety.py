@@ -210,30 +210,6 @@ def test_writer_does_not_recreate_ledger_removed_before_retention_lock(
     assert not ledger.db_path.exists()
 
 
-def test_interrupted_initialization_leaves_no_partial_authoritative_database(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def interrupt(connection: sqlite3.Connection) -> None:
-        _ = connection.execute("BEGIN EXCLUSIVE")
-        _ = connection.execute("CREATE TABLE partial_state (id INTEGER PRIMARY KEY) STRICT")
-        raise RuntimeError("injected initialization interruption")
-
-    with monkeypatch.context() as context:
-        context.setattr(
-            "scripts.factory_budget_ledger_storage.initialize_schema",
-            interrupt,
-        )
-        with pytest.raises(FactoryBudgetLedgerError, match="could not initialize ledger"):
-            FactoryBudgetLedger.open_project(tmp_path)
-
-    db_path = tmp_path / ".entroping" / "factory-budget" / "ledger.sqlite3"
-    assert not db_path.exists()
-
-    ledger = FactoryBudgetLedger.open_project(tmp_path)
-    assert ledger.db_path == db_path
-
-
 def test_recovery_completes_published_initialization_hard_link(tmp_path: Path) -> None:
     ledger = FactoryBudgetLedger.open_project(tmp_path)
     initializing = ledger.db_path.parent / ".ledger.sqlite3.init"

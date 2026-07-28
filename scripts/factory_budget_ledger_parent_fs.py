@@ -21,31 +21,25 @@ def open_private_relative_directory(
     flags = os.O_RDONLY | _directory_flag() | _nofollow_flag()
     descriptors: list[int] = []
     try:
-        current = _open_repository_root(repo_root, flags)
-        descriptors.append(current)
-        _validate_repository_root(current)
-        for index, part in enumerate(parts):
-            if not part or part in {".", ".."} or Path(part).name != part:
-                raise RetentionFsError("ledger directory path is invalid")
-            if create:
-                with suppress(FileExistsError):
-                    os.mkdir(part, mode=0o700, dir_fd=current)
-            child = os.open(part, flags, dir_fd=current)
-            descriptors.append(child)
-            if index == 0:
-                _validate_shared_state_directory(child)
-            else:
-                _validate_private_directory(child)
-            current = child
-    except OSError as exc:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-        raise RetentionFsError("could not open private ledger directory") from exc
-    except BaseException:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-        raise
-    try:
+        try:
+            current = _open_repository_root(repo_root, flags)
+            descriptors.append(current)
+            _validate_repository_root(current)
+            for index, part in enumerate(parts):
+                if not part or part in {".", ".."} or Path(part).name != part:
+                    raise RetentionFsError("ledger directory path is invalid")
+                if create:
+                    with suppress(FileExistsError):
+                        os.mkdir(part, mode=0o700, dir_fd=current)
+                child = os.open(part, flags, dir_fd=current)
+                descriptors.append(child)
+                if index == 0:
+                    _validate_shared_state_directory(child)
+                else:
+                    _validate_private_directory(child)
+                current = child
+        except OSError as exc:
+            raise RetentionFsError("could not open private ledger directory") from exc
         yield current
     finally:
         for descriptor in reversed(descriptors):
@@ -54,23 +48,31 @@ def open_private_relative_directory(
 
 def _open_repository_root(repo_root: Path, flags: int) -> int:
     current = os.open(repo_root.anchor, flags)
+    completed = False
     try:
         for part in repo_root.parts[1:]:
             child = os.open(part, flags, dir_fd=current)
+            accepted = False
             try:
                 _validate_parent_rename_authority(
                     os.fstat(current),
                     os.fstat(child),
                 )
-            except BaseException:
+                accepted = True
+            finally:
+                if not accepted:
+                    os.close(child)
+            try:
+                os.close(current)
+            except OSError:
                 os.close(child)
                 raise
-            os.close(current)
             current = child
-    except BaseException:
-        os.close(current)
-        raise
-    return current
+        completed = True
+        return current
+    finally:
+        if not completed:
+            os.close(current)
 
 
 def _validate_parent_rename_authority(

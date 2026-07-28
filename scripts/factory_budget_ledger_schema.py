@@ -109,6 +109,7 @@ SCHEMA_STATEMENTS = (
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
     _ = connection.execute("BEGIN EXCLUSIVE")
+    committed = False
     try:
         for statement in SCHEMA_STATEMENTS:
             _ = connection.execute(statement)
@@ -118,9 +119,10 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         )
         _ = connection.execute(f"PRAGMA user_version = {LEDGER_SCHEMA_VERSION}")
         _ = connection.execute("COMMIT")
-    except BaseException:
-        _ = connection.execute("ROLLBACK")
-        raise
+        committed = True
+    finally:
+        if not committed:
+            _ = connection.execute("ROLLBACK")
 
 
 def validate_schema(connection: sqlite3.Connection) -> None:
@@ -164,7 +166,8 @@ def _schema_objects(connection: sqlite3.Connection) -> frozenset[tuple[str, str,
             WHERE name NOT LIKE 'sqlite_%'
             ORDER BY type, name
             """
-        )
+        ),
+        maximum_rows=len(SCHEMA_STATEMENTS),
     )
 
 

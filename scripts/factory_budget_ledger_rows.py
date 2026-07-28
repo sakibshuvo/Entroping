@@ -32,63 +32,81 @@ ENTRY_VALIDATION_ROWS: TypeAdapter[list[EntryValidationRow]] = TypeAdapter(list[
 def reserve_signature(cursor: sqlite3.Cursor) -> ReserveSignature | None:
     try:
         return RESERVE_SIGNATURE.validate_python(cursor.fetchone(), strict=True)
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
 
 
 def period_summary_row(cursor: sqlite3.Cursor) -> PeriodSummaryRow | None:
     try:
         return PERIOD_SUMMARY_ROW.validate_python(cursor.fetchone(), strict=True)
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
 
 
 def period_state(cursor: sqlite3.Cursor) -> PeriodState | None:
     try:
         return PERIOD_STATE.validate_python(cursor.fetchone(), strict=True)
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
 
 
 def entry_signature(cursor: sqlite3.Cursor) -> EntrySignature | None:
     try:
         return ENTRY_SIGNATURE.validate_python(cursor.fetchone(), strict=True)
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
 
 
 def original_charge(cursor: sqlite3.Cursor) -> OriginalCharge | None:
     try:
         return ORIGINAL_CHARGE.validate_python(cursor.fetchone(), strict=True)
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
 
 
 def integer_row(cursor: sqlite3.Cursor, *, detail: str) -> int:
     try:
         return INTEGER_ROW.validate_python(cursor.fetchone(), strict=True)[0]
-    except ValidationError as exc:
-        raise FactoryBudgetLedgerError("database", detail) from exc
+    except ValidationError:
+        raise FactoryBudgetLedgerError("database", detail) from None
 
 
 def metadata_rows(cursor: sqlite3.Cursor) -> list[tuple[str, str]]:
     try:
-        return METADATA_ROWS.validate_python(cursor.fetchall(), strict=True)
-    except ValidationError as exc:
+        rows = METADATA_ROWS.validate_python(cursor.fetchmany(2), strict=True)
+    except ValidationError:
         raise FactoryBudgetLedgerError(
             "schema",
             "ledger schema metadata is invalid",
-        ) from exc
+        ) from None
+    if len(rows) != 1:
+        raise FactoryBudgetLedgerError(
+            "schema",
+            "ledger schema metadata is invalid",
+        )
+    return rows
 
 
-def schema_objects(cursor: sqlite3.Cursor) -> frozenset[SchemaObject]:
+def schema_objects(
+    cursor: sqlite3.Cursor,
+    *,
+    maximum_rows: int,
+) -> frozenset[SchemaObject]:
     try:
-        rows = SCHEMA_OBJECTS.validate_python(cursor.fetchall(), strict=True)
-    except ValidationError as exc:
+        rows = SCHEMA_OBJECTS.validate_python(
+            cursor.fetchmany(maximum_rows + 1),
+            strict=True,
+        )
+    except ValidationError:
         raise FactoryBudgetLedgerError(
             "schema",
             "ledger schema objects are invalid",
-        ) from exc
+        ) from None
+    if len(rows) > maximum_rows:
+        raise FactoryBudgetLedgerError(
+            "schema",
+            "ledger schema objects are invalid",
+        )
     return frozenset(rows)
 
 
@@ -101,8 +119,8 @@ def period_validation_rows(
             cursor.fetchmany(batch_size),
             strict=True,
         )
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
     return tuple(rows)
 
 
@@ -115,8 +133,8 @@ def entry_validation_rows(
             cursor.fetchmany(batch_size),
             strict=True,
         )
-    except ValidationError as exc:
-        raise _invalid_values() from exc
+    except ValidationError:
+        raise _invalid_values() from None
     return tuple(rows)
 
 

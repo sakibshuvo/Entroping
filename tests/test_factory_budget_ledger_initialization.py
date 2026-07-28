@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+import sqlite3
+import sys
+from pathlib import Path
+from typing import override
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.factory_budget_ledger import FactoryBudgetLedger  # noqa: E402
+
+
+class InjectedInitializationError(RuntimeError):
+    detail: str
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
+
+    @override
+    def __str__(self) -> str:
+        return self.detail
+
+
+def test_unexpected_initialization_error_preserves_identity_and_cleans_partial_database(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def interrupt(connection: sqlite3.Connection) -> None:
+        _ = connection.execute("BEGIN EXCLUSIVE")
+        _ = connection.execute("CREATE TABLE partial_state (id INTEGER PRIMARY KEY) STRICT")
+        raise InjectedInitializationError("injected initialization interruption")
+
+    with monkeypatch.context() as context:
+        context.setattr(
+            "scripts.factory_budget_ledger_storage.initialize_schema",
+            interrupt,
+        )
+        with pytest.raises(
+            InjectedInitializationError,
+            match="injected initialization interruption",
+        ):
+            _ = FactoryBudgetLedger.open_project(tmp_path)
+
+    db_path = tmp_path / ".entroping" / "factory-budget" / "ledger.sqlite3"
+    assert not db_path.exists()
+
+    ledger = FactoryBudgetLedger.open_project(tmp_path)
+    assert ledger.db_path == db_path
