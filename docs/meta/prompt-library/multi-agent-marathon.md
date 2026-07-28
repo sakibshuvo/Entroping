@@ -341,7 +341,7 @@ docs/meta/prompt-library/multi-agent-marathon.md
 docs/meta/prompt-library/model-output-acceptance-gate.md
 
 Lane:
-- Provider lane: <codex-spark | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
+- Provider lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - Provider host: <OpenCode Desktop | OpenCode CLI | OpenCode Go>
 - Billing path: <paid DeepSeek inside OpenCode | OpenCode Go subscription | other>
 - Model id: <exact configured model id>

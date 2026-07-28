@@ -71,6 +71,52 @@ def _run_quarantine(
     )
 
 
+def test_quarantine_help_runs_with_system_python() -> None:
+    system_python = Path("/usr/bin/python3")
+    if not system_python.is_file():
+        pytest.skip("system Python is unavailable")
+
+    result = subprocess.run(
+        [str(system_python), str(QUARANTINE_SCRIPT), "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_quarantine_system_python_reports_project_environment_requirement(
+    tmp_path: Path,
+) -> None:
+    system_python = Path("/usr/bin/python3")
+    if not system_python.is_file():
+        pytest.skip("system Python is unavailable")
+    job_root = tmp_path / "ai-jobs"
+    _write_expensive_tier_a_job(job_root)
+
+    result = subprocess.run(
+        [
+            str(system_python),
+            str(QUARANTINE_SCRIPT),
+            "quarantine",
+            "--job-root",
+            str(job_root),
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode in {0, 2}
+    assert "Traceback" not in result.stderr
+    if result.returncode == 2:
+        assert "uv run python scripts/ai_job_quarantine.py" in result.stderr
+
+
 def _write_expensive_tier_a_job(job_root: Path, *, issue: str = "774") -> Path:
     queued_path = job_root / "queued" / "legacy-job.json"
     queued_path.parent.mkdir(parents=True, exist_ok=True)
@@ -357,6 +403,48 @@ def test_requeue_defaults_to_plan_with_live_issue_and_explicit_routing(
     assert revalidation["model"] == "opencode/deepseek-v4-flash-free"
     assert revalidation["files"] == ["README.md"]
     assert revalidation["source_revision"]
+    assert not list((job_root / "queued").glob("*.json"))
+
+
+def test_requeue_does_not_promote_missing_autonomy_to_tier_a(tmp_path: Path) -> None:
+    job_root = tmp_path / "ai-jobs"
+    queued_path = _write_expensive_tier_a_job(job_root, issue="1557")
+    job = json.loads(queued_path.read_text(encoding="utf-8"))
+    del job["autonomy_tier"]
+    job["model"] = "deepseek/unregistered-paid-model"
+    queued_path.write_text(
+        json.dumps(job, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    quarantine = _run_quarantine(
+        "quarantine",
+        "--job-root",
+        str(job_root),
+        "--apply",
+        "--json",
+    )
+    assert quarantine.returncode == 0, quarantine.stderr
+    assert json.loads(quarantine.stdout)["candidates"][0]["reason"] == (
+        "provider-route-violation"
+    )
+
+    result = _run_quarantine(
+        "requeue",
+        "--job-root",
+        str(job_root),
+        "--job-id",
+        "legacy-job",
+        "--engine",
+        "opencode",
+        "--profile",
+        "flash-free",
+        "--apply",
+        "--json",
+        env=_write_fake_ready_gh(tmp_path / "bin"),
+    )
+
+    assert result.returncode == 2
+    assert "only quarantined Tier A jobs can be requeued" in result.stderr
     assert not list((job_root / "queued").glob("*.json"))
 
 

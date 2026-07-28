@@ -542,3 +542,27 @@ decisions:
     related_issues: ["#1562"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0024
+    title: Factory provider capability registry
+    status: accepted
+    date: "2026-07-28"
+    summary: >
+      One versioned, non-secret registry governs recognized maintainer-factory
+      provider evidence and queue routes; exact unknown paid combinations fail
+      closed while lifecycle preserves historical evidence and metered routes
+      carry separate invocation and cost-policy join identities.
+    tags: [factory, providers, routing, security, architecture]
+    source_links:
+      - path: decisions/ADR-0024-provider-capability-registry.md
+        role: adr
+      - path: docs/meta/provider-capability-registry.json
+        role: capability-registry
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - docs/meta/AGENT_CONTROL_PLANE.md
+      - docs/meta/FACTORY_OPERATIONS.md
+    related_issues: ["#1558", "#1573"]
+    supersedes: []
+    superseded_by: null

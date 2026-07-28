@@ -20,6 +20,10 @@ work can be verified without relying on chat memory.
 
 Use these lane names in the first message, PR body, and final handoff:
 
+Resolve the canonical lane, host, billing, model, lifecycle, and autonomy
+combination from `docs/meta/provider-capability-registry.json`. The examples
+below explain current use but cannot authorize an unregistered paid route.
+
 - `opencode/native-deepseek`: OpenCode host using paid DeepSeek inside
   OpenCode, normally `deepseek/deepseek-v4-pro` or a lower-cost DeepSeek model
   configured directly in OpenCode.
@@ -83,7 +87,7 @@ Setup items to verify locally, without committing local config:
 - PR-body evidence: include `Closes #<issue>`, commands run, Agent Autonomy
   Declaration, Documentation Impact Declaration, and OpenCode Provider Lane
   Evidence; validate with
-  `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
+  `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue> --issue-metadata-file <issue.json>` after exporting the issue with `gh issue view <issue> --json number,state,body > <issue.json>`.
 - CI and finish cleanup: merge only through a PR after GitHub CI is green, then
   run `scripts/finish_issue.sh <issue>` from a separate checkout.
 - Metrics hooks: record useful context, cost, model, and gate evidence with
@@ -92,7 +96,7 @@ Setup items to verify locally, without committing local config:
   `scripts/opencode_worker.py --record-factory-metrics` for OpenCode Desktop or
   OpenCode CLI workers, `scripts/deepseek_worker.py --record-factory-metrics`
   for direct DeepSeek API workers, and
-  `scripts/ai_jobs.py run-next --record-factory-metrics` for queued batch jobs.
+  `uv run python scripts/ai_jobs.py run-next --record-factory-metrics` for queued batch jobs.
   These metrics are local workflow evidence, not release proof.
 
 ## Artifact-First Worker Contract
@@ -242,7 +246,7 @@ Issue:
 #<issue-number> - <issue-title>
 
 Provider lane:
-- Lane: <codex-spark | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
+- Lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - Provider host: <OpenCode native provider | OpenCode Go>
 - Billing path: <paid DeepSeek inside OpenCode | OpenCode Go subscription>
 - Model id: <exact model id from /models when known>
@@ -364,7 +368,7 @@ Workflow:
 10. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
 11. Commit with a Conventional Commit message.
 12. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
-    Run `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>` before autonomous Tier A merge or before handing the PR to Codex/human review.
+    Run `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number> --issue-metadata-file <issue.json>` after `gh issue view <issue-number> --json number,state,body > <issue.json>` before autonomous Tier A merge or before handing the PR to Codex/human review.
 13. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
 14. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
 
@@ -407,7 +411,7 @@ Expected issue:
 #<issue-number>
 
 Expected provider lane:
-<codex-spark | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
+<registered lane id from docs/meta/provider-capability-registry.json>
 
 Start:
 git pull --ff-only

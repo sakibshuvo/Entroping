@@ -210,6 +210,31 @@ def test_ai_jobs_help_documents_routing_audit() -> None:
     assert "audit-routing" in result.stdout
 
 
+def test_ai_jobs_read_only_commands_run_with_system_python(tmp_path: Path) -> None:
+    system_python = Path("/usr/bin/python3")
+    if not system_python.is_file():
+        pytest.skip("system Python is unavailable")
+    job_root = tmp_path / "system-python-jobs"
+
+    for command in ("status", "collect"):
+        result = subprocess.run(
+            [
+                str(system_python),
+                str(SCRIPT),
+                command,
+                "--job-root",
+                str(job_root),
+                "--json",
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+
+
 def test_ai_jobs_submit_tier_a_defaults_to_cheap_opencode_context_contract(
     tmp_path: Path,
 ) -> None:

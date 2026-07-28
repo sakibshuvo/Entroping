@@ -10,10 +10,12 @@ import subprocess  # nosec B404
 import sys
 import tempfile
 import uuid
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
+from functools import cache
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
@@ -21,10 +23,10 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts import ai_job_fs  # noqa: E402
 from scripts.ai_job_runtime_fs import QueueStateHandles, open_queue_state  # noqa: E402
-from scripts.bounded_process import (  # noqa: E402
-    BoundedProcessError,
-    run_bounded_process,
-)
+
+if TYPE_CHECKING:
+    from scripts.bounded_process import BoundedProcessResult
+    from scripts.provider_capability_types import ProviderCapabilityRegistry
 
 DEFAULT_JOB_ROOT = Path(".entroping") / "ai-jobs"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
@@ -33,20 +35,9 @@ MAX_WORKER_SUPERVISOR_OUTPUT_BYTES = 1_048_576
 STALE_RUNNING_GRACE_SECONDS = 60.0
 SCHEMA_VERSION = "entroping.ai-job.v1"
 CONTEXT_MANIFEST_COMMAND = "scripts/context_pack.sh --mode implementation --manifest"
-TIER_A_MERGE_AUTHORITY = (
-    "Tier A autonomous after gates and green CI"
-)
+TIER_A_MERGE_AUTHORITY = "Tier A autonomous after gates and green CI"
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 SUCCESSFUL_WORKER_STATUSES = {"completed", "dry-run", "inconclusive", "patch-proposed"}
-MODEL_PROFILES = {
-    "flash-free": "opencode/deepseek-v4-flash-free",
-    "flash": "deepseek/deepseek-v4-flash",
-    "pro": "deepseek/deepseek-v4-pro",
-}
-DEEPSEEK_API_MODEL_PROFILES = {
-    "flash": "deepseek-v4-flash",
-    "pro": "deepseek-v4-pro",
-}
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 
 Mode = Literal["review", "patch"]
@@ -57,6 +48,55 @@ AutonomyTier = Literal["tier_a", "tier_b", "tier_c"]
 
 class AiJobError(ValueError):
     """Raised when an AI job queue input is invalid."""
+
+
+class BoundedProcessError(RuntimeError):
+    pass
+
+
+def run_bounded_process(
+    command: Sequence[str | Path],
+    *,
+    cwd: Path,
+    timeout_seconds: float,
+    max_output_bytes: int,
+    env: Mapping[str, str] | None = None,
+) -> BoundedProcessResult:
+    from scripts.bounded_process import BoundedProcessError as ProcessError
+    from scripts.bounded_process import run_bounded_process as run_process
+
+    try:
+        return run_process(
+            command,
+            cwd=cwd,
+            timeout_seconds=timeout_seconds,
+            max_output_bytes=max_output_bytes,
+            env=env,
+        )
+    except ProcessError as exc:
+        raise BoundedProcessError(str(exc)) from exc
+
+
+@cache
+def _provider_registry() -> ProviderCapabilityRegistry:
+    try:
+        from scripts.provider_capability_registry import load_provider_registry
+        from scripts.provider_capability_types import ProviderRegistryError
+    except (ImportError, SyntaxError) as exc:
+        raise AiJobError(
+            "provider registry dependencies are unavailable; run with "
+            "`uv run python scripts/ai_jobs.py ...`"
+        ) from exc
+    try:
+        return load_provider_registry()
+    except ProviderRegistryError as exc:
+        raise AiJobError(f"provider capability registry is invalid ({exc})") from exc
+
+
+def _queue_engines() -> tuple[WorkerEngine, ...]:
+    from scripts.provider_capability_registry import supported_queue_engines
+
+    return supported_queue_engines(_provider_registry())
 
 
 def main() -> int:
@@ -98,8 +138,9 @@ def _parse_args() -> argparse.Namespace:
     submit.add_argument(
         "--profile",
         help=(
-            "Model profile: flash-free, flash, or pro. Default: pro, or "
-            "flash-free for --autonomy-tier tier-a on OpenCode."
+            "Registered model profile from the canonical provider registry. "
+            "Default: the registry's standard route, or its Tier A route for "
+            "--autonomy-tier tier-a."
         ),
     )
     submit.add_argument("--model", help="Explicit OpenCode model id; overrides --profile.")
@@ -198,13 +239,15 @@ def _parse_args() -> argparse.Namespace:
     subparsers.add_parser(
         "audit-routing",
         parents=[common],
-        help="Report Tier A jobs that drift from cheap worker routing defaults.",
+        help="Report invalid provider routes and Tier A cheap-routing drift.",
     )
 
     return parser.parse_args()
 
 
 def _dispatch(args: argparse.Namespace) -> int:
+    if args.command in ("submit", "run-next", "audit-routing"):
+        _ = _provider_registry()
     repo_root = _repo_root()
     job_root = _resolve_root(repo_root, args.job_root, "job root")
 
@@ -299,7 +342,12 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         autonomy_tier=autonomy_tier,
         profile=args.profile,
     )
-    model, resolved_profile = _resolve_model(engine=engine, profile=profile, model=args.model)
+    model, resolved_profile = _resolve_model(
+        engine=engine,
+        profile=profile,
+        model=args.model,
+        autonomy_tier=autonomy_tier,
+    )
     job_id = _new_job_id(mode=str(args.mode))
     worker_instruction = _worker_instruction(
         autonomy_tier=autonomy_tier,
@@ -346,17 +394,42 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
     return {"status": "queued", "job_id": job_id, "job_path": str(job_path)}
 
 
-def _resolve_model(*, engine: WorkerEngine, profile: str, model: str | None) -> tuple[str, str]:
+def _resolve_model(
+    *,
+    engine: WorkerEngine,
+    profile: str,
+    model: str | None,
+    autonomy_tier: AutonomyTier | None,
+) -> tuple[str, str]:
+    from scripts.provider_capability_registry import queue_profile_entries, resolve_queue_model
+    from scripts.provider_capability_types import ProviderRegistryError
+
     if model is not None:
         model_id = model.strip()
         if not model_id:
             msg = "--model must not be empty"
             raise AiJobError(msg)
-        return model_id, "custom"
+        try:
+            route = resolve_queue_model(
+                _provider_registry(),
+                engine,
+                model_id,
+                autonomy_tier=autonomy_tier,
+            )
+        except ProviderRegistryError as exc:
+            raise AiJobError(exc.detail) from exc
+        return route.model.id, "custom"
     profiles = _model_profiles(engine)
     if profile not in profiles:
         known_for_engine = ", ".join(sorted(profiles))
-        known_profiles = set(MODEL_PROFILES) | set(DEEPSEEK_API_MODEL_PROFILES)
+        known_profiles = {
+            known_profile
+            for known_engine in _queue_engines()
+            for known_profile, _model_id in queue_profile_entries(
+                _provider_registry(),
+                known_engine,
+            )
+        }
         if profile in known_profiles:
             msg = (
                 f"model profile {profile!r} is not supported by engine {engine!r}; "
@@ -366,7 +439,16 @@ def _resolve_model(*, engine: WorkerEngine, profile: str, model: str | None) -> 
         known = ", ".join(sorted(known_profiles))
         msg = f"unknown model profile: {profile!r}; expected one of: {known}"
         raise AiJobError(msg)
-    return profiles[profile], profile
+    try:
+        route = resolve_queue_model(
+            _provider_registry(),
+            engine,
+            profiles[profile],
+            autonomy_tier=autonomy_tier,
+        )
+    except ProviderRegistryError as exc:
+        raise AiJobError(exc.detail) from exc
+    return route.model.id, profile
 
 
 def _normalize_autonomy_tier(raw_tier: str | None) -> AutonomyTier | None:
@@ -390,13 +472,16 @@ def _default_profile(
     autonomy_tier: AutonomyTier | None,
     profile: str | None,
 ) -> str:
+    from scripts.provider_capability_registry import default_queue_route
+    from scripts.provider_capability_types import ProviderRegistryError, QueueDefault
+
     if profile is not None:
         return profile
-    if autonomy_tier == "tier_a" and engine == "opencode":
-        return "flash-free"
-    if autonomy_tier == "tier_a" and engine == "deepseek-api":
-        return "flash"
-    return "pro"
+    selector: QueueDefault = "tier_a" if autonomy_tier == "tier_a" else "standard"
+    try:
+        return default_queue_route(_provider_registry(), engine, selector).queue.profile
+    except ProviderRegistryError as exc:
+        raise AiJobError(exc.detail) from exc
 
 
 def _routing_metadata(
@@ -406,6 +491,9 @@ def _routing_metadata(
     profile: str,
     model: str,
 ) -> dict[str, str | bool]:
+    from scripts.provider_capability_registry import resolve_queue_model
+    from scripts.provider_capability_types import ProviderRegistryError
+
     merge_authority = (
         TIER_A_MERGE_AUTHORITY if autonomy_tier == "tier_a" else "Codex/human required"
     )
@@ -414,25 +502,20 @@ def _routing_metadata(
         "context_manifest_required": True,
         "merge_authority": merge_authority,
     }
-    if engine == "deepseek-api":
-        metadata.update(
-            {
-                "provider_lane": "deepseek-api/direct",
-                "provider_host": "repo-local DeepSeek worker",
-                "billing_path": "paid direct DeepSeek API",
-            }
+    try:
+        route = resolve_queue_model(
+            _provider_registry(),
+            engine,
+            model,
+            autonomy_tier=autonomy_tier,
         )
-        return metadata
-
+    except ProviderRegistryError as exc:
+        raise AiJobError(exc.detail) from exc
     metadata.update(
         {
-            "provider_lane": "opencode/native-deepseek",
-            "provider_host": "OpenCode",
-            "billing_path": (
-                "OpenCode free-model lane"
-                if profile == "flash-free" or "flash-free" in model
-                else "OpenCode configured provider"
-            ),
+            "provider_lane": route.lane.id,
+            "provider_host": route.lane.provider_host,
+            "billing_path": route.billing_path,
         }
     )
     return metadata
@@ -483,9 +566,9 @@ def _worker_instruction(
 
 
 def _model_profiles(engine: WorkerEngine) -> dict[str, str]:
-    if engine == "opencode":
-        return MODEL_PROFILES
-    return DEEPSEEK_API_MODEL_PROFILES
+    from scripts.provider_capability_registry import queue_profile_entries
+
+    return dict(queue_profile_entries(_provider_registry(), engine))
 
 
 def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> list[str]:
@@ -596,10 +679,7 @@ def _github_issue_snapshot(issue: str) -> dict[str, object]:
 def _labels_include_ready(value: object) -> bool:
     if not isinstance(value, list):
         return False
-    return any(
-        isinstance(label, dict) and label.get("name") == "status:ready"
-        for label in value
-    )
+    return any(isinstance(label, dict) and label.get("name") == "status:ready" for label in value)
 
 
 def _selected_file_digests(repo_root: Path, files: list[str]) -> dict[str, str]:
@@ -885,7 +965,8 @@ def _dispatch_violation_payload(
         "queue_status": "queued",
         "reason": reason,
         "suggested_action": (
-            "run scripts/ai_job_quarantine.py quarantine and review the plan before --apply"
+            "use `uv run python scripts/ai_job_quarantine.py quarantine` and review "
+            "the plan before --apply"
         ),
     }
 
@@ -932,9 +1013,7 @@ def _fail_recoverable_running_jobs(
         failure_status = _recoverable_running_job_status(job)
         if failure_status is None:
             continue
-        recovered.append(
-            _fail_running_job(queue, name, job, worker_status=failure_status)
-        )
+        recovered.append(_fail_running_job(queue, name, job, worker_status=failure_status))
     return recovered
 
 
@@ -1285,6 +1364,8 @@ def _queued_routing_violations(
             continue
         except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError):
             continue
+        if _job_structure_error(job) is not None:
+            continue
         violation = _tier_a_routing_violation(job, path)
         if violation is not None:
             violations.append(violation)
@@ -1298,7 +1379,8 @@ def _unsafe_queued_job_payload(path: Path, *, reason: str) -> dict[str, object]:
         "queue_status": "queued",
         "reason": reason,
         "suggested_action": (
-            "run scripts/ai_job_quarantine.py quarantine and review the plan before --apply"
+            "use `uv run python scripts/ai_job_quarantine.py quarantine` and review "
+            "the plan before --apply"
         ),
     }
 
@@ -1307,12 +1389,52 @@ def _tier_a_routing_violation(
     job: dict[str, object],
     path: Path,
 ) -> dict[str, object] | None:
+    from scripts.provider_capability_registry import resolve_queue_model
+    from scripts.provider_capability_types import ProviderRegistryError
+
+    engine = _string_value(job.get("engine"), default="opencode")
+    if engine not in ("opencode", "deepseek-api"):
+        return _provider_route_violation_payload(
+            job,
+            path,
+            "job uses an unsupported provider queue engine",
+        )
+    queue_engine = cast(WorkerEngine, engine)
+    raw_autonomy_tier = job.get("autonomy_tier")
+    if raw_autonomy_tier not in (None, "tier_a", "tier_b", "tier_c"):
+        return _provider_route_violation_payload(
+            job,
+            path,
+            "job autonomy_tier is not supported",
+        )
+    autonomy_tier: AutonomyTier | None = raw_autonomy_tier
+    model = _string_value(job.get("model"), default="")
+    try:
+        route = resolve_queue_model(
+            _provider_registry(),
+            queue_engine,
+            model,
+            autonomy_tier=autonomy_tier,
+        )
+    except ProviderRegistryError as exc:
+        return _provider_route_violation_payload(job, path, exc.detail)
+    expected_metadata = {
+        "provider_lane": route.lane.id,
+        "provider_host": route.lane.provider_host,
+        "billing_path": route.billing_path,
+    }
+    for field, expected in expected_metadata.items():
+        actual = job.get(field)
+        if actual is not None and actual != expected:
+            return _provider_route_violation_payload(
+                job,
+                path,
+                f"job {field} does not match the registered provider route",
+            )
     if job.get("autonomy_tier") != "tier_a":
         return None
 
-    engine = _string_value(job.get("engine"), default="opencode")
     profile = _string_value(job.get("profile"), default="")
-    model = _string_value(job.get("model"), default="")
     expected_profile, expected_model, suggested_action = _tier_a_expected_routing(engine)
     if expected_profile is None or expected_model is None:
         return _routing_violation_payload(
@@ -1333,20 +1455,42 @@ def _tier_a_routing_violation(
     )
 
 
+def _provider_route_violation_payload(
+    job: dict[str, object],
+    path: Path,
+    detail: str,
+) -> dict[str, object]:
+    return {
+        "job_id": job.get("job_id", path.stem),
+        "job_path": str(path),
+        "queue_status": job.get("queue_status"),
+        "reason": "provider-route-violation",
+        "detail": detail,
+        "issue": job.get("issue"),
+        "engine": job.get("engine", "opencode"),
+        "profile": job.get("profile"),
+        "model": job.get("model"),
+        "provider_lane": job.get("provider_lane"),
+        "provider_host": job.get("provider_host"),
+        "billing_path": job.get("billing_path"),
+        "suggested_action": (
+            "inspect the job and requeue it with a registered provider/model route"
+        ),
+    }
+
+
 def _tier_a_expected_routing(engine: str) -> tuple[str | None, str | None, str]:
-    if engine == "opencode":
-        return (
-            "flash-free",
-            MODEL_PROFILES["flash-free"],
-            "requeue with --autonomy-tier tier-a and no --profile override",
+    from scripts.provider_capability_registry import default_queue_route
+
+    if engine not in _queue_engines():
+        return None, None, "inspect the job and requeue it with a supported Tier A worker engine"
+    route = default_queue_route(_provider_registry(), engine, "tier_a")
+    suggested_action = "requeue with --autonomy-tier tier-a and no --profile override"
+    if engine != "opencode":
+        suggested_action = (
+            f"requeue with --engine {engine} --autonomy-tier tier-a and no --profile override"
         )
-    if engine == "deepseek-api":
-        return (
-            "flash",
-            DEEPSEEK_API_MODEL_PROFILES["flash"],
-            "requeue with --engine deepseek-api --autonomy-tier tier-a and no --profile override",
-        )
-    return None, None, "inspect the job and requeue it with a supported Tier A worker engine"
+    return route.queue.profile, route.model.id, suggested_action
 
 
 def _routing_violation_payload(
@@ -1418,11 +1562,7 @@ def _usage_payload(value: object) -> dict[str, object] | None:
         return None
     usage: dict[str, object] = {}
     for key, item in value.items():
-        if (
-            isinstance(key, str)
-            and not isinstance(item, bool)
-            and isinstance(item, (int, float))
-        ):
+        if isinstance(key, str) and not isinstance(item, bool) and isinstance(item, (int, float)):
             usage[key] = item
     return usage or None
 

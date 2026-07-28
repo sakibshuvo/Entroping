@@ -14,6 +14,7 @@ QUARANTINE_REASONS = frozenset(
         "issue-revalidation-failed",
         "legacy-revalidation-required",
         "malformed-job",
+        "provider-route-violation",
         "selected-files-changed",
         "selected-files-unavailable",
         "stale-revision",

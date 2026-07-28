@@ -12,15 +12,11 @@ source_of_truth_order:
   - product_tds_user_docs
   - entroping_specs_source_archive
   - agent_summaries_and_generated_context
+provider_capability_registry: docs/meta/provider-capability-registry.json
 worker_routing_defaults:
   tier_a:
-    default_engine: opencode
-    default_profile: flash-free
-    default_model: opencode/deepseek-v4-flash-free
-    default_provider_lane: opencode/native-deepseek
-    fallback_provider_lanes:
-      - deepseek-api/direct
-      - local/offline
+    default_queue_engine: opencode
+    default_queue_selector: tier_a
     context_manifest_command: scripts/context_pack.sh --mode implementation --manifest
     context_rule: >
       Start from the context-pack manifest, then request only the needed
@@ -31,11 +27,8 @@ worker_routing_defaults:
       security-sensitive work, runtime behavior, provider boundaries, release
       behavior, secrets handling, raw traffic, or audit evidence.
   tier_b:
-    default_engine: none
-    default_profile: none
-    default_model: none
-    default_provider_lane: codex/human-review
-    fallback_provider_lanes: []
+    default_queue_engine: none
+    default_queue_selector: none
     context_manifest_command: scripts/context_pack.sh --mode implementation --manifest
     context_rule: >
       Workers may review or draft, but Codex or a human must inspect local repo
@@ -44,11 +37,8 @@ worker_routing_defaults:
     stop_condition: >
       Stop before merge and request Codex or human review.
   tier_c:
-    default_engine: none
-    default_profile: none
-    default_model: none
-    default_provider_lane: restricted/no-autonomous-worker
-    fallback_provider_lanes: []
+    default_queue_engine: none
+    default_queue_selector: none
     context_manifest_command: scripts/context_pack.sh --mode implementation --manifest
     context_rule: >
       Workers may produce review or proposal artifacts only; do not implement

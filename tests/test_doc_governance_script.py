@@ -250,7 +250,6 @@ def test_pr_body_check_rejects_human_pr_without_docs_declaration_for_dependency_
         json.dumps(_dependabot_event(login="sakibshuvo")),
         encoding="utf-8",
     )
-
     result = run_pr_body_check(
         str(event_path),
         "--changed-file",
@@ -1200,6 +1199,7 @@ def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
     tmp_path: Path,
 ) -> None:
     body_path = tmp_path / "pr-body.md"
+    issue_path = tmp_path / "issue.json"
     body_path.write_text(
         "## Summary\n"
         "Tier A OpenCode worker guard update.\n\n"
@@ -1219,6 +1219,17 @@ def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
         "- [x] No docs update needed. Reason: checker-only validation.\n",
         encoding="utf-8",
     )
+    issue_path.write_text(
+        json.dumps(
+            {
+                "number": 706,
+                "state": "OPEN",
+                "body": "## Autonomy\n\nTier A autonomous lane.",
+                "pull_request": None,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = run_pr_body_check(
         "--body-file",
@@ -1226,6 +1237,8 @@ def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
         "--require-opencode-evidence",
         "--issue",
         "706",
+        "--issue-metadata-file",
+        str(issue_path),
     )
 
     assert result.returncode == 0, result.stderr

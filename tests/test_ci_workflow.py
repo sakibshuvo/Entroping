@@ -1,5 +1,6 @@
 """Regression tests for GitHub Actions workflow coverage."""
 
+import json
 import os
 import re
 import subprocess
@@ -91,7 +92,7 @@ def test_ci_workflow_runs_on_pull_requests_and_main_pushes_only() -> None:
 def test_ci_workflow_declares_minimum_permissions() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
 
-    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["permissions"] == {"contents": "read", "issues": "read"}
 
 
 def test_codeql_workflow_runs_tracked_code_scanning_with_minimum_permissions() -> None:
@@ -149,7 +150,15 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
 
     assert checkout_step["with"]["fetch-depth"] == 0
     assert "scripts/regression.sh --security" in checks_run_blocks
-    assert 'scripts/pr_body_check.py "$GITHUB_EVENT_PATH"' in checks_run_blocks
+    assert (
+        'uv run python scripts/pr_body_check.py "$GITHUB_EVENT_PATH"'
+        in checks_run_blocks
+    )
+    assert "--print-provider-evidence-issue" in checks_run_blocks
+    assert "--require-opencode-evidence" in checks_run_blocks
+    assert "--issue-metadata-file" in checks_run_blocks
+    assert 'gh api "repos/${GITHUB_REPOSITORY}/issues/${provider_issue}"' in checks_run_blocks
+    assert "GH_TOKEN: ${{ github.token }}" in _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "--changed-file" in checks_run_blocks
     assert "git diff --name-only" in checks_run_blocks
     assert "git merge-base" in checks_run_blocks
@@ -165,6 +174,97 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
         and step.get("with", {}).get("path") == "reports"
         for step in quality_audit["steps"]
     )
+
+
+def test_ci_pr_body_step_rejects_tier_a_self_promotion_for_tier_c_issue(
+    tmp_path: Path,
+) -> None:
+    event_path = tmp_path / "event.json"
+    body = "\n".join(
+        [
+            "## Summary",
+            "Authority escalation fixture.",
+            "",
+            "Closes #1558",
+            "",
+            "## Verification",
+            "",
+            "Verification lane: release-ci-architecture",
+            "",
+            "Commands run:",
+            "scripts/regression.sh --security",
+            "scripts/audit_quality.sh",
+            "",
+            "## Agent Autonomy Declaration",
+            "",
+            "- [x] Tier A autonomous lane: bounded implementation.",
+            "- [x] Merge authority: Tier A autonomous after gates and green CI.",
+            "",
+            "## OpenCode Provider Lane Evidence",
+            "",
+            "- Provider lane: opencode/native-deepseek",
+            "- Provider host: OpenCode",
+            "- Billing path: OpenCode free-model lane",
+            "- Model id: opencode/deepseek-v4-flash-free",
+            "- Autonomy tier: Tier A autonomous lane",
+            "- Merge authority: Tier A autonomous after gates and green CI",
+            "- Commands run: scripts/regression.sh --security",
+            "",
+            "## Documentation Impact Declaration",
+            "",
+            "- [x] No docs update needed. Reason: checker fixture.",
+        ]
+    )
+    event_path.write_text(json.dumps({"pull_request": {"body": body}}), encoding="utf-8")
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    git_stub = bin_dir / "git"
+    git_stub.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [[ \"$1\" == \"fetch\" ]]; then exit 0; fi\n"
+        "if [[ \"$1\" == \"merge-base\" ]]; then exit 0; fi\n"
+        "if [[ \"$1\" == \"diff\" && \"$2\" == \"--name-only\" ]]; then\n"
+        "  printf '%s\\n' scripts/pr_body_check.py\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    git_stub.chmod(0o755)
+    gh_stub = bin_dir / "gh"
+    gh_stub.write_text(
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' "
+        "'{\"number\":1558,\"state\":\"open\",\"body\":"
+        "\"## Autonomy\\n\\nTier C restricted architecture lane.\","
+        "\"pull_request\":null}'\n",
+        encoding="utf-8",
+    )
+    gh_stub.chmod(0o755)
+    env = os.environ.copy()
+    env.update(
+        {
+            "GITHUB_BASE_REF": "main",
+            "GITHUB_EVENT_PATH": str(event_path),
+            "GITHUB_REPOSITORY": "sakibshuvo/Entroping",
+            "GH_TOKEN": "test-token-not-a-secret",
+            "RUNNER_TEMP": str(tmp_path),
+            "PATH": f"{bin_dir}:{env['PATH']}",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", _ci_pr_body_check_run_block()],
+        cwd=_REPO_ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "does not match trusted issue autonomy tier" in result.stderr
 
 
 def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
@@ -243,7 +343,10 @@ def test_ci_pr_body_check_step_handles_diff_with_merge_base(tmp_path: Path) -> N
     _run_git(["branch", "-M", "main"], cwd=source)
     _run_git(["push", "origin", "main"], cwd=source)
     _run_git(["checkout", "-b", "feature"], cwd=source)
-    (source / "pyproject.toml").write_text("[project]\nname = \"fixture\"\n", encoding="utf-8")
+    (source / "pyproject.toml").write_text(
+        '[project]\nname = "fixture"\nversion = "0.0.0"\n',
+        encoding="utf-8",
+    )
     _run_git(["add", "pyproject.toml"], cwd=source)
     _run_git(["commit", "-m", "dependency update"], cwd=source)
     _run_git(["push", "origin", "feature"], cwd=source)

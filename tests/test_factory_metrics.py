@@ -213,30 +213,6 @@ def test_agent_role_registry_defines_portable_factory_roles() -> None:
         assert role_id in role["metrics_tags"]
 
 
-def test_agent_role_registry_defines_tier_a_cheap_worker_routing_defaults() -> None:
-    registry = yaml.safe_load(ROLE_REGISTRY.read_text(encoding="utf-8"))
-    routing = registry["worker_routing_defaults"]
-
-    tier_a = routing["tier_a"]
-    assert tier_a["default_engine"] == "opencode"
-    assert tier_a["default_profile"] == "flash-free"
-    assert tier_a["default_model"] == "opencode/deepseek-v4-flash-free"
-    assert tier_a["default_provider_lane"] == "opencode/native-deepseek"
-    assert tier_a["fallback_provider_lanes"] == [
-        "deepseek-api/direct",
-        "local/offline",
-    ]
-    assert tier_a["context_manifest_command"] == (
-        "scripts/context_pack.sh --mode implementation --manifest"
-    )
-    assert "request only the needed files/snippets" in tier_a["context_rule"]
-    assert tier_a["merge_authority"] == ("Tier A autonomous after gates and green CI")
-
-    assert routing["tier_b"]["merge_authority"] == "Codex/human required"
-    assert routing["tier_c"]["merge_authority"] == "Codex/human required"
-    assert "security-sensitive" in routing["tier_c"]["stop_condition"]
-
-
 def test_factory_metrics_role_set_matches_registry() -> None:
     registry = yaml.safe_load(ROLE_REGISTRY.read_text(encoding="utf-8"))
     module = _load_factory_metrics_module()

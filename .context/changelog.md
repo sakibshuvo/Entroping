@@ -1,5 +1,29 @@
 # Entroping Changelog
 
+## 2026-07-28
+
+- Added issue #1558's versioned maintainer provider-capability registry and
+  generated schema. Queue submission, audit, requeue, pre-dispatch, and strict
+  PR evidence checks now share typed lane, host, billing, model, lifecycle,
+  autonomy, usage-accounting, and queue-default data. Exact unknown paid routes
+  fail closed; explicitly non-paid local lanes may allow unlisted models;
+  deprecated evidence remains reviewable without authorizing new dispatch.
+  Queue capabilities and autonomy ceilings are enforced at resolution, while
+  metered routes keep engine invocation ids separate from provider-qualified
+  cost-policy join ids. Required CI now binds autonomy claims to bounded,
+  read-only metadata from the single closing GitHub issue and rejects Tier A
+  autonomous authority for sensitive or release/quality guardrail diffs.
+  Provider-control-plane sources, schemas, governed authority docs, and their
+  policy tests are explicitly Tier A-ineligible. Hidden Markdown comments,
+  quotes and true lazy continuations, indented code, mismatched fenced-code
+  delimiters, duplicate authority sections, and duplicate structured evidence
+  fields cannot grant merge authority; rendered ATX headings correctly end a
+  lazy blockquote continuation, and backslash-escaped backticks stay literal
+  instead of hiding later visible authority. Strict validator, queue-operation,
+  and quarantine recovery commands now name the required `uv run python`
+  environment, while raw host Python reports a controlled instruction instead
+  of an import traceback.
+
 ## 2026-07-27
 
 - Added issue #1562's plan-first factory artifact retention. Bounded no-follow

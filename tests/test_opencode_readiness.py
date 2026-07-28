@@ -135,6 +135,7 @@ def test_opencode_readiness_requires_architecture_integrity_gate_script(
         "docs/meta/AGENT_CONTROL_PLANE.md",
         "docs/meta/DOCS_GOVERNANCE.md",
         "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+        "docs/meta/provider-capability-registry.json",
         "docs/meta/prompt-library/opencode-desktop-handoff.md",
         "docs/meta/prompt-library/codex-outage-daily-operations.md",
         "docs/meta/prompt-library/issue-worker.md",

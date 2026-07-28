@@ -25,6 +25,48 @@ blocked until all of these repository-owned dependencies exist:
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
 
+## Provider Capability Registry
+
+The repository-owned
+[`provider-capability-registry.json`](provider-capability-registry.json) at
+`docs/meta/provider-capability-registry.json` is the
+factory's non-secret source for provider evidence and queue-routing
+capabilities. Its authoring schema is
+[`provider-capability-registry.v1.schema.json`](provider-capability-registry.v1.schema.json),
+generated from the strict runtime models with:
+
+```text
+uv run python scripts/update_provider_capability_schema.py
+uv run pytest tests/test_provider_capability_registry.py -q
+```
+
+Do not add credentials, endpoints, account balances, quota observations, or
+local provider configuration to this file. A registry entry records what the
+factory may recognize; it does not prove that a provider or model is currently
+available. New dispatch requires an active registered queue route. Unknown
+paid lane, host, billing, or model combinations are rejected until the exact
+combination is reviewed and registered. Deprecation preserves historical PR
+evidence while blocking new queue dispatch. Only explicitly non-paid lanes may
+allow unlisted models.
+
+For queue-bound entries, `models[].id` is the exact invocation identity passed
+to that engine. Every effectively metered model additionally has a
+provider-qualified `cost_model_id`, paired with the lane's `cost_provider_id`,
+so a future scheduler can join the recognized route to a reviewed cost policy
+without guessing or rewriting the invocation. These cost identities are join
+metadata only: they do not prove a price, budget, provider availability, or
+permission to spend.
+
+The registry does not replace the ignored cost policy below. Capability answers
+"is this route recognized?"; the cost policy and downstream ledger answer
+"may this recognized route spend now?" Both checks must pass before future
+paid scheduling.
+
+The current factory metrics `provider` and `model` fields are legacy labels,
+not canonical registry or cost-policy join keys. Do not combine them by string
+shape. Issue #1573 owns evidence-bound migration to explicit lane, invocation,
+and cost identities.
+
 ## Cost Policy Preflight
 
 The factory's concrete cost policy belongs at
