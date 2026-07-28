@@ -18,6 +18,10 @@ from scripts.factory_budget_ledger_rows import (  # noqa: E402
     period_validation_rows,
     schema_objects,
 )
+from scripts.factory_budget_ledger_schema import (  # noqa: E402
+    initialize_schema,
+    validate_schema,
+)
 
 
 def test_malformed_row_error_omits_coercible_value_from_exception_chain() -> None:
@@ -96,6 +100,61 @@ def test_schema_object_reader_stops_after_maximum_plus_one_row() -> None:
             _ = schema_objects(cursor, maximum_rows=3)
 
     assert observed <= 5
+
+
+def test_schema_validation_does_not_sort_an_unbounded_schema_before_rejection() -> None:
+    steps = 0
+
+    def count_step() -> int:
+        nonlocal steps
+        steps += 1
+        return 0
+
+    with sqlite3.connect(":memory:", autocommit=True) as connection:
+        initialize_schema(connection)
+        for index in range(1000):
+            _ = connection.execute(f"CREATE TABLE extra_{index} (id INTEGER)")
+        connection.set_progress_handler(count_step, 1)
+        try:
+            with pytest.raises(
+                FactoryBudgetLedgerError,
+                match="ledger schema objects are invalid",
+            ):
+                validate_schema(connection)
+        finally:
+            connection.set_progress_handler(None, 0)
+
+    assert steps < 1000
+
+
+def test_schema_validation_does_not_sort_unbounded_metadata_before_rejection() -> None:
+    steps = 0
+
+    def count_step() -> int:
+        nonlocal steps
+        steps += 1
+        return 0
+
+    with sqlite3.connect(":memory:", autocommit=True) as connection:
+        _ = connection.execute(
+            "CREATE TABLE ledger_metadata (key TEXT, value TEXT) STRICT"
+        )
+        _ = connection.execute("PRAGMA user_version = 1")
+        _ = connection.executemany(
+            "INSERT INTO ledger_metadata(key, value) VALUES (?, ?)",
+            [(f"key-{index}", "value") for index in range(1000)],
+        )
+        connection.set_progress_handler(count_step, 1)
+        try:
+            with pytest.raises(
+                FactoryBudgetLedgerError,
+                match="ledger schema metadata is invalid",
+            ):
+                validate_schema(connection)
+        finally:
+            connection.set_progress_handler(None, 0)
+
+    assert steps < 1000
 
 
 def test_period_validation_rows_are_strict_and_streamed_in_fixed_batches() -> None:

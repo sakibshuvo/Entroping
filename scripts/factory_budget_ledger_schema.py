@@ -121,7 +121,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _ = connection.execute("COMMIT")
         committed = True
     finally:
-        if not committed:
+        if not committed and connection.in_transaction:
             _ = connection.execute("ROLLBACK")
 
 
@@ -137,7 +137,7 @@ def validate_schema(connection: sqlite3.Connection) -> None:
                 "ledger schema version is unsupported",
             )
         metadata = metadata_rows(
-            connection.execute("SELECT key, value FROM ledger_metadata ORDER BY key")
+            connection.execute("SELECT key, value FROM ledger_metadata")
         )
         if metadata != [("schema_version", LEDGER_SCHEMA_ID)]:
             raise FactoryBudgetLedgerError("schema", "ledger schema metadata is invalid")
@@ -164,7 +164,6 @@ def _schema_objects(connection: sqlite3.Connection) -> frozenset[tuple[str, str,
             SELECT type, name, sql
             FROM sqlite_schema
             WHERE name NOT LIKE 'sqlite_%'
-            ORDER BY type, name
             """
         ),
         maximum_rows=len(SCHEMA_STATEMENTS),

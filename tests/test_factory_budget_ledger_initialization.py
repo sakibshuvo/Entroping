@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts import factory_budget_ledger_schema as ledger_schema  # noqa: E402
 from scripts.factory_budget_ledger import FactoryBudgetLedger  # noqa: E402
 
 
@@ -51,3 +52,19 @@ def test_unexpected_initialization_error_preserves_identity_and_cleans_partial_d
 
     ledger = FactoryBudgetLedger.open_project(tmp_path)
     assert ledger.db_path == db_path
+
+
+def test_schema_cleanup_preserves_original_error_after_transaction_ends(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        ledger_schema,
+        "SCHEMA_STATEMENTS",
+        ("ROLLBACK", "NOT VALID SQL"),
+    )
+
+    with (
+        sqlite3.connect(":memory:", autocommit=True) as connection,
+        pytest.raises(sqlite3.OperationalError, match='near "NOT"'),
+    ):
+        ledger_schema.initialize_schema(connection)
