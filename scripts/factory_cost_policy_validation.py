@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import override
+from typing import assert_never, override
 
 from .factory_cost_policy_models import FactoryCostPolicy
 from .factory_cost_policy_types import (
@@ -49,5 +49,7 @@ def validate_policy_at(policy: FactoryCostPolicy, as_of: datetime) -> None:
                             code="price_freshness",
                             detail="price snapshot is stale or not yet observed",
                         )
+                continue
             case MeteredLane() | IncludedQuotaLane() | FixedSubscriptionLane():
                 continue
+        assert_never(lane)

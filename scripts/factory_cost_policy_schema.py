@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import cast
+from pydantic import JsonValue, TypeAdapter
 
 from .factory_cost_policy_models import FactoryCostPolicy
 
-type JsonScalar = str | int | float | bool | None
-type JsonValue = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 type JsonObject = dict[str, JsonValue]
+JSON_OBJECT_ADAPTER: TypeAdapter[JsonObject] = TypeAdapter(JsonObject)
 
 FACTORY_COST_POLICY_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema"
 FACTORY_COST_POLICY_SCHEMA_ID = (
@@ -15,7 +14,7 @@ FACTORY_COST_POLICY_SCHEMA_ID = (
 
 
 def factory_cost_policy_json_schema() -> JsonObject:
-    schema = cast(JsonObject, FactoryCostPolicy.model_json_schema())
+    schema = JSON_OBJECT_ADAPTER.validate_python(FactoryCostPolicy.model_json_schema())
     schema["$schema"] = FACTORY_COST_POLICY_SCHEMA_DRAFT
     schema["$id"] = FACTORY_COST_POLICY_SCHEMA_ID
     schema["description"] = (

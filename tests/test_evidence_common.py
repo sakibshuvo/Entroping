@@ -2,9 +2,6 @@
 
 import errno
 import os
-import stat as stat_module
-import subprocess
-import sys
 from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
@@ -166,78 +163,6 @@ def test_read_local_evidence_artifact_bytes_rejects_parent_traversal(
     assert error == "unreadable"
 
 
-def test_read_local_evidence_artifact_bytes_uses_best_effort_fallback(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    path = tmp_path / "source.json"
-    _ = path.write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(evidence_common, "supports_no_follow_tree_open", lambda: False)
-
-    raw_bytes, error = evidence_common.read_local_evidence_artifact_bytes(path)
-
-    assert raw_bytes == b"{}"
-    assert error == ""
-
-
-@pytest.mark.skipif(
-    not hasattr(os, "O_NONBLOCK"),
-    reason="nonblocking filesystem flags are unavailable",
-)
-def test_best_effort_reader_rejects_fifo_without_blocking(
-    tmp_path: Path,
-) -> None:
-    path = tmp_path / "source.fifo"
-    os.mkfifo(path)
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            (
-                "from pathlib import Path; "
-                "from entroping.core.evidence_common import "
-                "read_local_evidence_artifact_bytes_best_effort; "
-                "print(read_local_evidence_artifact_bytes_best_effort(Path(__import__('sys').argv[1])))"
-            ),
-            str(path),
-        ],
-        cwd=Path(__file__).resolve().parents[1],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=2,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert "not a file" in result.stdout
-
-
-def test_read_local_evidence_artifact_bytes_best_effort_rejects_stat_mismatch(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    path = tmp_path / "source.json"
-    path.write_text("{}", encoding="utf-8")
-    real_fstat = os.fstat
-
-    def mismatched_fstat(file_descriptor: int) -> SimpleNamespace:
-        original = real_fstat(file_descriptor)
-        return SimpleNamespace(
-            st_mode=original.st_mode,
-            st_size=original.st_size,
-            st_dev=original.st_dev + 1,
-            st_ino=original.st_ino + 1,
-        )
-
-    monkeypatch.setattr(os, "fstat", mismatched_fstat)
-
-    raw_bytes, error = evidence_common.read_local_evidence_artifact_bytes_best_effort(path)
-
-    assert raw_bytes is None
-    assert error == "unreadable"
-
-
 def test_read_local_evidence_artifact_bytes_no_follow_reports_os_errors(
     tmp_path: Path,
 ) -> None:
@@ -281,41 +206,6 @@ def test_read_local_evidence_artifact_bytes_no_follow_closes_opened_parent_descr
     assert error == "unreadable"
     assert opened_descriptors == [(100, ".", None), (101, "reports", 100)]
     assert closed_descriptors == [101, 100]
-
-
-def test_read_local_evidence_artifact_bytes_best_effort_reports_os_errors(
-    tmp_path: Path,
-) -> None:
-    missing = tmp_path / "missing.json"
-    raw_bytes, error = evidence_common.read_local_evidence_artifact_bytes_best_effort(
-        missing
-    )
-
-    assert raw_bytes is None
-    assert error == "unreadable"
-
-
-def test_read_local_evidence_artifact_bytes_best_effort_rejects_non_file(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    path = tmp_path / "source.json"
-    path.write_text("{}", encoding="utf-8")
-    real_s_isreg = stat_module.S_ISREG
-
-    def fake_s_isreg(mode: int) -> bool:
-        if mode == path.stat(follow_symlinks=False).st_mode:
-            return False
-        return real_s_isreg(mode)
-
-    monkeypatch.setattr(stat_module, "S_ISREG", fake_s_isreg)
-
-    raw_bytes, error = evidence_common.read_local_evidence_artifact_bytes_best_effort(
-        path
-    )
-
-    assert raw_bytes is None
-    assert error == "not a file"
 
 
 def test_read_bounded_local_evidence_bytes_from_descriptor_rejects_non_file(

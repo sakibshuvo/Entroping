@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal, Self, TypedDict
+from typing import Annotated, Literal, Self, TypedDict, assert_never
 
 from pydantic import AwareDatetime, Field, model_validator
 from pydantic_core import PydanticCustomError
 
 from .factory_cost_policy_types import (
     AutomationLane,
+    CalendarMonthQuotaWindow,
     CashPolicy,
     DisabledAutomaticTopUp,
     FixedSubscriptionLane,
@@ -15,6 +16,7 @@ from .factory_cost_policy_types import (
     MeteredLane,
     PriceSnapshot,
     ProviderQuota,
+    RollingQuotaWindow,
     StrictPolicyModel,
     SubscriptionCycleQuotaWindow,
     SubscriptionPolicy,
@@ -71,24 +73,29 @@ class FactoryCostPolicy(StrictPolicyModel):
         prices = {item.id: item for item in self.price_snapshots}
         quotas = {item.id: item for item in self.provider_quotas}
         for quota in self.provider_quotas:
-            if not isinstance(quota.window, SubscriptionCycleQuotaWindow):
-                continue
-            subscription = subscriptions.get(quota.window.subscription_id)
-            if subscription is None:
-                raise PydanticCustomError(
-                    "quota_subscription_reference",
-                    "subscription-cycle quota references an unknown subscription",
-                )
-            if subscription.provider_id != quota.provider_id:
-                raise PydanticCustomError(
-                    "quota_subscription_provider",
-                    "subscription-cycle quota provider does not match its subscription",
-                )
+            match quota.window:
+                case SubscriptionCycleQuotaWindow(subscription_id=subscription_id):
+                    subscription = subscriptions.get(subscription_id)
+                    if subscription is None:
+                        raise PydanticCustomError(
+                            "quota_subscription_reference",
+                            "subscription-cycle quota references an unknown subscription",
+                        )
+                    if subscription.provider_id != quota.provider_id:
+                        raise PydanticCustomError(
+                            "quota_subscription_provider",
+                            "subscription-cycle quota provider does not match its subscription",
+                        )
+                    continue
+                case RollingQuotaWindow() | CalendarMonthQuotaWindow():
+                    continue
+            assert_never(quota.window)
         for lane in self.automation_lanes:
             match lane:
                 case IncludedQuotaLane(provider_id=provider_id, quota_ids=quota_ids):
                     _require_unique_references("quota", quota_ids)
                     _require_quota_references(provider_id, quota_ids, quotas)
+                    continue
                 case FixedSubscriptionLane(
                     provider_id=provider_id,
                     subscription_id=subscription_id,
@@ -107,6 +114,7 @@ class FactoryCostPolicy(StrictPolicyModel):
                             "subscription provider does not match its automation lane",
                         )
                     _require_quota_references(provider_id, quota_ids, quotas)
+                    continue
                 case MeteredLane(
                     provider_id=provider_id,
                     model_id=model_id,
@@ -140,6 +148,8 @@ class FactoryCostPolicy(StrictPolicyModel):
                             )
                         price_units.add(snapshot.unit)
                     _require_quota_references(provider_id, quota_ids, quotas)
+                    continue
+            assert_never(lane)
         return self
 
 

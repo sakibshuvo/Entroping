@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Never, cast
+from typing import Never, assert_never
+
+from pydantic import JsonValue, TypeAdapter
 
 from entroping.core.evidence_common import read_local_evidence_artifact_bytes
 
@@ -10,8 +12,7 @@ from .ai_worker_file_safety import secret_like_content_reason
 from .factory_cost_policy_validation import FactoryCostPolicyError
 
 POLICY_MAX_BYTES = 256 * 1024
-type JsonScalar = str | int | float | bool | None
-type JsonValue = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
+JSON_VALUE_ADAPTER: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
 
 
 def read_policy_document(path: Path) -> str:
@@ -44,15 +45,13 @@ def read_policy_document(path: Path) -> str:
 
 def _verify_unambiguous_json(document: str) -> JsonValue:
     try:
-        return cast(
-            JsonValue,
-            json.loads(
-                document,
-                object_pairs_hook=_reject_duplicate_pairs,
-                parse_constant=_reject_non_finite,
-                parse_int=_parse_bounded_int,
-            ),
+        json.loads(
+            document,
+            object_pairs_hook=_reject_duplicate_pairs,
+            parse_constant=_reject_non_finite,
+            parse_int=_parse_bounded_int,
         )
+        return JSON_VALUE_ADAPTER.validate_json(document)
     except (json.JSONDecodeError, RecursionError) as exc:
         detail = exc.msg if isinstance(exc, json.JSONDecodeError) else "nesting is too deep"
         raise FactoryCostPolicyError(
@@ -65,14 +64,21 @@ def _reject_secret_like_json(document: JsonValue) -> None:
     pending: list[JsonValue] = [document]
     while pending:
         value = pending.pop()
-        if isinstance(value, str):
-            _reject_secret_like_text(value)
-        elif isinstance(value, list):
-            pending.extend(value)
-        elif isinstance(value, dict):
-            for key, nested_value in value.items():
-                _reject_secret_like_text(key)
-                pending.append(nested_value)
+        match value:
+            case str():
+                _reject_secret_like_text(value)
+                continue
+            case list():
+                pending.extend(value)
+                continue
+            case dict():
+                for key, nested_value in value.items():
+                    _reject_secret_like_text(key)
+                    pending.append(nested_value)
+                continue
+            case None | bool() | int() | float():
+                continue
+        assert_never(value)
 
 
 def _reject_secret_like_text(value: str) -> None:

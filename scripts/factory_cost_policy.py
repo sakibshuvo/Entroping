@@ -6,6 +6,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Literal, assert_never
 
 from pydantic import ValidationError
 
@@ -21,12 +22,7 @@ class ValidateArguments:
     as_of: str
 
 
-@dataclass(frozen=True, slots=True)
-class SchemaArguments:
-    pass
-
-
-type Arguments = ValidateArguments | SchemaArguments
+type Arguments = ValidateArguments | Literal["schema"]
 
 _CUSTOM_VALIDATION_ERRORS = frozenset(
     {
@@ -72,7 +68,7 @@ def _parse_args() -> Arguments:
     namespace = _ValidateNamespace()
     _ = parser.parse_args(namespace=namespace)
     if namespace.command == "schema":
-        return SchemaArguments()
+        return "schema"
     return ValidateArguments(policy=namespace.policy, as_of=namespace.as_of)
 
 
@@ -139,11 +135,7 @@ def _builtin_validation_error_detail(
     return builtin_details.get(error_type, "policy declaration is invalid")
 
 
-def main() -> int:
-    args = _parse_args()
-    if isinstance(args, SchemaArguments):
-        print(json.dumps(factory_cost_policy_json_schema(), sort_keys=True))
-        return 0
+def _validate(args: ValidateArguments) -> int:
     try:
         as_of = _parse_as_of(args.as_of)
         document = read_policy_document(args.policy)
@@ -155,11 +147,22 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-    except (FactoryCostPolicyError, OSError, ValueError) as exc:
+    except (FactoryCostPolicyError, OSError) as exc:
         print(f"factory_cost_policy: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(summarize_policy(policy), sort_keys=True))
     return 0
+
+
+def main() -> int:
+    args = _parse_args()
+    match args:
+        case "schema":
+            print(json.dumps(factory_cost_policy_json_schema(), sort_keys=True))
+            return 0
+        case ValidateArguments():
+            return _validate(args)
+    assert_never(args)
 
 
 if __name__ == "__main__":
