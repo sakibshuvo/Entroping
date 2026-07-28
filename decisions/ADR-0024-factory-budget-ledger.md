@@ -35,9 +35,10 @@ return the original receipt, while conflicting reuse is rejected.
 
 ## Concurrency and Durability Boundary
 
-Every mutation uses `BEGIN IMMEDIATE`, so the idempotency lookup, refund and
-reference checks, period and cap decision, immutable insert, and cached-balance
-update share one serialized transaction. SQLite uses `journal_mode=DELETE`,
+Period initialization and entry recording use `BEGIN IMMEDIATE`, so the
+idempotency lookup, refund and reference checks, period and cap decision,
+immutable insert, and cached-balance update share one serialized transaction.
+One-time schema bootstrap uses `BEGIN EXCLUSIVE`. SQLite uses `journal_mode=DELETE`,
 `synchronous=EXTRA`, foreign-key enforcement, strict tables, bounded waits, and
 immutable-entry triggers. This permits genuinely read-only reporting without
 creating WAL sidecars.

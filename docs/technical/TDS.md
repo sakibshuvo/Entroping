@@ -2289,10 +2289,11 @@ idempotency keys are never persisted: a globally unique SHA-256 digest is bound
 to the normalized entry payload, so exact retries are harmless and conflicting
 reuse fails closed.
 
-Every mutation opens its own bounded connection and encloses idempotency,
-reference, refund, period, entry-count, cash-cap, insert, and cached-balance
-checks in `BEGIN IMMEDIATE`. SQLite therefore admits only one successful writer
-at the decision boundary. `journal_mode=DELETE` with `synchronous=EXTRA`
+Period initialization and entry recording open bounded connections and enclose
+idempotency, reference, refund, period, entry-count, cash-cap, insert, and
+cached-balance checks in `BEGIN IMMEDIATE`. One-time schema bootstrap uses
+`BEGIN EXCLUSIVE`. SQLite therefore admits only one successful writer at the
+decision boundary. `journal_mode=DELETE` with `synchronous=EXTRA`
 supports crash-safe rollback-journal commits and genuinely read-only summary
 connections without creating WAL state. Initialization publishes a fully
 validated temporary database by same-directory hard link and directory sync;
