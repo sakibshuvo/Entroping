@@ -103,6 +103,7 @@ def test_summary_cli_outputs_only_the_bounded_period_view(tmp_path: Path) -> Non
 
 def test_balance_cli_outputs_only_admission_fields(tmp_path: Path) -> None:
     ledger = _initialized_ledger(tmp_path)
+    before = ledger.db_path.stat().st_mtime_ns
 
     result = _run(tmp_path, "balance")
 
@@ -118,7 +119,7 @@ def test_balance_cli_outputs_only_admission_fields(tmp_path: Path) -> None:
     }
     assert "openai" not in result.stdout
     assert "provider-charge-1" not in result.stdout
-    assert ledger.db_path.stat().st_mtime_ns > 0
+    assert ledger.db_path.stat().st_mtime_ns == before
 
 
 def test_readonly_cli_missing_state_fails_without_creating_it(tmp_path: Path) -> None:

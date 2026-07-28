@@ -23,6 +23,10 @@ uses USD integer microcents, UTC calendar periods, an internal non-spendable
 reserve allocation, immutable entries, and a cached net balance validated by
 the same transaction that appends an entry.
 
+The reviewed cap, positive reserve, currency, month, policy identity, and
+policy revision are immutable period authority. Only the cached entry count and
+net balance may change after initialization.
+
 Fixed subscription charges and provider charges are debits. Refunds are credits
 bound to an original charge and cannot cumulatively exceed it. Manual
 adjustments explicitly declare debit or credit. Global idempotency stores only
@@ -46,11 +50,21 @@ never becomes authority.
 ## Safety Boundary
 
 Descriptor-based path checks reject symlinks, special files, unsafe sidecars,
-oversized state, and unsafe repository roots. Exact schema and integrity checks
-reject malformed, partial, future, or drifted databases without automatic
-migration. Signed 64-bit arithmetic, a 512 MiB file cap, and a 100,000-entry
-period cap bound resource use. The ledger shares the retention lock and exposes
-only sanitized, read-only CLI summaries.
+oversized state, and unsafe repository roots. Existing opens use non-creating
+SQLite URI modes and compare owner, mode, link count, device, and inode before
+and immediately after connection. Exact schema and integrity checks reject
+malformed, partial, future, or drifted databases without automatic migration.
+Signed 64-bit arithmetic, a 512 MiB file cap, a 100,000-entry global cap, a
+600-period global cap, and streaming timestamp validation bound resource use.
+The ledger shares the retention lock and exposes only sanitized, read-only CLI
+summaries.
+
+The private state directory and cooperative locks are the local trust boundary.
+Python's standard SQLite wrapper cannot bind a connection to a descriptor-opened
+inode, so a noncooperating process running as the same effective user could race
+an ordinary-file replacement. Defending against same-UID host compromise would
+require OS isolation or a custom/native SQLite VFS and is outside this local
+maintainer-only component.
 
 Provider reservation, settlement, quota observation, scheduler authorization,
 and provider calls are deliberately outside this component. Downstream factory

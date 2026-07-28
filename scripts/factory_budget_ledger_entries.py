@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from typing import cast
 
+from .factory_budget_ledger_integrity import require_entry_capacity
 from .factory_budget_ledger_models import (
     FactoryBudgetLedgerError,
     LedgerEntryInput,
@@ -65,6 +66,7 @@ def record_entry(
         period = _period_state(connection, period_start)
         if period[4] >= MAX_PERIOD_ENTRIES:
             raise FactoryBudgetLedgerError("limit", "budget period entry limit reached")
+        require_entry_capacity(connection)
         reference_id = validate_reference(connection, entry, reference_digest)
         prospective = prospective_net(
             current_net=period[3],

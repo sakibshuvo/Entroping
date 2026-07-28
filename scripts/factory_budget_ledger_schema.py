@@ -25,7 +25,7 @@ SCHEMA_STATEMENTS = (
         currency TEXT NOT NULL CHECK (currency = 'USD'),
         cash_cap_microcents INTEGER NOT NULL CHECK (cash_cap_microcents > 0),
         emergency_reserve_microcents INTEGER NOT NULL
-            CHECK (emergency_reserve_microcents >= 0),
+            CHECK (emergency_reserve_microcents > 0),
         policy_id TEXT NOT NULL,
         policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
         net_spent_microcents INTEGER NOT NULL DEFAULT 0,
@@ -33,6 +33,29 @@ SCHEMA_STATEMENTS = (
         CHECK (period_start_utc < period_end_utc),
         CHECK (emergency_reserve_microcents < cash_cap_microcents)
     ) STRICT
+    """,
+    """
+    CREATE TRIGGER budget_periods_authority_no_update
+    BEFORE UPDATE OF
+        id,
+        period_start_utc,
+        period_end_utc,
+        currency,
+        cash_cap_microcents,
+        emergency_reserve_microcents,
+        policy_id,
+        policy_revision
+    ON budget_periods
+    BEGIN
+        SELECT RAISE(ABORT, 'budget period authority is immutable');
+    END
+    """,
+    """
+    CREATE TRIGGER budget_periods_no_delete
+    BEFORE DELETE ON budget_periods
+    BEGIN
+        SELECT RAISE(ABORT, 'budget period authority is immutable');
+    END
     """,
     """
     CREATE TABLE ledger_entries (

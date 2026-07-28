@@ -34,7 +34,7 @@ class FactoryBudgetLedger:
     @classmethod
     def open_project(cls, project_root: Path) -> FactoryBudgetLedger:
         db_path = prepare_ledger(project_root)
-        return cls(project_root, db_path)
+        return cls(db_path.parents[2], db_path)
 
     @classmethod
     def period_summary_readonly(

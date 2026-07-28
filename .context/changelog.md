@@ -7,9 +7,11 @@
   globally idempotent payload binding, fixed and provider charges, bounded
   charge-linked refunds, explicit manual adjustments, and serialized cap and
   reserve enforcement. Descriptor-safe initialization, strict schema and
-  integrity validation, signed-integer and file-size limits, retention locking,
-  crash-safe rollback-journal durability, and sanitized read-only summaries
-  keep provider settlement and scheduler authority outside this component.
+  integrity validation, immutable reviewed period authority, stable file
+  identity checks, global row limits, streaming timestamp validation,
+  signed-integer and file-size limits, retention locking, crash-safe
+  rollback-journal durability, and sanitized read-only summaries keep provider
+  settlement and scheduler authority outside this component.
 
 - Added issue #1562's plan-first factory artifact retention. Bounded no-follow
   inventory now covers terminal jobs, reviews, rotated logs, verified finished

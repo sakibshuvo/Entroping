@@ -17,11 +17,13 @@ from .factory_budget_ledger_fs import (
     LEDGER_NAME,
     LOCK_NAME,
     MAX_LEDGER_BYTES,
+    FileIdentity,
     discard_initializing_file,
     entry_exists,
     fsync_regular,
     nofollow_flag,
     open_lock,
+    path_file_identity,
     reject_unsafe_sidecars,
     validate_existing_entry,
     validate_private_directory,
@@ -65,8 +67,8 @@ def writable_connection(repo_root: Path) -> Generator[sqlite3.Connection, None, 
     with _retention_guard(root):
         if not db_path.exists():
             raise FactoryBudgetLedgerError("missing", "ledger database not found")
-        validate_existing_entry(root, LEDGER_NAME)
-        connection = _connect(db_path, readonly=False)
+        identity = validate_existing_entry(root, LEDGER_NAME)
+        connection = _connect(db_path, readonly=False, expected_identity=identity)
         try:
             validate_schema(connection)
             yield connection
@@ -83,8 +85,8 @@ def readonly_connection(repo_root: Path) -> Generator[sqlite3.Connection, None, 
     with _retention_guard(root):
         if not db_path.exists():
             raise FactoryBudgetLedgerError("missing", "ledger database not found")
-        validate_existing_entry(root, LEDGER_NAME)
-        connection = _connect(db_path, readonly=True)
+        identity = validate_existing_entry(root, LEDGER_NAME)
+        connection = _connect(db_path, readonly=True, expected_identity=identity)
         try:
             validate_schema(connection)
             yield connection
@@ -95,9 +97,9 @@ def readonly_connection(repo_root: Path) -> Generator[sqlite3.Connection, None, 
 def _prepare_locked(root: Path, ledger_fd: int) -> None:
     reject_unsafe_sidecars(ledger_fd)
     if entry_exists(ledger_fd, LEDGER_NAME):
-        validate_regular(ledger_fd, LEDGER_NAME)
+        identity = validate_regular(ledger_fd, LEDGER_NAME)
         db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
-        connection = _connect(db_path, readonly=False)
+        connection = _connect(db_path, readonly=False, expected_identity=identity)
         try:
             validate_schema(connection)
         finally:
@@ -114,7 +116,8 @@ def _prepare_locked(root: Path, ledger_fd: int) -> None:
     os.close(descriptor)
     temp_path = root.joinpath(*LEDGER_DIRECTORY, INITIALIZING_NAME)
     try:
-        connection = _connect(temp_path, readonly=False)
+        identity = validate_regular(ledger_fd, INITIALIZING_NAME)
+        connection = _connect(temp_path, readonly=False, expected_identity=identity)
         try:
             initialize_schema(connection)
             validate_schema(connection)
@@ -142,18 +145,24 @@ def _prepare_locked(root: Path, ledger_fd: int) -> None:
         ) from exc
 
 
-def _connect(path: Path, *, readonly: bool) -> sqlite3.Connection:
+def _connect(
+    path: Path,
+    *,
+    readonly: bool,
+    expected_identity: FileIdentity,
+) -> sqlite3.Connection:
     connection: sqlite3.Connection | None = None
     try:
-        if readonly:
-            uri = f"file:{quote(path.as_posix(), safe='/')}?mode=ro"
-            connection = sqlite3.connect(uri, uri=True, autocommit=True)
-        else:
-            connection = sqlite3.connect(
-                path,
-                timeout=BUSY_TIMEOUT_MILLISECONDS / 1_000,
-                autocommit=True,
-            )
+        mode = "ro" if readonly else "rw"
+        uri = f"file:{quote(path.as_posix(), safe='/')}?mode={mode}"
+        connection = sqlite3.connect(
+            uri,
+            uri=True,
+            timeout=BUSY_TIMEOUT_MILLISECONDS / 1_000,
+            autocommit=True,
+        )
+        if path_file_identity(path) != expected_identity:
+            raise FactoryBudgetLedgerError("path", "ledger database changed during open")
         _ = connection.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MILLISECONDS}")
         _ = connection.execute("PRAGMA trusted_schema = OFF")
         _ = connection.execute("PRAGMA foreign_keys = ON")

@@ -4,6 +4,10 @@ import sqlite3
 from datetime import date
 from typing import cast
 
+from .factory_budget_ledger_integrity import (
+    require_entry_capacity,
+    require_period_capacity,
+)
 from .factory_budget_ledger_models import (
     BudgetPeriodConfig,
     BudgetPeriodSummary,
@@ -60,6 +64,8 @@ def initialize_period(
             _ = connection.execute("COMMIT")
             return PeriodInitialization(created=False, summary=summary)
         _require_new_period(connection, config.period_start_utc)
+        require_period_capacity(connection)
+        require_entry_capacity(connection)
         period_id = _insert_period(connection, config)
         _ = connection.execute(
             """

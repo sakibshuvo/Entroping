@@ -56,7 +56,7 @@ Version 1 has these fixed semantics:
   100,000,000 microcents. The approved $200 cap is 20,000,000,000 microcents;
   the $20 emergency reserve is 2,000,000,000 microcents.
 - Cash months and renewal dates use UTC. The reserve is a non-spendable floor
-  inside the cap, not another charge.
+  inside the cap, not another charge, and must be positive.
   Experiments stop at 80%, only subscription/included-quota work remains at
   90%, and paid dispatch stops at 100%; validation rejects a reserve too large
   for the 90% transition to protect.
@@ -115,11 +115,21 @@ syncs it, links it into place atomically, and syncs the containing directory.
 Incomplete initialization state is never authoritative.
 
 The ledger shares the factory retention lock, rejects symlinked or special
-state, unsafe sidecars, files above 512 MiB, malformed databases, schema drift,
-future or partial schemas, and periods above 100,000 entries. It preserves
+state, unsafe sidecars, persistent leaf replacement during open, files above
+512 MiB, malformed databases, schema drift, future or partial schemas, more
+than 100,000 total entries, more than 600 periods, and periods above 100,000
+entries. Integrity timestamp reads stream in bounded batches. It preserves
 rejected or corrupt state for operator inspection instead of migrating or
 rewriting it automatically. Entry values and cached balances remain inside
 signed 64-bit bounds.
+
+Ledger files and locks must remain owned by the effective user at mode 0600 in
+the private mode-0700 ledger directory. The retention and ledger locks
+coordinate Entroping processes. A noncooperating process already running as
+that same user can race ordinary-file replacement because Python's standard
+SQLite wrapper cannot open the main database from a previously validated file
+descriptor. Same-UID host compromise is outside this maintainer-only local
+trust boundary; use OS account or sandbox isolation where that threat applies.
 
 Only sanitized read-only summaries are exposed on the command line:
 

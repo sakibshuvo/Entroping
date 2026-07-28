@@ -2282,8 +2282,8 @@ totals; artifact contents are never rendered.
 
 Factory cash authority is isolated from the product traffic store in the
 ignored `.entroping/factory-budget/ledger.sqlite3` database. The versioned
-SQLite schema records UTC cash periods, their reviewed USD cap and reserve,
-immutable reserve allocations, fixed subscription and provider debits,
+SQLite schema records UTC cash periods, their reviewed USD cap and positive
+reserve, immutable reserve allocations, fixed subscription and provider debits,
 charge-bound refunds, and explicit manual debit or credit adjustments. Raw
 idempotency keys are never persisted: a globally unique SHA-256 digest is bound
 to the normalized entry payload, so exact retries are harmless and conflicting
@@ -2298,12 +2298,17 @@ connections without creating WAL state. Initialization publishes a fully
 validated temporary database by same-directory hard link and directory sync;
 partial initialization is discarded before retry.
 
-Descriptor-based path validation, no-follow state directories, shared
-retention locking, 0600 files, 0700 directories, strict tables, foreign keys,
-immutable-entry triggers, exact schema validation, integrity checks, signed
-64-bit arithmetic, a 512 MiB database ceiling, and a 100,000-entry period
-ceiling bound the storage surface. Malformed, partial, future, or drifted
-schemas are rejected and preserved for inspection. CLI access is read-only and
+Descriptor-based path validation, no-follow state directories, stable
+pre/post-open file identity checks, non-creating URI opens, shared retention
+locking, 0600 owner-only files, 0700 directories, strict tables, foreign keys,
+immutable-entry and immutable-period-authority triggers, exact schema
+validation, integrity checks, signed 64-bit arithmetic, a 512 MiB database
+ceiling, a 100,000-entry global ceiling, a 600-period global ceiling, and a
+100,000-entry period ceiling bound the storage surface. Timestamp validation
+streams in fixed batches. Malformed, partial, future, or drifted schemas are
+rejected and preserved for inspection. The local trust boundary excludes
+noncooperating same-UID mutation; exact descriptor-to-SQLite binding would
+require OS isolation or a custom/native VFS. CLI access is read-only and
 value-bounded. Provider reservation, settlement, quota observation, scheduler
 authorization, and provider calls stay outside this component.
 

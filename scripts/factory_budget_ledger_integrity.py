@@ -6,14 +6,62 @@ from typing import cast
 
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 
+MAX_BUDGET_PERIODS = 600
+MAX_LEDGER_ENTRIES = 100_000
+VALIDATION_BATCH_SIZE = 512
+
 
 def validate_ledger_integrity(connection: sqlite3.Connection) -> None:
+    if _global_limits_exceeded(connection):
+        raise FactoryBudgetLedgerError("limit", "global ledger size limit exceeded")
     if not _balances_valid(connection):
         raise FactoryBudgetLedgerError("integrity", "ledger balances are invalid")
     if not _entries_valid(connection):
         raise FactoryBudgetLedgerError("integrity", "ledger entries are invalid")
     if not _timestamps_valid(connection):
         raise FactoryBudgetLedgerError("integrity", "ledger timestamps are invalid")
+
+
+def require_entry_capacity(connection: sqlite3.Connection) -> None:
+    if _entry_exists_at_offset(connection, MAX_LEDGER_ENTRIES - 1):
+        raise FactoryBudgetLedgerError("limit", "global ledger entry limit reached")
+
+
+def require_period_capacity(connection: sqlite3.Connection) -> None:
+    if _period_exists_at_offset(connection, MAX_BUDGET_PERIODS - 1):
+        raise FactoryBudgetLedgerError("limit", "global budget period limit reached")
+
+
+def _global_limits_exceeded(connection: sqlite3.Connection) -> bool:
+    return _period_exists_at_offset(
+        connection, MAX_BUDGET_PERIODS
+    ) or _entry_exists_at_offset(connection, MAX_LEDGER_ENTRIES)
+
+
+def _period_exists_at_offset(
+    connection: sqlite3.Connection,
+    offset: int,
+) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM budget_periods ORDER BY id LIMIT 1 OFFSET ?",
+            (offset,),
+        ).fetchone()
+        is not None
+    )
+
+
+def _entry_exists_at_offset(
+    connection: sqlite3.Connection,
+    offset: int,
+) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM ledger_entries ORDER BY id LIMIT 1 OFFSET ?",
+            (offset,),
+        ).fetchone()
+        is not None
+    )
 
 
 def _balances_valid(connection: sqlite3.Connection) -> bool:
@@ -114,46 +162,48 @@ def _entries_valid(connection: sqlite3.Connection) -> bool:
 
 
 def _timestamps_valid(connection: sqlite3.Connection) -> bool:
-    period_rows = cast(
-        list[tuple[int, str, str]],
-        connection.execute(
-            "SELECT id, period_start_utc, period_end_utc FROM budget_periods"
-        ).fetchall(),
+    period_cursor = connection.execute(
+        "SELECT id, period_start_utc, period_end_utc FROM budget_periods"
     )
     periods: dict[int, tuple[datetime, datetime]] = {}
-    for period_id, raw_start, raw_end in period_rows:
-        start = _parse_month_boundary(raw_start)
-        end = _parse_month_boundary(raw_end)
-        if start is None or end is None or start.day != 1:
-            return False
-        try:
-            expected_end = (
-                datetime(start.year + 1, 1, 1, tzinfo=UTC)
-                if start.month == 12
-                else datetime(start.year, start.month + 1, 1, tzinfo=UTC)
-            )
-        except ValueError:
-            return False
-        if end != expected_end:
-            return False
-        periods[period_id] = (start, end)
-    entry_rows = cast(
+    while period_rows := cast(
         list[tuple[int, str, str]],
-        connection.execute(
-            "SELECT period_id, kind, occurred_at_utc FROM ledger_entries"
-        ).fetchall(),
+        period_cursor.fetchmany(VALIDATION_BATCH_SIZE),
+    ):
+        for period_id, raw_start, raw_end in period_rows:
+            start = _parse_month_boundary(raw_start)
+            end = _parse_month_boundary(raw_end)
+            if start is None or end is None or start.day != 1:
+                return False
+            try:
+                expected_end = (
+                    datetime(start.year + 1, 1, 1, tzinfo=UTC)
+                    if start.month == 12
+                    else datetime(start.year, start.month + 1, 1, tzinfo=UTC)
+                )
+            except ValueError:
+                return False
+            if end != expected_end:
+                return False
+            periods[period_id] = (start, end)
+    entry_cursor = connection.execute(
+        "SELECT period_id, kind, occurred_at_utc FROM ledger_entries"
     )
-    for period_id, kind, raw_occurred_at in entry_rows:
-        occurred_at = (
-            _parse_month_boundary(raw_occurred_at)
-            if kind == "emergency_reserve_allocation"
-            else _parse_entry_timestamp(raw_occurred_at)
-        )
-        bounds = periods.get(period_id)
-        if occurred_at is None or bounds is None:
-            return False
-        if occurred_at < bounds[0] or occurred_at >= bounds[1]:
-            return False
+    while entry_rows := cast(
+        list[tuple[int, str, str]],
+        entry_cursor.fetchmany(VALIDATION_BATCH_SIZE),
+    ):
+        for period_id, kind, raw_occurred_at in entry_rows:
+            occurred_at = (
+                _parse_month_boundary(raw_occurred_at)
+                if kind == "emergency_reserve_allocation"
+                else _parse_entry_timestamp(raw_occurred_at)
+            )
+            bounds = periods.get(period_id)
+            if occurred_at is None or bounds is None:
+                return False
+            if occurred_at < bounds[0] or occurred_at >= bounds[1]:
+                return False
     return True
 
 

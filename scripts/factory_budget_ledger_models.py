@@ -45,7 +45,7 @@ class BudgetPeriodConfig:
         _require_microcents(
             self.emergency_reserve_microcents,
             "emergency reserve",
-            positive=False,
+            positive=True,
         )
         if self.emergency_reserve_microcents >= self.cash_cap_microcents:
             raise FactoryBudgetLedgerError(
