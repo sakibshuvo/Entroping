@@ -143,11 +143,18 @@ def test_context_pack_required_rules_stay_complete_and_compact() -> None:
 
 def test_context_pack_limits_large_git_status_listing() -> None:
     marker = f"context-pack-status-{uuid.uuid4().hex}"
-    paths = [REPO_ROOT / f".{marker}-{index}.tmp" for index in range(90)]
+    paths = [REPO_ROOT / f".{marker}-{index:02d}.tmp" for index in range(90)]
     try:
         for path in paths:
             path.write_text("temporary status fixture\n", encoding="utf-8")
 
+        full_status_result = subprocess.run(
+            ["git", "status", "--short"],
+            check=False,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
         result = run_context_pack("--mode", "implementation")
         strict_result = run_context_pack(
             "--mode",
@@ -156,9 +163,26 @@ def test_context_pack_limits_large_git_status_listing() -> None:
             "--strict-budget",
         )
 
+        assert full_status_result.returncode == 0, full_status_result.stderr
         assert result.returncode == 0, result.stderr
         assert strict_result.returncode == 0, strict_result.stderr
-        assert "additional status line(s) omitted; run git status --short" in result.stdout
+        full_status_lines = full_status_result.stdout.splitlines()
+        expected_omitted = len(full_status_lines) - 5
+        omission_summary = (
+            f"... {expected_omitted} additional status line(s) omitted; "
+            "run git status --short for the full list."
+        )
+        status_lines = (
+            result.stdout.split("```text\n", 1)[1]
+            .split("```", 1)[0]
+            .rstrip("\n")
+            .splitlines()
+        )
+        assert expected_omitted > 0
+        assert len(status_lines) == 6
+        assert status_lines[:5] == full_status_lines[:5]
+        assert status_lines[5] == omission_summary
+        assert full_status_lines[5] not in status_lines[:5]
         manifest: dict[str, int] = json.loads(strict_result.stdout)
         assert (
             manifest["budget_bytes"] - manifest["context_bytes"]
