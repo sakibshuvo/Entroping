@@ -197,7 +197,7 @@ esac
 
 branch="$(git branch --show-current 2>/dev/null || true)"
 status="$(git status --short 2>/dev/null || true)"
-status_line_limit=10
+status_line_limit=5
 
 mode_budget_bytes() {
   local default_budget
