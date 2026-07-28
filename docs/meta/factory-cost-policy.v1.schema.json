@@ -1,0 +1,677 @@
+{
+  "$defs": {
+    "AnnualRenewal": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "maximum": 31,
+          "minimum": 1,
+          "title": "Day",
+          "type": "integer"
+        },
+        "invalid_date_behavior": {
+          "const": "last_day",
+          "title": "Invalid Date Behavior",
+          "type": "string"
+        },
+        "kind": {
+          "const": "annual",
+          "title": "Kind",
+          "type": "string"
+        },
+        "month": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Month",
+          "type": "integer"
+        },
+        "timezone": {
+          "const": "UTC",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "timezone",
+        "month",
+        "day",
+        "invalid_date_behavior"
+      ],
+      "title": "AnnualRenewal",
+      "type": "object"
+    },
+    "AutomationLane": {
+      "discriminator": {
+        "mapping": {
+          "fixed_subscription": "#/$defs/FixedSubscriptionLane",
+          "included_quota": "#/$defs/IncludedQuotaLane",
+          "metered": "#/$defs/MeteredLane"
+        },
+        "propertyName": "billing_mode"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/IncludedQuotaLane"
+        },
+        {
+          "$ref": "#/$defs/FixedSubscriptionLane"
+        },
+        {
+          "$ref": "#/$defs/MeteredLane"
+        }
+      ]
+    },
+    "CalendarMonthQuotaWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "calendar_month",
+          "title": "Kind",
+          "type": "string"
+        },
+        "timezone": {
+          "const": "UTC",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "timezone"
+      ],
+      "title": "CalendarMonthQuotaWindow",
+      "type": "object"
+    },
+    "CalendarMonthRenewal": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "maximum": 31,
+          "minimum": 1,
+          "title": "Day",
+          "type": "integer"
+        },
+        "invalid_date_behavior": {
+          "const": "last_day",
+          "title": "Invalid Date Behavior",
+          "type": "string"
+        },
+        "kind": {
+          "const": "calendar_month",
+          "title": "Kind",
+          "type": "string"
+        },
+        "timezone": {
+          "const": "UTC",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "timezone",
+        "day",
+        "invalid_date_behavior"
+      ],
+      "title": "CalendarMonthRenewal",
+      "type": "object"
+    },
+    "CashPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "calendar_month_cap_microcents": {
+          "$ref": "#/$defs/Microcents"
+        },
+        "calendar_month_timezone": {
+          "const": "UTC",
+          "title": "Calendar Month Timezone",
+          "type": "string"
+        },
+        "emergency_reserve_microcents": {
+          "$ref": "#/$defs/Microcents"
+        },
+        "thresholds": {
+          "$ref": "#/$defs/CashThresholds"
+        }
+      },
+      "required": [
+        "calendar_month_timezone",
+        "calendar_month_cap_microcents",
+        "emergency_reserve_microcents",
+        "thresholds"
+      ],
+      "title": "CashPolicy",
+      "type": "object"
+    },
+    "CashThresholds": {
+      "additionalProperties": false,
+      "properties": {
+        "stop_experiments_basis_points": {
+          "const": 8000,
+          "title": "Stop Experiments Basis Points",
+          "type": "integer"
+        },
+        "stop_paid_dispatch_basis_points": {
+          "const": 10000,
+          "title": "Stop Paid Dispatch Basis Points",
+          "type": "integer"
+        },
+        "subscription_only_basis_points": {
+          "const": 9000,
+          "title": "Subscription Only Basis Points",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "stop_experiments_basis_points",
+        "subscription_only_basis_points",
+        "stop_paid_dispatch_basis_points"
+      ],
+      "title": "CashThresholds",
+      "type": "object"
+    },
+    "DisabledAutomaticTopUp": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "disabled",
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "DisabledAutomaticTopUp",
+      "type": "object"
+    },
+    "FixedIntervalRenewal": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_on": {
+          "format": "date",
+          "title": "Anchor On",
+          "type": "string"
+        },
+        "interval_days": {
+          "exclusiveMinimum": 0,
+          "maximum": 3660,
+          "title": "Interval Days",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "fixed_interval",
+          "title": "Kind",
+          "type": "string"
+        },
+        "timezone": {
+          "const": "UTC",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "timezone",
+        "anchor_on",
+        "interval_days"
+      ],
+      "title": "FixedIntervalRenewal",
+      "type": "object"
+    },
+    "FixedSubscriptionLane": {
+      "additionalProperties": false,
+      "properties": {
+        "billing_mode": {
+          "const": "fixed_subscription",
+          "title": "Billing Mode",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "quota_ids": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "maxItems": 64,
+          "title": "Quota Ids",
+          "type": "array"
+        },
+        "subscription_id": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "billing_mode",
+        "enabled",
+        "subscription_id"
+      ],
+      "title": "FixedSubscriptionLane",
+      "type": "object"
+    },
+    "Identifier": {
+      "maxLength": 96,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "IncludedQuotaLane": {
+      "additionalProperties": false,
+      "properties": {
+        "billing_mode": {
+          "const": "included_quota",
+          "title": "Billing Mode",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "quota_ids": {
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Quota Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "billing_mode",
+        "enabled",
+        "quota_ids"
+      ],
+      "title": "IncludedQuotaLane",
+      "type": "object"
+    },
+    "MeteredLane": {
+      "additionalProperties": false,
+      "properties": {
+        "billing_mode": {
+          "const": "metered",
+          "title": "Billing Mode",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "price_snapshot_ids": {
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Price Snapshot Ids",
+          "type": "array"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "quota_ids": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "maxItems": 64,
+          "title": "Quota Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "billing_mode",
+        "enabled",
+        "price_snapshot_ids"
+      ],
+      "title": "MeteredLane",
+      "type": "object"
+    },
+    "Microcents": {
+      "maximum": 9223372036854775807,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "PositiveCount": {
+      "exclusiveMinimum": 0,
+      "maximum": 9223372036854775807,
+      "type": "integer"
+    },
+    "PositiveMicrocents": {
+      "exclusiveMinimum": 0,
+      "maximum": 9223372036854775807,
+      "type": "integer"
+    },
+    "PriceSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "model_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "price_microcents": {
+          "$ref": "#/$defs/PositiveMicrocents"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "quantity": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "unit": {
+          "$ref": "#/$defs/PriceUnit"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "model_id",
+        "unit",
+        "quantity",
+        "price_microcents",
+        "observed_at",
+        "expires_at"
+      ],
+      "title": "PriceSnapshot",
+      "type": "object"
+    },
+    "PriceUnit": {
+      "enum": [
+        "request",
+        "input_token",
+        "output_token",
+        "minute"
+      ],
+      "type": "string"
+    },
+    "ProviderQuota": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "limit": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "unit": {
+          "$ref": "#/$defs/QuotaUnit"
+        },
+        "window": {
+          "$ref": "#/$defs/QuotaWindow"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "unit",
+        "limit",
+        "window"
+      ],
+      "title": "ProviderQuota",
+      "type": "object"
+    },
+    "QuotaUnit": {
+      "enum": [
+        "requests",
+        "input_tokens",
+        "output_tokens",
+        "tokens"
+      ],
+      "type": "string"
+    },
+    "QuotaWindow": {
+      "discriminator": {
+        "mapping": {
+          "calendar_month": "#/$defs/CalendarMonthQuotaWindow",
+          "rolling": "#/$defs/RollingQuotaWindow",
+          "subscription_cycle": "#/$defs/SubscriptionCycleQuotaWindow"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RollingQuotaWindow"
+        },
+        {
+          "$ref": "#/$defs/CalendarMonthQuotaWindow"
+        },
+        {
+          "$ref": "#/$defs/SubscriptionCycleQuotaWindow"
+        }
+      ]
+    },
+    "RollingQuotaWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "maximum": 31536000,
+          "title": "Duration Seconds",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "rolling",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "duration_seconds"
+      ],
+      "title": "RollingQuotaWindow",
+      "type": "object"
+    },
+    "SubscriptionCycleQuotaWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "subscription_cycle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "subscription_id": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "kind",
+        "subscription_id"
+      ],
+      "title": "SubscriptionCycleQuotaWindow",
+      "type": "object"
+    },
+    "SubscriptionPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "charge_microcents": {
+          "$ref": "#/$defs/PositiveMicrocents"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "renewal": {
+          "$ref": "#/$defs/SubscriptionRenewal"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "charge_microcents",
+        "renewal"
+      ],
+      "title": "SubscriptionPolicy",
+      "type": "object"
+    },
+    "SubscriptionRenewal": {
+      "discriminator": {
+        "mapping": {
+          "annual": "#/$defs/AnnualRenewal",
+          "calendar_month": "#/$defs/CalendarMonthRenewal",
+          "fixed_interval": "#/$defs/FixedIntervalRenewal"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CalendarMonthRenewal"
+        },
+        {
+          "$ref": "#/$defs/AnnualRenewal"
+        },
+        {
+          "$ref": "#/$defs/FixedIntervalRenewal"
+        }
+      ]
+    }
+  },
+  "$id": "https://sakibshuvo.github.io/Entroping/meta/factory-cost-policy.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authoring schema for the local Entroping factory cost policy. Runtime Pydantic validation remains authoritative.",
+  "properties": {
+    "automatic_top_up": {
+      "$ref": "#/$defs/DisabledAutomaticTopUp"
+    },
+    "automation_lanes": {
+      "items": {
+        "$ref": "#/$defs/AutomationLane"
+      },
+      "maxItems": 128,
+      "title": "Automation Lanes",
+      "type": "array"
+    },
+    "cash": {
+      "$ref": "#/$defs/CashPolicy"
+    },
+    "currency": {
+      "const": "USD",
+      "title": "Currency",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "monetary_unit": {
+      "const": "microcent",
+      "title": "Monetary Unit",
+      "type": "string"
+    },
+    "policy_id": {
+      "$ref": "#/$defs/Identifier"
+    },
+    "policy_revision": {
+      "exclusiveMinimum": 0,
+      "maximum": 9223372036854775807,
+      "title": "Policy Revision",
+      "type": "integer"
+    },
+    "price_snapshots": {
+      "items": {
+        "$ref": "#/$defs/PriceSnapshot"
+      },
+      "maxItems": 512,
+      "title": "Price Snapshots",
+      "type": "array"
+    },
+    "provider_quotas": {
+      "items": {
+        "$ref": "#/$defs/ProviderQuota"
+      },
+      "maxItems": 256,
+      "title": "Provider Quotas",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "entroping.factory-cost-policy.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "subscriptions": {
+      "items": {
+        "$ref": "#/$defs/SubscriptionPolicy"
+      },
+      "maxItems": 128,
+      "title": "Subscriptions",
+      "type": "array"
+    },
+    "unknown_cost_behavior": {
+      "const": "deny_paid_dispatch",
+      "title": "Unknown Cost Behavior",
+      "type": "string"
+    },
+    "unknown_quota_behavior": {
+      "const": "deny_affected_paid_lane",
+      "title": "Unknown Quota Behavior",
+      "type": "string"
+    },
+    "valid_from": {
+      "format": "date-time",
+      "title": "Valid From",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "policy_revision",
+    "currency",
+    "monetary_unit",
+    "valid_from",
+    "expires_at",
+    "unknown_cost_behavior",
+    "unknown_quota_behavior",
+    "cash",
+    "subscriptions",
+    "price_snapshots",
+    "provider_quotas",
+    "automatic_top_up",
+    "automation_lanes"
+  ],
+  "title": "FactoryCostPolicy",
+  "type": "object"
+}

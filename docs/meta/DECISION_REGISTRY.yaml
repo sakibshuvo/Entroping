@@ -512,3 +512,15 @@ decisions:
     related_issues: ["#1507"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0022
+    title: Factory cost policy
+    status: accepted
+    date: "2026-07-27"
+    summary: Fail-closed USD factory budget.
+    tags: [factory]
+    source_links: [{path: decisions/ADR-0022-factory-cost-policy-contract.md, role: adr}]
+    related_docs: []
+    related_issues: ["#1559"]
+    supersedes: []
+    superseded_by: null

@@ -2361,4 +2361,4 @@ and digest pinning, rollback rules, and smoke checks. It must not replace local
 4. Keep `mitmproxy` as the traffic capture foundation.
 5. Keep domain code independent from adapters.
 6. Validate generated files before accepting them.
-7. Treat security and quality as release gates.
+7. Treat security, quality, and ADR-0022 costs as release gates.

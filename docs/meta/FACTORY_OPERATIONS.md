@@ -25,6 +25,63 @@ blocked until all of these repository-owned dependencies exist:
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
 
+## Cost Policy Preflight
+
+The factory's concrete cost policy belongs at
+`.entroping/factory-cost-policy.json`. That path is local and ignored; never
+commit real account, subscription, quota, or provider data. The repository
+commits only the closed
+[`factory-cost-policy.v1.schema.json`](factory-cost-policy.v1.schema.json) and
+the fake [`factory-cost-policy.example.json`](factory-cost-policy.example.json).
+The policy validator is read-only: it does not inspect provider accounts, call
+models, reserve funds, or dispatch work.
+
+Validate a reviewed local policy at an explicit offset-aware instant before a
+future scheduler uses it:
+
+```text
+uv run python -m scripts.factory_cost_policy validate \
+  --policy .entroping/factory-cost-policy.json \
+  --as-of 2026-07-15T00:00:00Z
+```
+
+Use `uv run python -m scripts.factory_cost_policy schema` to inspect the runtime
+schema export. `uv run python -m scripts.update_factory_cost_policy_schema`
+regenerates the committed schema for review; its output must not drift from the
+runtime model.
+
+Version 1 has these fixed semantics:
+
+- Currency is USD and every amount is an integer microcent, where one USD is
+  100,000,000 microcents. The approved $200 cap is 20,000,000,000 microcents;
+  the $20 emergency reserve is 2,000,000,000 microcents.
+- Cash months and renewal dates use UTC. The reserve is a non-spendable floor
+  inside the cap, not another charge.
+  Experiments stop at 80%, only subscription/included-quota work remains at
+  90%, and paid dispatch stops at 100%.
+- Subscription charges use cash-basis renewal events. Calendar-month and
+  annual renewals declare invalid-date behavior; non-calendar renewals declare
+  an anchor date and fixed positive interval. The policy does not amortize an
+  annual charge across months.
+- Provider quotas are independent of cash. Rolling five-hour (18,000-second),
+  rolling weekly (604,800-second), UTC calendar-month, and subscription-cycle
+  windows do not add cash or reset the cash ledger.
+- Automatic top-up is always `disabled`. Unknown cost blocks paid dispatch;
+  unknown quota blocks only the affected paid lane. Safe offline work remains
+  outside this policy surface.
+- An enabled metered lane needs a matching, observed, unexpired price snapshot.
+  Policy and price validity windows are half-open: start is inclusive and
+  expiry is exclusive.
+
+The validator rejects unsupported currencies and billing modes, negative or
+overflowing integers, zero charges, duplicate identifiers/references, broken
+provider references, naive or reversed timestamps, stale policies/prices,
+secret-like content, oversized or invalid UTF-8 files, non-regular files, and
+symlinked path components. Validation success proves only that the declaration
+is structurally safe and current at `--as-of`; the authoritative ledger,
+reservation, settlement, and quota-observation behavior remains in downstream
+factory issues.
+
 ## Contract
 
 The source template is
