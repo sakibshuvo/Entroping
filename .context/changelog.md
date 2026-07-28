@@ -2,6 +2,15 @@
 
 ## 2026-07-27
 
+- Added issue #1562's plan-first factory artifact retention. Bounded no-follow
+  inventory now covers terminal jobs, reviews, rotated logs, verified finished
+  metrics archives, and terminal journal receipts; explicit apply rejects
+  tracked targets, verifies fingerprints, and uses recovery journals whose
+  incomplete staging rolls back while committed purges finish. Active metrics
+  are aggregate-capped at 64 MiB, tick and worker output is bounded before
+  atomic persistence, and traversal, process groups, timestamps, aliases,
+  malformed metadata, secrets, and crash windows have regression coverage.
+
 - Added issue #1559's versioned factory cost policy and JSON schema: USD integer
   microcents now express the $200 all-in monthly cap and internal $20 reserve,
   cash-basis subscriptions, expiring price observations, independent rolling

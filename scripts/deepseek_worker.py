@@ -21,9 +21,20 @@ from typing import Literal, cast
 from urllib import error, request
 from urllib.parse import urlparse
 
-from ai_worker_file_safety import (
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.ai_worker_file_safety import (  # noqa: E402
     secret_like_content_reason,
     sensitive_selected_path_reason,
+)
+from scripts.worker_output import (  # noqa: E402
+    ResponseReadError,
+    atomic_write_text,
+    bounded_persisted_text,
+    read_bounded_utf8,
+    serialized_json_payload,
 )
 
 DEFAULT_MODEL = "deepseek-v4-pro"
@@ -33,6 +44,7 @@ DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_MAX_FILE_BYTES = 64_000
+DEFAULT_MAX_RESPONSE_BYTES = 262_144
 CAPABILITY_CONTEXT_VERSION = "entroping.deepseek-capability-context.v1"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
@@ -55,6 +67,7 @@ class DirectWorkerConfig:
     timeout_seconds: float
     max_tokens: int
     max_file_bytes: int
+    max_response_bytes: int
     thinking: ThinkingMode
     reasoning_effort: ReasoningEffort
     issue: str | None
@@ -99,7 +112,7 @@ def main() -> int:
         print(f"deepseek_worker: {exc}", file=sys.stderr)
         return 2
 
-    payload = {
+    payload: dict[str, object] = {
         "status": result.status,
         "artifact_dir": str(result.artifact_dir),
         "returncode": result.returncode,
@@ -232,6 +245,15 @@ def _parse_args() -> DirectWorkerConfig:
         ),
     )
     parser.add_argument(
+        "--max-response-bytes",
+        type=int,
+        default=DEFAULT_MAX_RESPONSE_BYTES,
+        help=(
+            "Maximum bytes read from one API response. "
+            f"Default: {DEFAULT_MAX_RESPONSE_BYTES}."
+        ),
+    )
+    parser.add_argument(
         "--thinking",
         choices=("enabled", "disabled"),
         default="disabled",
@@ -285,6 +307,9 @@ def _parse_args() -> DirectWorkerConfig:
     if args.max_file_bytes <= 0:
         msg = "--max-file-bytes must be greater than zero"
         raise DirectWorkerInputError(msg)
+    if args.max_response_bytes <= 0:
+        msg = "--max-response-bytes must be greater than zero"
+        raise DirectWorkerInputError(msg)
 
     api_key_env = _validate_env_name(str(args.api_key_env))
     base_url = _validate_base_url(
@@ -306,6 +331,7 @@ def _parse_args() -> DirectWorkerConfig:
         timeout_seconds=float(args.timeout_seconds),
         max_tokens=int(args.max_tokens),
         max_file_bytes=int(args.max_file_bytes),
+        max_response_bytes=int(args.max_response_bytes),
         thinking=thinking,
         reasoning_effort=reasoning_effort,
         issue=args.issue,
@@ -695,7 +721,14 @@ def _call_deepseek(
             http_request,
             timeout=config.timeout_seconds,
         ) as response:
-            response_text = response.read().decode("utf-8", errors="replace")
+            bounded_response = read_bounded_utf8(response, config.max_response_bytes)
+            if bounded_response.error is not None:
+                return _response_read_error_result(
+                    config,
+                    artifact_dir,
+                    bounded_response.error,
+                )
+            response_text = bounded_response.text or ""
     except TimeoutError:
         return DirectWorkerResult(
             status="timed-out",
@@ -707,17 +740,29 @@ def _call_deepseek(
             usage=None,
         )
     except error.HTTPError as exc:
-        response_text = exc.read().decode("utf-8", errors="replace")
+        bounded_response = read_bounded_utf8(exc, config.max_response_bytes)
+        if bounded_response.error is not None:
+            return _response_read_error_result(
+                config,
+                artifact_dir,
+                bounded_response.error,
+            )
+        response_text = bounded_response.text or ""
         stderr = f"DeepSeek API returned HTTP {exc.code}."
         if response_text:
             stderr = f"{stderr}\n{response_text}"
+        response_payload = _json_object_or_none(response_text)
+        if response_payload is not None and serialized_json_payload(
+            response_payload, config.max_response_bytes
+        ) is None:
+            return _response_read_error_result(config, artifact_dir, "too_large")
         return DirectWorkerResult(
             status="failed",
             artifact_dir=artifact_dir,
             returncode=1,
             stdout="",
             stderr=stderr,
-            response_payload=_json_object_or_none(response_text),
+            response_payload=response_payload,
             usage=None,
         )
     except error.URLError as exc:
@@ -742,6 +787,8 @@ def _call_deepseek(
             response_payload=None,
             usage=None,
         )
+    if serialized_json_payload(payload, config.max_response_bytes) is None:
+        return _response_read_error_result(config, artifact_dir, "too_large")
 
     content = _assistant_content(payload)
     usage = _usage_object(payload)
@@ -756,6 +803,27 @@ def _call_deepseek(
         usage=usage,
     )
 
+
+def _response_read_error_result(
+    config: DirectWorkerConfig,
+    artifact_dir: Path,
+    error_code: ResponseReadError,
+) -> DirectWorkerResult:
+    if error_code == "too_large":
+        message = (
+            f"DeepSeek API response exceeded the {config.max_response_bytes}-byte limit."
+        )
+    else:
+        message = "DeepSeek API returned invalid UTF-8."
+    return DirectWorkerResult(
+        status="failed",
+        artifact_dir=artifact_dir,
+        returncode=1,
+        stdout="",
+        stderr=message,
+        response_payload=None,
+        usage=None,
+    )
 
 def _json_object_or_none(text: str) -> dict[str, object] | None:
     if not text.strip():
@@ -906,17 +974,25 @@ def _write_execution_artifacts(
     result: DirectWorkerResult,
     endpoint: str,
 ) -> None:
-    (result.artifact_dir / "stdout.txt").write_text(result.stdout, encoding="utf-8")
-    (result.artifact_dir / "stderr.txt").write_text(result.stderr, encoding="utf-8")
+    stdout = bounded_persisted_text(result.stdout, config.max_response_bytes)
+    stderr = bounded_persisted_text(result.stderr, config.max_response_bytes)
+    atomic_write_text(result.artifact_dir / "stdout.txt", stdout)
+    atomic_write_text(result.artifact_dir / "stderr.txt", stderr)
     if result.response_payload is not None:
-        (result.artifact_dir / "response.json").write_text(
-            json.dumps(result.response_payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+        response_json = serialized_json_payload(
+            result.response_payload,
+            config.max_response_bytes,
+        )
+        if response_json is None:
+            raise DirectWorkerInputError("validated response exceeded persistence limit")
+        atomic_write_text(
+            result.artifact_dir / "response.json",
+            response_json,
         )
     if config.mode == "patch" and result.status == "patch-proposed":
-        proposal = _extract_unified_diff(result.stdout)
+        proposal = _extract_unified_diff(stdout)
         if proposal is not None:
-            (result.artifact_dir / "proposal.diff").write_text(proposal, encoding="utf-8")
+            atomic_write_text(result.artifact_dir / "proposal.diff", proposal)
     _write_metadata(config, result, endpoint)
 
 
@@ -937,6 +1013,7 @@ def _write_metadata(
         "timeout_seconds": config.timeout_seconds,
         "max_tokens": config.max_tokens,
         "max_file_bytes": config.max_file_bytes,
+        "max_response_bytes": config.max_response_bytes,
         "context_policy": "bounded-file-content-v1",
         "capability_context_version": CAPABILITY_CONTEXT_VERSION,
         "base_url": config.base_url,
@@ -948,9 +1025,9 @@ def _write_metadata(
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,
     }
-    (result.artifact_dir / "metadata.json").write_text(
+    atomic_write_text(
+        result.artifact_dir / "metadata.json",
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
     )
 
 

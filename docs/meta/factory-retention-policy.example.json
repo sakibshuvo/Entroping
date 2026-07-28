@@ -1,0 +1,48 @@
+{
+  "schema_version": "entroping.factory-retention-policy.v1",
+  "class_policies": [
+    {
+      "schema_version": "entroping.factory-retention-policy.v1",
+      "artifact_class": "ai_job",
+      "byte_ceiling": 536870912,
+      "state_policies": [
+        {"state": "completed", "max_age_days": 90},
+        {"state": "failed", "max_age_days": 14}
+      ]
+    },
+    {
+      "schema_version": "entroping.factory-retention-policy.v1",
+      "artifact_class": "ai_review",
+      "byte_ceiling": 1073741824,
+      "state_policies": [
+        {"state": "accepted", "max_age_days": 90},
+        {"state": "rejected", "max_age_days": 30}
+      ]
+    },
+    {
+      "schema_version": "entroping.factory-retention-policy.v1",
+      "artifact_class": "factory_log",
+      "byte_ceiling": 67108864,
+      "state_policies": [
+        {"state": "rotated", "max_age_days": 7}
+      ]
+    },
+    {
+      "schema_version": "entroping.factory-retention-policy.v1",
+      "artifact_class": "factory_metrics_archive",
+      "byte_ceiling": 536870912,
+      "state_policies": [
+        {"state": "archived", "max_age_days": 180}
+      ]
+    },
+    {
+      "schema_version": "entroping.factory-retention-policy.v1",
+      "artifact_class": "retention_journal",
+      "byte_ceiling": 8388608,
+      "state_policies": [
+        {"state": "completed", "max_age_days": 30},
+        {"state": "rolled_back", "max_age_days": 14}
+      ]
+    }
+  ]
+}

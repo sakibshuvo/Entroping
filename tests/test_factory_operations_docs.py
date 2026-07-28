@@ -31,9 +31,9 @@ def test_factory_runbook_is_inactive_until_owned_safety_surfaces_exist() -> None
     assert "tracked by issue #1569" in runbook
     assert "`factoryctl status`" in runbook
     assert "tracked by issue #1572" in runbook
-    assert "retention tracked by issue #1562" in " ".join(runbook.split())
-    assert "not size-bounded by launchd" in runbook
-    assert "append without rotation" in runbook
+    assert "retention implemented by issue #1562" in " ".join(runbook.split())
+    assert "factory_tick_runner" in runbook
+    assert "never receive factory output" in runbook
 
 
 def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
@@ -83,6 +83,7 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
         "{{FACTORYCTL_EXECUTABLE}}",
         "{{FACTORY_PATH}}",
         "{{LOG_DIRECTORY}}",
+        "{{PYTHON_EXECUTABLE}}",
         "{{TICK_INTERVAL_SECONDS}}",
         "{{WORKING_DIRECTORY}}",
     }
@@ -90,15 +91,27 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
     assert "LaunchAgents" not in template
 
     rendered = (
-        template.replace("{{FACTORYCTL_EXECUTABLE}}", "/opt/entroping/factoryctl")
+        template.replace("{{PYTHON_EXECUTABLE}}", "/opt/entroping/python")
+        .replace("{{FACTORYCTL_EXECUTABLE}}", "/opt/entroping/factoryctl")
         .replace("{{WORKING_DIRECTORY}}", "/opt/entroping/repository")
         .replace("{{FACTORY_PATH}}", "/opt/entroping:/usr/bin:/bin:/usr/sbin:/sbin")
-        .replace("{{LOG_DIRECTORY}}", "/opt/entroping/logs")
+        .replace(
+            "{{LOG_DIRECTORY}}",
+            "/opt/entroping/repository/.entroping/factory-logs",
+        )
         .replace("{{TICK_INTERVAL_SECONDS}}", "300")
     )
     assert plistlib.loads(rendered.encode("utf-8")) == {
         "Label": "com.entroping.factory-tick",
-        "ProgramArguments": ["/opt/entroping/factoryctl", "tick"],
+        "ProgramArguments": [
+            "/opt/entroping/python",
+            "-m",
+            "scripts.factory_tick_runner",
+            "--factoryctl",
+            "/opt/entroping/factoryctl",
+            "--log-directory",
+            "/opt/entroping/repository/.entroping/factory-logs",
+        ],
         "WorkingDirectory": "/opt/entroping/repository",
         "EnvironmentVariables": {
             "PATH": "/opt/entroping:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -108,8 +121,8 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
         "StartInterval": 300,
         "Disabled": True,
         "Umask": 63,
-        "StandardOutPath": "/opt/entroping/logs/factory-tick.out.log",
-        "StandardErrorPath": "/opt/entroping/logs/factory-tick.err.log",
+        "StandardOutPath": "/dev/null",
+        "StandardErrorPath": "/dev/null",
     }
 
 

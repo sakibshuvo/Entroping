@@ -20,7 +20,7 @@ blocked until all of these repository-owned dependencies exist:
 - the `factoryctl tick` scheduler surface, lease, and duplicate-tick guard
   tracked by issue #1569;
 - the read-only `factoryctl status` diagnostics tracked by issue #1572;
-- bounded artifact and stream-log retention tracked by issue #1562.
+- bounded artifact and stream-log retention implemented by issue #1562.
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
@@ -85,29 +85,82 @@ is structurally safe and current at `--as-of`; the authoritative ledger,
 reservation, settlement, and quota-observation behavior remains in downstream
 factory issues.
 
+## Artifact and Log Retention
+
+The committed example policy defines age limits per terminal state and aggregate
+byte ceilings for terminal jobs, reviewed evidence, rotated factory logs,
+verified finished-issue metrics archives, and terminal retention receipts.
+Copy it to the ignored `.entroping/factory-retention-policy.json` only when a
+reviewed local override is needed. The command never scans outside the current
+repository and never follows symlinks.
+
+Preview the exact deterministic plan first:
+
+```text
+uv run python -m scripts.factory_retention plan --json
+```
+
+`prune` remains plan-only unless `--apply` is present:
+
+```text
+uv run python -m scripts.factory_retention prune
+uv run python -m scripts.factory_retention prune --apply --json
+```
+
+Apply re-inventories the managed roots, takes the shared factory-state lock
+exclusively, rejects Git-tracked targets or descendants, verifies each content
+fingerprint immediately before mutation, stages same-filesystem moves, and
+records a durable recovery journal under `.entroping/retention-journal/`.
+Recovery rolls back a moving journal that still has pending operations; a fully
+staged or purging journal completes its recorded purge. A persisted journal is
+never authority to stage new deletion work.
+
+Matching managed entries with malformed metadata, symlinks, special files,
+control-bearing names, changed fingerprints, unresolved reservations, active
+reviews, orphaned reviews, legacy metrics without terminal provenance, or
+unknown accepted issue/PR references fail closed. Unrelated factory-log names
+are ignored. Traversal is bounded by per-directory, total-entry, depth,
+metadata-read, hashed-byte, and operation limits. Policy class ceilings may
+total at most 4 GiB; the 8 GiB inventory hash budget reserves equal headroom so
+ordinary over-cap pressure remains prunable. Reports contain only artifact IDs,
+classes, states, timestamps, relative paths, reason codes, counts, and byte
+totals, never artifact contents.
+
+The tick runner bounds and redacts output before persistence. It serializes tick
+log writes under a shared retention lock, limits each captured stream to 256
+KiB, and keeps only an active file plus one 4 MiB rotation for each stream. A
+tick that exceeds its output ceiling is terminated with its process group and
+fails closed. Retention inventories active stream files but protects them;
+rotated logs can expire by policy. Active factory metrics share a locked 64 MiB
+aggregate cap. `finish_issue.sh` adds verified terminal provenance to newly
+archived metrics; legacy archives without that sidecar remain protected.
+
 ## Contract
 
 The source template is
 `docs/meta/templates/com.entroping.factory-tick.plist`. It defines:
 
 - one launchd label, `com.entroping.factory-tick`;
-- an absolute `{{FACTORYCTL_EXECUTABLE}}` placeholder followed by the single
-  `tick` argument;
+- an absolute `{{PYTHON_EXECUTABLE}}` that invokes the tracked
+  `scripts.factory_tick_runner` module with an absolute
+  `{{FACTORYCTL_EXECUTABLE}}`;
 - an explicit working directory and minimal `PATH`;
 - `RunAtLoad: false`, `KeepAlive: false`, and `Disabled: true`;
 - a positive `StartInterval` placeholder; and
-- dedicated `StandardOutPath` and `StandardErrorPath` values under one log
-  directory.
+- `/dev/null` launchd streams; the runner writes bounded logs only under the
+  repo-owned `.entroping/factory-logs` directory.
 
 `StartInterval` requests one short idempotent tick. launchd does not start a
 second copy when the previous interval is still running, but that is not a
 replacement for the repository lease and idempotency contract. A separate
 operator or duplicate service can still race without issue #1569's guard.
 
-The log paths are dedicated, not size-bounded by launchd. `StandardOutPath`
-and `StandardErrorPath` append without rotation. Do not activate the agent
-until issue #1562 provides a tested retention policy for both files and the
-factory artifact directory.
+launchd's `StandardOutPath` and `StandardErrorPath` never receive factory output.
+The runner captures each stream with a 256 KiB per-tick ceiling, terminates a
+tick that floods either stream, and keeps each active log plus one rotation at
+no more than 4 MiB per file. Retention planning additionally covers rotated
+logs, terminal jobs, review evidence, finished metrics archives, and terminal
+retention receipts under the repo-owned `.entroping/` roots.
 
 ## Render and Validate
 
@@ -116,10 +169,11 @@ Render the template into a temporary file before copying it to
 
 | Placeholder | Required value |
 | --- | --- |
+| `{{PYTHON_EXECUTABLE}}` | Absolute path to the validated project Python executable |
 | `{{FACTORYCTL_EXECUTABLE}}` | Absolute path to the validated scheduler executable |
 | `{{WORKING_DIRECTORY}}` | Absolute path to the clean Entroping checkout |
 | `{{FACTORY_PATH}}` | Minimal executable search path, normally `/usr/bin:/bin:/usr/sbin:/sbin` plus the scheduler directory |
-| `{{LOG_DIRECTORY}}` | Absolute path to a dedicated directory with mode `0700` |
+| `{{LOG_DIRECTORY}}` | `{{WORKING_DIRECTORY}}/.entroping/factory-logs` as an absolute path |
 | `{{TICK_INTERVAL_SECONDS}}` | Integer interval approved by the scheduler design |
 
 Do not put tokens, provider keys, credentials, shell expressions, `$HOME`, or
@@ -136,8 +190,8 @@ so lint the rendered file, not the source template.
 
 ## Future Install and First Tick
 
-Run this section only after issues #1562, #1569, and #1572 are merged and their
-acceptance gates pass.
+Run this section only after issues #1569 and #1572 are merged and this retention
+contract's acceptance gate passes.
 
 1. Create the log directory with mode `0700` and install its bounded retention
    configuration.

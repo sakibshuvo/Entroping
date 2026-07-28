@@ -1,12 +1,27 @@
 """Smoke tests for the issue-session finish script."""
 
+import fcntl
+import json
 import os
 import stat
 import subprocess
+import sys
+import time
 from contextlib import suppress
 from pathlib import Path
+from typing import cast
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.factory_metrics_archive import (  # noqa: E402
+    FactoryMetricsArchiveError,
+    preserve_archive,
+)
+
 SCRIPT = REPO_ROOT / "scripts" / "finish_issue.sh"
 
 
@@ -54,56 +69,55 @@ def write_fake_gh(
     fake_bin.mkdir(exist_ok=True)
     fake_gh = fake_bin / "gh"
     checks = checks_json or (
-        '[{"__typename":"CheckRun","name":"checks","status":"COMPLETED",'
-        '"conclusion":"SUCCESS"}]'
+        '[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
     )
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
-        f"  [[ \"$3\" == \"{issue_number}\" ]]\n"
+        'if [[ "$1 $2" == "issue view" ]]; then\n'
+        f'  [[ "$3" == "{issue_number}" ]]\n'
         "  cat <<'JSON'\n"
         "{"
-        f"\"title\":\"Dry run feature\",\"url\":\"https://github.com/sakibshuvo/Entroping/issues/{issue_number}\","
-        f"\"state\":\"{issue_state}\","
-        "\"closedByPullRequestsReferences\":[{\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\"}]"
+        f'"title":"Dry run feature","url":"https://github.com/sakibshuvo/Entroping/issues/{issue_number}",'
+        f'"state":"{issue_state}",'
+        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"pr view\" ]]; then\n"
-        "  [[ \"$3\" == \"123\" ]]\n"
+        'if [[ "$1 $2" == "pr view" ]]; then\n'
+        '  [[ "$3" == "123" ]]\n'
         "  cat <<'JSON'\n"
         "{"
-        "\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\","
-        f"\"state\":\"{pr_state}\",\"headRefName\":\"{branch_name}\",\"mergedAt\":\"2026-05-30T00:00:00Z\","
-        f"\"statusCheckRollup\":{checks}"
+        '"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123",'
+        f'"state":"{pr_state}","headRefName":"{branch_name}","mergedAt":"2026-05-30T00:00:00Z",'
+        f'"statusCheckRollup":{checks}'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
+        'if [[ "$1 $2" == "issue edit" ]]; then\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project view\" ]]; then\n"
+        'if [[ "$1 $2" == "project view" ]]; then\n'
         "  printf '%s\\n' '{\"id\":\"project-id\"}'\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project field-list\" ]]; then\n"
+        'if [[ "$1 $2" == "project field-list" ]]; then\n'
         "  printf '%s\\n' "
-        "'{\"fields\":[{\"name\":\"Status\",\"id\":\"field-id\","
-        "\"options\":[{\"name\":\"Done\",\"id\":\"done-id\"}]}]}'\n"
+        '\'{"fields":[{"name":"Status","id":"field-id",'
+        '"options":[{"name":"Done","id":"done-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-list\" ]]; then\n"
+        'if [[ "$1 $2" == "project item-list" ]]; then\n'
         "  printf '%s\\n' "
-        f"'{{\"items\":[{{\"id\":\"item-id\",\"content\":{{\"number\":{issue_number}}}}}]}}'\n"
+        f'\'{{"items":[{{"id":"item-id","content":{{"number":{issue_number}}}}}]}}\'\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-edit\" ]]; then\n"
+        'if [[ "$1 $2" == "project item-edit" ]]; then\n'
         "  exit 0\n"
         "fi\n"
-        "echo \"unexpected gh args: $*\" >&2\n"
+        'echo "unexpected gh args: $*" >&2\n'
         "exit 2\n",
         encoding="utf-8",
     )
@@ -125,54 +139,54 @@ def write_fake_gh_with_missing_project_item(
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        "state_dir=\"${FAKE_GH_STATE:?}\"\n"
-        "calls=\"$state_dir/calls.log\"\n"
-        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
-        f"  [[ \"$3\" == \"{issue_number}\" ]]\n"
+        'state_dir="${FAKE_GH_STATE:?}"\n'
+        'calls="$state_dir/calls.log"\n'
+        'if [[ "$1 $2" == "issue view" ]]; then\n'
+        f'  [[ "$3" == "{issue_number}" ]]\n'
         "  cat <<'JSON'\n"
         "{"
-        f"\"title\":\"Finished feature\",\"url\":\"https://github.com/sakibshuvo/Entroping/issues/{issue_number}\","
-        "\"state\":\"CLOSED\","
-        "\"closedByPullRequestsReferences\":[{\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\"}]"
+        f'"title":"Finished feature","url":"https://github.com/sakibshuvo/Entroping/issues/{issue_number}",'
+        '"state":"CLOSED",'
+        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"pr view\" ]]; then\n"
-        "  [[ \"$3\" == \"123\" ]]\n"
+        'if [[ "$1 $2" == "pr view" ]]; then\n'
+        '  [[ "$3" == "123" ]]\n'
         "  cat <<'JSON'\n"
         "{"
-        "\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\","
-        f"\"state\":\"MERGED\",\"headRefName\":\"{branch_name}\",\"mergedAt\":\"2026-05-30T00:00:00Z\","
-        "\"statusCheckRollup\":[{\"__typename\":\"CheckRun\",\"name\":\"checks\",\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"}]"
+        '"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123",'
+        f'"state":"MERGED","headRefName":"{branch_name}","mergedAt":"2026-05-30T00:00:00Z",'
+        '"statusCheckRollup":[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
-        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "issue edit" ]]; then\n'
+        '  printf \'issue edit %s\\n\' "$*" >> "$calls"\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project view\" ]]; then\n"
+        'if [[ "$1 $2" == "project view" ]]; then\n'
         "  printf '%s\\n' '{\"id\":\"project-id\"}'\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project field-list\" ]]; then\n"
+        'if [[ "$1 $2" == "project field-list" ]]; then\n'
         "  printf '%s\\n' "
-        "'{\"fields\":[{\"name\":\"Status\",\"id\":\"field-id\","
-        "\"options\":[{\"name\":\"Done\",\"id\":\"done-id\"}]}]}'\n"
+        '\'{"fields":[{"name":"Status","id":"field-id",'
+        '"options":[{"name":"Done","id":"done-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-list\" ]]; then\n"
-        "  if [[ -f \"$state_dir/project-added\" ]]; then\n"
-        "    count_file=\"$state_dir/item-list-after-add-count\"\n"
+        'if [[ "$1 $2" == "project item-list" ]]; then\n'
+        '  if [[ -f "$state_dir/project-added" ]]; then\n'
+        '    count_file="$state_dir/item-list-after-add-count"\n'
         "    count=0\n"
-        "    [[ -f \"$count_file\" ]] && count=$(cat \"$count_file\")\n"
+        '    [[ -f "$count_file" ]] && count=$(cat "$count_file")\n'
         "    count=$((count + 1))\n"
-        "    printf '%s\\n' \"$count\" > \"$count_file\"\n"
+        '    printf \'%s\\n\' "$count" > "$count_file"\n'
         "    if ((count >= 2)); then\n"
         "      printf '%s\\n' "
-        f"'{{\"items\":[{{\"id\":\"item-id\",\"content\":{{\"number\":{issue_number}}}}}]}}'\n"
+        f'\'{{"items":[{{"id":"item-id","content":{{"number":{issue_number}}}}}]}}\'\n'
         "    else\n"
         "      printf '%s\\n' '{\"items\":[]}'\n"
         "    fi\n"
@@ -181,17 +195,17 @@ def write_fake_gh_with_missing_project_item(
         "  fi\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-add\" ]]; then\n"
-        "  printf 'project item-add %s\\n' \"$*\" >> \"$calls\"\n"
-        "  touch \"$state_dir/project-added\"\n"
+        'if [[ "$1 $2" == "project item-add" ]]; then\n'
+        '  printf \'project item-add %s\\n\' "$*" >> "$calls"\n'
+        '  touch "$state_dir/project-added"\n'
         "  printf '%s\\n' '{\"id\":\"item-id\"}'\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-edit\" ]]; then\n"
-        "  printf 'project item-edit %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "project item-edit" ]]; then\n'
+        '  printf \'project item-edit %s\\n\' "$*" >> "$calls"\n'
         "  exit 0\n"
         "fi\n"
-        "echo \"unexpected gh args: $*\" >&2\n"
+        'echo "unexpected gh args: $*" >&2\n'
         "exit 2\n",
         encoding="utf-8",
     )
@@ -224,8 +238,36 @@ def write_factory_metrics_fixture(worktree: Path) -> tuple[Path, Path]:
     nested_dir.mkdir(parents=True)
     root_ledger = metrics_dir / "events.jsonl"
     nested_ledger = nested_dir / "events.jsonl"
-    root_ledger.write_text('{"role":"codex","tokens":10}\n', encoding="utf-8")
-    nested_ledger.write_text('{"role":"deepseek","tokens":25}\n', encoding="utf-8")
+    root_ledger.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.factory-metrics.v1",
+                "event_id": "finish-root",
+                "recorded_at": "2026-05-30T00:00:00Z",
+                "event_type": "outcome",
+                "role": "integrator",
+                "agent": "codex",
+                "metrics": {"estimated_tokens": 10},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    nested_ledger.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.factory-metrics.v1",
+                "event_id": "finish-nested",
+                "recorded_at": "2026-05-30T00:00:00Z",
+                "event_type": "worker_job",
+                "role": "dev_agent",
+                "agent": "deepseek",
+                "metrics": {"estimated_tokens": 25},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     (metrics_dir / "ignored.txt").write_text("not a ledger\n", encoding="utf-8")
     return root_ledger, nested_ledger
 
@@ -271,13 +313,7 @@ def test_finish_issue_dry_run_reports_factory_metrics_without_writing(
     assert "events.jsonl" in result.stdout
     assert "workers/deepseek/events.jsonl" in result.stdout
     assert "ignored.txt" not in result.stdout
-    assert not (
-        repo
-        / ".entroping"
-        / "factory-metrics"
-        / "finished-issues"
-        / "issue-99"
-    ).exists()
+    assert not (repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99").exists()
     assert worktree.exists()
 
 
@@ -313,21 +349,309 @@ def test_finish_issue_preserves_factory_metrics_before_worktree_removal(
 
     assert result.returncode == 0, result.stderr
     assert "Preserved factory metrics ledgers (2 files)" in result.stdout
-    destination = (
-        repo
-        / ".entroping"
-        / "factory-metrics"
-        / "finished-issues"
-        / "issue-99"
-    )
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
     assert (destination / "events.jsonl").read_text(encoding="utf-8") == root_content
-    assert (
-        destination / "workers" / "deepseek" / "events.jsonl"
-    ).read_text(encoding="utf-8") == nested_content
+    assert (destination / "workers" / "deepseek" / "events.jsonl").read_text(
+        encoding="utf-8"
+    ) == nested_content
     assert not (destination / "ignored.txt").exists()
     assert not (destination / "linked.jsonl").exists()
     assert not (destination / "linked-workers").exists()
+    metadata = cast(
+        dict[str, object],
+        json.loads((destination / "metadata.json").read_text(encoding="utf-8")),
+    )
+    assert metadata == {
+        "schema_version": "entroping.factory-metrics-archive.v1",
+        "issue": 99,
+        "pull_request": 123,
+        "status": "archived",
+        "issue_state": "closed",
+        "pr_state": "merged",
+        "archived_at": "2026-05-30T00:00:00Z",
+    }
     assert not worktree.exists()
+
+
+def test_finish_issue_rejects_symlinked_metrics_archive_destination(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    archive_root = repo / ".entroping" / "factory-metrics" / "finished-issues"
+    archive_root.mkdir(parents=True)
+    (archive_root / "issue-99").symlink_to(outside, target_is_directory=True)
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "factory metrics archive path is unsafe" in result.stderr
+    assert list(outside.iterdir()) == []
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_conflicting_metrics_archive_provenance(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
+    destination.mkdir(parents=True)
+    (destination / "metadata.json").write_text(
+        '{"issue":99,"pull_request":999}\n', encoding="utf-8"
+    )
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "different provenance" in result.stderr
+    assert not (destination / "events.jsonl").exists()
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_oversized_factory_metrics_archive(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    metrics = worktree / ".entroping" / "factory-metrics"
+    metrics.mkdir(parents=True)
+    (metrics / "events.jsonl").write_bytes(b"")
+    with (metrics / "events.jsonl").open("r+b") as stream:
+        stream.truncate(67_108_865)
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "aggregate byte limit" in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_non_metrics_jsonl_before_cleanup(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    metrics = worktree / ".entroping" / "factory-metrics"
+    metrics.mkdir(parents=True)
+    (metrics / "provider-transcript.jsonl").write_text(
+        '{"provider_transcript":"not factory metrics"}\n', encoding="utf-8"
+    )
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "invalid event" in result.stderr
+    assert "provider_transcript" not in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_secret_like_metrics_without_echo(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    metrics = worktree / ".entroping" / "factory-metrics"
+    metrics.mkdir(parents=True)
+    secret = "sk-proj-synthetic-secret-value"
+    (metrics / "events.jsonl").write_text(json.dumps({"note": secret}) + "\n", encoding="utf-8")
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "unredacted secret-like data" in result.stderr
+    assert secret not in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_json_escaped_secret_without_echo(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    metrics = worktree / ".entroping" / "factory-metrics"
+    metrics.mkdir(parents=True)
+    secret = "sk-proj-synthetic-escaped-secret"
+    event = {
+        "schema_version": "entroping.factory-metrics.v1",
+        "event_id": secret,
+        "recorded_at": "2026-05-30T00:00:00Z",
+        "event_type": "outcome",
+        "role": "integrator",
+        "agent": "codex",
+        "metrics": {},
+    }
+    encoded = json.dumps(event).replace("sk-proj-", r"\u0073k-proj-")
+    (metrics / "events.jsonl").write_text(encoded + "\n", encoding="utf-8")
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "invalid event" in result.stderr
+    assert secret not in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_does_not_seal_unexpected_archive_ledger(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
+    destination.mkdir(parents=True)
+    stale = "sk-proj-stale-unvalidated-secret"
+    (destination / "stale.jsonl").write_text(stale + "\n", encoding="utf-8")
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "unexpected ledger" in result.stderr
+    assert stale not in result.stderr
+    assert not (destination / "metadata.json").exists()
+    assert worktree.exists()
+
+
+def test_finish_issue_accepts_identical_terminal_metrics_archive_retry(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    _ = preserve_archive(
+        repo_root=repo,
+        worktree_root=worktree,
+        issue=99,
+        pull_request=123,
+        archived_at="2026-05-30T00:00:00Z",
+    )
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 0, result.stderr
+    assert "Preserved factory metrics ledgers (2 files)" in result.stdout
+    assert not worktree.exists()
+
+
+def test_metrics_archive_waits_for_source_writer_lock(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    lock_path = worktree / ".entroping" / "factory-metrics" / ".metrics-storage.lock"
+    lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(lock_fd, fcntl.LOCK_EX)
+    command = (
+        "from pathlib import Path; "
+        "from scripts.factory_metrics_archive import preserve_archive; "
+        f"preserve_archive(repo_root=Path({str(repo)!r}), "
+        f"worktree_root=Path({str(worktree)!r}), issue=99, pull_request=123, "
+        "archived_at='2026-05-30T00:00:00Z'); print('archived')"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", command],
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        time.sleep(0.2)
+        assert process.poll() is None
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+    stdout, stderr = process.communicate(timeout=10)
+
+    assert process.returncode == 0, stderr
+    assert stdout.strip() == "archived"
+
+
+def test_metrics_archive_refuses_to_rewrite_different_terminal_content(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    root_ledger, _ = write_factory_metrics_fixture(worktree)
+    _ = preserve_archive(
+        repo_root=repo,
+        worktree_root=worktree,
+        issue=99,
+        pull_request=123,
+        archived_at="2026-05-30T00:00:00Z",
+    )
+    archived = (
+        repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99" / "events.jsonl"
+    )
+    original = archived.read_bytes()
+    root_ledger.write_bytes(original + original)
+
+    with pytest.raises(FactoryMetricsArchiveError, match="differs from source"):
+        _ = preserve_archive(
+            repo_root=repo,
+            worktree_root=worktree,
+            issue=99,
+            pull_request=123,
+            archived_at="2026-05-30T00:00:00Z",
+        )
+
+    assert archived.read_bytes() == original
+
+
+def test_finish_issue_bounds_existing_metrics_archive_metadata(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
+    destination.mkdir(parents=True)
+    (destination / "metadata.json").write_bytes(b"x" * 65_537)
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "metadata is unreadable" in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_terminal_archive_ledgers_when_source_is_empty(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    (worktree / ".entroping" / "factory-metrics").mkdir(parents=True)
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
+    destination.mkdir(parents=True)
+    (destination / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.factory-metrics-archive.v1",
+                "issue": 99,
+                "pull_request": 123,
+                "status": "archived",
+                "issue_state": "closed",
+                "pr_state": "merged",
+                "archived_at": "2026-05-30T00:00:00Z",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (destination / "stale.jsonl").write_text("corrupt\n", encoding="utf-8")
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "different ledger set" in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_terminal_archive_ledgers_when_source_is_absent(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
+    destination.mkdir(parents=True)
+    (destination / "stale.jsonl").write_text("corrupt\n", encoding="utf-8")
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 2
+    assert "unexpected ledger" in result.stderr
+    assert worktree.exists()
 
 
 def test_finish_issue_rejects_dirty_worktree_before_cleanup(tmp_path: Path) -> None:
@@ -431,69 +755,69 @@ def test_finish_issue_finds_existing_project_item_beyond_first_200(
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        "state_dir=\"${FAKE_GH_STATE:?}\"\n"
-        "calls=\"$state_dir/calls.log\"\n"
-        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
-        "  [[ \"$3\" == \"99\" ]]\n"
+        'state_dir="${FAKE_GH_STATE:?}"\n'
+        'calls="$state_dir/calls.log"\n'
+        'if [[ "$1 $2" == "issue view" ]]; then\n'
+        '  [[ "$3" == "99" ]]\n'
         "  cat <<'JSON'\n"
         "{"
-        "\"title\":\"Finished large project feature\","
-        "\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\","
-        "\"state\":\"CLOSED\","
-        "\"closedByPullRequestsReferences\":[{\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\"}]"
+        '"title":"Finished large project feature",'
+        '"url":"https://github.com/sakibshuvo/Entroping/issues/99",'
+        '"state":"CLOSED",'
+        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"pr view\" ]]; then\n"
-        "  [[ \"$3\" == \"123\" ]]\n"
+        'if [[ "$1 $2" == "pr view" ]]; then\n'
+        '  [[ "$3" == "123" ]]\n'
         "  cat <<'JSON'\n"
         "{"
-        "\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\","
-        "\"state\":\"MERGED\",\"headRefName\":\"feat/dry-run\",\"mergedAt\":\"2026-05-30T00:00:00Z\","
-        "\"statusCheckRollup\":[{\"__typename\":\"CheckRun\",\"name\":\"checks\",\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"}]"
+        '"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123",'
+        '"state":"MERGED","headRefName":"feat/dry-run","mergedAt":"2026-05-30T00:00:00Z",'
+        '"statusCheckRollup":[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
-        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "issue edit" ]]; then\n'
+        '  printf \'issue edit %s\\n\' "$*" >> "$calls"\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project view\" ]]; then\n"
+        'if [[ "$1 $2" == "project view" ]]; then\n'
         "  printf '%s\\n' '{\"id\":\"project-id\"}'\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project field-list\" ]]; then\n"
+        'if [[ "$1 $2" == "project field-list" ]]; then\n'
         "  printf '%s\\n' "
-        "'{\"fields\":[{\"name\":\"Status\",\"id\":\"field-id\","
-        "\"options\":[{\"name\":\"Done\",\"id\":\"done-id\"}]}]}'\n"
+        '\'{"fields":[{"name":"Status","id":"field-id",'
+        '"options":[{"name":"Done","id":"done-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-list\" ]]; then\n"
-        "  printf 'project item-list %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "project item-list" ]]; then\n'
+        '  printf \'project item-list %s\\n\' "$*" >> "$calls"\n'
         "  limit=0\n"
         "  previous=''\n"
-        "  for arg in \"$@\"; do\n"
-        "    if [[ \"$previous\" == '--limit' ]]; then limit=\"$arg\"; fi\n"
-        "    previous=\"$arg\"\n"
+        '  for arg in "$@"; do\n'
+        '    if [[ "$previous" == \'--limit\' ]]; then limit="$arg"; fi\n'
+        '    previous="$arg"\n'
         "  done\n"
         "  if ((limit > 200)); then\n"
-        "    printf '%s\\n' '{\"items\":[{\"id\":\"late-item-id\",\"content\":{\"number\":99}}]}'\n"
+        '    printf \'%s\\n\' \'{"items":[{"id":"late-item-id","content":{"number":99}}]}\'\n'
         "  else\n"
         "    printf '%s\\n' '{\"items\":[]}'\n"
         "  fi\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-add\" ]]; then\n"
-        "  printf 'project item-add %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "project item-add" ]]; then\n'
+        '  printf \'project item-add %s\\n\' "$*" >> "$calls"\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"project item-edit\" ]]; then\n"
-        "  printf 'project item-edit %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "project item-edit" ]]; then\n'
+        '  printf \'project item-edit %s\\n\' "$*" >> "$calls"\n'
         "  exit 0\n"
         "fi\n"
-        "echo \"unexpected gh args: $*\" >&2\n"
+        'echo "unexpected gh args: $*" >&2\n'
         "exit 2\n",
         encoding="utf-8",
     )
@@ -533,44 +857,44 @@ def test_finish_issue_skips_project_update_when_graphql_quota_is_exhausted(
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        "calls=\"${FAKE_GH_STATE:?}/calls.log\"\n"
-        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
+        'calls="${FAKE_GH_STATE:?}/calls.log"\n'
+        'if [[ "$1 $2" == "issue view" ]]; then\n'
         "  cat <<'JSON'\n"
         "{"
-        "\"title\":\"Finished quota feature\","
-        "\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\","
-        "\"state\":\"CLOSED\","
-        "\"closedByPullRequestsReferences\":[{\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\"}]"
+        '"title":"Finished quota feature",'
+        '"url":"https://github.com/sakibshuvo/Entroping/issues/99",'
+        '"state":"CLOSED",'
+        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"pr view\" ]]; then\n"
+        'if [[ "$1 $2" == "pr view" ]]; then\n'
         "  cat <<'JSON'\n"
         "{"
-        "\"number\":123,"
-        "\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\","
-        "\"state\":\"MERGED\","
-        "\"headRefName\":\"feat/dry-run\","
-        "\"mergedAt\":\"2026-05-30T00:00:00Z\","
-        "\"statusCheckRollup\":[{\"__typename\":\"CheckRun\",\"name\":\"checks\",\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"}]"
+        '"number":123,'
+        '"url":"https://github.com/sakibshuvo/Entroping/pull/123",'
+        '"state":"MERGED",'
+        '"headRefName":"feat/dry-run",'
+        '"mergedAt":"2026-05-30T00:00:00Z",'
+        '"statusCheckRollup":[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
-        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        'if [[ "$1 $2" == "issue edit" ]]; then\n'
+        '  printf \'issue edit %s\\n\' "$*" >> "$calls"\n'
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1 $2\" == \"api rate_limit\" ]]; then\n"
+        'if [[ "$1 $2" == "api rate_limit" ]]; then\n'
         "  printf '%s\\n' '0'\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"$1\" == \"project\" ]]; then\n"
+        'if [[ "$1" == "project" ]]; then\n'
         "  printf 'unexpected project command: %s\\n' \"$*\" >&2\n"
         "  exit 2\n"
         "fi\n"
-        "echo \"unexpected gh args: $*\" >&2\n"
+        'echo "unexpected gh args: $*" >&2\n'
         "exit 2\n",
         encoding="utf-8",
     )

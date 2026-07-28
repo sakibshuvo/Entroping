@@ -10,6 +10,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from .errors import FactoryMetricsError
 from .schema import (
     CONTROL_CHARACTER_PATTERN,
     DEFAULT_LEDGER,
@@ -17,10 +18,6 @@ from .schema import (
     NOTE_MAX_LENGTH,
     SECRET_REDACTIONS,
 )
-
-
-class FactoryMetricsError(Exception):
-    """User-facing metrics CLI error."""
 
 
 def _redact_text(value: str | None) -> str | None:
@@ -35,6 +32,10 @@ def _redact_text(value: str | None) -> str | None:
 
 def _contains_secret_like(value: str) -> bool:
     return _redact_text(value) != value
+
+
+def contains_secret_like(value: str) -> bool:
+    return _contains_secret_like(value)
 
 
 def _contains_control_character(value: str) -> bool:
@@ -145,7 +146,7 @@ def _safe_report_label(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
     redacted = _redact_text(value)
-    if not redacted.strip():
+    if redacted is None or not redacted.strip():
         return None
     return redacted
 
@@ -155,8 +156,9 @@ def _unknown_safe_report_label(value: object) -> str:
 
 
 def _write_report_output(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    from .storage import replace_bounded
+
+    replace_bounded(path, content.encode("utf-8"))
 
 
 def _print_payload(payload: dict[str, Any], as_json: bool) -> None:

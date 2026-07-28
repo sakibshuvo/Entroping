@@ -758,9 +758,9 @@ def test_ai_jobs_worker_command_does_not_record_metrics_by_default(
     ai_jobs = load_ai_jobs_module()
     captured_command: list[str] = []
 
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
         captured_command[:] = command
-        return subprocess.CompletedProcess(
+        return SimpleNamespace(
             args=command,
             returncode=0,
             stdout=json.dumps(
@@ -771,9 +771,11 @@ def test_ai_jobs_worker_command_does_not_record_metrics_by_default(
                 }
             ),
             stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
         )
 
-    monkeypatch.setattr(ai_jobs.subprocess, "run", fake_run)
+    monkeypatch.setattr(ai_jobs, "run_bounded_process", fake_run)
     args = SimpleNamespace(
         artifact_root=tmp_path / "ai-reviews",
         opencode_bin=None,
@@ -1090,9 +1092,9 @@ def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
     ai_jobs = load_ai_jobs_module()
     captured_command: list[str] = []
 
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
         captured_command[:] = command
-        return subprocess.CompletedProcess(
+        return SimpleNamespace(
             args=command,
             returncode=0,
             stdout=json.dumps(
@@ -1103,9 +1105,11 @@ def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
                 }
             ),
             stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
         )
 
-    monkeypatch.setattr(ai_jobs.subprocess, "run", fake_run)
+    monkeypatch.setattr(ai_jobs, "run_bounded_process", fake_run)
     args = SimpleNamespace(
         artifact_root=tmp_path / "ai-reviews",
         opencode_bin=None,
@@ -1135,6 +1139,45 @@ def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
     assert captured_command[instruction_index] == job["worker_instruction"]
 
 
+def test_ai_jobs_worker_output_limit_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            args=command,
+            returncode=-9,
+            stdout="x" * 1024,
+            stderr="[output truncated: byte limit exceeded]\n",
+            timed_out=False,
+            output_limit_exceeded=True,
+        )
+
+    monkeypatch.setattr(ai_jobs, "run_bounded_process", fake_run)
+    args = SimpleNamespace(
+        artifact_root=tmp_path / "ai-reviews",
+        opencode_bin=None,
+        worker_dry_run=False,
+        record_factory_metrics=False,
+        factory_role=None,
+        factory_metrics_ledger=None,
+    )
+    job = {
+        "engine": "opencode",
+        "mode": "review",
+        "model": "opencode/deepseek-v4-flash-free",
+        "files": ["README.md"],
+        "timeout_seconds": 1,
+    }
+
+    payload, returncode = ai_jobs._run_worker(args, REPO_ROOT, job)
+
+    assert returncode == 1
+    assert payload == {"status": "failed", "returncode": 1, "artifact_dir": None}
+
+
 def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1142,9 +1185,9 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
     ai_jobs = load_ai_jobs_module()
     captured_command: list[str] = []
 
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
         captured_command[:] = command
-        return subprocess.CompletedProcess(
+        return SimpleNamespace(
             args=command,
             returncode=0,
             stdout=json.dumps(
@@ -1155,9 +1198,11 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
                 }
             ),
             stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
         )
 
-    monkeypatch.setattr(ai_jobs.subprocess, "run", fake_run)
+    monkeypatch.setattr(ai_jobs, "run_bounded_process", fake_run)
     args = SimpleNamespace(
         artifact_root=tmp_path / "ai-reviews",
         deepseek_base_url="https://api.deepseek.com",

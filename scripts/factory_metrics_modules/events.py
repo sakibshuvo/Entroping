@@ -6,7 +6,7 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from .common import (
@@ -96,10 +96,10 @@ def _event_from_args(
 
 
 def _append_jsonl(path: Path, event: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")))
-        handle.write("\n")
+    from .storage import append_bounded
+
+    payload = json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    append_bounded(path, payload + b"\n")
 
 
 def _load_events(path: Path, *, error_prefix: str = "") -> tuple[list[dict[str, Any]], list[str]]:
@@ -203,3 +203,7 @@ def _validate_event(event: dict[str, Any]) -> list[str]:
             errors.append(f"metrics.{metric} must be greater than or equal to 0")
 
     return errors
+
+
+def validate_event(event: dict[str, object]) -> list[str]:
+    return _validate_event(cast(dict[str, Any], event))
