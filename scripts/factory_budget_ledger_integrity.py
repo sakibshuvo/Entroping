@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import UTC, datetime
-from typing import cast
 
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
+from .factory_budget_ledger_rows import entry_validation_rows, period_validation_rows
 
 MAX_BUDGET_PERIODS = 600
 MAX_LEDGER_ENTRIES = 100_000
@@ -33,9 +33,9 @@ def require_period_capacity(connection: sqlite3.Connection) -> None:
 
 
 def _global_limits_exceeded(connection: sqlite3.Connection) -> bool:
-    return _period_exists_at_offset(
-        connection, MAX_BUDGET_PERIODS
-    ) or _entry_exists_at_offset(connection, MAX_LEDGER_ENTRIES)
+    return _period_exists_at_offset(connection, MAX_BUDGET_PERIODS) or _entry_exists_at_offset(
+        connection, MAX_LEDGER_ENTRIES
+    )
 
 
 def _period_exists_at_offset(
@@ -65,8 +65,7 @@ def _entry_exists_at_offset(
 
 
 def _balances_valid(connection: sqlite3.Connection) -> bool:
-    invalid = cast(
-        tuple[int] | None,
+    return (
         connection.execute(
             """
             SELECT p.id
@@ -101,15 +100,14 @@ def _balances_valid(connection: sqlite3.Connection) -> bool:
                         THEN 1 ELSE 0 END
                 ) != 0
             LIMIT 1
-            """
-        ).fetchone(),
+        """
+        ).fetchone()
+        is None
     )
-    return invalid is None
 
 
 def _entries_valid(connection: sqlite3.Connection) -> bool:
-    invalid_period = cast(
-        tuple[int] | None,
+    invalid_period_absent = (
         connection.execute(
             """
             SELECT id
@@ -119,10 +117,10 @@ def _entries_valid(connection: sqlite3.Connection) -> bool:
                     > cash_cap_microcents - emergency_reserve_microcents
             LIMIT 1
             """
-        ).fetchone(),
+        ).fetchone()
+        is None
     )
-    invalid_refund = cast(
-        tuple[int] | None,
+    invalid_refund_absent = (
         connection.execute(
             """
             SELECT refund.id
@@ -141,10 +139,10 @@ def _entries_valid(connection: sqlite3.Connection) -> bool:
                 )
             LIMIT 1
             """
-        ).fetchone(),
+        ).fetchone()
+        is None
     )
-    excessive_refund = cast(
-        tuple[int] | None,
+    excessive_refund_absent = (
         connection.execute(
             """
             SELECT charge.id
@@ -156,9 +154,10 @@ def _entries_valid(connection: sqlite3.Connection) -> bool:
             HAVING SUM(refund.amount_microcents) > charge.amount_microcents
             LIMIT 1
             """
-        ).fetchone(),
+        ).fetchone()
+        is None
     )
-    return invalid_period is None and invalid_refund is None and excessive_refund is None
+    return invalid_period_absent and invalid_refund_absent and excessive_refund_absent
 
 
 def _timestamps_valid(connection: sqlite3.Connection) -> bool:
@@ -166,9 +165,9 @@ def _timestamps_valid(connection: sqlite3.Connection) -> bool:
         "SELECT id, period_start_utc, period_end_utc FROM budget_periods"
     )
     periods: dict[int, tuple[datetime, datetime]] = {}
-    while period_rows := cast(
-        list[tuple[int, str, str]],
-        period_cursor.fetchmany(VALIDATION_BATCH_SIZE),
+    while period_rows := period_validation_rows(
+        period_cursor,
+        VALIDATION_BATCH_SIZE,
     ):
         for period_id, raw_start, raw_end in period_rows:
             start = _parse_month_boundary(raw_start)
@@ -186,12 +185,10 @@ def _timestamps_valid(connection: sqlite3.Connection) -> bool:
             if end != expected_end:
                 return False
             periods[period_id] = (start, end)
-    entry_cursor = connection.execute(
-        "SELECT period_id, kind, occurred_at_utc FROM ledger_entries"
-    )
-    while entry_rows := cast(
-        list[tuple[int, str, str]],
-        entry_cursor.fetchmany(VALIDATION_BATCH_SIZE),
+    entry_cursor = connection.execute("SELECT period_id, kind, occurred_at_utc FROM ledger_entries")
+    while entry_rows := entry_validation_rows(
+        entry_cursor,
+        VALIDATION_BATCH_SIZE,
     ):
         for period_id, kind, raw_occurred_at in entry_rows:
             occurred_at = (

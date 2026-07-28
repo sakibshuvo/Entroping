@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import cast
 
 from .factory_budget_ledger_models import (
     SIGNED_64_BIT_MAX,
@@ -10,17 +9,21 @@ from .factory_budget_ledger_models import (
     LedgerEntryReceipt,
 )
 from .factory_budget_ledger_periods import period_summary_at
-
-type EntrySignature = tuple[int, str, str, int, str, str, str, str, str | None]
-type OriginalCharge = tuple[int, str, int, str, str]
+from .factory_budget_ledger_rows import (
+    EntrySignature,
+    integer_row,
+    original_charge,
+)
+from .factory_budget_ledger_rows import (
+    entry_signature as parse_entry_signature,
+)
 
 
 def entry_signature(
     connection: sqlite3.Connection,
     digest: str,
 ) -> EntrySignature | None:
-    return cast(
-        EntrySignature | None,
+    return parse_entry_signature(
         connection.execute(
             """
             SELECT e.id, e.kind, e.direction, e.amount_microcents,
@@ -32,7 +35,7 @@ def entry_signature(
             WHERE e.idempotency_digest = ?
             """,
             (digest,),
-        ).fetchone(),
+        )
     )
 
 
@@ -45,15 +48,14 @@ def validate_reference(
         return None
     if reference_digest is None:
         raise FactoryBudgetLedgerError("entry", "refund entries require a charge reference")
-    original = cast(
-        OriginalCharge | None,
+    original = original_charge(
         connection.execute(
             """
             SELECT id, kind, amount_microcents, currency, source_id
             FROM ledger_entries WHERE idempotency_digest = ?
             """,
             (reference_digest,),
-        ).fetchone(),
+        )
     )
     if original is None or original[1] not in {
         "fixed_subscription_charge",
@@ -62,8 +64,7 @@ def validate_reference(
         raise FactoryBudgetLedgerError("refund", "refund reference is not an existing charge")
     if original[3] != entry.currency or original[4] != entry.source_id:
         raise FactoryBudgetLedgerError("refund", "refund must match the original charge source")
-    refunded_row = cast(
-        tuple[int] | None,
+    refunded = integer_row(
         connection.execute(
             """
             SELECT COALESCE(SUM(amount_microcents), 0)
@@ -71,9 +72,9 @@ def validate_reference(
             WHERE kind = 'refund' AND reference_entry_id = ?
             """,
             (original[0],),
-        ).fetchone(),
+        ),
+        detail="refund total is invalid",
     )
-    refunded = refunded_row[0] if refunded_row is not None else 0
     if refunded > original[2] - entry.amount_microcents:
         raise FactoryBudgetLedgerError("refund", "refund exceeds the original charge")
     return original[0]

@@ -44,6 +44,9 @@ tables, bounded waits, and immutable-entry triggers. This permits genuinely
 read-only reporting without creating WAL sidecars. Every connection checks the
 validated database header for rollback-journal mode before SQLite opens the
 path, so drifted WAL state is rejected without creating `-wal` or `-shm`.
+SQLite result rows are strictly validated against closed tuple shapes before
+financial or integrity logic consumes them; untyped row escapes are not part of
+the ledger boundary.
 
 Initialization constructs and validates a private same-directory database,
 syncs it, publishes it atomically by hard link, removes the temporary name, and

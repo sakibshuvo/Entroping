@@ -5,7 +5,6 @@ import json
 import sys
 from datetime import date
 from pathlib import Path
-from typing import cast
 
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_periods import period_summary
@@ -15,12 +14,27 @@ from .factory_budget_ledger_storage import readonly_connection
 type JsonScalar = str | int | bool
 
 
+class LedgerArguments(argparse.Namespace):
+    command: str
+    repo: Path
+    period: date
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.command = ""
+        self.repo = Path()
+        self.period = date.min
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
-    command = cast(str, args.command)
-    repo = cast(Path, args.repo)
-    period = cast(date, args.period)
+    args = LedgerArguments()
+    _ = _parser().parse_args(argv, namespace=args)
+    command = args.command
+    repo = args.repo
+    period = args.period
     try:
+        if command not in {"summary", "balance"}:
+            raise FactoryBudgetLedgerError("arguments", "parsed arguments are invalid")
         with readonly_connection(repo) as connection:
             summary = period_summary(connection, period)
         if command == "summary":

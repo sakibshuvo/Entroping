@@ -8,6 +8,7 @@ from typing import override
 
 SIGNED_64_BIT_MAX = (2**63) - 1
 IDENTIFIER_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:-]{0,127}$")
+type LedgerScalarInput = None | bool | int | float | str | bytes | date | datetime
 
 
 class FactoryBudgetLedgerError(RuntimeError):
@@ -170,17 +171,17 @@ class LedgerEntryReceipt:
     summary: BudgetPeriodSummary
 
 
-def canonical_utc_month(value: object) -> date:
+def canonical_utc_month(value: LedgerScalarInput) -> date:
     normalized = _require_offset_datetime(value)
     return date(normalized.year, normalized.month, 1)
 
 
-def canonical_occurred_at(value: object) -> str:
+def canonical_occurred_at(value: LedgerScalarInput) -> str:
     normalized = _require_offset_datetime(value)
     return normalized.isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
-def _require_offset_datetime(value: object) -> datetime:
+def _require_offset_datetime(value: LedgerScalarInput) -> datetime:
     if not isinstance(value, datetime):
         raise FactoryBudgetLedgerError("timestamp", "timestamp must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
@@ -196,7 +197,7 @@ def month_boundary(value: date) -> str:
     return f"{value.isoformat()}T00:00:00Z"
 
 
-def _require_identifier(value: object, label: str) -> None:
+def _require_identifier(value: LedgerScalarInput, label: str) -> None:
     if not isinstance(value, str) or IDENTIFIER_PATTERN.fullmatch(value) is None:
         raise FactoryBudgetLedgerError(
             "identifier",
@@ -204,7 +205,7 @@ def _require_identifier(value: object, label: str) -> None:
         )
 
 
-def _require_microcents(value: object, label: str, *, positive: bool) -> None:
+def _require_microcents(value: LedgerScalarInput, label: str, *, positive: bool) -> None:
     if isinstance(value, bool) or not isinstance(value, int):
         raise FactoryBudgetLedgerError("amount", f"{label} must be an integer")
     minimum = 1 if positive else 0
@@ -218,7 +219,7 @@ def _require_microcents(value: object, label: str, *, positive: bool) -> None:
         )
 
 
-def _require_positive_int(value: object, label: str) -> None:
+def _require_positive_int(value: LedgerScalarInput, label: str) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise FactoryBudgetLedgerError("integer", f"{label} must be a positive integer")
     if value > SIGNED_64_BIT_MAX:

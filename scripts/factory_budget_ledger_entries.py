@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import cast
 
 from .factory_budget_ledger_integrity import require_entry_capacity
 from .factory_budget_ledger_models import (
@@ -11,6 +10,7 @@ from .factory_budget_ledger_models import (
     idempotency_digest,
     month_boundary,
 )
+from .factory_budget_ledger_rows import PeriodState, period_state
 from .factory_budget_ledger_rules import (
     entry_receipt,
     entry_signature,
@@ -19,7 +19,6 @@ from .factory_budget_ledger_rules import (
 )
 
 MAX_PERIOD_ENTRIES = 100_000
-type PeriodState = tuple[int, int, int, int, int]
 
 
 def record_entry(
@@ -113,8 +112,7 @@ def record_entry(
 
 
 def _period_state(connection: sqlite3.Connection, period_start: str) -> PeriodState:
-    period = cast(
-        PeriodState | None,
+    period = period_state(
         connection.execute(
             """
             SELECT id, cash_cap_microcents, emergency_reserve_microcents,
@@ -122,7 +120,7 @@ def _period_state(connection: sqlite3.Connection, period_start: str) -> PeriodSt
             FROM budget_periods WHERE period_start_utc = ?
             """,
             (period_start,),
-        ).fetchone(),
+        )
     )
     if period is None:
         raise FactoryBudgetLedgerError("period", "budget period not found")

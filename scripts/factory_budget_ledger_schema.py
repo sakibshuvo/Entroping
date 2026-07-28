@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import sqlite3
 from functools import cache
-from typing import cast
 
 from .factory_budget_ledger_integrity import validate_ledger_integrity
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
+from .factory_budget_ledger_rows import integer_row, metadata_rows, schema_objects
 
 LEDGER_SCHEMA_VERSION = 1
 LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v1"
@@ -106,9 +106,6 @@ SCHEMA_STATEMENTS = (
     """,
 )
 
-type SchemaObject = tuple[str, str, str]
-type SqliteValue = str | int | float | bytes | None
-
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
     _ = connection.execute("BEGIN EXCLUSIVE")
@@ -128,18 +125,17 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
 
 def validate_schema(connection: sqlite3.Connection) -> None:
     try:
-        version_row = cast(
-            tuple[int] | None,
-            connection.execute("PRAGMA user_version").fetchone(),
+        version = integer_row(
+            connection.execute("PRAGMA user_version"),
+            detail="ledger schema version is invalid",
         )
-        if version_row != (LEDGER_SCHEMA_VERSION,):
+        if version != LEDGER_SCHEMA_VERSION:
             raise FactoryBudgetLedgerError(
                 "schema",
                 "ledger schema version is unsupported",
             )
-        metadata = cast(
-            list[tuple[str, str]],
-            connection.execute("SELECT key, value FROM ledger_metadata ORDER BY key").fetchall(),
+        metadata = metadata_rows(
+            connection.execute("SELECT key, value FROM ledger_metadata ORDER BY key")
         )
         if metadata != [("schema_version", LEDGER_SCHEMA_ID)]:
             raise FactoryBudgetLedgerError("schema", "ledger schema metadata is invalid")
@@ -159,9 +155,8 @@ def validate_schema(connection: sqlite3.Connection) -> None:
         ) from exc
 
 
-def _schema_objects(connection: sqlite3.Connection) -> frozenset[SchemaObject]:
-    rows = cast(
-        list[tuple[SqliteValue, SqliteValue, SqliteValue]],
+def _schema_objects(connection: sqlite3.Connection) -> frozenset[tuple[str, str, str]]:
+    return schema_objects(
         connection.execute(
             """
             SELECT type, name, sql
@@ -169,22 +164,12 @@ def _schema_objects(connection: sqlite3.Connection) -> frozenset[SchemaObject]:
             WHERE name NOT LIKE 'sqlite_%'
             ORDER BY type, name
             """
-        ).fetchall(),
+        )
     )
-    objects: set[SchemaObject] = set()
-    for object_type, name, sql in rows:
-        if (
-            not isinstance(object_type, str)
-            or not isinstance(name, str)
-            or not isinstance(sql, str)
-        ):
-            raise FactoryBudgetLedgerError("schema", "ledger schema objects are invalid")
-        objects.add((object_type, name, sql))
-    return frozenset(objects)
 
 
 @cache
-def _expected_schema_objects() -> frozenset[SchemaObject]:
+def _expected_schema_objects() -> frozenset[tuple[str, str, str]]:
     connection = sqlite3.connect(":memory:", autocommit=True)
     try:
         for statement in SCHEMA_STATEMENTS:

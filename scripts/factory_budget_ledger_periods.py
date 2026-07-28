@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import cast
 
 from .factory_budget_ledger_integrity import (
     require_entry_capacity,
@@ -16,9 +15,11 @@ from .factory_budget_ledger_models import (
     idempotency_digest,
     month_boundary,
 )
-
-type ReserveSignature = tuple[str, str, int, str, str, str, None, str, int, int]
-type PeriodSummaryRow = tuple[str, str, str, int, int, int, int, str, int]
+from .factory_budget_ledger_rows import (
+    ReserveSignature,
+    period_summary_row,
+    reserve_signature,
+)
 
 
 def initialize_period(
@@ -28,8 +29,7 @@ def initialize_period(
     digest = idempotency_digest(config.reserve_idempotency_key)
     try:
         _ = connection.execute("BEGIN IMMEDIATE")
-        existing = cast(
-            ReserveSignature | None,
+        existing = reserve_signature(
             connection.execute(
                 """
                 SELECT e.kind, e.direction, e.amount_microcents, e.occurred_at_utc,
@@ -40,7 +40,7 @@ def initialize_period(
                 WHERE e.idempotency_digest = ?
                 """,
                 (digest,),
-            ).fetchone(),
+            )
         )
         expected: ReserveSignature = (
             "emergency_reserve_allocation",
@@ -114,8 +114,7 @@ def period_summary_at(
     period_start_utc: str,
 ) -> BudgetPeriodSummary:
     try:
-        row = cast(
-            PeriodSummaryRow | None,
+        row = period_summary_row(
             connection.execute(
                 """
                 SELECT period_start_utc, period_end_utc, currency,
@@ -125,7 +124,7 @@ def period_summary_at(
                 WHERE period_start_utc = ?
                 """,
                 (period_start_utc,),
-            ).fetchone(),
+            )
         )
     except sqlite3.DatabaseError as exc:
         raise FactoryBudgetLedgerError("database", "ledger summary failed") from exc
@@ -148,14 +147,13 @@ def period_summary_at(
 
 
 def _require_new_period(connection: sqlite3.Connection, period_start: str) -> None:
-    existing = cast(
-        tuple[int] | None,
+    if (
         connection.execute(
             "SELECT 1 FROM budget_periods WHERE period_start_utc = ?",
             (period_start,),
-        ).fetchone(),
-    )
-    if existing is not None:
+        ).fetchone()
+        is not None
+    ):
         raise FactoryBudgetLedgerError(
             "period",
             "budget period is already initialized with different evidence",

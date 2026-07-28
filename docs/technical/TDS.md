@@ -2300,6 +2300,8 @@ check rejects WAL-mode drift before SQLite can create sidecars. Initialization
 publishes a fully validated temporary database by same-directory hard link and
 directory sync;
 unpublished partial initialization is discarded before retry.
+SQLite result rows cross a dedicated strict typed-adapter boundary before
+financial, schema, or integrity code consumes them.
 
 Descriptor-based path validation walks every no-follow repository ancestor and
 rejects parent rename authority unless the parent is root/user-owned and any

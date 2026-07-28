@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 from pathlib import Path
 from threading import Barrier
-from typing import cast
 
 import pytest
 
@@ -19,6 +18,7 @@ from scripts.factory_budget_ledger import (  # noqa: E402
     FactoryBudgetLedgerError,
     LedgerEntryInput,
 )
+from scripts.factory_budget_ledger_models import canonical_occurred_at  # noqa: E402
 
 
 def _period(
@@ -247,7 +247,5 @@ def test_entry_boundary_rejects_invalid_financial_values(
 
 
 def test_entry_boundary_maps_non_datetime_timestamp_to_domain_error() -> None:
-    entry = _entry(occurred_at=cast(datetime, date(2026, 7, 15)))
-
     with pytest.raises(FactoryBudgetLedgerError, match="timestamp must be a datetime"):
-        entry.validate()
+        canonical_occurred_at(date(2026, 7, 15))

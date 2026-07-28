@@ -6,7 +6,6 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import cast
 from urllib.parse import quote
 
 from scripts.factory_retention_fs import RetentionFsError
@@ -33,6 +32,7 @@ from .factory_budget_ledger_fs import (
 )
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_parent_fs import open_private_relative_directory
+from .factory_budget_ledger_rows import integer_row
 from .factory_budget_ledger_schema import initialize_schema, validate_schema
 
 BUSY_TIMEOUT_MILLISECONDS = 5_000
@@ -185,24 +185,18 @@ def _connect(
             if connection.execute("PRAGMA journal_mode").fetchone() != ("delete",):
                 raise FactoryBudgetLedgerError("database", "DELETE journal mode unavailable")
             _ = connection.execute("PRAGMA synchronous = EXTRA")
-            page_size_row = cast(
-                tuple[object] | None,
-                connection.execute("PRAGMA page_size").fetchone(),
+            page_size = integer_row(
+                connection.execute("PRAGMA page_size"),
+                detail="SQLite page size is invalid",
             )
-            if (
-                page_size_row is None
-                or not isinstance(page_size_row[0], int)
-                or page_size_row[0] < 512
-                or page_size_row[0] > 65_536
-                or page_size_row[0] & (page_size_row[0] - 1)
-            ):
+            if page_size < 512 or page_size > 65_536 or page_size & (page_size - 1):
                 raise FactoryBudgetLedgerError("database", "SQLite page size is invalid")
-            max_page_count = MAX_LEDGER_BYTES // page_size_row[0]
-            applied_page_cap = cast(
-                tuple[int] | None,
-                connection.execute(f"PRAGMA max_page_count = {max_page_count}").fetchone(),
+            max_page_count = MAX_LEDGER_BYTES // page_size
+            applied_page_cap = integer_row(
+                connection.execute(f"PRAGMA max_page_count = {max_page_count}"),
+                detail="SQLite page cap is invalid",
             )
-            if applied_page_cap != (max_page_count,):
+            if applied_page_cap != max_page_count:
                 raise FactoryBudgetLedgerError("database", "SQLite page cap is unavailable")
             _ = connection.execute("PRAGMA journal_size_limit = 67108864")
         return connection
