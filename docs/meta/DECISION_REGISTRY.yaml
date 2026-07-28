@@ -542,3 +542,21 @@ decisions:
     related_issues: ["#1562"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0024
+    title: Transactional factory budget ledger
+    status: accepted
+    date: "2026-07-27"
+    summary: >
+      Separate fail-closed SQLite cash authority with globally idempotent,
+      immutable entries and serialized cap enforcement.
+    tags: [factory, budget, sqlite, security, reliability]
+    source_links:
+      - path: decisions/ADR-0024-factory-budget-ledger.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1565"]
+    supersedes: []
+    superseded_by: null

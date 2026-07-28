@@ -2278,6 +2278,35 @@ destination ledger. Reports expose only artifact identifiers,
 classes, states, timestamps, relative paths, reason codes, counts, and byte
 totals; artifact contents are never rendered.
 
+### 17.2 Factory Budget Ledger
+
+Factory cash authority is isolated from the product traffic store in the
+ignored `.entroping/factory-budget/ledger.sqlite3` database. The versioned
+SQLite schema records UTC cash periods, their reviewed USD cap and reserve,
+immutable reserve allocations, fixed subscription and provider debits,
+charge-bound refunds, and explicit manual debit or credit adjustments. Raw
+idempotency keys are never persisted: a globally unique SHA-256 digest is bound
+to the normalized entry payload, so exact retries are harmless and conflicting
+reuse fails closed.
+
+Every mutation opens its own bounded connection and encloses idempotency,
+reference, refund, period, entry-count, cash-cap, insert, and cached-balance
+checks in `BEGIN IMMEDIATE`. SQLite therefore admits only one successful writer
+at the decision boundary. `journal_mode=DELETE` with `synchronous=EXTRA`
+supports crash-safe rollback-journal commits and genuinely read-only summary
+connections without creating WAL state. Initialization publishes a fully
+validated temporary database by same-directory hard link and directory sync;
+partial initialization is discarded before retry.
+
+Descriptor-based path validation, no-follow state directories, shared
+retention locking, 0600 files, 0700 directories, strict tables, foreign keys,
+immutable-entry triggers, exact schema validation, integrity checks, signed
+64-bit arithmetic, a 512 MiB database ceiling, and a 100,000-entry period
+ceiling bound the storage surface. Malformed, partial, future, or drifted
+schemas are rejected and preserved for inspection. CLI access is read-only and
+value-bounded. Provider reservation, settlement, quota observation, scheduler
+authorization, and provider calls stay outside this component.
+
 ## 18. Testing Strategy
 
 | Area | Tests |

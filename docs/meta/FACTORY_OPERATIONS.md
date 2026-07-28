@@ -85,6 +85,56 @@ is structurally safe and current at `--as-of`; the authoritative ledger,
 reservation, settlement, and quota-observation behavior remains in downstream
 factory issues.
 
+## Authoritative Budget Ledger
+
+The ignored `.entroping/factory-budget/ledger.sqlite3` database is the
+authoritative local record of factory cash activity. Dashboard metrics and
+worker receipts may summarize it, but they are not spending authority. Version
+1 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
+calendar months. A period records the reviewed cash cap and an emergency
+reserve allocation; that allocation is a non-spendable reserve inside the cap,
+not a cash charge.
+
+Ledger writes use a global idempotency key whose SHA-256 digest is stored and
+bound to the complete normalized payload. An exact replay is a no-op; reuse
+with different evidence fails closed. Fixed subscription and provider charges
+are debits. A refund is a credit linked to its original charge, must match its
+currency and source, and cannot make cumulative refunds exceed that charge. A
+cross-month refund reduces net spend in the month it is received. A manual
+adjustment must explicitly select debit or credit. Credits may make net spend
+negative, but the reported immediately available paid balance never exceeds
+the period's paid limit after the reserve.
+
+Each write serializes the idempotency lookup, period and cap checks, immutable
+entry insert, and cached balance update with `BEGIN IMMEDIATE`. The database
+uses `journal_mode=DELETE`, `synchronous=EXTRA`, foreign keys, strict tables,
+immutable-entry triggers, and a bounded busy timeout. The rollback journal was
+chosen so reporting can use a genuinely read-only connection without creating
+WAL sidecars. Initialization builds and validates a private temporary database,
+syncs it, links it into place atomically, and syncs the containing directory.
+Incomplete initialization state is never authoritative.
+
+The ledger shares the factory retention lock, rejects symlinked or special
+state, unsafe sidecars, files above 512 MiB, malformed databases, schema drift,
+future or partial schemas, and periods above 100,000 entries. It preserves
+rejected or corrupt state for operator inspection instead of migrating or
+rewriting it automatically. Entry values and cached balances remain inside
+signed 64-bit bounds.
+
+Only sanitized read-only summaries are exposed on the command line:
+
+```text
+uv run python -m scripts.factory_budget_ledger summary \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+uv run python -m scripts.factory_budget_ledger balance \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+```
+
+The Python API owns explicit period initialization and entry recording. This
+ledger does not reserve or settle provider work, call providers, observe quota,
+or authorize scheduler dispatch. Those integrations remain downstream and
+must fail closed against this evidence rather than infer spend from metrics.
+
 ## Artifact and Log Retention
 
 The committed example policy defines age limits per terminal state and aggregate
