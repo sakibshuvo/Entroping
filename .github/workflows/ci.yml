@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -42,6 +43,8 @@ jobs:
       - name: Validate PR documentation impact declaration
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git fetch --no-tags origin "$GITHUB_BASE_REF:refs/remotes/origin/$GITHUB_BASE_REF"
           if git merge-base "origin/$GITHUB_BASE_REF" HEAD >/dev/null 2>&1; then
@@ -53,7 +56,23 @@ jobs:
           while IFS= read -r path; do
             changed_args+=(--changed-file "$path")
           done < <(git diff --name-only "$diff_range")
-          scripts/pr_body_check.py "$GITHUB_EVENT_PATH" "${changed_args[@]}"
+          provider_issue="$(
+            uv run python scripts/pr_body_check.py \
+              "$GITHUB_EVENT_PATH" --print-provider-evidence-issue
+          )"
+          if [[ -n "$provider_issue" ]]; then
+            issue_metadata="$RUNNER_TEMP/entroping-issue-$provider_issue.json"
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${provider_issue}" \
+              --jq '{number, state, body, pull_request}' > "$issue_metadata"
+            uv run python scripts/pr_body_check.py "$GITHUB_EVENT_PATH" \
+              --require-opencode-evidence \
+              --issue "$provider_issue" \
+              --issue-metadata-file "$issue_metadata" \
+              "${changed_args[@]}"
+          else
+            uv run python scripts/pr_body_check.py "$GITHUB_EVENT_PATH" \
+              "${changed_args[@]}"
+          fi
 
       - name: Run regression suite
         run: scripts/regression.sh --security

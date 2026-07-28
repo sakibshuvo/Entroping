@@ -1,5 +1,38 @@
 # Entroping Lessons Learned
 
+## 2026-07-28
+
+- Provider evidence and dispatch must share one typed registry. Descriptive
+  prompt or runbook lists are projections only: unknown paid lane, host,
+  billing, or model combinations fail closed, lifecycle preserves historical
+  evidence without permitting new dispatch, and only explicitly non-paid lanes
+  may accept unlisted local models.
+- Authorization checks must run before permissive branch returns. An unlisted
+  local-model allowance still obeys its lane's autonomy ceiling; testing the
+  permissive edge directly prevents a future lower-ceiling lane from bypassing
+  policy.
+- Provider model names have two different contracts: an engine invocation id
+  and, for metered routes, a provider-qualified cost-policy join id. Store both
+  explicitly; do not rewrite worker arguments or infer cost joins from legacy
+  metrics labels.
+- Agreement between two PR-body sections is not authorization. Autonomous
+  authority must bind to trusted open-issue autonomy metadata, and the changed
+  files must remain outside sensitive and release/quality guardrail surfaces.
+- Authority-bearing Markdown must be interpreted as rendered evidence, not raw
+  text. Ignore HTML comments, blockquotes and lazy continuations, indented code,
+  and fenced examples using matching delimiter characters and lengths. Preserve
+  paired inline-code literals without letting them hide later visible evidence,
+  treat backslash-escaped backticks as literals, recognize headings, lists, and
+  fenced blocks that interrupt a lazy continuation, and reject duplicate
+  sections or fields rather than choosing the first value. The registry and the
+  dedicated tests/docs that define its authority also belong to the protected
+  surface.
+- Maintainer commands that need project dependencies should advertise the
+  project environment consistently across operations docs and prompt-library
+  handoffs. Keep `--help` usable on host Python, but turn a missing runtime
+  dependency into a bounded `uv run python` instruction rather than an uncaught
+  traceback.
+
 ## 2026-06-27
 
 - Artifact handoff beats transcript supervision for cheap workers. Queue

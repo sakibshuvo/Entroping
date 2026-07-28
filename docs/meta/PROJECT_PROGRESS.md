@@ -53,6 +53,7 @@ downstream feedback (#306), and non-GitHub runner proof (#309-#310).
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Provider capability registry](https://github.com/sakibshuvo/Entroping/issues/1558) | Pending merge | One typed source governs maintainer-factory provider evidence and queue routes; unknown paid combinations fail closed without changing the product LiteLLM boundary. |
 | [Factory artifact retention](https://github.com/sakibshuvo/Entroping/issues/1562) | Pending merge | Five-class plan-first retention, bounded live metrics and logs, tracked-path protection, crash recovery, and metadata-only reporting without artifact contents. |
 | Roadmap and docs inventory curation / Docs-prune candidate report | Done | Roadmap stays directional; GitHub owns work and the vault/changelog own history. |
 | Tier A cheap-worker defaults / Four-gate factory readiness | Done | Cheap workers remain bounded evidence producers; Codex owns quality, security, context, cost, and merge truth. |

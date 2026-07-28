@@ -85,6 +85,23 @@ DeepSeek, and common model-provider SDKs are rejected inside `src/entroping`;
 maintainer-only worker scripts remain outside the product runtime boundary and
 produce ignored local artifacts for Codex validation.
 
+Maintainer-factory provider routing is governed separately by the versioned,
+non-secret `docs/meta/provider-capability-registry.json`. Strict Pydantic models
+validate its lane, host, billing, model, capability, autonomy, usage-accounting,
+lifecycle, queue-default, and metered-cost identity fields before `scripts/ai_jobs.py` or
+`scripts/pr_body_check.py` consumes them. Exact unknown paid combinations fail
+closed. Lifecycle state can retain historical evidence while preventing new
+dispatch, queue bindings require `queue_dispatch`, autonomy ceilings are
+enforced during route resolution, and only an explicitly non-paid lane may
+allow an unlisted local model. Queue model ids are engine invocation values;
+provider-qualified cost model ids are separate cost-policy join keys and do not
+authorize spending. This registry contains no credentials or provider configuration, makes
+no provider calls, and does not alter the product's LiteLLM-only Brain boundary.
+Required CI also binds provider/autonomy PR evidence to the open closing issue's
+`## Autonomy` section through bounded read-only metadata. Self-consistent PR
+text alone cannot grant Tier A autonomous merge authority, and sensitive or
+release/quality guardrail diffs remain ineligible for that authority.
+
 Current Brain foundation modules:
 
 - `models.architect` defines validated Architect Hurl edit output models.

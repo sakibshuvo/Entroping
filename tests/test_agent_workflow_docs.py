@@ -848,10 +848,12 @@ def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
         "scripts/context_pack.sh --mode implementation --manifest",
         (
             _concat_text(
-                'scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence',
-                ' --issue <issue-number>',
+                'uv run python scripts/pr_body_check.py --body-file <body.md>',
+                ' --require-opencode-evidence',
+                ' --issue <issue-number> --issue-metadata-file <issue.json>',
             )
         ),
+        "gh issue view <issue-number> --json number,state,body",
         "gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch",
         "scripts/finish_issue.sh <issue-number>",
         "Do not ask Codex for routine Tier A implementation details",
@@ -1162,7 +1164,8 @@ def test_prompt_library_includes_model_output_acceptance_gate_prompt() -> None:
         "scripts/start_issue.sh",
         (
             _concat_text(
-                'scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence',
+                'uv run python scripts/pr_body_check.py --body-file <body.md>',
+                ' --require-opencode-evidence',
                 ' --issue <issue>',
             )
         ),
@@ -1727,7 +1730,7 @@ def test_agent_control_plane_distinguishes_provider_host_billing_model_lanes() -
         "local/offline",
         "OpenCode Go is the Kimi/Qwen/model-variety lane",
         "not the default DeepSeek lane",
-        "Direct DeepSeek API remains the default cheap queued worker lane",
+        "CLI's default engine remains OpenCode",
         "provider host, billing path, and concrete model id",
     ]
 

@@ -20,6 +20,13 @@ def main() -> int:
     try:
         args = _parse_args()
         payload = _dispatch(args)
+    except ImportError:
+        print(
+            "ai_job_quarantine: project dependencies are unavailable; run "
+            "`uv run python scripts/ai_job_quarantine.py ...`.",
+            file=sys.stderr,
+        )
+        return 2
     except ai_jobs.AiJobError as exc:
         print(f"ai_job_quarantine: {exc}", file=sys.stderr)
         return 2

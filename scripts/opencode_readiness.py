@@ -27,6 +27,7 @@ REQUIRED_WORKFLOW_FILES = (
     "docs/meta/AGENT_CONTROL_PLANE.md",
     "docs/meta/DOCS_GOVERNANCE.md",
     "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+    "docs/meta/provider-capability-registry.json",
     "docs/meta/prompt-library/opencode-desktop-handoff.md",
     "docs/meta/prompt-library/codex-outage-daily-operations.md",
     "docs/meta/prompt-library/issue-worker.md",
@@ -45,9 +46,7 @@ REQUIRED_WORKFLOW_FILES = (
 PROMPT_GUARDRAIL_TERMS = {
     "docs/meta/prompt-library/opencode-desktop-handoff.md": (
         "Provider lane:",
-        "opencode/native-deepseek",
-        "opencode-go/kimi-k2.7-code",
-        "opencode-go/qwen3.7-max",
+        "docs/meta/provider-capability-registry.json",
         "Codex-native tools are not automatically available inside OpenCode",
         "OpenCode MCP servers are not Codex MCP state",
         "Start with narrow read-only MCP access",
@@ -60,12 +59,14 @@ PROMPT_GUARDRAIL_TERMS = {
         "scripts/ai_jobs.py audit-routing",
         "scripts/factory_review_packet.py",
         "Do not read raw stdout, stderr, provider responses, or full transcripts",
-        "scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence",
+        "uv run python scripts/pr_body_check.py --body-file <body.md> "
+        "--require-opencode-evidence",
         "scripts/finish_issue.sh <issue-number>",
         "Tier B/Tier C requires Codex or human review before merge",
     ),
     "docs/meta/AGENT_CONTROL_PLANE.md": (
         "No helper agent is a source of truth",
+        "docs/meta/provider-capability-registry.json",
         "OpenCode Go is the Kimi/Qwen/model-variety lane",
         "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane",
         "Autonomous OpenCode Shipping Lanes",
@@ -124,7 +125,13 @@ COMMAND_HELP_CHECKS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (sys.executable, "scripts/pr_body_check.py", "--help"),
-        ("--require-opencode-evidence", "--changed-file", "--issue"),
+        (
+            "--require-opencode-evidence",
+            "--issue-metadata-file",
+            "--print-provider-evidence-issue",
+            "--changed-file",
+            "--issue",
+        ),
     ),
     (
         (sys.executable, "scripts/agent_toolchain.py", "--help"),

@@ -1,0 +1,351 @@
+{
+  "$defs": {
+    "AutonomyTier": {
+      "enum": [
+        "tier_a",
+        "tier_b",
+        "tier_c"
+      ],
+      "type": "string"
+    },
+    "BillingKind": {
+      "enum": [
+        "included_quota",
+        "metered",
+        "subscription",
+        "offline"
+      ],
+      "type": "string"
+    },
+    "Capability": {
+      "enum": [
+        "implementation",
+        "model_comparison",
+        "patch_proposal",
+        "private_processing",
+        "queue_dispatch",
+        "review"
+      ],
+      "type": "string"
+    },
+    "Lifecycle": {
+      "enum": [
+        "candidate",
+        "active",
+        "deprecated",
+        "retired"
+      ],
+      "type": "string"
+    },
+    "ProviderLane": {
+      "additionalProperties": false,
+      "properties": {
+        "autonomy_ceiling": {
+          "$ref": "#/$defs/AutonomyTier"
+        },
+        "billing_kind": {
+          "$ref": "#/$defs/BillingKind"
+        },
+        "billing_path": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Billing Path",
+          "type": "string"
+        },
+        "billing_path_aliases": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Billing Path Aliases",
+          "type": "array"
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/Capability"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "cost_provider_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Provider Id"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/Lifecycle"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/ProviderModel"
+          },
+          "maxItems": 64,
+          "title": "Models",
+          "type": "array"
+        },
+        "provider_host": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Provider Host",
+          "type": "string"
+        },
+        "provider_host_aliases": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Provider Host Aliases",
+          "type": "array"
+        },
+        "unlisted_model_policy": {
+          "$ref": "#/$defs/UnlistedModelPolicy"
+        },
+        "usage_accounting": {
+          "$ref": "#/$defs/UsageAccounting"
+        }
+      },
+      "required": [
+        "id",
+        "provider_host",
+        "billing_path",
+        "billing_kind",
+        "capabilities",
+        "autonomy_ceiling",
+        "usage_accounting",
+        "lifecycle",
+        "unlisted_model_policy",
+        "models"
+      ],
+      "title": "ProviderLane",
+      "type": "object"
+    },
+    "ProviderModel": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Aliases",
+          "type": "array"
+        },
+        "billing_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BillingKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "billing_path": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Billing Path"
+        },
+        "billing_path_aliases": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Billing Path Aliases",
+          "type": "array"
+        },
+        "cost_model_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 3,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*/[a-z0-9][a-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Model Id"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/Lifecycle"
+        },
+        "queue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QueueBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "usage_accounting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UsageAccounting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "lifecycle"
+      ],
+      "title": "ProviderModel",
+      "type": "object"
+    },
+    "QueueBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "default_for": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/QueueDefault"
+          },
+          "maxItems": 2,
+          "title": "Default For",
+          "type": "array"
+        },
+        "engine": {
+          "$ref": "#/$defs/QueueEngine"
+        },
+        "profile": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$",
+          "title": "Profile",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine",
+        "profile"
+      ],
+      "title": "QueueBinding",
+      "type": "object"
+    },
+    "QueueDefault": {
+      "enum": [
+        "standard",
+        "tier_a"
+      ],
+      "type": "string"
+    },
+    "QueueEngine": {
+      "enum": [
+        "opencode",
+        "deepseek-api"
+      ],
+      "type": "string"
+    },
+    "UnlistedModelPolicy": {
+      "enum": [
+        "deny",
+        "allow_non_paid"
+      ],
+      "type": "string"
+    },
+    "UsageAccounting": {
+      "enum": [
+        "provider_reported",
+        "quota_only",
+        "unavailable",
+        "not_applicable"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://sakibshuvo.github.io/Entroping/meta/provider-capability-registry.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authoring schema for Entroping's non-secret maintainer provider capability registry. Runtime Pydantic validation remains authoritative.",
+  "properties": {
+    "lanes": {
+      "items": {
+        "$ref": "#/$defs/ProviderLane"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "title": "Lanes",
+      "type": "array"
+    },
+    "purpose": {
+      "const": "maintainer_workflow_only",
+      "title": "Purpose",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "entroping.provider-capability-registry.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unknown_paid_route": {
+      "const": "deny",
+      "title": "Unknown Paid Route",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "purpose",
+    "unknown_paid_route",
+    "lanes"
+  ],
+  "title": "ProviderCapabilityRegistry",
+  "type": "object"
+}

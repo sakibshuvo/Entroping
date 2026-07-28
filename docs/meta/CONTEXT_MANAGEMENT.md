@@ -139,7 +139,7 @@ guidance. It does not include file content. Follow
 file reads when the manifest is within budget, and reduce scope when the
 manifest exceeds budget.
 Queued low-risk Tier A worker jobs should use
-`scripts/ai_jobs.py submit --autonomy-tier tier-a`, which records the manifest
+`uv run python scripts/ai_jobs.py submit --autonomy-tier tier-a`, which records the manifest
 command in the queued job and injects a worker instruction to request only the
 needed files/snippets after reviewing the manifest.
 Use `--strict-budget` when a workflow should fail instead of silently expanding
@@ -166,7 +166,7 @@ To measure context cost during a factory run, opt in explicitly:
 ```bash
 scripts/context_pack.sh --mode implementation --record-factory-metrics
 scripts/context_pack.sh --mode review --record-factory-metrics --factory-role code_review_agent
-scripts/ai_jobs.py run-next --record-factory-metrics
+uv run python scripts/ai_jobs.py run-next --record-factory-metrics
 ```
 
 Use `--factory-metrics-ledger` only for a ledger under
@@ -367,7 +367,7 @@ size and file counts, while `scripts/opencode_worker.py` and
 duration, provider/model metadata where known, and sanitized DeepSeek usage
 totals when available. Metrics failures are warnings for these workflow
 scripts; they must not hide the original context-pack or worker outcome.
-Queued workers use the same boundary: `scripts/ai_jobs.py run-next
+Queued workers use the same boundary: `uv run python scripts/ai_jobs.py run-next
 --record-factory-metrics` passes recording options to the selected worker
 harness without writing ledger events itself or changing queue semantics when
 the flag is absent.
@@ -430,7 +430,7 @@ Current local agent tooling status:
 - Codex CLI: available.
 - OpenCode: available.
 - Direct DeepSeek worker: available through `scripts/deepseek_worker.py` and
-  queued jobs with `scripts/ai_jobs.py submit --engine deepseek-api`.
+  queued jobs with `uv run python scripts/ai_jobs.py submit --engine deepseek-api`.
 - Portable role registry: available through
   `docs/meta/AGENT_ROLE_REGISTRY.yaml`.
 - Factory metrics ledger: available through `scripts/factory_metrics.py`, with

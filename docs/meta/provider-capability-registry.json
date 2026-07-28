@@ -1,0 +1,306 @@
+{
+  "schema_version": "entroping.provider-capability-registry.v1",
+  "purpose": "maintainer_workflow_only",
+  "unknown_paid_route": "deny",
+  "lanes": [
+    {
+      "id": "codex-spark",
+      "provider_host": "Codex Spark",
+      "provider_host_aliases": [],
+      "billing_path": "Codex quota",
+      "billing_path_aliases": [],
+      "billing_kind": "included_quota",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "model_comparison"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "quota_only",
+      "lifecycle": "active",
+      "unlisted_model_policy": "deny",
+      "models": [
+        {
+          "id": "gpt-5.3-codex-spark",
+          "aliases": [
+            "Spark"
+          ],
+          "lifecycle": "active",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "queue": null
+        }
+      ]
+    },
+    {
+      "id": "deepseek-api/direct",
+      "provider_host": "repo-local DeepSeek worker",
+      "provider_host_aliases": [
+        "direct API"
+      ],
+      "billing_path": "paid direct DeepSeek API",
+      "billing_path_aliases": [
+        "paid DeepSeek API"
+      ],
+      "billing_kind": "metered",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "queue_dispatch"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "provider_reported",
+      "cost_provider_id": "deepseek",
+      "lifecycle": "active",
+      "unlisted_model_policy": "deny",
+      "models": [
+        {
+          "id": "deepseek-v4-flash",
+          "aliases": [],
+          "lifecycle": "active",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "cost_model_id": "deepseek/deepseek-v4-flash",
+          "queue": {
+            "engine": "deepseek-api",
+            "profile": "flash",
+            "default_for": [
+              "tier_a"
+            ]
+          }
+        },
+        {
+          "id": "deepseek-v4-pro",
+          "aliases": [],
+          "lifecycle": "active",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "cost_model_id": "deepseek/deepseek-v4-pro",
+          "queue": {
+            "engine": "deepseek-api",
+            "profile": "pro",
+            "default_for": [
+              "standard"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "opencode/native-deepseek",
+      "provider_host": "OpenCode",
+      "provider_host_aliases": [
+        "OpenCode native provider",
+        "OpenCode Desktop",
+        "OpenCode CLI",
+        "OpenCode native"
+      ],
+      "billing_path": "OpenCode configured provider",
+      "billing_path_aliases": [
+        "paid DeepSeek inside OpenCode"
+      ],
+      "billing_kind": "metered",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "queue_dispatch"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "provider_reported",
+      "cost_provider_id": "deepseek",
+      "lifecycle": "active",
+      "unlisted_model_policy": "deny",
+      "models": [
+        {
+          "id": "opencode/deepseek-v4-flash-free",
+          "aliases": [],
+          "lifecycle": "active",
+          "billing_path": "OpenCode free-model lane",
+          "billing_path_aliases": [],
+          "billing_kind": "included_quota",
+          "usage_accounting": "quota_only",
+          "queue": {
+            "engine": "opencode",
+            "profile": "flash-free",
+            "default_for": [
+              "tier_a"
+            ]
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash",
+          "aliases": [],
+          "lifecycle": "active",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "cost_model_id": "deepseek/deepseek-v4-flash",
+          "queue": {
+            "engine": "opencode",
+            "profile": "flash",
+            "default_for": []
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4-pro",
+          "aliases": [],
+          "lifecycle": "active",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "cost_model_id": "deepseek/deepseek-v4-pro",
+          "queue": {
+            "engine": "opencode",
+            "profile": "pro",
+            "default_for": [
+              "standard"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "opencode-go/glm-5.2",
+      "provider_host": "OpenCode Go",
+      "provider_host_aliases": [],
+      "billing_path": "OpenCode Go subscription",
+      "billing_path_aliases": [],
+      "billing_kind": "subscription",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "model_comparison"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "unavailable",
+      "lifecycle": "candidate",
+      "unlisted_model_policy": "deny",
+      "models": [
+        {
+          "id": "glm-5.2",
+          "aliases": [],
+          "lifecycle": "candidate",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "queue": null
+        }
+      ]
+    },
+    {
+      "id": "opencode-go/kimi-k2.7-code",
+      "provider_host": "OpenCode Go",
+      "provider_host_aliases": [],
+      "billing_path": "OpenCode Go subscription",
+      "billing_path_aliases": [],
+      "billing_kind": "subscription",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "model_comparison"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "unavailable",
+      "lifecycle": "candidate",
+      "unlisted_model_policy": "deny",
+      "models": [
+        {
+          "id": "kimi-k2.7-code",
+          "aliases": [],
+          "lifecycle": "candidate",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "queue": null
+        }
+      ]
+    },
+    {
+      "id": "opencode-go/qwen3.7-max",
+      "provider_host": "OpenCode Go",
+      "provider_host_aliases": [],
+      "billing_path": "OpenCode Go subscription",
+      "billing_path_aliases": [],
+      "billing_kind": "subscription",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "model_comparison"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "unavailable",
+      "lifecycle": "candidate",
+      "unlisted_model_policy": "deny",
+      "models": [
+        {
+          "id": "qwen3.7-max",
+          "aliases": [],
+          "lifecycle": "candidate",
+          "billing_path": null,
+          "billing_path_aliases": [],
+          "billing_kind": null,
+          "usage_accounting": null,
+          "queue": null
+        }
+      ]
+    },
+    {
+      "id": "opencode-go/other",
+      "provider_host": "OpenCode Go",
+      "provider_host_aliases": [],
+      "billing_path": "OpenCode Go subscription",
+      "billing_path_aliases": [],
+      "billing_kind": "subscription",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "implementation",
+        "model_comparison"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "unavailable",
+      "lifecycle": "candidate",
+      "unlisted_model_policy": "deny",
+      "models": []
+    },
+    {
+      "id": "local/offline",
+      "provider_host": "local runtime",
+      "provider_host_aliases": [
+        "local runner"
+      ],
+      "billing_path": "local/offline",
+      "billing_path_aliases": [
+        "local"
+      ],
+      "billing_kind": "offline",
+      "capabilities": [
+        "review",
+        "patch_proposal",
+        "private_processing",
+        "model_comparison"
+      ],
+      "autonomy_ceiling": "tier_c",
+      "usage_accounting": "not_applicable",
+      "lifecycle": "active",
+      "unlisted_model_policy": "allow_non_paid",
+      "models": []
+    }
+  ]
+}

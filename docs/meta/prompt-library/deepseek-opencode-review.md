@@ -112,8 +112,8 @@ Prefer repo-local bounded workers over raw model chats:
 python scripts/opencode_worker.py --mode review --issue <issue-number> --file <path> --json
 python scripts/opencode_worker.py --mode patch --issue <issue-number> --file <path> --json
 python scripts/deepseek_worker.py --mode review --issue <issue-number> --file <path> --json
-python scripts/ai_jobs.py status
-python scripts/ai_jobs.py run-next
+uv run python scripts/ai_jobs.py status
+uv run python scripts/ai_jobs.py run-next
 ```
 
 Artifacts under `.entroping/ai-reviews/` and `.entroping/ai-jobs/` are ignored
