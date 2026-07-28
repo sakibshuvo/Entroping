@@ -26,6 +26,7 @@ from .factory_budget_ledger_fs import (
     path_file_identity,
     recover_published_initialization,
     reject_unsafe_sidecars,
+    validate_delete_journal_header,
     validate_existing_entry,
     validate_regular,
     validated_root,
@@ -162,6 +163,7 @@ def _connect(
 ) -> sqlite3.Connection:
     connection: sqlite3.Connection | None = None
     try:
+        validate_delete_journal_header(path, expected_identity)
         mode = "ro" if readonly else "rw"
         uri = f"file:{quote(path.as_posix(), safe='/')}?mode={mode}"
         connection = sqlite3.connect(

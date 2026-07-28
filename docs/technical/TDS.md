@@ -2295,8 +2295,10 @@ cached-balance checks in `BEGIN IMMEDIATE`. One-time schema bootstrap uses
 `BEGIN EXCLUSIVE`. SQLite therefore admits only one successful writer at the
 decision boundary. `journal_mode=DELETE` with `synchronous=EXTRA`
 supports crash-safe rollback-journal commits and genuinely read-only summary
-connections without creating WAL state. Initialization publishes a fully
-validated temporary database by same-directory hard link and directory sync;
+connections without creating WAL state. A pre-connect, no-follow database-header
+check rejects WAL-mode drift before SQLite can create sidecars. Initialization
+publishes a fully validated temporary database by same-directory hard link and
+directory sync;
 unpublished partial initialization is discarded before retry.
 
 Descriptor-based path validation walks every no-follow repository ancestor and

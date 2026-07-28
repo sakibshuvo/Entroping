@@ -14,6 +14,8 @@ LEDGER_NAME = "ledger.sqlite3"
 INITIALIZING_NAME = ".ledger.sqlite3.init"
 LOCK_NAME = "ledger.lock"
 MAX_LEDGER_BYTES = 536_870_912
+SQLITE_HEADER_BYTES = 20
+SQLITE_HEADER_PREFIX = b"SQLite format 3\x00"
 type FileIdentity = tuple[int, int, int, int, int]
 
 
@@ -89,6 +91,32 @@ def path_file_identity(path: Path) -> FileIdentity:
         return validated_file_identity(os.stat(path, follow_symlinks=False))
     except (OSError, FactoryBudgetLedgerError) as exc:
         raise FactoryBudgetLedgerError("path", "ledger database changed during open") from exc
+
+
+def validate_delete_journal_header(path: Path, expected_identity: FileIdentity) -> None:
+    try:
+        descriptor = os.open(path, os.O_RDONLY | nofollow_flag())
+    except OSError as exc:
+        raise FactoryBudgetLedgerError("path", "ledger database changed during open") from exc
+    try:
+        try:
+            identity = validated_file_identity(os.fstat(descriptor))
+        except FactoryBudgetLedgerError as exc:
+            raise FactoryBudgetLedgerError(
+                "path",
+                "ledger database changed during open",
+            ) from exc
+        if identity != expected_identity:
+            raise FactoryBudgetLedgerError("path", "ledger database changed during open")
+        header = os.pread(descriptor, SQLITE_HEADER_BYTES, 0)
+    finally:
+        os.close(descriptor)
+    if (
+        len(header) == SQLITE_HEADER_BYTES
+        and header.startswith(SQLITE_HEADER_PREFIX)
+        and header[18:20] != b"\x01\x01"
+    ):
+        raise FactoryBudgetLedgerError("database", "DELETE journal mode is required")
 
 
 def reject_unsafe_sidecars(directory_fd: int) -> None:

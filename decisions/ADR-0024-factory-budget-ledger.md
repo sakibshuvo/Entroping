@@ -41,7 +41,9 @@ immutable insert, and cached-balance update share one serialized transaction.
 One-time schema bootstrap uses `BEGIN EXCLUSIVE`. SQLite uses
 `journal_mode=DELETE`, `synchronous=EXTRA`, foreign-key enforcement, strict
 tables, bounded waits, and immutable-entry triggers. This permits genuinely
-read-only reporting without creating WAL sidecars.
+read-only reporting without creating WAL sidecars. Every connection checks the
+validated database header for rollback-journal mode before SQLite opens the
+path, so drifted WAL state is rejected without creating `-wal` or `-shm`.
 
 Initialization constructs and validates a private same-directory database,
 syncs it, publishes it atomically by hard link, removes the temporary name, and

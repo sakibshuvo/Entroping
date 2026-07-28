@@ -277,6 +277,23 @@ def test_readonly_summary_preserves_database_mtime_and_permissions(tmp_path: Pat
     assert not any(entry.is_symlink() for entry in ledger.db_path.parent.iterdir())
 
 
+def test_readonly_summary_rejects_wal_mode_without_creating_sidecars(
+    tmp_path: Path,
+) -> None:
+    ledger = FactoryBudgetLedger.open_project(tmp_path)
+    ledger.initialize_period(_period())
+    with sqlite3.connect(ledger.db_path) as connection:
+        assert connection.execute("PRAGMA journal_mode = WAL").fetchone() == ("wal",)
+    before = tuple(sorted(entry.name for entry in ledger.db_path.parent.iterdir()))
+    assert "ledger.sqlite3-wal" not in before
+    assert "ledger.sqlite3-shm" not in before
+
+    with pytest.raises(FactoryBudgetLedgerError, match="DELETE journal mode"):
+        FactoryBudgetLedger.period_summary_readonly(tmp_path, date(2026, 7, 1))
+
+    assert tuple(sorted(entry.name for entry in ledger.db_path.parent.iterdir())) == before
+
+
 def test_recovery_discards_only_reserved_non_authoritative_init_file(tmp_path: Path) -> None:
     ledger = FactoryBudgetLedger.open_project(tmp_path)
     initializing = ledger.db_path.parent / ".ledger.sqlite3.init"

@@ -110,7 +110,9 @@ entry insert, and cached balance update with `BEGIN IMMEDIATE`. The database
 uses `journal_mode=DELETE`, `synchronous=EXTRA`, foreign keys, strict tables,
 immutable-entry triggers, and a bounded busy timeout. The rollback journal was
 chosen so reporting can use a genuinely read-only connection without creating
-WAL sidecars. Initialization builds and validates a private temporary database,
+WAL sidecars. A no-follow header check rejects WAL-mode state before SQLite can
+open it or create `-wal`/`-shm` files. Initialization builds and validates a
+private temporary database,
 syncs it, links it into place atomically, and syncs the containing directory.
 Incomplete initialization state is never authoritative.
 

@@ -14,7 +14,8 @@
   settlement and scheduler authority outside this component.
   Full ancestor-chain authority validation, shared-state compatibility, and
   crash-window hard-link recovery prevent cross-account directory substitution
-  while recovering published initialization.
+  while recovering published initialization. A pre-connect header check rejects
+  WAL-mode drift without creating SQLite sidecars.
 
 - Added issue #1562's plan-first factory artifact retention. Bounded no-follow
   inventory now covers terminal jobs, reviews, rotated logs, verified finished
