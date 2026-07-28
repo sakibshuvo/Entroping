@@ -6,8 +6,22 @@ import subprocess
 import sys
 from pathlib import Path
 
+from pydantic import TypeAdapter
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_POLICY = REPO_ROOT / "docs" / "meta" / "factory-cost-policy.example.json"
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
+JSON_OBJECT_ADAPTER = TypeAdapter(dict[str, JsonValue])
+
+
+def _object(value: JsonValue) -> dict[str, JsonValue]:
+    assert isinstance(value, dict)
+    return value
+
+
+def _array(value: JsonValue) -> list[JsonValue]:
+    assert isinstance(value, list)
+    return value
 
 
 def _run_policy(
@@ -16,7 +30,7 @@ def _run_policy(
     as_of: str,
 ) -> subprocess.CompletedProcess[str]:
     policy_path = tmp_path / "factory-cost-policy.json"
-    policy_path.write_text(document, encoding="utf-8")
+    _ = policy_path.write_text(document, encoding="utf-8")
     return subprocess.run(
         [
             sys.executable,
@@ -186,12 +200,15 @@ def test_factory_cost_policy_rejects_unresolved_price_references(tmp_path: Path)
 
 def test_factory_cost_policy_rejects_ambiguous_price_snapshots(tmp_path: Path) -> None:
     document = EXAMPLE_POLICY.read_text(encoding="utf-8")
-    policy = json.loads(document)
-    conflicting_snapshot = dict(policy["price_snapshots"][0])
+    policy = JSON_OBJECT_ADAPTER.validate_json(document)
+    price_snapshots = _array(policy["price_snapshots"])
+    conflicting_snapshot = _object(price_snapshots[0]).copy()
     conflicting_snapshot["id"] = "conflicting-input-price"
     conflicting_snapshot["price_microcents"] = 20_000_000
-    policy["price_snapshots"].append(conflicting_snapshot)
-    policy["automation_lanes"][1]["price_snapshot_ids"].append(
+    price_snapshots.append(conflicting_snapshot)
+    automation_lanes = _array(policy["automation_lanes"])
+    metered_lane = _object(automation_lanes[1])
+    _array(metered_lane["price_snapshot_ids"]).append(
         "conflicting-input-price",
     )
 

@@ -13,7 +13,10 @@ def test_factory_cost_policy_validates_integer_cash_and_independent_quota_contra
     tmp_path: Path,
 ) -> None:
     policy_path = tmp_path / "factory-cost-policy.json"
-    policy_path.write_text(EXAMPLE_POLICY.read_text(encoding="utf-8"), encoding="utf-8")
+    _ = policy_path.write_text(
+        EXAMPLE_POLICY.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
 
     result = subprocess.run(
         [

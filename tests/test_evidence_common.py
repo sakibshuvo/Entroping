@@ -171,7 +171,7 @@ def test_read_local_evidence_artifact_bytes_uses_best_effort_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     path = tmp_path / "source.json"
-    path.write_text("{}", encoding="utf-8")
+    _ = path.write_text("{}", encoding="utf-8")
     monkeypatch.setattr(evidence_common, "supports_no_follow_tree_open", lambda: False)
 
     raw_bytes, error = evidence_common.read_local_evidence_artifact_bytes(path)

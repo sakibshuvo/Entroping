@@ -4,22 +4,39 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, cast
+
+from pydantic import TypeAdapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_POLICY = REPO_ROOT / "docs" / "meta" / "factory-cost-policy.example.json"
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
+JSON_OBJECT_ADAPTER = TypeAdapter(dict[str, JsonValue])
 
 
-def _example() -> dict[str, Any]:
-    return cast(
-        dict[str, Any],
-        json.loads(EXAMPLE_POLICY.read_text(encoding="utf-8")),
-    )
+def _object(value: JsonValue) -> dict[str, JsonValue]:
+    assert isinstance(value, dict)
+    return value
 
 
-def _run_policy(tmp_path: Path, policy: dict[str, Any]) -> subprocess.CompletedProcess[str]:
+def _array(value: JsonValue) -> list[JsonValue]:
+    assert isinstance(value, list)
+    return value
+
+
+def _objects(value: JsonValue) -> list[dict[str, JsonValue]]:
+    return [_object(item) for item in _array(value)]
+
+
+def _example() -> dict[str, JsonValue]:
+    return JSON_OBJECT_ADAPTER.validate_json(EXAMPLE_POLICY.read_bytes())
+
+
+def _run_policy(
+    tmp_path: Path,
+    policy: dict[str, JsonValue],
+) -> subprocess.CompletedProcess[str]:
     policy_path = tmp_path / "factory-cost-policy.json"
-    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    _ = policy_path.write_text(json.dumps(policy), encoding="utf-8")
     return _run_path(policy_path)
 
 
@@ -64,9 +81,10 @@ def test_example_exposes_approved_budget_and_failure_controls() -> None:
             "stop_paid_dispatch_basis_points": 10_000,
         },
     }
-    assert policy["subscriptions"][0]["renewal"]["timezone"] == "UTC"
+    subscriptions = _objects(policy["subscriptions"])
+    assert _object(subscriptions[0]["renewal"])["timezone"] == "UTC"
     assert policy["automatic_top_up"] == {"mode": "disabled"}
-    windows = [quota["window"] for quota in policy["provider_quotas"]]
+    windows = [quota["window"] for quota in _objects(policy["provider_quotas"])]
     assert windows == [
         {"kind": "rolling", "duration_seconds": 18_000},
         {"kind": "rolling", "duration_seconds": 604_800},
@@ -89,7 +107,7 @@ def test_policy_rejects_automatic_top_up_for_automated_lanes(tmp_path: Path) -> 
 
 def test_policy_rejects_zero_subscription_charge(tmp_path: Path) -> None:
     policy = _example()
-    policy["subscriptions"][0]["charge_microcents"] = 0
+    _objects(policy["subscriptions"])[0]["charge_microcents"] = 0
 
     result = _run_policy(tmp_path, policy)
 
@@ -111,7 +129,7 @@ def test_subscription_cycle_quota_requires_known_matching_subscription(
     tmp_path: Path,
 ) -> None:
     policy = _example()
-    policy["provider_quotas"][2]["window"] = {
+    _objects(policy["provider_quotas"])[2]["window"] = {
         "kind": "subscription_cycle",
         "subscription_id": "missing-subscription",
     }
@@ -124,7 +142,7 @@ def test_subscription_cycle_quota_requires_known_matching_subscription(
 
 def test_policy_rejects_boolean_money_values(tmp_path: Path) -> None:
     policy = _example()
-    policy["cash"]["calendar_month_cap_microcents"] = True
+    _object(policy["cash"])["calendar_month_cap_microcents"] = True
 
     result = _run_policy(tmp_path, policy)
 
@@ -144,7 +162,7 @@ def test_policy_rejects_unsupported_currency(tmp_path: Path) -> None:
 
 def test_policy_rejects_non_utc_cash_boundary(tmp_path: Path) -> None:
     policy = _example()
-    policy["cash"]["calendar_month_timezone"] = "America/Toronto"
+    _object(policy["cash"])["calendar_month_timezone"] = "America/Toronto"
 
     result = _run_policy(tmp_path, policy)
 
@@ -156,7 +174,7 @@ def test_policy_rejects_reserve_exposed_before_subscription_only_threshold(
     tmp_path: Path,
 ) -> None:
     policy = _example()
-    policy["cash"]["emergency_reserve_microcents"] = 3_000_000_000
+    _object(policy["cash"])["emergency_reserve_microcents"] = 3_000_000_000
 
     result = _run_policy(tmp_path, policy)
 
@@ -166,7 +184,7 @@ def test_policy_rejects_reserve_exposed_before_subscription_only_threshold(
 
 def test_policy_rejects_reversed_price_window(tmp_path: Path) -> None:
     policy = _example()
-    policy["price_snapshots"][0]["observed_at"] = "2026-08-01T00:00:00Z"
+    _objects(policy["price_snapshots"])[0]["observed_at"] = "2026-08-01T00:00:00Z"
 
     result = _run_policy(tmp_path, policy)
 
@@ -186,7 +204,7 @@ def test_policy_rejects_signed_64_bit_overflow(tmp_path: Path) -> None:
 
 def test_policy_reader_rejects_symlinks(tmp_path: Path) -> None:
     target = tmp_path / "target.json"
-    target.write_text(EXAMPLE_POLICY.read_text(encoding="utf-8"), encoding="utf-8")
+    _ = target.write_text(EXAMPLE_POLICY.read_text(encoding="utf-8"), encoding="utf-8")
     policy_path = tmp_path / "factory-cost-policy.json"
     policy_path.symlink_to(target)
 
@@ -198,7 +216,7 @@ def test_policy_reader_rejects_symlinks(tmp_path: Path) -> None:
 
 def test_policy_reader_rejects_invalid_utf8(tmp_path: Path) -> None:
     policy_path = tmp_path / "factory-cost-policy.json"
-    policy_path.write_bytes(b"\xff\xfe")
+    _ = policy_path.write_bytes(b"\xff\xfe")
 
     result = _run_path(policy_path)
 
@@ -208,7 +226,8 @@ def test_policy_reader_rejects_invalid_utf8(tmp_path: Path) -> None:
 
 def test_policy_rejects_duplicate_quota_references(tmp_path: Path) -> None:
     policy = _example()
-    policy["automation_lanes"][0]["quota_ids"].append("example-five-hour-quota")
+    lane = _objects(policy["automation_lanes"])[0]
+    _array(lane["quota_ids"]).append("example-five-hour-quota")
 
     result = _run_policy(tmp_path, policy)
 
@@ -220,10 +239,12 @@ def test_metered_lane_accepts_canonical_provider_model_identifier(
     tmp_path: Path,
 ) -> None:
     policy = _example()
-    policy["price_snapshots"][0]["provider_id"] = "openai"
-    policy["price_snapshots"][0]["model_id"] = "openai/gpt-4.1-mini"
-    policy["automation_lanes"][1]["provider_id"] = "openai"
-    policy["automation_lanes"][1]["model_id"] = "openai/gpt-4.1-mini"
+    price = _objects(policy["price_snapshots"])[0]
+    lane = _objects(policy["automation_lanes"])[1]
+    price["provider_id"] = "openai"
+    price["model_id"] = "openai/gpt-4.1-mini"
+    lane["provider_id"] = "openai"
+    lane["model_id"] = "openai/gpt-4.1-mini"
 
     result = _run_policy(tmp_path, policy)
 
@@ -232,10 +253,12 @@ def test_metered_lane_accepts_canonical_provider_model_identifier(
 
 def test_metered_lane_rejects_price_for_a_different_model(tmp_path: Path) -> None:
     policy = _example()
-    policy["price_snapshots"][0]["provider_id"] = "openai"
-    policy["price_snapshots"][0]["model_id"] = "openai/gpt-4.1"
-    policy["automation_lanes"][1]["provider_id"] = "openai"
-    policy["automation_lanes"][1]["model_id"] = "openai/gpt-4.1-mini"
+    price = _objects(policy["price_snapshots"])[0]
+    lane = _objects(policy["automation_lanes"])[1]
+    price["provider_id"] = "openai"
+    price["model_id"] = "openai/gpt-4.1"
+    lane["provider_id"] = "openai"
+    lane["model_id"] = "openai/gpt-4.1-mini"
 
     result = _run_policy(tmp_path, policy)
 
@@ -245,7 +268,7 @@ def test_metered_lane_rejects_price_for_a_different_model(tmp_path: Path) -> Non
 
 def test_metered_lane_rejects_model_with_a_different_provider(tmp_path: Path) -> None:
     policy = _example()
-    policy["automation_lanes"][1]["model_id"] = "openai/gpt-4.1-mini"
+    _objects(policy["automation_lanes"])[1]["model_id"] = "openai/gpt-4.1-mini"
 
     result = _run_policy(tmp_path, policy)
 
@@ -255,7 +278,10 @@ def test_metered_lane_rejects_model_with_a_different_provider(tmp_path: Path) ->
 
 def test_invalid_as_of_does_not_echo_attacker_input(tmp_path: Path) -> None:
     policy_path = tmp_path / "factory-cost-policy.json"
-    policy_path.write_text(EXAMPLE_POLICY.read_text(encoding="utf-8"), encoding="utf-8")
+    _ = policy_path.write_text(
+        EXAMPLE_POLICY.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     attacker_input = "sk-example-secret-value"
 
     result = _run_path(policy_path, as_of=attacker_input)
