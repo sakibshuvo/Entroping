@@ -32,6 +32,7 @@ _CUSTOM_VALIDATION_ERRORS = frozenset(
     {
         "ambiguous_price_unit",
         "cash_reserve",
+        "cash_reserve_threshold",
         "duplicate_identifier",
         "duplicate_reference",
         "lane_model_provider",

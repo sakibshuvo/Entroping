@@ -517,10 +517,10 @@ decisions:
     title: Factory cost policy
     status: accepted
     date: "2026-07-27"
-    summary: Fail-closed USD factory budget.
-    tags: [factory]
+    summary: Versioned fail-closed USD budget with cap, reserve, prices, and quotas.
+    tags: [factory, budget]
     source_links: [{path: decisions/ADR-0022-factory-cost-policy-contract.md, role: adr}]
-    related_docs: []
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
     related_issues: ["#1559"]
     supersedes: []
     superseded_by: null

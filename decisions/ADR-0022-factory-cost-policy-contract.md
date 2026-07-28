@@ -28,6 +28,8 @@ Version 1 is deliberately narrow:
   emergency reserve inside that cap; renewal dates are also UTC.
 - Deterministic thresholds stop experiments at 80%, restrict work to
   subscription or included-quota lanes at 90%, and stop paid dispatch at 100%.
+  The subscription-only transition must occur before the declared reserve can
+  be consumed.
 - Subscription charges are recorded on their declared renewal event rather
   than amortized. Calendar, annual, and fixed-interval renewals have explicit
   boundary semantics.

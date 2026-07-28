@@ -58,7 +58,8 @@ Version 1 has these fixed semantics:
 - Cash months and renewal dates use UTC. The reserve is a non-spendable floor
   inside the cap, not another charge.
   Experiments stop at 80%, only subscription/included-quota work remains at
-  90%, and paid dispatch stops at 100%.
+  90%, and paid dispatch stops at 100%; validation rejects a reserve too large
+  for the 90% transition to protect.
 - Subscription charges use cash-basis renewal events. Calendar-month and
   annual renewals declare invalid-date behavior; non-calendar renewals declare
   an anchor date and fixed positive interval. The policy does not amortize an

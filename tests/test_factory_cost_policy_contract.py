@@ -152,6 +152,18 @@ def test_policy_rejects_non_utc_cash_boundary(tmp_path: Path) -> None:
     assert "UTC" in result.stderr
 
 
+def test_policy_rejects_reserve_exposed_before_subscription_only_threshold(
+    tmp_path: Path,
+) -> None:
+    policy = _example()
+    policy["cash"]["emergency_reserve_microcents"] = 3_000_000_000
+
+    result = _run_policy(tmp_path, policy)
+
+    assert result.returncode == 2
+    assert "subscription-only threshold must preserve the reserve" in result.stderr
+
+
 def test_policy_rejects_reversed_price_window(tmp_path: Path) -> None:
     policy = _example()
     policy["price_snapshots"][0]["observed_at"] = "2026-08-01T00:00:00Z"

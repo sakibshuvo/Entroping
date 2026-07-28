@@ -62,6 +62,18 @@ class CashPolicy(StrictPolicyModel):
                 "cash_reserve",
                 "reserve must be less than the cash cap",
             )
+        subscription_only_amount = (
+            self.calendar_month_cap_microcents
+            * self.thresholds.subscription_only_basis_points
+        )
+        spendable_amount = (
+            self.calendar_month_cap_microcents - self.emergency_reserve_microcents
+        ) * 10_000
+        if subscription_only_amount > spendable_amount:
+            raise PydanticCustomError(
+                "cash_reserve_threshold",
+                "subscription-only threshold must preserve the reserve",
+            )
         return self
 
 
