@@ -619,6 +619,41 @@ def test_finish_issue_bounds_existing_metrics_archive_metadata(tmp_path: Path) -
     assert worktree.exists()
 
 
+def test_metrics_archive_rejects_manifest_over_metadata_limit_before_sealing(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    metrics = worktree / ".entroping" / "factory-metrics"
+    metrics.mkdir(parents=True)
+    for index in range(512):
+        event = {
+            "schema_version": "entroping.factory-metrics.v1",
+            "event_id": f"manifest-bound-{index:04d}",
+            "recorded_at": "2026-05-30T00:00:00Z",
+            "event_type": "outcome",
+            "role": "integrator",
+            "agent": "codex",
+            "metrics": {},
+        }
+        _ = (metrics / f"ledger-{index:04d}.jsonl").write_text(
+            json.dumps(event) + "\n",
+            encoding="utf-8",
+        )
+
+    with pytest.raises(FactoryMetricsArchiveError, match="metadata exceeds its byte limit"):
+        _ = preserve_archive(
+            repo_root=repo,
+            worktree_root=worktree,
+            issue=99,
+            pull_request=123,
+            archived_at="2026-05-30T00:00:00Z",
+        )
+
+    destination = repo / ".entroping" / "factory-metrics" / "finished-issues" / "issue-99"
+    assert not destination.exists()
+    assert len(tuple(metrics.glob("*.jsonl"))) == 512
+
+
 def test_finish_issue_rejects_terminal_archive_ledgers_when_source_is_empty(
     tmp_path: Path,
 ) -> None:

@@ -8,7 +8,15 @@ from typing import cast
 from scripts.factory_metrics_archive_errors import FactoryMetricsArchiveError
 from scripts.factory_retention_fs import RetentionFsError, read_bounded_regular
 
-_METADATA_LIMIT = 65_536
+MAX_ARCHIVE_METADATA_BYTES = 65_536
+
+
+def require_metadata_fits(payload: dict[str, object]) -> None:
+    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    if len(encoded) > MAX_ARCHIVE_METADATA_BYTES:
+        raise FactoryMetricsArchiveError(
+            "factory metrics archive metadata exceeds its byte limit"
+        )
 
 
 def read_archive_metadata(archive_fd: int) -> dict[str, object] | None:
@@ -25,7 +33,7 @@ def read_archive_metadata(archive_fd: int) -> dict[str, object] | None:
                 read_bounded_regular(
                     archive_fd,
                     "metadata.json",
-                    limit=_METADATA_LIMIT,
+                    limit=MAX_ARCHIVE_METADATA_BYTES,
                 )
             ),
         )

@@ -17,7 +17,10 @@ from scripts.factory_metrics_archive_io import (
     open_directory,
     open_or_create_child_directory,
 )
-from scripts.factory_metrics_archive_metadata import read_archive_metadata
+from scripts.factory_metrics_archive_metadata import (
+    read_archive_metadata,
+    require_metadata_fits,
+)
 from scripts.factory_metrics_archive_provenance import (
     archive_ledger_paths,
 )
@@ -36,6 +39,7 @@ def copy_archive(
     payload: dict[str, object],
     ledgers: tuple[tuple[LedgerSpec, bytes], ...],
 ) -> None:
+    require_metadata_fits(payload)
     try:
         with (
             _open_entroping_with_lock(repo_root) as entroping_fd,

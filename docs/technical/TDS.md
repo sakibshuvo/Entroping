@@ -2272,7 +2272,9 @@ control-bearing names, special files, unknown references, unresolved
 settlements, legacy metrics archives without terminal provenance, or
 fingerprint drift fail closed. Terminal metrics provenance binds each canonical
 ledger path to its exact byte count and SHA-256 digest, which inventory
-revalidates before retention eligibility. Reports expose only artifact identifiers,
+revalidates before retention eligibility. Archive creation verifies the fully
+serialized provenance metadata fits the 64 KiB reader bound before copying any
+destination ledger. Reports expose only artifact identifiers,
 classes, states, timestamps, relative paths, reason codes, counts, and byte
 totals; artifact contents are never rendered.
 

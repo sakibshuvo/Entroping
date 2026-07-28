@@ -138,7 +138,8 @@ aggregate cap. `finish_issue.sh` adds verified terminal provenance to newly
 archived metrics, including the canonical relative path, exact byte count, and
 SHA-256 digest of every ledger. Inventory revalidates those digests before an
 archive can become deletion-eligible; legacy archives without that sidecar
-remain protected.
+remain protected. The fully serialized provenance sidecar must fit its 64 KiB
+reader ceiling before any destination ledger is copied.
 
 ## Contract
 
