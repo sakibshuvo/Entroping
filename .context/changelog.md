@@ -1,5 +1,15 @@
 # Entroping Changelog
 
+## 2026-07-27
+
+- Added issue #1559's versioned factory cost policy and JSON schema: USD integer
+  microcents now express the $200 all-in monthly cap and internal $20 reserve,
+  cash-basis subscriptions, expiring price observations, independent rolling
+  and calendar quota windows, disabled automatic top-up, and fail-closed paid
+  dispatch. The bounded local validator rejects ambiguous, stale, secret-like,
+  overflowing, invalid UTF-8, non-regular, or symlinked policy inputs and emits
+  only a value-free summary without provider or spending calls.
+
 ## 2026-07-26
 
 - Fixed issue #1580's npm dependency security baseline: Astro 7.1.3,

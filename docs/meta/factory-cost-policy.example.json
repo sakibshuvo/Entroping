@@ -1,0 +1,106 @@
+{
+  "schema_version": "entroping.factory-cost-policy.v1",
+  "policy_id": "example-budget-policy",
+  "policy_revision": 1,
+  "currency": "USD",
+  "monetary_unit": "microcent",
+  "valid_from": "2026-07-01T00:00:00Z",
+  "expires_at": "2026-12-31T00:00:00Z",
+  "unknown_cost_behavior": "deny_paid_dispatch",
+  "unknown_quota_behavior": "deny_affected_paid_lane",
+  "cash": {
+    "calendar_month_timezone": "UTC",
+    "calendar_month_cap_microcents": 20000000000,
+    "emergency_reserve_microcents": 2000000000,
+    "thresholds": {
+      "stop_experiments_basis_points": 8000,
+      "subscription_only_basis_points": 9000,
+      "stop_paid_dispatch_basis_points": 10000
+    }
+  },
+  "subscriptions": [
+    {
+      "id": "example-annual-plan",
+      "provider_id": "example-provider",
+      "charge_microcents": 6000000000,
+      "renewal": {
+        "kind": "annual",
+        "timezone": "UTC",
+        "month": 7,
+        "day": 15,
+        "invalid_date_behavior": "last_day"
+      }
+    }
+  ],
+  "price_snapshots": [
+    {
+      "id": "example-input-price",
+      "provider_id": "example-metered-provider",
+      "model_id": "example-metered-provider/example-model",
+      "unit": "input_token",
+      "quantity": 1000000,
+      "price_microcents": 10000000,
+      "observed_at": "2026-07-01T00:00:00Z",
+      "expires_at": "2026-08-01T00:00:00Z"
+    }
+  ],
+  "provider_quotas": [
+    {
+      "id": "example-five-hour-quota",
+      "provider_id": "example-provider",
+      "unit": "requests",
+      "limit": 100,
+      "window": {
+        "kind": "rolling",
+        "duration_seconds": 18000
+      }
+    },
+    {
+      "id": "example-weekly-quota",
+      "provider_id": "example-provider",
+      "unit": "requests",
+      "limit": 500,
+      "window": {
+        "kind": "rolling",
+        "duration_seconds": 604800
+      }
+    },
+    {
+      "id": "example-monthly-quota",
+      "provider_id": "example-provider",
+      "unit": "requests",
+      "limit": 2000,
+      "window": {
+        "kind": "calendar_month",
+        "timezone": "UTC"
+      }
+    }
+  ],
+  "automatic_top_up": {
+    "mode": "disabled"
+  },
+  "automation_lanes": [
+    {
+      "id": "included-example-lane",
+      "provider_id": "example-provider",
+      "billing_mode": "included_quota",
+      "enabled": true,
+      "quota_ids": [
+        "example-five-hour-quota",
+        "example-weekly-quota",
+        "example-monthly-quota"
+      ]
+    },
+    {
+      "id": "metered-example-lane",
+      "provider_id": "example-metered-provider",
+      "model_id": "example-metered-provider/example-model",
+      "billing_mode": "metered",
+      "enabled": false,
+      "price_snapshot_ids": [
+        "example-input-price"
+      ],
+      "quota_ids": []
+    }
+  ]
+}

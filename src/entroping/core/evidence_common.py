@@ -65,7 +65,7 @@ def register_local_evidence_descriptor(
     descriptor: int,
 ) -> int:
     try:
-        descriptor_stack.callback(os.close, descriptor)
+        _ = descriptor_stack.callback(os.close, descriptor)
     except BaseException:
         os.close(descriptor)
         raise
@@ -113,7 +113,7 @@ def read_local_evidence_artifact_bytes_no_follow(
             directory_descriptors.append(directory_descriptor)
         file_descriptor = os.open(
             path.name,
-            os.O_RDONLY | os.O_NOFOLLOW,
+            os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0),
             dir_fd=directory_descriptor,
         )
         return read_bounded_local_evidence_bytes_from_descriptor(
@@ -138,7 +138,11 @@ def read_local_evidence_artifact_bytes_best_effort(
 
     file_descriptor: int | None = None
     try:
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_NONBLOCK", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+        )
         file_descriptor = os.open(path, flags)
         path_stat = path.stat(follow_symlinks=False)
         descriptor_stat = os.fstat(file_descriptor)
