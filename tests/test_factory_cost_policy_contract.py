@@ -202,6 +202,22 @@ def test_policy_rejects_signed_64_bit_overflow(tmp_path: Path) -> None:
     assert "signed 64-bit boundary" in result.stderr
 
 
+def test_policy_rejects_excessive_integer_digits_without_traceback(
+    tmp_path: Path,
+) -> None:
+    policy_path = tmp_path / "factory-cost-policy.json"
+    _ = policy_path.write_text(
+        '{"policy_revision":' + ("9" * 5_000) + "}",
+        encoding="utf-8",
+    )
+
+    result = _run_path(policy_path)
+
+    assert result.returncode == 2
+    assert "signed 64-bit boundary" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_policy_reader_rejects_symlinks(tmp_path: Path) -> None:
     target = tmp_path / "target.json"
     _ = target.write_text(EXAMPLE_POLICY.read_text(encoding="utf-8"), encoding="utf-8")

@@ -51,7 +51,7 @@ _CUSTOM_VALIDATION_ERRORS = frozenset(
 class _ValidateNamespace(argparse.Namespace):
     def __init__(self) -> None:
         super().__init__()
-        self.command: str = ""
+        self.command: Literal["validate", "schema"] = "validate"
         self.policy: Path = Path()
         self.as_of: str = ""
 
@@ -67,9 +67,12 @@ def _parse_args() -> Arguments:
     _ = subparsers.add_parser("schema")
     namespace = _ValidateNamespace()
     _ = parser.parse_args(namespace=namespace)
-    if namespace.command == "schema":
-        return "schema"
-    return ValidateArguments(policy=namespace.policy, as_of=namespace.as_of)
+    match namespace.command:
+        case "schema":
+            return "schema"
+        case "validate":
+            return ValidateArguments(policy=namespace.policy, as_of=namespace.as_of)
+    assert_never(namespace.command)
 
 
 def _parse_as_of(raw: str) -> datetime:
