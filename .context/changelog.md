@@ -12,6 +12,8 @@
   signed-integer and file-size limits, retention locking, crash-safe
   rollback-journal durability, and sanitized read-only summaries keep provider
   settlement and scheduler authority outside this component.
+  Owner-controlled parent validation and crash-window hard-link recovery prevent
+  cross-account directory substitution and recover published initialization.
 
 - Added issue #1562's plan-first factory artifact retention. Bounded no-follow
   inventory now covers terminal jobs, reviews, rotated logs, verified finished

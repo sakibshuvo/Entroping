@@ -144,6 +144,7 @@ def test_open_rejects_partial_v1_schema_without_migrating_or_mutating(
 ) -> None:
     state = tmp_path / ".entroping" / "factory-budget"
     state.mkdir(parents=True)
+    os.chmod(state.parent, 0o700)
     os.chmod(state, 0o700)
     db_path = state / "ledger.sqlite3"
     with sqlite3.connect(db_path) as connection:

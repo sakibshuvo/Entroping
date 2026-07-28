@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import os
 import stat
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
-from scripts.factory_retention_fs import RetentionFsError, open_relative_directory
+from scripts.factory_retention_fs import RetentionFsError
 
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 
@@ -18,8 +20,11 @@ type FileIdentity = tuple[int, int, int, int, int]
 
 def validate_existing_entry(root: Path, name: str) -> FileIdentity:
     try:
-        with open_relative_directory(root, LEDGER_DIRECTORY, create=False) as ledger_fd:
-            validate_private_directory(ledger_fd)
+        with open_private_relative_directory(
+            root,
+            LEDGER_DIRECTORY,
+            create=False,
+        ) as ledger_fd:
             identity = validate_regular(ledger_fd, name)
             reject_unsafe_sidecars(ledger_fd)
             return identity
@@ -34,6 +39,57 @@ def validated_root(repo_root: Path) -> Path:
     if not root.is_dir() or root.is_symlink():
         raise FactoryBudgetLedgerError("path", "repository root must be a real directory")
     return root
+
+
+@contextmanager
+def open_private_relative_directory(
+    repo_root: Path,
+    parts: tuple[str, ...],
+    *,
+    create: bool,
+) -> Generator[int, None, None]:
+    flags = os.O_RDONLY | _directory_flag() | nofollow_flag()
+    descriptors: list[int] = []
+    try:
+        current = os.open(repo_root, flags)
+        descriptors.append(current)
+        validate_repository_root(current)
+        for part in parts:
+            if not part or part in {".", ".."} or Path(part).name != part:
+                raise RetentionFsError("ledger directory path is invalid")
+            if create:
+                with suppress(FileExistsError):
+                    os.mkdir(part, mode=0o700, dir_fd=current)
+            child = os.open(part, flags, dir_fd=current)
+            descriptors.append(child)
+            validate_private_directory(child)
+            current = child
+    except OSError as exc:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+        raise RetentionFsError("could not open private ledger directory") from exc
+    except BaseException:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+        raise
+    try:
+        yield current
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def validate_repository_root(directory_fd: int) -> None:
+    metadata = os.fstat(directory_fd)
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise FactoryBudgetLedgerError(
+            "path",
+            "repository root must be owner-controlled",
+        )
 
 
 def open_lock(directory_fd: int, name: str) -> int:
@@ -64,12 +120,7 @@ def validate_regular(directory_fd: int, name: str) -> FileIdentity:
 
 
 def validated_file_identity(metadata: os.stat_result) -> FileIdentity:
-    if not stat.S_ISREG(metadata.st_mode) or (
-        stat.S_IMODE(metadata.st_mode) != 0o600
-        or metadata.st_uid != os.geteuid()
-        or metadata.st_nlink != 1
-        or metadata.st_size > MAX_LEDGER_BYTES
-    ):
+    if not _regular_metadata_safe(metadata, expected_links=1):
         raise FactoryBudgetLedgerError("path", "ledger database is unsafe or too large")
     return (
         metadata.st_dev,
@@ -106,8 +157,43 @@ def reject_unsafe_sidecars(directory_fd: int) -> None:
 
 def validate_private_directory(directory_fd: int) -> None:
     metadata = os.fstat(directory_fd)
-    if not stat.S_ISDIR(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o700:
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+        or metadata.st_uid != os.geteuid()
+    ):
         raise FactoryBudgetLedgerError("path", "ledger state directory is unsafe")
+
+
+def recover_published_initialization(directory_fd: int) -> None:
+    if not entry_exists(directory_fd, LEDGER_NAME) or not entry_exists(
+        directory_fd,
+        INITIALIZING_NAME,
+    ):
+        return
+    ledger_metadata = os.stat(
+        LEDGER_NAME,
+        dir_fd=directory_fd,
+        follow_symlinks=False,
+    )
+    initializing_metadata = os.stat(
+        INITIALIZING_NAME,
+        dir_fd=directory_fd,
+        follow_symlinks=False,
+    )
+    same_inode = (
+        ledger_metadata.st_dev == initializing_metadata.st_dev
+        and ledger_metadata.st_ino == initializing_metadata.st_ino
+    )
+    if not same_inode:
+        return
+    if not _regular_metadata_safe(
+        ledger_metadata,
+        expected_links=2,
+    ) or not _regular_metadata_safe(initializing_metadata, expected_links=2):
+        raise FactoryBudgetLedgerError("path", "published ledger recovery is unsafe")
+    os.unlink(INITIALIZING_NAME, dir_fd=directory_fd)
+    os.fsync(directory_fd)
 
 
 def discard_initializing_file(directory_fd: int) -> None:
@@ -141,3 +227,21 @@ def fsync_regular(directory_fd: int, name: str) -> None:
 
 def nofollow_flag() -> int:
     return getattr(os, "O_NOFOLLOW", 0)
+
+
+def _directory_flag() -> int:
+    return getattr(os, "O_DIRECTORY", 0)
+
+
+def _regular_metadata_safe(
+    metadata: os.stat_result,
+    *,
+    expected_links: int,
+) -> bool:
+    return (
+        stat.S_ISREG(metadata.st_mode)
+        and stat.S_IMODE(metadata.st_mode) == 0o600
+        and metadata.st_uid == os.geteuid()
+        and metadata.st_nlink == expected_links
+        and metadata.st_size <= MAX_LEDGER_BYTES
+    )

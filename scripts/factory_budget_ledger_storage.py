@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import quote
 
-from scripts.factory_retention_fs import RetentionFsError, open_relative_directory
+from scripts.factory_retention_fs import RetentionFsError
 
 from .factory_budget_ledger_fs import (
     INITIALIZING_NAME,
@@ -23,10 +23,11 @@ from .factory_budget_ledger_fs import (
     fsync_regular,
     nofollow_flag,
     open_lock,
+    open_private_relative_directory,
     path_file_identity,
+    recover_published_initialization,
     reject_unsafe_sidecars,
     validate_existing_entry,
-    validate_private_directory,
     validate_regular,
     validated_root,
 )
@@ -39,12 +40,19 @@ BUSY_TIMEOUT_MILLISECONDS = 5_000
 def prepare_ledger(repo_root: Path) -> Path:
     root = validated_root(repo_root)
     try:
-        with open_relative_directory(root, (".entroping",), create=True) as state_fd:
+        with open_private_relative_directory(
+            root,
+            (".entroping",),
+            create=True,
+        ) as state_fd:
             retention_fd = open_lock(state_fd, "retention.lock")
             try:
                 fcntl.flock(retention_fd, fcntl.LOCK_SH)
-                with open_relative_directory(root, LEDGER_DIRECTORY, create=True) as ledger_fd:
-                    validate_private_directory(ledger_fd)
+                with open_private_relative_directory(
+                    root,
+                    LEDGER_DIRECTORY,
+                    create=True,
+                ) as ledger_fd:
                     init_lock_fd = open_lock(ledger_fd, LOCK_NAME)
                     try:
                         fcntl.flock(init_lock_fd, fcntl.LOCK_EX)
@@ -97,6 +105,7 @@ def readonly_connection(repo_root: Path) -> Generator[sqlite3.Connection, None, 
 def _prepare_locked(root: Path, ledger_fd: int) -> None:
     reject_unsafe_sidecars(ledger_fd)
     if entry_exists(ledger_fd, LEDGER_NAME):
+        recover_published_initialization(ledger_fd)
         identity = validate_regular(ledger_fd, LEDGER_NAME)
         db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
         connection = _connect(db_path, readonly=False, expected_identity=identity)
@@ -208,7 +217,11 @@ def _connect(
 @contextmanager
 def _retention_guard(repo_root: Path) -> Generator[None, None, None]:
     try:
-        with open_relative_directory(repo_root, (".entroping",), create=False) as state_fd:
+        with open_private_relative_directory(
+            repo_root,
+            (".entroping",),
+            create=False,
+        ) as state_fd:
             descriptor = open_lock(state_fd, "retention.lock")
             try:
                 fcntl.flock(descriptor, fcntl.LOCK_SH)

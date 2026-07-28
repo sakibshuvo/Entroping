@@ -38,32 +38,37 @@ return the original receipt, while conflicting reuse is rejected.
 Period initialization and entry recording use `BEGIN IMMEDIATE`, so the
 idempotency lookup, refund and reference checks, period and cap decision,
 immutable insert, and cached-balance update share one serialized transaction.
-One-time schema bootstrap uses `BEGIN EXCLUSIVE`. SQLite uses `journal_mode=DELETE`,
-`synchronous=EXTRA`, foreign-key enforcement, strict tables, bounded waits, and
-immutable-entry triggers. This permits genuinely read-only reporting without
-creating WAL sidecars.
+One-time schema bootstrap uses `BEGIN EXCLUSIVE`. SQLite uses
+`journal_mode=DELETE`, `synchronous=EXTRA`, foreign-key enforcement, strict
+tables, bounded waits, and immutable-entry triggers. This permits genuinely
+read-only reporting without creating WAL sidecars.
 
 Initialization constructs and validates a private same-directory database,
 syncs it, publishes it atomically by hard link, removes the temporary name, and
-syncs the directory. Interrupted initialization is discarded on retry and
-never becomes authority.
+syncs the directory. Unpublished interrupted state is discarded on retry; a
+validated inode that was published before interruption has its reserved
+temporary hard link removed safely on retry.
 
 ## Safety Boundary
 
-Descriptor-based path checks reject symlinks, special files, unsafe sidecars,
-oversized state, and unsafe repository roots. Existing opens use non-creating
-SQLite URI modes and compare owner, mode, link count, device, and inode before
-and immediately after connection. Exact schema and integrity checks reject
-malformed, partial, future, or drifted databases without automatic migration.
+Descriptor-based path checks require an owner-controlled repository root and
+owner-only private state directories, and reject symlinks, special files,
+unsafe sidecars, and oversized state. Existing opens use non-creating SQLite
+URI modes and compare owner, mode, link count, device, and inode before and
+immediately after connection. A published two-link initialization inode is
+completed safely on retry after a crash. Exact schema and integrity checks
+reject malformed, partial, future, or drifted databases without automatic
+migration.
 Signed 64-bit arithmetic, a 512 MiB file cap, a 100,000-entry global cap, a
 600-period global cap, and streaming timestamp validation bound resource use.
 The ledger shares the retention lock and exposes only sanitized, read-only CLI
 summaries.
 
-The private state directory and cooperative locks are the local trust boundary.
-Python's standard SQLite wrapper cannot bind a connection to a descriptor-opened
-inode, so a noncooperating process running as the same effective user could race
-an ordinary-file replacement. Defending against same-UID host compromise would
+The owner-controlled repository root, private state directories, and
+cooperative locks are the local trust boundary. Python's standard SQLite
+wrapper cannot bind a connection to a descriptor-opened inode, so a
+noncooperating process running as the same effective user could race an
+ordinary-file replacement. Defending against same-UID host compromise would
 require OS isolation or a custom/native SQLite VFS and is outside this local
 maintainer-only component.
 

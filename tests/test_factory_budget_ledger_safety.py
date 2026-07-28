@@ -60,9 +60,36 @@ def test_open_rejects_symlinked_state_directory_without_writing_outside(
     assert tuple(outside.iterdir()) == ()
 
 
+def test_open_rejects_group_writable_repository_root(tmp_path: Path) -> None:
+    os.chmod(tmp_path, 0o770)
+
+    with pytest.raises(FactoryBudgetLedgerError, match="root must be owner-controlled"):
+        FactoryBudgetLedger.open_project(tmp_path)
+
+
+def test_open_rejects_repository_root_owned_by_another_user(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(os, "geteuid", lambda: os.getuid() + 1)
+
+    with pytest.raises(FactoryBudgetLedgerError, match="root must be owner-controlled"):
+        FactoryBudgetLedger.open_project(tmp_path)
+
+
+def test_open_rejects_group_writable_state_directory(tmp_path: Path) -> None:
+    ledger = FactoryBudgetLedger.open_project(tmp_path)
+    state = ledger.db_path.parents[1]
+    os.chmod(state, 0o770)
+
+    with pytest.raises(FactoryBudgetLedgerError, match="state directory is unsafe"):
+        FactoryBudgetLedger.open_project(tmp_path)
+
+
 def test_open_rejects_symlinked_database_leaf(tmp_path: Path) -> None:
     state = tmp_path / ".entroping" / "factory-budget"
     state.mkdir(parents=True)
+    os.chmod(state.parent, 0o700)
     os.chmod(state, 0o700)
     outside = tmp_path / "outside.sqlite3"
     outside.write_bytes(b"do-not-touch")
@@ -244,6 +271,32 @@ def test_interrupted_initialization_leaves_no_partial_authoritative_database(
 
     ledger = FactoryBudgetLedger.open_project(tmp_path)
     assert ledger.db_path == db_path
+
+
+def test_recovery_completes_published_initialization_hard_link(tmp_path: Path) -> None:
+    ledger = FactoryBudgetLedger.open_project(tmp_path)
+    initializing = ledger.db_path.parent / ".ledger.sqlite3.init"
+    os.link(ledger.db_path, initializing)
+    assert ledger.db_path.stat().st_nlink == 2
+
+    reopened = FactoryBudgetLedger.open_project(tmp_path)
+
+    assert reopened.db_path == ledger.db_path
+    assert reopened.db_path.stat().st_nlink == 1
+    assert not initializing.exists()
+
+
+def test_recovery_rejects_published_inode_with_an_extra_hard_link(tmp_path: Path) -> None:
+    ledger = FactoryBudgetLedger.open_project(tmp_path)
+    initializing = ledger.db_path.parent / ".ledger.sqlite3.init"
+    alias = ledger.db_path.parent / "ledger.alias"
+    os.link(ledger.db_path, initializing)
+    os.link(ledger.db_path, alias)
+
+    with pytest.raises(FactoryBudgetLedgerError, match="published ledger recovery is unsafe"):
+        FactoryBudgetLedger.open_project(tmp_path)
+
+    assert (ledger.db_path.stat().st_nlink, initializing.exists()) == (3, True)
 
 
 def test_readonly_summary_preserves_database_mtime_and_permissions(tmp_path: Path) -> None:

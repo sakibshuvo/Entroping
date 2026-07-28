@@ -114,14 +114,18 @@ WAL sidecars. Initialization builds and validates a private temporary database,
 syncs it, links it into place atomically, and syncs the containing directory.
 Incomplete initialization state is never authoritative.
 
-The ledger shares the factory retention lock, rejects symlinked or special
-state, unsafe sidecars, persistent leaf replacement during open, files above
-512 MiB, malformed databases, schema drift, future or partial schemas, more
-than 100,000 total entries, more than 600 periods, and periods above 100,000
-entries. Integrity timestamp reads stream in bounded batches. It preserves
-rejected or corrupt state for operator inspection instead of migrating or
-rewriting it automatically. Entry values and cached balances remain inside
-signed 64-bit bounds.
+The ledger requires a repository root owned by the effective user and not
+writable by group or other accounts. It shares the factory retention lock and
+rejects symlinked, non-owner, group/other-writable, or special state, unsafe
+sidecars, persistent leaf replacement during open, files above 512 MiB,
+malformed databases, schema drift, future or partial schemas, more than 100,000
+total entries, more than 600 periods, and periods above 100,000 entries. A
+retry completes the narrow crash window where the validated database inode was
+published but its reserved initialization hard link was not yet removed.
+Integrity timestamp reads stream in bounded batches. Rejected or corrupt state
+is preserved for operator inspection instead of migrated or rewritten
+automatically. Entry values and cached balances remain inside signed 64-bit
+bounds.
 
 Ledger files and locks must remain owned by the effective user at mode 0600 in
 the private mode-0700 ledger directory. The retention and ledger locks

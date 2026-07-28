@@ -105,6 +105,7 @@ def test_initialize_period_rejects_conflicting_idempotent_payload(tmp_path: Path
 def test_open_rejects_corrupt_state_without_replacing_it(tmp_path: Path) -> None:
     state = tmp_path / ".entroping" / "factory-budget"
     state.mkdir(parents=True)
+    os.chmod(state.parent, 0o700)
     os.chmod(state, 0o700)
     db_path = state / "ledger.sqlite3"
     original = b"not a sqlite database\n"

@@ -2299,19 +2299,22 @@ connections without creating WAL state. Initialization publishes a fully
 validated temporary database by same-directory hard link and directory sync;
 partial initialization is discarded before retry.
 
-Descriptor-based path validation, no-follow state directories, stable
-pre/post-open file identity checks, non-creating URI opens, shared retention
-locking, 0600 owner-only files, 0700 directories, strict tables, foreign keys,
-immutable-entry and immutable-period-authority triggers, exact schema
-validation, integrity checks, signed 64-bit arithmetic, a 512 MiB database
-ceiling, a 100,000-entry global ceiling, a 600-period global ceiling, and a
-100,000-entry period ceiling bound the storage surface. Timestamp validation
-streams in fixed batches. Malformed, partial, future, or drifted schemas are
-rejected and preserved for inspection. The local trust boundary excludes
-noncooperating same-UID mutation; exact descriptor-to-SQLite binding would
-require OS isolation or a custom/native VFS. CLI access is read-only and
-value-bounded. Provider reservation, settlement, quota observation, scheduler
-authorization, and provider calls stay outside this component.
+Descriptor-based path validation, an owner-controlled non-group/other-writable
+repository root, no-follow owner-only state directories, stable pre/post-open
+file identity checks, non-creating URI opens, shared retention locking, 0600
+owner-only files, 0700 directories, strict tables, foreign keys, immutable-entry
+and immutable-period-authority triggers, exact schema validation, integrity
+checks, signed 64-bit arithmetic, a 512 MiB database ceiling, a 100,000-entry
+global ceiling, a 600-period global ceiling, and a 100,000-entry period ceiling
+bound the storage surface. Retry safely removes the reserved initialization
+name when a crash leaves it hard-linked to the published validated inode.
+Timestamp validation streams in fixed batches. Malformed, partial, future, or
+drifted schemas are rejected and preserved for inspection. The local trust
+boundary excludes noncooperating same-UID mutation; exact
+descriptor-to-SQLite binding would require OS isolation or a custom/native VFS.
+CLI access is read-only and value-bounded. Provider reservation, settlement,
+quota observation, scheduler authorization, and provider calls stay outside
+this component.
 
 ## 18. Testing Strategy
 
