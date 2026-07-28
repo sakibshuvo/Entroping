@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import sys
 from functools import cache
 
 from .factory_budget_ledger_integrity import validate_ledger_integrity
@@ -122,7 +123,14 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         committed = True
     finally:
         if not committed and connection.in_transaction:
-            _ = connection.execute("ROLLBACK")
+            initiating_error = sys.exception()
+            try:
+                _ = connection.execute("ROLLBACK")
+            finally:
+                if initiating_error is not None:
+                    raise initiating_error.with_traceback(
+                        initiating_error.__traceback__
+                    ) from None
 
 
 def validate_schema(connection: sqlite3.Connection) -> None:

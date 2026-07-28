@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import sys
+import traceback
 from pathlib import Path
 from typing import override
 
@@ -68,3 +69,36 @@ def test_schema_cleanup_preserves_original_error_after_transaction_ends(
         pytest.raises(sqlite3.OperationalError, match='near "NOT"'),
     ):
         ledger_schema.initialize_schema(connection)
+
+
+def test_schema_cleanup_preserves_original_error_when_rollback_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def deny_rollback(
+        action_code: int,
+        argument_one: str | None,
+        _argument_two: str | None,
+        _database_name: str | None,
+        _trigger_name: str | None,
+    ) -> int:
+        if action_code == sqlite3.SQLITE_TRANSACTION and argument_one == "ROLLBACK":
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
+    monkeypatch.setattr(
+        ledger_schema,
+        "SCHEMA_STATEMENTS",
+        ("CREATE TABLE partial_state (id INTEGER PRIMARY KEY) STRICT", "NOT VALID SQL"),
+    )
+
+    with sqlite3.connect(":memory:", autocommit=True) as connection:
+        connection.set_authorizer(deny_rollback)
+        with pytest.raises(
+            sqlite3.OperationalError,
+            match='near "NOT"',
+        ) as captured:
+            ledger_schema.initialize_schema(connection)
+        assert connection.in_transaction
+        assert "not authorized" not in "".join(
+            traceback.format_exception(captured.value)
+        )
