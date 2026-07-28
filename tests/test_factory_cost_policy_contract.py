@@ -204,6 +204,43 @@ def test_policy_rejects_duplicate_quota_references(tmp_path: Path) -> None:
     assert "duplicate quota reference" in result.stderr
 
 
+def test_metered_lane_accepts_canonical_provider_model_identifier(
+    tmp_path: Path,
+) -> None:
+    policy = _example()
+    policy["price_snapshots"][0]["provider_id"] = "openai"
+    policy["price_snapshots"][0]["model_id"] = "openai/gpt-4.1-mini"
+    policy["automation_lanes"][1]["provider_id"] = "openai"
+    policy["automation_lanes"][1]["model_id"] = "openai/gpt-4.1-mini"
+
+    result = _run_policy(tmp_path, policy)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_metered_lane_rejects_price_for_a_different_model(tmp_path: Path) -> None:
+    policy = _example()
+    policy["price_snapshots"][0]["provider_id"] = "openai"
+    policy["price_snapshots"][0]["model_id"] = "openai/gpt-4.1"
+    policy["automation_lanes"][1]["provider_id"] = "openai"
+    policy["automation_lanes"][1]["model_id"] = "openai/gpt-4.1-mini"
+
+    result = _run_policy(tmp_path, policy)
+
+    assert result.returncode == 2
+    assert "price model does not match" in result.stderr
+
+
+def test_metered_lane_rejects_model_with_a_different_provider(tmp_path: Path) -> None:
+    policy = _example()
+    policy["automation_lanes"][1]["model_id"] = "openai/gpt-4.1-mini"
+
+    result = _run_policy(tmp_path, policy)
+
+    assert result.returncode == 2
+    assert "model provider does not match" in result.stderr
+
+
 def test_invalid_as_of_does_not_echo_attacker_input(tmp_path: Path) -> None:
     policy_path = tmp_path / "factory-cost-policy.json"
     policy_path.write_text(EXAMPLE_POLICY.read_text(encoding="utf-8"), encoding="utf-8")

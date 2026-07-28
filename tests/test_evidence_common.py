@@ -3,6 +3,8 @@
 import errno
 import os
 import stat as stat_module
+import subprocess
+import sys
 from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
@@ -176,6 +178,39 @@ def test_read_local_evidence_artifact_bytes_uses_best_effort_fallback(
 
     assert raw_bytes == b"{}"
     assert error == ""
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "O_NONBLOCK"),
+    reason="nonblocking filesystem flags are unavailable",
+)
+def test_best_effort_reader_rejects_fifo_without_blocking(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "source.fifo"
+    os.mkfifo(path)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from pathlib import Path; "
+                "from entroping.core.evidence_common import "
+                "read_local_evidence_artifact_bytes_best_effort; "
+                "print(read_local_evidence_artifact_bytes_best_effort(Path(__import__('sys').argv[1])))"
+            ),
+            str(path),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "not a file" in result.stdout
 
 
 def test_read_local_evidence_artifact_bytes_best_effort_rejects_stat_mismatch(

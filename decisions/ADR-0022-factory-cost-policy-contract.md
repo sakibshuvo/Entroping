@@ -35,6 +35,9 @@ Version 1 is deliberately narrow:
   from cash accounting and cannot create additional spend authority.
 - Automated top-up is disabled. Unknown pricing denies paid dispatch; unknown
   quota denies the affected paid lane.
+- Every metered lane binds to one concrete `provider/model` identifier, and all
+  referenced price snapshots must match both that model and the lane provider;
+  a lane cannot reference competing snapshots for the same price unit.
 - Policy and price checks use an injected offset-aware time and half-open
   validity windows. Validation never reads the wall clock implicitly.
 
@@ -47,8 +50,9 @@ loading, balance scraping, spending, reservations, settlement, or dispatch.
 
 The future cash ledger, reservations, scheduler, and provider observation
 adapters may consume this contract only after their own issue-scoped security
-and concurrency gates pass. Provider identifiers remain opaque; provider
-business logic stays outside the policy model.
+and concurrency gates pass. Provider identifiers remain opaque, concrete model
+identifiers preserve the factory's `provider/model` form, and provider business
+logic stays outside the policy model.
 
 ## Consequences
 

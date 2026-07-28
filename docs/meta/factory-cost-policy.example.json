@@ -36,7 +36,7 @@
     {
       "id": "example-input-price",
       "provider_id": "example-metered-provider",
-      "model_id": "example-model",
+      "model_id": "example-metered-provider/example-model",
       "unit": "input_token",
       "quantity": 1000000,
       "price_microcents": 10000000,
@@ -94,6 +94,7 @@
     {
       "id": "metered-example-lane",
       "provider_id": "example-metered-provider",
+      "model_id": "example-metered-provider/example-model",
       "billing_mode": "metered",
       "enabled": false,
       "price_snapshot_ids": [

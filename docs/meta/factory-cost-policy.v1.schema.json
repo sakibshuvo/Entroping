@@ -319,6 +319,9 @@
         "id": {
           "$ref": "#/$defs/Identifier"
         },
+        "model_id": {
+          "$ref": "#/$defs/ModelIdentifier"
+        },
         "price_snapshot_ids": {
           "items": {
             "$ref": "#/$defs/Identifier"
@@ -344,6 +347,7 @@
       "required": [
         "id",
         "provider_id",
+        "model_id",
         "billing_mode",
         "enabled",
         "price_snapshot_ids"
@@ -355,6 +359,11 @@
       "maximum": 9223372036854775807,
       "minimum": 0,
       "type": "integer"
+    },
+    "ModelIdentifier": {
+      "maxLength": 160,
+      "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+      "type": "string"
     },
     "PositiveCount": {
       "exclusiveMinimum": 0,
@@ -378,7 +387,7 @@
           "$ref": "#/$defs/Identifier"
         },
         "model_id": {
-          "$ref": "#/$defs/Identifier"
+          "$ref": "#/$defs/ModelIdentifier"
         },
         "observed_at": {
           "format": "date-time",

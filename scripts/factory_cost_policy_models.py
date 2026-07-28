@@ -109,11 +109,13 @@ class FactoryCostPolicy(StrictPolicyModel):
                     _require_quota_references(provider_id, quota_ids, quotas)
                 case MeteredLane(
                     provider_id=provider_id,
+                    model_id=model_id,
                     price_snapshot_ids=price_snapshot_ids,
                     quota_ids=quota_ids,
                 ):
                     _require_unique_references("price snapshot", price_snapshot_ids)
                     _require_unique_references("quota", quota_ids)
+                    price_units: set[str] = set()
                     for snapshot_id in price_snapshot_ids:
                         snapshot = prices.get(snapshot_id)
                         if snapshot is None:
@@ -126,6 +128,17 @@ class FactoryCostPolicy(StrictPolicyModel):
                                 "price_provider",
                                 "price provider does not match its automation lane",
                             )
+                        if snapshot.model_id != model_id:
+                            raise PydanticCustomError(
+                                "price_model",
+                                "price model does not match its automation lane",
+                            )
+                        if snapshot.unit in price_units:
+                            raise PydanticCustomError(
+                                "ambiguous_price_unit",
+                                "metered lane contains an ambiguous price snapshot unit",
+                            )
+                        price_units.add(snapshot.unit)
                     _require_quota_references(provider_id, quota_ids, quotas)
         return self
 

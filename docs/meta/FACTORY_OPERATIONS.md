@@ -69,7 +69,9 @@ Version 1 has these fixed semantics:
 - Automatic top-up is always `disabled`. Unknown cost blocks paid dispatch;
   unknown quota blocks only the affected paid lane. Safe offline work remains
   outside this policy surface.
-- An enabled metered lane needs a matching, observed, unexpired price snapshot.
+- An enabled metered lane names one concrete `provider/model`; every referenced
+  price snapshot must match both that model and the lane provider and must be
+  observed, unexpired, and unique for its price unit.
   Policy and price validity windows are half-open: start is inclusive and
   expiry is exclusive.
 

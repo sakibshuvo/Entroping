@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Never
+from typing import Never, cast
 
 from entroping.core.evidence_common import read_local_evidence_artifact_bytes
 
@@ -37,23 +37,51 @@ def read_policy_document(path: Path) -> str:
             code="policy_secret",
             detail=f"policy contains secret-like content ({secret_reason})",
         )
-    _verify_unambiguous_json(document)
+    parsed_document = _verify_unambiguous_json(document)
+    _reject_secret_like_json(parsed_document)
     return document
 
 
-def _verify_unambiguous_json(document: str) -> None:
+def _verify_unambiguous_json(document: str) -> JsonValue:
     try:
-        json.loads(
-            document,
-            object_pairs_hook=_reject_duplicate_pairs,
-            parse_constant=_reject_non_finite,
-            parse_int=_parse_bounded_int,
+        return cast(
+            JsonValue,
+            json.loads(
+                document,
+                object_pairs_hook=_reject_duplicate_pairs,
+                parse_constant=_reject_non_finite,
+                parse_int=_parse_bounded_int,
+            ),
         )
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, RecursionError) as exc:
+        detail = exc.msg if isinstance(exc, json.JSONDecodeError) else "nesting is too deep"
         raise FactoryCostPolicyError(
             code="policy_json",
-            detail=f"invalid JSON: {exc.msg}",
+            detail=f"invalid JSON: {detail}",
         ) from None
+
+
+def _reject_secret_like_json(document: JsonValue) -> None:
+    pending: list[JsonValue] = [document]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, str):
+            _reject_secret_like_text(value)
+        elif isinstance(value, list):
+            pending.extend(value)
+        elif isinstance(value, dict):
+            for key, nested_value in value.items():
+                _reject_secret_like_text(key)
+                pending.append(nested_value)
+
+
+def _reject_secret_like_text(value: str) -> None:
+    secret_reason = secret_like_content_reason(value)
+    if secret_reason is not None:
+        raise FactoryCostPolicyError(
+            code="policy_secret",
+            detail=f"policy contains secret-like content ({secret_reason})",
+        )
 
 
 def _reject_duplicate_pairs(

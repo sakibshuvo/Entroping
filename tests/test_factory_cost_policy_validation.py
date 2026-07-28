@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -128,6 +130,48 @@ def test_factory_cost_policy_rejects_secret_shaped_values_without_echoing_them(
     assert secret_value not in result.stderr
 
 
+def test_factory_cost_policy_rejects_unicode_escaped_secret_content(
+    tmp_path: Path,
+) -> None:
+    escaped_secret = r"sk\u002dexample\u002dsecret\u002dvalue"
+    document = EXAMPLE_POLICY.read_text(encoding="utf-8").replace(
+        "example-budget-policy",
+        escaped_secret,
+    )
+
+    result = _run_policy(tmp_path, document, "2026-07-15T00:00:00Z")
+
+    assert result.returncode == 2
+    assert "secret-like content" in result.stderr
+    assert "sk-example-secret-value" not in result.stderr
+
+
+def test_factory_cost_policy_rejects_fifo_without_blocking(tmp_path: Path) -> None:
+    policy_path = tmp_path / "factory-cost-policy.json"
+    os.mkfifo(policy_path)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "scripts.factory_cost_policy",
+            "validate",
+            "--policy",
+            str(policy_path),
+            "--as-of",
+            "2026-07-15T00:00:00Z",
+        ],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+
+    assert result.returncode == 2
+    assert "not a file" in result.stderr
+
+
 def test_factory_cost_policy_rejects_unresolved_price_references(tmp_path: Path) -> None:
     document = EXAMPLE_POLICY.read_text(encoding="utf-8").replace(
         '"price_snapshot_ids": [\n        "example-input-price"',
@@ -138,3 +182,43 @@ def test_factory_cost_policy_rejects_unresolved_price_references(tmp_path: Path)
 
     assert result.returncode == 2
     assert "unknown price snapshot" in result.stderr
+
+
+def test_factory_cost_policy_rejects_ambiguous_price_snapshots(tmp_path: Path) -> None:
+    document = EXAMPLE_POLICY.read_text(encoding="utf-8")
+    policy = json.loads(document)
+    conflicting_snapshot = dict(policy["price_snapshots"][0])
+    conflicting_snapshot["id"] = "conflicting-input-price"
+    conflicting_snapshot["price_microcents"] = 20_000_000
+    policy["price_snapshots"].append(conflicting_snapshot)
+    policy["automation_lanes"][1]["price_snapshot_ids"].append(
+        "conflicting-input-price",
+    )
+
+    result = _run_policy(tmp_path, json.dumps(policy), "2026-07-15T00:00:00Z")
+
+    assert result.returncode == 2
+    assert "ambiguous price snapshot unit" in result.stderr
+
+
+def test_factory_cost_policy_does_not_echo_invalid_discriminator_values(
+    tmp_path: Path,
+) -> None:
+    attacker_value = "untrusted-visible-value"
+    substitutions = (
+        ('"billing_mode": "included_quota"', f'"billing_mode": "{attacker_value}"'),
+        ('"kind": "annual"', f'"kind": "{attacker_value}"'),
+        ('"kind": "rolling"', f'"kind": "{attacker_value}"'),
+    )
+
+    for source, replacement in substitutions:
+        document = EXAMPLE_POLICY.read_text(encoding="utf-8").replace(
+            source,
+            replacement,
+            1,
+        )
+        result = _run_policy(tmp_path, document, "2026-07-15T00:00:00Z")
+
+        assert result.returncode == 2
+        assert "unsupported tagged policy variant" in result.stderr
+        assert attacker_value not in result.stderr

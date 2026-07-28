@@ -17,6 +17,13 @@ type Identifier = Annotated[
     str,
     StringConstraints(pattern=r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", max_length=96),
 ]
+type ModelIdentifier = Annotated[
+    str,
+    StringConstraints(
+        pattern=r"^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+        max_length=160,
+    ),
+]
 type Microcents = Annotated[int, Field(ge=0, le=9_223_372_036_854_775_807)]
 type PositiveMicrocents = Annotated[
     int,
@@ -96,7 +103,7 @@ class SubscriptionPolicy(StrictPolicyModel):
 class PriceSnapshot(StrictPolicyModel):
     id: Identifier
     provider_id: Identifier
-    model_id: Identifier
+    model_id: ModelIdentifier
     unit: PriceUnit
     quantity: PositiveCount
     price_microcents: PositiveMicrocents
@@ -105,6 +112,11 @@ class PriceSnapshot(StrictPolicyModel):
 
     @model_validator(mode="after")
     def validate_observation_window(self) -> Self:
+        if self.model_id.partition("/")[0] != self.provider_id:
+            raise PydanticCustomError(
+                "price_model_provider",
+                "price model provider does not match its provider id",
+            )
         if self.observed_at >= self.expires_at:
             raise PydanticCustomError(
                 "price_window",
@@ -166,6 +178,7 @@ class FixedSubscriptionLane(StrictPolicyModel):
 class MeteredLane(StrictPolicyModel):
     id: Identifier
     provider_id: Identifier
+    model_id: ModelIdentifier
     billing_mode: Literal["metered"]
     enabled: bool
     price_snapshot_ids: Annotated[
@@ -173,6 +186,15 @@ class MeteredLane(StrictPolicyModel):
         Field(min_length=1, max_length=64),
     ]
     quota_ids: Annotated[tuple[Identifier, ...], Field(max_length=64)] = ()
+
+    @model_validator(mode="after")
+    def validate_model_provider(self) -> Self:
+        if self.model_id.partition("/")[0] != self.provider_id:
+            raise PydanticCustomError(
+                "lane_model_provider",
+                "metered-lane model provider does not match its provider id",
+            )
+        return self
 
 
 type AutomationLane = Annotated[
