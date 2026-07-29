@@ -39,7 +39,23 @@ def run_worker(
 
 def write_fake_opencode(path: Path, *, body: str) -> Path:
     binary = path / "opencode"
-    binary.write_text(body, encoding="utf-8")
+    _shebang, separator, script_body = body.partition("\n")
+    assert separator
+    binary.write_text(
+        "#!/bin/bash\n"
+        "if [[ \"${1:-}\" == '--version' ]]; then printf '1.18.4\\n'; exit 0; fi\n"
+        "if [[ \"${1:-} ${2:-}\" == 'run --help' ]]; then\n"
+        "  printf '%s\\n' '--pure --agent --dir --format json --model --file "
+        "--auto --attach --continue --session --share --interactive dangerous'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-} ${2:-} ${3:-}\" == '--pure debug config' ]]; then\n"
+        "  printf '%s\\n' \"$OPENCODE_CONFIG_CONTENT\"\n"
+        "  exit 0\n"
+        "fi\n"
+        + script_body,
+        encoding="utf-8",
+    )
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
     return binary
 
@@ -129,6 +145,97 @@ def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
     ]
 
 
+def _assert_worker_environment_isolated(
+    *,
+    environment_keys: set[str],
+    observed_text: str,
+    repo: Path,
+    sentinel: Path,
+) -> None:
+    forbidden = {
+        "BASH_ENV",
+        "HTTPS_PROXY",
+        "NODE_EXTRA_CA_CERTS",
+        "NODE_OPTIONS",
+        "OPENCODE_CONFIG",
+        "OPENCODE_ENABLE_EXA",
+        "SSL_CERT_DIR",
+        "SSL_CERT_FILE",
+        "UNRELATED_SECRET",
+    }
+
+    assert not sentinel.exists()
+    assert f"cwd={repo}" not in observed_text
+    assert forbidden.isdisjoint(environment_keys)
+    assert "DEEPSEEK_API_KEY" in environment_keys
+
+
+def _assert_worker_command_is_bounded(
+    *, command: list[str], observed_text: str
+) -> None:
+    forbidden = {
+        "--auto",
+        "--attach",
+        "--continue",
+        "--session",
+        "--share",
+        "--interactive",
+    }
+
+    assert {"--pure", "--agent", "--dir"}.issubset(command)
+    assert forbidden.isdisjoint(command)
+    assert "--format json" in observed_text
+    assert "OpenCode may use OpenCode-configured agents" not in observed_text
+    assert "This unattended worker cannot use host agents" in observed_text
+    assert "No model-issued tools are enabled" in observed_text
+
+
+def _assert_value_free_artifacts(
+    *,
+    artifact_dir: Path,
+    command: list[str],
+    metadata: dict[str, object],
+    raw_instruction: str,
+) -> None:
+    assert raw_instruction not in json.dumps(metadata)
+    assert not (artifact_dir / "prompt.md").exists()
+    assert command[-1] == "<prompt-redacted>"
+
+
+def _assert_capability_receipt(
+    *,
+    receipt: dict[str, object],
+    receipt_text: str,
+    poison_value: str,
+    provider_secret: str,
+    raw_instruction: str,
+    hostile_home: Path,
+) -> None:
+    assert receipt["schema_version"] == (
+        "entroping.opencode-unattended-capability-receipt.v1"
+    )
+    assert receipt["profile_id"] == "entroping.opencode-unattended-review.v1"
+    assert receipt["allowed_capabilities"] == ["explicit_file_attachment"]
+    assert {"glob", "grep", "read"}.issubset(
+        set(cast(list[str], receipt["denied_capabilities"]))
+    )
+    assert receipt["pure_mode"] is True
+    assert receipt["raw_values_recorded"] is False
+    assert all(
+        forbidden not in receipt_text
+        for forbidden in (
+            poison_value,
+            provider_secret,
+            raw_instruction,
+            str(hostile_home),
+            "tool_args",
+        )
+    )
+    assert "DEEPSEEK_API_KEY" in cast(
+        list[str], receipt["sanitized_environment_keys"]
+    )
+
+
 def test_opencode_worker_help_documents_review_and_patch_modes() -> None:
     result = run_worker("--help")
 
@@ -140,6 +247,157 @@ def test_opencode_worker_help_documents_review_and_patch_modes() -> None:
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
     assert "--job-id" in result.stdout
+
+
+def test_opencode_worker_scrubs_poison_and_records_value_free_capability_receipt(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    selected_file = repo / "notes.md"
+    selected_file.write_text("vetted snapshot content\n", encoding="utf-8")
+    hostile_home = tmp_path / "hostile-home"
+    hostile_config = hostile_home / ".config" / "opencode" / "opencode.json"
+    hostile_config.parent.mkdir(parents=True)
+    poison_value = "poison-value-must-not-pass"
+    provider_secret = "sk-deepseek-test-secret-must-not-persist"
+    hostile_config.write_text(
+        json.dumps({"plugin": [poison_value], "mcp": {"poison": {"enabled": True}}}),
+        encoding="utf-8",
+    )
+    (repo / "opencode.json").write_text(
+        json.dumps({"instructions": [poison_value], "tools": {"custom": True}}),
+        encoding="utf-8",
+    )
+    observed = tmp_path / "observed.txt"
+    sentinel = tmp_path / "poison-side-effect"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/bin/bash\n"
+            "set -euo pipefail\n"
+            f"if [[ \"$HOME\" == {shlex.quote(str(hostile_home))} ]]; then "
+            f"touch {shlex.quote(str(sentinel))}; fi\n"
+            f"printf 'cwd=%s\\n' \"$PWD\" > {shlex.quote(str(observed))}\n"
+            f"printf 'keys=%s\\n' \"$(env | cut -d= -f1 | sort | tr '\\n' ',')\" >> "
+            f"{shlex.quote(str(observed))}\n"
+            f"printf 'args=%s\\n' \"$*\" >> {shlex.quote(str(observed))}\n"
+            f"printf 'config=%s\\n' \"$OPENCODE_CONFIG_CONTENT\" >> "
+            f"{shlex.quote(str(observed))}\n"
+            + text_event_script("Concrete isolated review finding")
+            + usage_event_script()
+        ),
+    )
+    raw_instruction = "raw-instruction-must-not-be-persisted"
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "notes.md",
+        "--instruction",
+        raw_instruction,
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+        cwd=repo,
+        env={
+            "HOME": str(hostile_home),
+            "XDG_CONFIG_HOME": str(hostile_home / ".config"),
+            "OPENCODE_CONFIG": poison_value,
+            "OPENCODE_CONFIG_CONTENT": poison_value,
+            "HTTPS_PROXY": poison_value,
+            "OPENCODE_ENABLE_EXA": poison_value,
+            "BASH_ENV": poison_value,
+            "NODE_OPTIONS": poison_value,
+            "NODE_EXTRA_CA_CERTS": poison_value,
+            "SSL_CERT_DIR": poison_value,
+            "SSL_CERT_FILE": poison_value,
+            "UNRELATED_SECRET": poison_value,
+            "DEEPSEEK_API_KEY": provider_secret,
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(cast(str, payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    receipt_text = (artifact_dir / "capability-receipt.json").read_text(
+        encoding="utf-8"
+    )
+    receipt = cast(dict[str, object], json.loads(receipt_text))
+    observed_text = observed.read_text(encoding="utf-8")
+    environment_keys = set(
+        observed_text.split("keys=", 1)[1].splitlines()[0].split(",")
+    )
+    config = cast(
+        dict[str, object],
+        json.loads(observed_text.split("config=", 1)[1].splitlines()[0]),
+    )
+    command = cast(list[str], metadata["command"])
+
+    _assert_worker_environment_isolated(
+        environment_keys=environment_keys,
+        observed_text=observed_text,
+        repo=repo,
+        sentinel=sentinel,
+    )
+    _assert_worker_command_is_bounded(command=command, observed_text=observed_text)
+    _assert_value_free_artifacts(
+        artifact_dir=artifact_dir,
+        command=command,
+        metadata=metadata,
+        raw_instruction=raw_instruction,
+    )
+    assert config["plugin"] == []
+    assert config["mcp"] == {}
+    assert config["instructions"] == []
+    assert config["subagent_depth"] == 0
+    assert poison_value not in json.dumps(config)
+    _assert_capability_receipt(
+        receipt=receipt,
+        receipt_text=receipt_text,
+        poison_value=poison_value,
+        provider_secret=provider_secret,
+        raw_instruction=raw_instruction,
+        hostile_home=hostile_home,
+    )
+
+
+def test_opencode_worker_blocks_missing_cli_capability_before_provider_run(
+    tmp_path: Path,
+) -> None:
+    provider_marker = tmp_path / "provider-run"
+    fake_opencode = tmp_path / "opencode"
+    fake_opencode.write_text(
+        "#!/bin/bash\n"
+        "if [[ \"${1:-}\" == '--version' ]]; then echo '1.18.4'; exit 0; fi\n"
+        "if [[ \"${1:-} ${2:-}\" == 'run --help' ]]; then\n"
+        "  echo '--agent --dir --format json --model --file --auto dangerous'\n"
+        "  exit 0\n"
+        "fi\n"
+        f"touch {shlex.quote(str(provider_marker))}\n",
+        encoding="utf-8",
+    )
+    fake_opencode.chmod(fake_opencode.stat().st_mode | stat.S_IXUSR)
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+    )
+
+    assert result.returncode == 2
+    assert "missing: --pure" in result.stderr
+    assert not provider_marker.exists()
 
 
 def test_opencode_worker_persists_only_sanitized_json_usage_evidence(
@@ -352,8 +610,9 @@ def test_opencode_worker_records_accounted_usage_in_opt_in_metrics(
         full_ledger.unlink(missing_ok=True)
 
 
-def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> None:
+def test_opencode_worker_dry_run_redacts_prompt_from_metadata(tmp_path: Path) -> None:
     target_file = REPO_ROOT / "README.md"
+    raw_instruction = "dry-run-instruction-must-not-be-persisted"
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     write_fake_git(fake_bin)
@@ -365,6 +624,8 @@ def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> N
         str(target_file),
         "--artifact-root",
         str(tmp_path / "reviews"),
+        "--instruction",
+        raw_instruction,
         "--dry-run",
         "--json",
         env={"PATH": str(fake_bin)},
@@ -382,19 +643,11 @@ def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> N
         metadata["capability_context_version"]
         == "entroping.opencode-host-capability-context.v1"
     )
-    prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
-    assert "Codex remains the integrator" in prompt
-    assert "## OpenCode Host Capability Context" in prompt
-    assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in prompt
-    assert "OpenCode-configured agents, plugins, MCP servers, hooks" in prompt
-    assert "Codex-native plugins, skills, Codex Security, Browser, Computer Use" in prompt
-    assert "--dangerously-skip-permissions" in prompt
-    assert "entroping run remains deterministic" in prompt
-    assert "OpenCode receives preflight-vetted snapshots" in prompt
-    assert "Allowed Snapshot Files" in prompt
-    assert "Original Repo-Relative File Provenance" not in prompt
-    assert "README.md" in prompt
-    assert str(target_file.resolve()) not in prompt
+    command = cast(list[str], metadata["command"])
+    assert command[-1] == "<prompt-redacted>"
+    assert raw_instruction not in json.dumps(metadata)
+    assert metadata["capability_receipt"] is None
+    assert not (artifact_dir / "prompt.md").exists()
     assert not (artifact_dir / "stdout.txt").exists()
 
 
@@ -422,17 +675,14 @@ def test_opencode_worker_patch_dry_run_includes_host_capability_context(
     payload = json.loads(result.stdout)
     artifact_dir = Path(str(payload["artifact_dir"]))
     metadata = read_metadata(artifact_dir)
-    prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
 
     assert metadata["mode"] == "patch"
     assert (
         metadata["capability_context_version"]
         == "entroping.opencode-host-capability-context.v1"
     )
-    assert "# Entroping OpenCode Patch Worker" in prompt
-    assert "## OpenCode Host Capability Context" in prompt
-    assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in prompt
-    assert "Patch mode may propose a single unified diff only" in prompt
+    assert cast(list[str], metadata["command"])[-1] == "<prompt-redacted>"
+    assert not (artifact_dir / "prompt.md").exists()
 
 
 def test_opencode_worker_records_opt_in_factory_metrics_for_dry_run(
@@ -564,7 +814,8 @@ def test_opencode_worker_patch_mode_captures_unified_diff(tmp_path: Path) -> Non
     assert metadata["status"] == "patch-proposed"
     assert metadata["returncode"] == 0
     command = cast(list[str], metadata["command"])
-    assert command[:3] == [str(fake_opencode), "run", "--model"]
+    assert command[:3] == [str(fake_opencode), "run", "--pure"]
+    assert not Path(command[command.index("--dir") + 1]).exists()
     assert "--dangerously-skip-permissions" not in command
     proposal = (artifact_dir / "proposal.diff").read_text(encoding="utf-8")
     assert "diff --git a/example.py b/example.py" in proposal
@@ -700,7 +951,8 @@ def test_opencode_worker_nonzero_subprocess_exits_failed_and_writes_artifacts(
     assert metadata["status"] == "failed"
     assert metadata["returncode"] == 7
     command = cast(list[str], metadata["command"])
-    assert command[:3] == [str(fake_opencode), "run", "--model"]
+    assert command[:3] == [str(fake_opencode), "run", "--pure"]
+    assert not Path(command[command.index("--dir") + 1]).exists()
     assert "Some normal output" in (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
     persisted_stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
     assert "raw provider stderr was withheld" in persisted_stderr
@@ -763,18 +1015,16 @@ def test_opencode_worker_attaches_preflight_snapshot_to_subprocess(
     command = cast(list[str], metadata["command"])
 
     assert "--file" in command
-    assert command[6].startswith("Review template")
-    assert command.index("--file") > 6
+    assert command[-1] == "<prompt-redacted>"
     snapshot_path = Path(command[command.index("--file") + 1])
     assert snapshot_path == artifact_dir / "selected-files" / "notes.md"
     assert snapshot_path.read_text(encoding="utf-8") == "vetted snapshot content\n"
     raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
     assert "snapshot:\nvetted snapshot content\n" in raw_output
     assert "worker-cwd-note:\nmutated live file content\n" in raw_output
-    worker_cwd = artifact_dir / "worker-cwd"
-    assert (worker_cwd / "opencode-cwd.txt").read_text(encoding="utf-8").strip() == (
-        f"worker-cwd={worker_cwd}"
-    )
+    worker_cwd = Path(command[command.index("--dir") + 1])
+    assert not worker_cwd.exists()
+    assert REPO_ROOT not in worker_cwd.parents
     assert not (artifact_dir / "opencode-cwd.txt").exists()
     assert selected_file.read_text(encoding="utf-8") == "vetted snapshot content\n"
 
@@ -794,8 +1044,8 @@ def test_opencode_worker_parent_artifacts_are_outside_worker_writable_cwd(
         body=(
             "#!/usr/bin/env bash\n"
             "set -euo pipefail\n"
-            "ln -sf \"$VICTIM\" stdout.txt\n"
-            "ln -sf \"$VICTIM\" ../stdout.txt\n"
+            f"ln -sf {shlex.quote(str(victim))} stdout.txt\n"
+            f"ln -sf {shlex.quote(str(victim))} ../stdout.txt\n"
             "printf '%s\\n' \"worker-cwd=$PWD\" > opencode-cwd.txt\n"
             + text_event_script("captured stdout stays in parent artifact file")
             + usage_event_script()
@@ -813,21 +1063,19 @@ def test_opencode_worker_parent_artifacts_are_outside_worker_writable_cwd(
         str(fake_opencode),
         "--json",
         cwd=repo,
-        env={"VICTIM": str(victim)},
     )
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     artifact_dir = Path(str(payload["artifact_dir"]))
-    worker_cwd = artifact_dir / "worker-cwd"
+    metadata = read_metadata(artifact_dir)
+    command = cast(list[str], metadata["command"])
+    worker_cwd = Path(command[command.index("--dir") + 1])
     raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
 
     assert "captured stdout stays in parent artifact file" in raw_output
-    assert (worker_cwd / "opencode-cwd.txt").read_text(encoding="utf-8").strip() == (
-        f"worker-cwd={worker_cwd}"
-    )
+    assert not worker_cwd.exists()
     assert victim.read_text(encoding="utf-8") == "untouched\n"
-    assert (worker_cwd / "stdout.txt").is_symlink()
     assert not (artifact_dir / "stdout.txt").is_symlink()
 
 
@@ -858,9 +1106,11 @@ def test_opencode_worker_timeout_is_inconclusive_and_bounded(tmp_path: Path) -> 
     payload = json.loads(result.stdout)
     artifact_dir = Path(str(payload["artifact_dir"]))
     metadata = read_metadata(artifact_dir)
+    command = cast(list[str], metadata["command"])
 
     assert metadata["status"] == "timed-out"
     assert metadata["timeout_seconds"] == 0.1
+    assert not Path(command[command.index("--dir") + 1]).exists()
     assert "timed out" in (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
     receipt = read_usage_receipt(artifact_dir)
     assert receipt["accounting_status"] == "unaccounted"
@@ -906,6 +1156,8 @@ def test_opencode_worker_kills_and_bounds_output_flood(tmp_path: Path) -> None:
         "output_limit_exceeded"
     )
     assert metadata["max_output_bytes"] == 1024
+    command = cast(list[str], metadata["command"])
+    assert not Path(command[command.index("--dir") + 1]).exists()
 
 
 def test_opencode_worker_bounds_stderr_flood_after_adding_failure_context(
@@ -967,6 +1219,36 @@ def test_opencode_worker_rejects_missing_file_before_model_call(tmp_path: Path) 
 
     assert result.returncode == 2
     assert "input file does not exist" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_opencode_worker_rejects_unknown_model_before_provider_run(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "provider-run"
+    fake_opencode = tmp_path / "opencode"
+    fake_opencode.write_text(
+        f"#!/bin/sh\ntouch {shlex.quote(str(marker))}\n",
+        encoding="utf-8",
+    )
+    fake_opencode.chmod(fake_opencode.stat().st_mode | stat.S_IXUSR)
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--model",
+        "opencode/unregistered-model",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+    )
+
+    assert result.returncode == 2
+    assert "active registered OpenCode queue model" in result.stderr
+    assert not marker.exists()
     assert not (tmp_path / "reviews").exists()
 
 

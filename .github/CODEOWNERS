@@ -21,6 +21,9 @@ consumer-qanstitution.yaml @sakibshuvo
 /scripts/factory_cost_policy*.py @sakibshuvo
 /docs/meta/factory-cost-policy*.json @sakibshuvo
 /scripts/provider_capability_*.py @sakibshuvo
+/scripts/opencode_*.py @sakibshuvo
+/tests/test_opencode_*.py @sakibshuvo
+/decisions/ADR-0027-opencode-unattended-isolation.md @sakibshuvo
 /scripts/ai_jobs.py @sakibshuvo
 /scripts/ai_job_*/** @sakibshuvo
 /scripts/factory_issue_selector*.py @sakibshuvo

@@ -609,3 +609,29 @@ decisions:
     related_issues: ["#1565"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0027
+    title: Unattended OpenCode uses isolated deny-first execution profiles
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Review and textual patch-proposal workers use private ephemeral HOME/XDG
+      roots, pure fixed-agent commands, parsed effective-config preflight, and
+      executable/profile digest binding. Receipts are value-free; the trusted
+      executable boundary does not replace OS/container or egress isolation.
+    tags: [factory, opencode, security, isolation, providers]
+    source_links:
+      - path: decisions/ADR-0027-opencode-unattended-isolation.md
+        role: adr
+      - path: scripts/opencode_unattended_profile.py
+        role: execution-profile
+      - path: scripts/opencode_unattended_preflight.py
+        role: capability-preflight
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - docs/meta/AGENT_CONTROL_PLANE.md
+      - docs/meta/FACTORY_OPERATIONS.md
+    related_issues: ["#1566"]
+    supersedes: []
+    superseded_by: null

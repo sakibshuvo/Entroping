@@ -1594,6 +1594,49 @@ def test_agent_control_plane_routes_opencode_through_bounded_worker() -> None:
     assert "raw `opencode run`" in doc
 
 
+def test_unattended_opencode_isolation_decision_and_control_plane_are_indexed() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    tds = (REPO_ROOT / "docs" / "technical" / "TDS.md").read_text(
+        encoding="utf-8"
+    )
+    registry = (REPO_ROOT / "docs" / "meta" / "DECISION_REGISTRY.yaml").read_text(
+        encoding="utf-8"
+    )
+    adr = (
+        REPO_ROOT / "decisions" / "ADR-0027-opencode-unattended-isolation.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(f"{control_plane}\n{tds}\n{registry}\n{adr}".split())
+
+    required_terms = [
+        "ENT-DEC-0027",
+        "entroping.opencode-unattended-review.v1",
+        "entroping.opencode-unattended-patch-proposal.v1",
+        "entroping.opencode-unattended-capability-receipt.v1",
+        "private ephemeral `HOME`",
+        "`XDG_CONFIG_HOME`",
+        "`OPENCODE_DISABLE_PROJECT_CONFIG=1`",
+        "`--pure`",
+        "`--agent`",
+        "`--dir`",
+        "deny-first",
+        "denies every model-issued tool",
+        "explicit `--file` snapshots",
+        "subagent depth zero",
+        "20-second",
+        "without any provider credential",
+        "raw prompts",
+        "trusted executable",
+        "digest and version binding",
+        "OS or container isolation",
+        "same-UID",
+        "unrestricted egress",
+    ]
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_factory_metrics_docs_wire_opt_in_script_recording() -> None:
     context_doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
         encoding="utf-8"
@@ -1708,11 +1751,12 @@ def test_agent_control_plane_documents_opencode_hosted_deepseek_tool_lane() -> N
     normalized = " ".join(doc.split())
 
     assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in doc
-    assert "OpenCode-configured agents, plugins, MCP servers, hooks" in doc
-    assert "Codex-native plugins, skills, Codex Security, Browser, Computer Use" in doc
-    assert "unless the OpenCode host exposes equivalent capabilities" in normalized
-    assert "--dangerously-skip-permissions" in doc
-    assert "OpenCode Host Capability Context" in doc
+    assert "unattended runs do not inherit host agents, plugins, MCP servers" in (
+        normalized
+    )
+    assert "Interactive maintainer sessions remain a separate surface" in normalized
+    assert "`OPENCODE_DISABLE_PROJECT_CONFIG=1`" in doc
+    assert "`--pure debug config`" in doc
 
 
 def test_agent_control_plane_distinguishes_provider_host_billing_model_lanes() -> None:

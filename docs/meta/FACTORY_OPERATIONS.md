@@ -188,6 +188,51 @@ every `unaccounted` receipt as ineligible. An `accounted` receipt supplies usage
 evidence only and does not itself authorize spending, patch application, or
 merge.
 
+## Unattended OpenCode Isolation
+
+Before enabling a real OpenCode queue route, check the installed executable
+without making a provider call:
+
+```text
+uv run python scripts/opencode_readiness.py --mode verification --format json
+```
+
+The `opencode_unattended_capability` check runs version, help, and resolved
+configuration probes under the same isolated environment used for dispatch.
+It must pass before this example review is eligible to contact a provider:
+
+```text
+uv run python scripts/opencode_worker.py --mode review \
+  --file README.md --opencode-bin /absolute/path/to/opencode --json
+```
+
+Each real invocation creates a private ephemeral `HOME`, isolated XDG roots and
+temporary directory outside Git discovery, then deletes them after every
+success, failure, timeout, or output-limit result. The child receives
+deterministic `OPENCODE_CONFIG_CONTENT`, fixed pure/agent/directory/model flags,
+and a deny-first profile with no model-issued tools. The trusted CLI ingests only
+wrapper-validated explicit `--file` snapshots. Project and global config,
+plugins, MCP, instructions, read/glob/grep, shell/edit/task/web/custom tools,
+nested agents, sharing, snapshots, and LSP do not enter the unattended
+capability surface. Version/help/config/version probes are output-bounded,
+process-group-cleaned, credential-free, and capped at 20 seconds total.
+
+For `deepseek/*`, the allowlist may forward the exact `DEEPSEEK_API_KEY` key so
+the final attested dispatch can authenticate, but capability probes never
+receive it and the worker never persists its value. All
+other provider/config/proxy/runtime injection variables are scrubbed. Inspect
+`capability-receipt.json` for the value-free profile id, executable and profile
+digests, capability names, isolated categories, environment key names, and
+booleans. It contains no values, prompt, raw config, tool arguments, events, or
+user paths.
+
+Patch mode uses a distinct profile and may emit a textual unified-diff proposal;
+the worker does not apply it. The selected trusted executable is bound by digest
+and version. This profile is defense in depth, not OS or container isolation
+from a malicious same-UID executable or unrestricted egress. If the selected
+path is a wrapper, the receipt binds only that wrapper; pass the direct regular
+binary for direct executable identity assurance.
+
 ## Cost Policy Preflight
 
 The factory's concrete cost policy belongs at
