@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-07-11
-**Status:** Issue #1507 implemented and locally verified; pending review and publish
+**Date:** 2026-07-28
+**Status:** Issue #1560 locally verified; CI and merge pending
 
 ## Objective
 
@@ -16,13 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1507 Launch Site And Documentation
+## Current Issue Slice: #1560 Sanitized OpenCode Usage Receipts
 
-Replace the MkDocs public surface with one Astro 7 build: a branded launch page
-at `/`, curated Starlight documentation at `/docs/`, and
-`site/public-docs.json` as the navigation contract over canonical repository
-Markdown. Keep runtime, CLI, Hurl, QAnstitution, traffic, provider, report, and
-security behavior unchanged.
+Consume bounded `opencode run --format json` events without persisting raw
+JSONL. Preserve existing final-text review and patch classification while
+emitting a minimal typed usage receipt with stable job/run/model correlation,
+hashed session identity, deduplicated token/cost totals when trustworthy, and
+explicit unaccounted reasons otherwise. Keep product runtime, Brain/LiteLLM,
+Hurl, QAnstitution, traffic, and direct patch-application behavior unchanged.
 
 ## Current Baseline
 

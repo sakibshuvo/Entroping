@@ -2,6 +2,22 @@
 
 ## 2026-07-28
 
+- Provider JSON streaming completion follows the provider's actual transport
+  contract, not an invented final event. OpenCode usage may follow final text,
+  so parse bounded JSONL through EOF, deduplicate stable step identities, and
+  classify output only after the stream closes.
+- A numeric cost value is not automatically billing truth. OpenCode's current
+  zero value is ambiguous for metered work; preserve validated token evidence
+  but leave the receipt unaccounted until the host proves authoritative cost.
+  Missing, malformed, partial, or conflicting evidence must never become a
+  guessed zero or paid-automation eligibility.
+- Numeric receipt validation must remain total at the queue boundary. Extremely
+  large integers can raise during float conversion, and positive decimals can
+  underflow to `0.0`; both cases must fail closed without stranding a claimed
+  job. Shared sanitizers must preserve each worker engine's documented fields.
+- Deduplication identity must fail closed under partial identity reuse. A
+  session/step-part id is counted once; rebinding that part to another message
+  is conflicting evidence, not a new chargeable step.
 - Provider evidence and dispatch must share one typed registry. Descriptive
   prompt or runbook lists are projections only: unknown paid lane, host,
   billing, or model combinations fail closed, lifecycle preserves historical

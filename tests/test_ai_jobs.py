@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shlex
 import stat
 import subprocess
 import sys
@@ -52,6 +53,35 @@ def write_fake_opencode(path: Path, *, body: str) -> Path:
     return binary
 
 
+def opencode_json_body(text: str) -> str:
+    text_event = json.dumps(
+        {"type": "text", "sessionID": "session-1", "part": {"text": text}}
+    )
+    usage_event = json.dumps(
+        {
+            "type": "step_finish",
+            "sessionID": "session-1",
+            "part": {
+                "id": "step-1",
+                "messageID": "message-1",
+                "sessionID": "session-1",
+                "cost": 0.01,
+                "tokens": {
+                    "input": 10,
+                    "output": 2,
+                    "reasoning": 0,
+                    "cache": {"read": 0, "write": 0},
+                },
+            },
+        }
+    )
+    return (
+        "#!/usr/bin/env bash\n"
+        f"printf '%s\\n' {shlex.quote(text_event)}\n"
+        f"printf '%s\\n' {shlex.quote(usage_event)}\n"
+    )
+
+
 def write_fake_counting_opencode(
     path: Path,
     *,
@@ -61,6 +91,7 @@ def write_fake_counting_opencode(
     marker_dir = path / "invocations"
     binary.write_text(
         "#!/usr/bin/env python3\n"
+        "import json\n"
         "import pathlib\n"
         "import time\n\n"
         "import uuid\n\n"
@@ -68,7 +99,12 @@ def write_fake_counting_opencode(
         "MARKER_DIR.mkdir(parents=True, exist_ok=True)\n"
         "(MARKER_DIR / f'{uuid.uuid4().hex}.txt').write_text('1', encoding='utf-8')\n"
         f"time.sleep({sleep_seconds!r})\n"
-        "print('worker review output')\n"
+        "print(json.dumps({'type': 'text', 'sessionID': 'session-1', "
+        "'part': {'text': 'worker review output'}}))\n"
+        "print(json.dumps({'type': 'step_finish', 'sessionID': 'session-1', "
+        "'part': {'id': 'step-1', 'messageID': 'message-1', "
+        "'sessionID': 'session-1', 'cost': 0.01, 'tokens': {'input': 10, "
+        "'output': 2, 'reasoning': 0, 'cache': {'read': 0, 'write': 0}}}}))\n"
     )
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
     return binary, marker_dir
@@ -133,6 +169,8 @@ class DeepSeekQueueStubHandler(BaseHTTPRequestHandler):
             "choices": [{"message": {"content": "Concrete finding"}}],
             "usage": {
                 "completion_tokens": 7,
+                "prompt_cache_hit_tokens": 3,
+                "prompt_cache_miss_tokens": 5,
                 "prompt_tokens": 11,
                 "total_tokens": 18,
             },
@@ -810,6 +848,7 @@ def test_ai_jobs_worker_command_does_not_record_metrics_by_default(
         factory_metrics_ledger=None,
     )
     job = {
+        "job_id": "job",
         "engine": "opencode",
         "mode": "review",
         "model": "deepseek/deepseek-v4-pro",
@@ -996,8 +1035,175 @@ def test_ai_jobs_run_next_sanitizes_worker_payload_before_persisting_job(
     assert payload["artifact_dir"] is None
     assert job["artifact_dir"] is None
     assert job["worker_returncode"] == 1
-    assert job["usage"] == {"completion_tokens": 2, "prompt_tokens": 3}
+    assert "usage" not in job
+    usage_receipt = cast(dict[str, object], job["usage_receipt"])
+    assert usage_receipt["accounting_status"] == "unaccounted"
+    assert usage_receipt["accounting_reason"] == "invalid_receipt"
     assert "raw_response" not in completed_path.read_text(encoding="utf-8")
+
+
+def test_ai_jobs_run_next_persists_allowlisted_opencode_usage_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = artifact_root / "review-1"
+    artifact_dir.mkdir(parents=True)
+    queued_path = job_root / "queued" / "job.json"
+    ai_jobs._write_job(
+        queued_path,
+        {
+            "schema_version": "entroping.ai-job.v1",
+            "job_id": "job",
+            "queue_status": "queued",
+            "engine": "opencode",
+            "mode": "review",
+            "model": "opencode/deepseek-v4-flash-free",
+            "files": ["README.md"],
+            "timeout_seconds": 1,
+            "attempts": 0,
+        },
+    )
+    expected_usage = {
+        "cache_read_tokens": 7,
+        "cache_write_tokens": 3,
+        "cost_usd": 0.01,
+        "input_tokens": 100,
+        "output_tokens": 20,
+        "reasoning_tokens": 5,
+    }
+
+    def fake_run_worker(
+        args: SimpleNamespace,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        return (
+            {
+                "status": "completed",
+                "returncode": 0,
+                "artifact_dir": str(artifact_dir),
+                "usage": {**expected_usage, "raw": "must not persist"},
+                "usage_receipt": {
+                    "schema_version": "entroping.opencode-usage-receipt.v1",
+                    "accounting_status": "accounted",
+                    "accounting_reason": "complete",
+                    "job_id": "job",
+                    "requested_model": "opencode/deepseek-v4-flash-free",
+                    "run_id": "review-1",
+                    "session_fingerprint": "a" * 64,
+                    "unique_step_count": 1,
+                    "usage": expected_usage,
+                    "raw_event": "must not persist",
+                },
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_run_worker)
+    args = SimpleNamespace(artifact_root=artifact_root)
+
+    payload, returncode = ai_jobs._run_next(args, REPO_ROOT, job_root)
+
+    assert returncode == 0
+    completed_path = Path(cast(str, payload["job_path"]))
+    job = read_job(completed_path)
+    collected = ai_jobs._collect(job_root)
+    completed_jobs = cast(list[dict[str, object]], collected["completed_jobs"])
+    assert job["usage"] == expected_usage
+    assert job["usage_receipt"] == {
+        "accounting_reason": "complete",
+        "accounting_status": "accounted",
+        "job_id": "job",
+        "requested_model": "opencode/deepseek-v4-flash-free",
+        "run_id": "review-1",
+        "schema_version": "entroping.opencode-usage-receipt.v1",
+        "session_fingerprint": "a" * 64,
+        "unique_step_count": 1,
+    }
+    assert completed_jobs[0]["usage_receipt"] == {
+        "accounting_reason": "complete",
+        "accounting_status": "accounted",
+        "schema_version": "entroping.opencode-usage-receipt.v1",
+    }
+    assert "must not persist" not in completed_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("invalid_cost", [0.0, 10**400])
+def test_ai_jobs_run_next_rejects_invalid_receipt_cost_without_crashing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    invalid_cost: float | int,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = artifact_root / "review-oversized-cost"
+    artifact_dir.mkdir(parents=True)
+    ai_jobs._write_job(
+        job_root / "queued" / "job.json",
+        {
+            "schema_version": "entroping.ai-job.v1",
+            "job_id": "job",
+            "queue_status": "queued",
+            "engine": "opencode",
+            "mode": "review",
+            "model": "opencode/deepseek-v4-flash-free",
+            "files": ["README.md"],
+            "timeout_seconds": 1,
+            "attempts": 0,
+        },
+    )
+
+    def fake_run_worker(
+        args: SimpleNamespace,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        usage = {
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "cost_usd": invalid_cost,
+            "input_tokens": 1,
+            "output_tokens": 1,
+            "reasoning_tokens": 0,
+        }
+        return (
+            {
+                "status": "completed",
+                "returncode": 0,
+                "artifact_dir": str(artifact_dir),
+                "usage_receipt": {
+                    "schema_version": "entroping.opencode-usage-receipt.v1",
+                    "accounting_status": "accounted",
+                    "accounting_reason": "complete",
+                    "job_id": "job",
+                    "requested_model": "opencode/deepseek-v4-flash-free",
+                    "run_id": artifact_dir.name,
+                    "session_fingerprint": "a" * 64,
+                    "unique_step_count": 1,
+                    "usage": usage,
+                },
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_run_worker)
+
+    payload, returncode = ai_jobs._run_next(
+        SimpleNamespace(artifact_root=artifact_root),
+        REPO_ROOT,
+        job_root,
+    )
+
+    assert returncode == 0
+    receipt = cast(dict[str, object], payload["usage_receipt"])
+    assert receipt["accounting_status"] == "unaccounted"
+    assert receipt["accounting_reason"] == "invalid_receipt"
+    assert "usage" not in payload
+    assert not list((job_root / "running").glob("*.json"))
 
 
 def test_ai_jobs_run_next_rejects_worker_artifact_dir_outside_artifact_root(
@@ -1144,6 +1350,7 @@ def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
         factory_metrics_ledger=None,
     )
     job = {
+        "job_id": "job",
         "engine": "opencode",
         "mode": "review",
         "model": "opencode/deepseek-v4-flash-free",
@@ -1190,6 +1397,7 @@ def test_ai_jobs_worker_output_limit_fails_closed(
         factory_metrics_ledger=None,
     )
     job = {
+        "job_id": "job",
         "engine": "opencode",
         "mode": "review",
         "model": "opencode/deepseek-v4-flash-free",
@@ -1306,6 +1514,8 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
 
     expected_usage = {
         "completion_tokens": 7,
+        "prompt_cache_hit_tokens": 3,
+        "prompt_cache_miss_tokens": 5,
         "prompt_tokens": 11,
         "total_tokens": 18,
     }
@@ -1474,7 +1684,7 @@ def test_ai_jobs_run_next_completes_oldest_job_and_records_worker_result(
     fake_bin.mkdir()
     fake_opencode = write_fake_opencode(
         fake_bin,
-        body="#!/usr/bin/env bash\nprintf '%s\\n' 'worker review output'\n",
+        body=opencode_json_body("worker review output"),
     )
 
     submit = run_ai_jobs(
@@ -1578,7 +1788,7 @@ def test_ai_jobs_run_next_recoverable_from_corrupt_queued_artifact(tmp_path: Pat
     fake_bin.mkdir()
     fake_opencode = write_fake_opencode(
         fake_bin,
-        body="#!/usr/bin/env bash\nprintf '%s\\n' 'worker review output'\\n",
+        body=opencode_json_body("worker review output"),
     )
     submit = run_ai_jobs(
         "submit",
@@ -1726,7 +1936,7 @@ def test_ai_jobs_run_next_drains_all_stale_running_jobs_before_queued_work(
     fake_bin.mkdir()
     fake_opencode = write_fake_opencode(
         fake_bin,
-        body="#!/usr/bin/env bash\nprintf '%s\\n' 'worker review output'\\n",
+        body=opencode_json_body("worker review output"),
     )
     running = job_root / "running"
     first_stale = write_running_job(
@@ -1907,6 +2117,43 @@ def test_ai_jobs_collect_sanitizes_malformed_usage_without_raw_output(
         "unknown_jobs": 0,
     }
     assert "do not print me" not in result.stdout
+
+
+def test_ai_jobs_collect_rejects_forged_usage_receipt_reason(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    completed = job_root / "completed"
+    completed.mkdir(parents=True)
+    secret = "api_key=abcdefghijklmnopqrstuvwxyz123456"
+    (completed / "job-receipt.json").write_text(
+        json.dumps(
+            {
+                "job_id": "job-receipt",
+                "queue_status": "completed",
+                "engine": "opencode",
+                "mode": "review",
+                "model": "deepseek/deepseek-v4-pro",
+                "worker_status": "completed",
+                "artifact_dir": None,
+                "usage_receipt": {
+                    "schema_version": "entroping.opencode-usage-receipt.v1",
+                    "accounting_status": "unaccounted",
+                    "accounting_reason": secret,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_ai_jobs("collect", "--job-root", str(job_root), "--json")
+
+    assert result.returncode == 0
+    assert secret not in result.stdout
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    completed_jobs = cast(list[dict[str, object]], payload["completed_jobs"])
+    assert "usage_receipt" not in completed_jobs[0]
 
 
 def test_ai_jobs_run_next_reports_empty_queue(tmp_path: Path) -> None:

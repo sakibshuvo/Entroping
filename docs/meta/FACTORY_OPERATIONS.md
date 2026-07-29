@@ -67,6 +67,42 @@ not canonical registry or cost-policy join keys. Do not combine them by string
 shape. Issue #1573 owns evidence-bound migration to explicit lane, invocation,
 and cost identities.
 
+## OpenCode Usage Receipts
+
+Queued OpenCode workers invoke `opencode run --format json` and consume its
+JSONL stream through the bounded subprocess reader. Raw event lines are not
+returned to the worker artifact layer. The worker retains only completed text
+parts for the existing review or patch-proposal artifact and writes a separate
+`entroping.opencode-usage-receipt.v1` file containing allowlisted correlation
+and accounting fields: queue job id when present, local run id, requested
+model, a SHA-256 session fingerprint, unique step count, accounting state and
+reason, and validated token/cost totals only when accounting is complete. It
+does not retain the raw session id, event timestamps, reasoning, tool input or
+output, provider errors, unknown fields, or JSON event fragments. Raw child
+stderr is also withheld from artifacts.
+
+OpenCode JSON mode has no separate terminal record, so the worker reads through
+process EOF. Usage emitted after the final text still counts. Unique
+`step_finish` records are summed; exact repeats are idempotent, while conflicting
+duplicates (including one step-part id rebound to another message), mixed
+sessions, malformed records, invalid numeric fields, timeout,
+output overflow, provider error events, and nonzero process exits produce an
+explicit `unaccounted` receipt. Missing cost is never rewritten to zero. A
+reported zero cost is also `unaccounted` because the current OpenCode event
+contract does not prove that zero is an authoritative billed amount for a
+metered route. A positive decimal that underflows to zero at the persisted
+floating-point boundary is treated the same way rather than becoming an
+accounted zero-cost run.
+
+The queue validates receipt schema, job/model/run correlation, session digest,
+step count, and the exact numeric usage allowlist before copying any values into
+terminal job state. A missing or invalid OpenCode receipt becomes
+`invalid_receipt`; arbitrary worker fields and forged reason strings are
+dropped. Any downstream paid autonomous dispatch or settlement path must treat
+every `unaccounted` receipt as ineligible. An `accounted` receipt supplies usage
+evidence only and does not itself authorize spending, patch application, or
+merge.
+
 ## Cost Policy Preflight
 
 The factory's concrete cost policy belongs at

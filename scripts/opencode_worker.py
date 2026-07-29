@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess  # nosec B404
 import sys
@@ -26,6 +27,13 @@ from scripts.ai_worker_file_safety import (  # noqa: E402
     sensitive_selected_path_reason,
 )
 from scripts.bounded_process import BoundedProcessError, run_bounded_process  # noqa: E402
+from scripts.opencode_event_stream import (  # noqa: E402
+    OpenCodeEventStream,
+    OpenCodeStreamSummary,
+    OpenCodeUsageReceipt,
+    ReceiptReason,
+    build_usage_receipt,
+)
 from scripts.worker_output import (  # noqa: E402
     atomic_write_text,
     bounded_persisted_text,
@@ -66,6 +74,7 @@ class WorkerConfig:
     max_file_bytes: int
     max_output_bytes: int
     issue: str | None
+    job_id: str | None
     instruction: str | None
     dry_run: bool
     json_output: bool
@@ -83,6 +92,7 @@ class WorkerResult:
     returncode: int
     stdout: str
     stderr: str
+    usage_receipt: OpenCodeUsageReceipt
 
 
 def main() -> int:
@@ -93,11 +103,14 @@ def main() -> int:
         print(f"opencode_worker: {exc}", file=sys.stderr)
         return 2
 
-    payload = {
+    payload: dict[str, object] = {
         "status": result.status,
         "artifact_dir": str(result.artifact_dir),
         "returncode": result.returncode,
+        "usage_receipt": result.usage_receipt.to_payload(),
     }
+    if result.usage_receipt.usage is not None:
+        payload["usage"] = result.usage_receipt.usage.to_payload()
     if config.json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
@@ -128,13 +141,22 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
 
     command = _opencode_command(config, prompt, snapshot_paths)
     if config.dry_run:
+        receipt = build_usage_receipt(
+            None,
+            job_id=config.job_id,
+            requested_model=config.model,
+            run_id=artifact_dir.name,
+            override_reason="dry_run",
+        )
         result = WorkerResult(
             status="dry-run",
             artifact_dir=artifact_dir,
             returncode=0,
             stdout="",
             stderr="",
+            usage_receipt=receipt,
         )
+        _write_usage_receipt(result)
         _write_metadata(config, result, command)
         _record_factory_metrics(
             config,
@@ -145,31 +167,28 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
 
     worker_cwd = artifact_dir / "worker-cwd"
     worker_cwd.mkdir(exist_ok=False)
+    event_stream = OpenCodeEventStream(max_text_bytes=config.max_output_bytes)
     try:
         completed = run_bounded_process(
             command,
             cwd=worker_cwd.resolve(),
             timeout_seconds=config.timeout_seconds,
             max_output_bytes=config.max_output_bytes,
+            stdout_consumer=event_stream.feed,
+            capture_stdout=False,
         )
     except BoundedProcessError as exc:
         raise WorkerInputError("OpenCode bounded subprocess failed") from exc
+    stream_summary = event_stream.finish()
     if completed.timed_out:
-        stdout = completed.stdout
-        stderr = completed.stderr
-        if stderr:
-            stderr = (
-                f"OpenCode worker timed out after {config.timeout_seconds} seconds.\n"
-                f"{stderr}"
-            )
-        else:
-            stderr = f"OpenCode worker timed out after {config.timeout_seconds} seconds."
+        receipt = _usage_receipt(config, artifact_dir, stream_summary, "timed_out")
         result = WorkerResult(
             status="timed-out",
             artifact_dir=artifact_dir,
             returncode=124,
-            stdout=stdout,
-            stderr=stderr,
+            stdout=stream_summary.output_text,
+            stderr=f"OpenCode worker timed out after {config.timeout_seconds} seconds.",
+            usage_receipt=receipt,
         )
         result = _withhold_secret_like_worker_output(result)
         _write_execution_artifacts(config, result, command)
@@ -181,15 +200,21 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
         return result
 
     if completed.output_limit_exceeded:
+        receipt = _usage_receipt(
+            config,
+            artifact_dir,
+            stream_summary,
+            "output_limit_exceeded",
+        )
         result = WorkerResult(
             status="failed",
             artifact_dir=artifact_dir,
             returncode=completed.returncode,
-            stdout=completed.stdout,
+            stdout=stream_summary.output_text,
             stderr=(
-                f"OpenCode worker exceeded the {config.max_output_bytes}-byte output limit.\n"
-                f"{completed.stderr}"
+                f"OpenCode worker exceeded the {config.max_output_bytes}-byte output limit."
             ),
+            usage_receipt=receipt,
         )
         result = _withhold_secret_like_worker_output(result)
         _write_execution_artifacts(config, result, command)
@@ -200,13 +225,18 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
         )
         return result
 
-    status = _classify_status(config.mode, completed.returncode, completed.stdout)
+    status = _classify_stream_status(config.mode, completed.returncode, stream_summary)
+    receipt_reason: ReceiptReason | None = None
+    if completed.returncode != 0:
+        receipt_reason = "process_failed"
+    receipt = _usage_receipt(config, artifact_dir, stream_summary, receipt_reason)
     result = WorkerResult(
         status=status,
         artifact_dir=artifact_dir,
         returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
+        stdout=stream_summary.output_text,
+        stderr=_sanitized_child_stderr(completed.stderr),
+        usage_receipt=receipt,
     )
     result = _withhold_secret_like_worker_output(result)
     _write_execution_artifacts(config, result, command)
@@ -234,6 +264,10 @@ def _parse_args() -> WorkerConfig:
         help="Repo-local file to include in the worker scope; repeatable.",
     )
     parser.add_argument("--issue", help="Optional GitHub issue number or URL.")
+    parser.add_argument(
+        "--job-id",
+        help="Optional sanitized queue job id for usage receipt correlation.",
+    )
     parser.add_argument(
         "--instruction",
         help="Optional task-specific instruction appended to the bounded prompt.",
@@ -306,6 +340,11 @@ def _parse_args() -> WorkerConfig:
     if args.max_output_bytes <= 0:
         msg = "--max-output-bytes must be greater than zero"
         raise WorkerInputError(msg)
+    if args.job_id is not None and re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", args.job_id
+    ) is None:
+        msg = "--job-id must be a safe 1-128 character identifier"
+        raise WorkerInputError(msg)
     max_file_bytes = int(args.max_file_bytes)
     files = _validate_files(
         repo_root,
@@ -329,6 +368,7 @@ def _parse_args() -> WorkerConfig:
         max_file_bytes=max_file_bytes,
         max_output_bytes=int(args.max_output_bytes),
         issue=args.issue,
+        job_id=args.job_id,
         instruction=args.instruction,
         dry_run=args.dry_run,
         json_output=args.json,
@@ -634,7 +674,15 @@ def _opencode_command(
     prompt: str,
     snapshot_paths: tuple[Path, ...],
 ) -> list[str]:
-    command = [str(config.opencode_bin), "run", "--model", config.model, prompt]
+    command = [
+        str(config.opencode_bin),
+        "run",
+        "--model",
+        config.model,
+        "--format",
+        "json",
+        prompt,
+    ]
     for snapshot_path in snapshot_paths:
         command.extend(["--file", str(snapshot_path)])
     return command
@@ -650,6 +698,40 @@ def _classify_status(mode: Mode, returncode: int, stdout: str) -> Status:
     if stdout.strip():
         return "completed"
     return "inconclusive"
+
+
+def _classify_stream_status(
+    mode: Mode,
+    returncode: int,
+    summary: OpenCodeStreamSummary,
+) -> Status:
+    if summary.saw_error_event or summary.accounting_reason == "malformed_event":
+        return "failed"
+    return _classify_status(mode, returncode, summary.output_text)
+
+
+def _usage_receipt(
+    config: WorkerConfig,
+    artifact_dir: Path,
+    summary: OpenCodeStreamSummary,
+    override_reason: ReceiptReason | None,
+) -> OpenCodeUsageReceipt:
+    return build_usage_receipt(
+        summary,
+        job_id=config.job_id,
+        requested_model=config.model,
+        run_id=artifact_dir.name,
+        override_reason=override_reason,
+    )
+
+
+def _sanitized_child_stderr(stderr: str) -> str:
+    if not stderr:
+        return ""
+    reason = secret_like_content_reason(stderr)
+    if reason is not None:
+        return _withheld_output_message("stderr", reason)
+    return "OpenCode emitted stderr; raw provider stderr was withheld.\n"
 
 
 def _looks_like_unified_diff(output: str) -> bool:
@@ -703,6 +785,20 @@ def _withhold_secret_like_worker_output(result: WorkerResult) -> WorkerResult:
             if stderr_reason is not None
             else result.stderr
         ),
+        usage_receipt=(
+            OpenCodeUsageReceipt(
+                accounting_status="unaccounted",
+                accounting_reason="secret_like_output",
+                job_id=result.usage_receipt.job_id,
+                requested_model=result.usage_receipt.requested_model,
+                run_id=result.usage_receipt.run_id,
+                session_fingerprint=result.usage_receipt.session_fingerprint,
+                unique_step_count=result.usage_receipt.unique_step_count,
+                usage=None,
+            )
+            if stdout_reason is not None or stderr_reason is not None
+            else result.usage_receipt
+        ),
     )
 
 
@@ -726,7 +822,15 @@ def _write_execution_artifacts(
         proposal = _extract_unified_diff(stdout)
         if proposal is not None:
             atomic_write_text(result.artifact_dir / "proposal.diff", proposal)
+    _write_usage_receipt(result)
     _write_metadata(config, result, command)
+
+
+def _write_usage_receipt(result: WorkerResult) -> None:
+    atomic_write_text(
+        result.artifact_dir / "usage-receipt.json",
+        json.dumps(result.usage_receipt.to_payload(), indent=2, sort_keys=True) + "\n",
+    )
 
 
 def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[str]) -> None:
@@ -736,6 +840,7 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "mode": config.mode,
         "model": config.model,
         "issue": config.issue,
+        "job_id": config.job_id,
         "files": [selected.relative_path for selected in config.files],
         "artifact_dir": str(result.artifact_dir),
         "returncode": result.returncode,
@@ -746,6 +851,11 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "command": command,
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,
+        "usage_receipt": {
+            "accounting_reason": result.usage_receipt.accounting_reason,
+            "accounting_status": result.usage_receipt.accounting_status,
+            "path": "usage-receipt.json",
+        },
     }
     atomic_write_text(
         result.artifact_dir / "metadata.json",
@@ -764,7 +874,14 @@ def _record_factory_metrics(
 
     provider, model = _factory_provider_model(config.model)
     context_bytes = _selected_files_bytes(config.files)
-    estimated_tokens = max(1, (context_bytes + 3) // 4)
+    observed_usage = result.usage_receipt.usage
+    estimated_tokens = (
+        observed_usage.input_tokens
+        + observed_usage.output_tokens
+        + observed_usage.reasoning_tokens
+        if observed_usage is not None
+        else max(1, (context_bytes + 3) // 4)
+    )
     command = [
         sys.executable,
         str(config.repo_root / "scripts" / "factory_metrics.py"),
@@ -803,6 +920,8 @@ def _record_factory_metrics(
     ]
     if provider is not None:
         command.extend(["--provider", provider])
+    if observed_usage is not None:
+        command.extend(["--cost-usd", f"{observed_usage.cost_usd:.12g}"])
     if config.issue is not None:
         command.extend(["--issue", config.issue])
     if config.factory_metrics_ledger is not None:
@@ -856,7 +975,12 @@ def _factory_decision(status: Status) -> str:
 
 
 def _factory_note(config: WorkerConfig, result: WorkerResult) -> str:
-    parts = [f"mode={config.mode}", f"status={result.status}"]
+    parts = [
+        f"mode={config.mode}",
+        f"status={result.status}",
+        f"accounting={result.usage_receipt.accounting_status}",
+        f"accounting_reason={result.usage_receipt.accounting_reason}",
+    ]
     ignored_root = (config.repo_root / ".entroping").resolve()
     try:
         relative_artifact_dir = result.artifact_dir.resolve().relative_to(ignored_root)

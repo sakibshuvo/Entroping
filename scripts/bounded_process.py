@@ -6,7 +6,7 @@ import shutil
 import signal
 import subprocess  # nosec B404
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +35,8 @@ def run_bounded_process(
     timeout_seconds: float,
     max_output_bytes: int,
     env: Mapping[str, str] | None = None,
+    stdout_consumer: Callable[[bytes], None] | None = None,
+    capture_stdout: bool = True,
 ) -> BoundedProcessResult:
     args = tuple(str(item) for item in command)
     if not args:
@@ -60,6 +62,7 @@ def run_bounded_process(
     _ = selector.register(process.stdout, selectors.EVENT_READ)
     _ = selector.register(process.stderr, selectors.EVENT_READ)
     buffers = {"stdout": bytearray(), "stderr": bytearray()}
+    consumed_bytes = {"stdout": 0, "stderr": 0}
     exceeded_streams: set[str] = set()
     timed_out = False
     deadline = time.monotonic() + timeout_seconds
@@ -83,10 +86,22 @@ def run_bounded_process(
                     _ = selector.unregister(stream)
                     stream.close()
                     continue
+                available = max_output_bytes - consumed_bytes[stream_name]
+                accepted = chunk[: max(0, available)]
+                consumed_bytes[stream_name] += len(accepted)
+                if stream_name == "stdout" and stdout_consumer is not None and accepted:
+                    try:
+                        stdout_consumer(accepted)
+                    except Exception as exc:
+                        _kill_process_group(process)
+                        _ = process.wait()
+                        raise BoundedProcessError(
+                            "bounded stdout consumer failed"
+                        ) from exc
                 buffer = buffers[stream_name]
-                available = max_output_bytes - len(buffer)
-                if available > 0:
-                    buffer.extend(chunk[:available])
+                should_capture = stream_name != "stdout" or capture_stdout
+                if available > 0 and should_capture:
+                    buffer.extend(accepted)
                 if len(chunk) > available:
                     exceeded_streams.add(stream_name)
                     _kill_process_group(process)
@@ -101,11 +116,15 @@ def run_bounded_process(
             if not stream.closed:
                 stream.close()
 
-    stdout, stdout_decode_exceeded = _decode_output(
-        bytes(buffers["stdout"]),
-        max_output_bytes,
-        "stdout" in exceeded_streams,
-    )
+    if capture_stdout:
+        stdout, stdout_decode_exceeded = _decode_output(
+            bytes(buffers["stdout"]),
+            max_output_bytes,
+            "stdout" in exceeded_streams,
+        )
+    else:
+        stdout = ""
+        stdout_decode_exceeded = False
     stderr, stderr_decode_exceeded = _decode_output(
         bytes(buffers["stderr"]),
         max_output_bytes,
