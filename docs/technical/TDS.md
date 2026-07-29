@@ -103,6 +103,23 @@ read-only metadata. Issue bodies, comments, and self-consistent PR text cannot
 grant Tier A autonomous merge authority, and protected, sensitive, or
 release/quality guardrail diffs remain ineligible for that authority.
 
+The maintainer factory's issue selector is a separate read-only adapter under
+`scripts/factory_issue_selector*.py`. A pure selection core consumes sanitized,
+typed GitHub snapshot and active-state records; GitHub, cache, worktree, queue,
+and CLI modules remain boundary adapters. The snapshot cache persists only
+allowlisted parsed metadata under ignored `.entroping/` state with a bounded
+TTL and owner-only, no-follow filesystem handling. Selection requires explicit
+issue file scopes and complete lease input, fails closed on stale or ambiguous
+state, and emits a non-authorizing plan with `paid_work_authorized: false`.
+It has no import or call path into provider workers or the AI job dispatcher.
+The CLI owns the current UTC freshness clock. Local ownership joins checked-out
+issue worktrees, explicitly issue-numbered unmerged branches, open PR changed
+files, immutable queued/running file receipts, and caller-declared leases.
+File-scope overlap is case-insensitive for portable safety; missing association,
+unsafe symlink aliases, or incomplete state blocks.
+Atomic leases, duplicate-tick exclusion, and dispatch-time revalidation remain
+the downstream scheduler boundary tracked by issue #1569.
+
 The maintainer-only OpenCode worker consumes `opencode run --format json`
 incrementally through the shared bounded subprocess adapter. Raw JSON events,
 reasoning, tool payloads, provider errors, and child stderr do not cross into

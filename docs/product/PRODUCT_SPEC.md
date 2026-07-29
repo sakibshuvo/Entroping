@@ -155,11 +155,12 @@ AI-generated change quality is managed as a seeded evidence loop before any repa
   A GitHub issue may receive verified-user scheduling priority only when its
   closed `entroping.user-evidence.v1` metadata includes the matching digest of
   that sanitized local artifact and a maintainer has applied the
-  `evidence:user-verified` label. After the complete fresh-state, contract,
-  ownership, overlap, lease, and autonomy gates tracked by issue #1567 pass,
-  precedence is `priority:p0`, verified user blockers, verified user-evidence
-  `priority:p1`, then other ready work. Raw feedback and private conversations
-  never enter GitHub or provider prompts. This prioritization is
+  `evidence:user-verified` label. After the complete fresh-state, issue contract,
+  milestone, verification, autonomy, ownership, active unmerged branch, PR,
+  lease, explicit-file-scope, overlap, and dependency gates implemented by
+  issue #1567 pass, precedence is `priority:p0`, verified user blockers,
+  verified user-evidence `priority:p1`, then other ready work. Raw feedback and
+  private conversations never enter GitHub or provider prompts. This prioritization is
   product-learning policy, not proof of market validation; the exact
   issue-body contract, fail-closed rules, and non-quota work-mix receipt
   semantics live in `docs/meta/ISSUE_TRACKING.md`.

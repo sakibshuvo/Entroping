@@ -521,13 +521,13 @@ def test_user_evidence_contract_is_closed_consistent_and_fail_closed() -> None:
     normalized_issue_tracking = " ".join(issue_tracking.split())
     assert "exactly one YAML block" in normalized_issue_tracking
     assert "unknown or repeated fields are invalid" in normalized_issue_tracking
-    assert "Issue #1567 must first enforce its full fresh-state eligibility gates" in (
+    assert "selector safety boundary implemented by issue #1567" in (
         normalized_issue_tracking
     )
-    assert "ownership, branch, worktree, PR, lease, overlap" in (
+    assert "ownership, active branch, worktree, PR, lease, explicit file scope" in (
         normalized_issue_tracking
     )
-    assert "have no other `status:*` label" in normalized_issue_tracking
+    assert "exactly one `status:ready` label" in normalized_issue_tracking
     assert "have no unresolved `Blocked by` dependency" in normalized_issue_tracking
     assert "must fail closed from user-evidence priority" in normalized_issue_tracking
     assert "20 most recent counted receipts" in normalized_issue_tracking

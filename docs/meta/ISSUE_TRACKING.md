@@ -23,7 +23,7 @@ Use a small label system so the queue stays readable:
 
 | Group | Labels |
 | --- | --- |
-| Type | `type:bug`, `type:feature`, `type:regression`, `type:security`, `type:docs`, `type:architecture` |
+| Type | `type:bug`, `type:feature`, `type:regression`, `type:security`, `type:docs`, `type:architecture`, `type:tests` |
 | Priority | `priority:p0`, `priority:p1`, `priority:p2`, `priority:p3` |
 | Area | `area:cli`, `area:qanstitution`, `area:hurl-runner`, `area:reports`, `area:brain`, `area:eye`, `area:tests`, `area:docs` |
 | Status | `status:needs-triage`, `status:ready`, `status:blocked`, `status:in-progress` |
@@ -88,13 +88,13 @@ issue is not rejected from ordinary ready work solely for that reason.
 
 ### Deterministic selection precedence
 
-This contract defines precedence, not the complete selector safety boundary.
-Issue #1567 must first enforce its full fresh-state eligibility gates: complete
-issue contract, verification lane, autonomy ceiling, ownership, branch,
-worktree, PR, lease, overlap, and dependency checks. At minimum, a precedence
-candidate must also be open, have `status:ready`, have no other `status:*`
-label, and have no unresolved `Blocked by` dependency. Only after every #1567
-gate passes, select the first non-empty bucket:
+This contract defines precedence inside the selector safety boundary implemented
+by issue #1567. The selector first enforces complete, fresh GitHub state; the
+issue contract, milestone, verification lane, autonomy ceiling, ownership,
+active branch, worktree, PR, lease, explicit file scope, overlap, and dependency gates. A
+candidate must also be open, have exactly one `status:ready` label, and have no
+unresolved `Blocked by` dependency. Only after every eligibility gate passes,
+select the first non-empty bucket:
 
 1. issues with `priority:p0`;
 2. valid verified user evidence with `severity: blocker`;

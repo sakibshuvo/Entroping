@@ -24,6 +24,8 @@ patch_inspection = importlib.import_module("scripts.factory_patch_inspection")
         ("tests/test_factory_budget_ledger_safety.py", "budget-governor"),
         ("./scripts//ai_jobs.py", "factory-scheduler"),
         ("SCRIPTS/AI_JOBS.PY", "factory-scheduler"),
+        ("scripts/factory_issue_selector.py", "factory-scheduler"),
+        ("tests/test_factory_issue_selector_io.py", "factory-scheduler"),
         ("src/entroping/core/hurl_runner.py", "runtime-security"),
         ("src/entroping/core/redaction.py", "runtime-security"),
         (".git/config", "repository-authority"),
