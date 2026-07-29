@@ -6,6 +6,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -29,6 +31,57 @@ def test_bounded_process_captures_normal_stdout_and_stderr(tmp_path: Path) -> No
     assert result.stderr == "warning\n"
     assert result.timed_out is False
     assert result.output_limit_exceeded is False
+
+
+def test_bounded_process_streams_stdout_without_returning_raw_bytes(tmp_path: Path) -> None:
+    chunks: list[bytes] = []
+
+    result = run_bounded_process(
+        [sys.executable, "-c", "print('json event')"],
+        cwd=tmp_path,
+        timeout_seconds=5,
+        max_output_bytes=1_024,
+        stdout_consumer=chunks.append,
+        capture_stdout=False,
+    )
+
+    assert b"".join(chunks) == b"json event\n"
+    assert result.stdout == ""
+    assert result.output_limit_exceeded is False
+
+
+def test_bounded_process_enforces_limit_when_stdout_is_not_captured(tmp_path: Path) -> None:
+    chunks: list[bytes] = []
+
+    result = run_bounded_process(
+        [sys.executable, "-c", "import sys; sys.stdout.write('x' * 1000000)"],
+        cwd=tmp_path,
+        timeout_seconds=5,
+        max_output_bytes=1_024,
+        stdout_consumer=chunks.append,
+        capture_stdout=False,
+    )
+
+    assert result.output_limit_exceeded is True
+    assert len(b"".join(chunks)) <= 1_024
+    assert result.stdout == ""
+
+
+def test_bounded_process_consumer_failure_is_value_free(tmp_path: Path) -> None:
+    def reject(_chunk: bytes) -> None:
+        raise RuntimeError("secret provider output")
+
+    with pytest.raises(RuntimeError, match="bounded stdout consumer failed") as exc_info:
+        run_bounded_process(
+            [sys.executable, "-c", "print('event')"],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            stdout_consumer=reject,
+            capture_stdout=False,
+        )
+
+    assert "secret provider output" not in str(exc_info.value)
 
 
 def test_bounded_process_kills_output_flood_before_memory_growth(tmp_path: Path) -> None:

@@ -25,6 +25,113 @@ blocked until all of these repository-owned dependencies exist:
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
 
+## Provider Capability Registry
+
+The repository-owned
+[`provider-capability-registry.json`](provider-capability-registry.json) at
+`docs/meta/provider-capability-registry.json` is the
+factory's non-secret source for provider evidence and queue-routing
+capabilities. Its authoring schema is
+[`provider-capability-registry.v1.schema.json`](provider-capability-registry.v1.schema.json),
+generated from the strict runtime models with:
+
+```text
+uv run python scripts/update_provider_capability_schema.py
+uv run pytest tests/test_provider_capability_registry.py -q
+```
+
+Do not add credentials, endpoints, account balances, quota observations, or
+local provider configuration to this file. A registry entry records what the
+factory may recognize; it does not prove that a provider or model is currently
+available. New dispatch requires an active registered queue route. Unknown
+paid lane, host, billing, or model combinations are rejected until the exact
+combination is reviewed and registered. Deprecation preserves historical PR
+evidence while blocking new queue dispatch. Only explicitly non-paid lanes may
+allow unlisted models.
+
+For queue-bound entries, `models[].id` is the exact invocation identity passed
+to that engine. Every effectively metered model additionally has a
+provider-qualified `cost_model_id`, paired with the lane's `cost_provider_id`,
+so a future scheduler can join the recognized route to a reviewed cost policy
+without guessing or rewriting the invocation. These cost identities are join
+metadata only: they do not prove a price, budget, provider availability, or
+permission to spend.
+
+The registry does not replace the ignored cost policy below. Capability answers
+"is this route recognized?"; the cost policy and downstream ledger answer
+"may this recognized route spend now?" Both checks must pass before future
+paid scheduling.
+
+The current factory metrics `provider` and `model` fields are legacy labels,
+not canonical registry or cost-policy join keys. Do not combine them by string
+shape. Issue #1573 owns evidence-bound migration to explicit lane, invocation,
+and cost identities.
+
+## Autonomous Control-Plane Protection
+
+Before a Tier A queue job is written, `scripts/ai_jobs.py` rejects selected
+files protected by `scripts/factory_control_plane_policy.py`. The same check
+runs again after queue claim and before worker invocation so a stale or altered
+job cannot bypass submission checks. The issue must remain open and
+`status:ready` with exactly one maintainer-owned autonomy label; issue prose is
+never dispatch authority.
+
+Before enabling Tier A dispatch in a repository, run the label bootstrap from
+`AGENT_CONTROL_PLANE.md`, inventory open issues with
+`gh issue list --state open --json number,title,labels`, and have a maintainer
+apply exactly one autonomy label per issue after reviewing its current scope.
+Missing or conflicting labels intentionally stop dispatch; never infer or
+backfill authority from issue-body text.
+
+Before accepting a patch proposal, run
+`uv run python scripts/factory_review_packet.py --job-id <job-id> --json`.
+Tier A packets fail closed on protected paths, renames from or to protected
+paths, multi-file policy violations, generated symlinks, malformed Git patches,
+and invalid aliases. The error contains only paths and reason codes. Requeue or
+hand the proposal to Codex/human review under the correct Tier B or Tier C
+authority; do not edit the job record to downgrade the failure.
+
+For a policy change, use a Tier C issue worktree, update the canonical policy,
+tests, CODEOWNERS if ownership changes, ADR/decision registry when authority
+changes, and run the `release-ci-architecture` verification lane. CODEOWNERS is
+an ownership map, not proof that branch protection requires an approval.
+
+## OpenCode Usage Receipts
+
+Queued OpenCode workers invoke `opencode run --format json` and consume its
+JSONL stream through the bounded subprocess reader. Raw event lines are not
+returned to the worker artifact layer. The worker retains only completed text
+parts for the existing review or patch-proposal artifact and writes a separate
+`entroping.opencode-usage-receipt.v1` file containing allowlisted correlation
+and accounting fields: queue job id when present, local run id, requested
+model, a SHA-256 session fingerprint, unique step count, accounting state and
+reason, and validated token/cost totals only when accounting is complete. It
+does not retain the raw session id, event timestamps, reasoning, tool input or
+output, provider errors, unknown fields, or JSON event fragments. Raw child
+stderr is also withheld from artifacts.
+
+OpenCode JSON mode has no separate terminal record, so the worker reads through
+process EOF. Usage emitted after the final text still counts. Unique
+`step_finish` records are summed; exact repeats are idempotent, while conflicting
+duplicates (including one step-part id rebound to another message), mixed
+sessions, malformed records, invalid numeric fields, timeout,
+output overflow, provider error events, and nonzero process exits produce an
+explicit `unaccounted` receipt. Missing cost is never rewritten to zero. A
+reported zero cost is also `unaccounted` because the current OpenCode event
+contract does not prove that zero is an authoritative billed amount for a
+metered route. A positive decimal that underflows to zero at the persisted
+floating-point boundary is treated the same way rather than becoming an
+accounted zero-cost run.
+
+The queue validates receipt schema, job/model/run correlation, session digest,
+step count, and the exact numeric usage allowlist before copying any values into
+terminal job state. A missing or invalid OpenCode receipt becomes
+`invalid_receipt`; arbitrary worker fields and forged reason strings are
+dropped. Any downstream paid autonomous dispatch or settlement path must treat
+every `unaccounted` receipt as ineligible. An `accounted` receipt supplies usage
+evidence only and does not itself authorize spending, patch application, or
+merge.
+
 ## Cost Policy Preflight
 
 The factory's concrete cost policy belongs at

@@ -25,6 +25,10 @@ def requeue_job(
         job_root,
         job_id,
     )
+    if source_job.get("autonomy_tier") != "tier_a":
+        raise ai_jobs.AiJobError(
+            f"only quarantined Tier A jobs can be requeued here: {job_id}"
+        )
     issue = issue_number(source_job.get("issue"))
     issue_snapshot = github_issue_snapshot(issue)
     files = ai_jobs._validate_files(
@@ -35,6 +39,7 @@ def requeue_job(
         engine=engine,
         profile=profile,
         model=model,
+        autonomy_tier="tier_a",
     )
     revalidated_job: dict[str, object] = {
         **source_job,
@@ -43,6 +48,14 @@ def requeue_job(
         "model": resolved_model,
         "files": files,
     }
+    revalidated_job.update(
+        ai_jobs._routing_metadata(
+            autonomy_tier="tier_a",
+            engine=engine,
+            profile=resolved_profile,
+            model=resolved_model,
+        )
+    )
     if ai_jobs._tier_a_routing_violation(revalidated_job, source_path) is not None:
         msg = f"explicit routing still violates Tier A policy for {job_id}"
         raise ai_jobs.AiJobError(msg)

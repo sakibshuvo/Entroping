@@ -122,8 +122,9 @@ Rules:
   or `mypy ignore_errors`; use normal importable modules with explicit
   dependencies.
 - Report blockers early.
-- Merge your own PR only if the assignment explicitly grants Tier A autonomous
-  merge authority and CI is green; otherwise wait for parent integrator review.
+- Merge your own PR only if the open issue has exactly one maintainer-owned
+  `autonomy:tier-a` label, the assignment preserves that authority, and CI is
+  green; otherwise wait for parent integrator review.
 ```
 
 ## Credit-Aware Prompt Generator Flow
@@ -243,8 +244,8 @@ Authority:
 - Reuse an existing issue worktree when one is listed.
 - Do not touch main directly.
 - Do not merge.
-- Codex is the only merge authority unless the issue explicitly grants Tier A
-  autonomous merge authority and all Tier A conditions are met.
+- Codex is the only merge authority unless the open issue has exactly one
+  maintainer-owned `autonomy:tier-a` label and all Tier A conditions are met.
 
 Hard safety rules:
 - Do not inspect secrets, provider config, local credential stores, raw traffic,
@@ -290,8 +291,8 @@ For each issue:
 10. Review git diff.
 11. Commit only if local checks pass.
 12. Push and open a PR with `Closes #<issue-number>`.
-13. Do not merge unless the issue explicitly grants Tier A autonomous merge
-    authority, local gates passed, and CI is green.
+13. Do not merge unless the open issue has exactly one maintainer-owned
+    `autonomy:tier-a` label, local gates passed, and CI is green.
 
 No-copy handoff:
 At the end of each issue, write:
@@ -341,13 +342,13 @@ docs/meta/prompt-library/multi-agent-marathon.md
 docs/meta/prompt-library/model-output-acceptance-gate.md
 
 Lane:
-- Provider lane: <codex-spark | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
+- Provider lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - Provider host: <OpenCode Desktop | OpenCode CLI | OpenCode Go>
 - Billing path: <paid DeepSeek inside OpenCode | OpenCode Go subscription | other>
 - Model id: <exact configured model id>
 - Autonomy tier: <Tier A or Tier B from issue selection>
-- Merge authority: Codex/human unless an issue explicitly grants Tier A
-  autonomous merge authority and all Tier A conditions are met.
+- Merge authority: Codex/human unless the open issue has exactly one
+  maintainer-owned `autonomy:tier-a` label and all Tier A conditions are met.
 
 Issues:
 <Codex inserts selected OpenCode issue-numbered list here>

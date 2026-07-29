@@ -31,7 +31,7 @@ Do everything through OpenCode Desktop tools. Do not ask me to run terminal
 commands unless OpenCode cannot run them.
 
 Provider lane:
-- Lane: <codex-spark | opencode/native-deepseek>
+- Lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - Provider host: OpenCode Desktop
 - Billing path: paid DeepSeek API key inside OpenCode
 - Model id: deepseek/deepseek-v4-pro
@@ -130,7 +130,11 @@ In the issue worktree:
 
 Before autonomous merge:
 - Run:
-  scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>
+  gh api repos/sakibshuvo/Entroping/issues/<issue-number> --jq '{number,state,pull_request,labels}' > <issue.json>
+  uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number> --issue-metadata-file <issue.json>
+- Confirm `uv run python scripts/factory_review_packet.py --job-id <job-id>
+  --json` accepts the complete proposal. A protected path, rename, alias, or
+  symlink ends Tier A authority and requires Codex/human review.
 - Watch CI:
   gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch
 - Merge only if the issue stayed Tier A, local gates passed, PR body validates,

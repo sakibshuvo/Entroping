@@ -21,6 +21,11 @@ No model output is source of truth. Repo files, GitHub issues, tests, CI,
 ADRs, QAnstitution/Hurl evidence, and deterministic gates decide whether a
 change is correct.
 
+Current registered examples include `opencode/native-deepseek`,
+`deepseek-api/direct`, `opencode-go/kimi-k2.7-code`,
+`opencode-go/qwen3.7-max`, and `opencode-go/other`; this illustrative list is
+not an allowlist and may lag the canonical registry.
+
 ## Trial Prompt
 
 ```text
@@ -37,7 +42,7 @@ Issue:
 
 Trial identity:
 - issue number: #<issue-number>
-- provider lane: <codex/native | opencode/native-deepseek | deepseek-api/direct | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- provider lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - provider host: <Codex | OpenCode Desktop | OpenCode CLI | repo-local DeepSeek worker | OpenCode Go | local runtime>
 - billing path: <Codex subscription | paid DeepSeek API | OpenCode Go subscription | local/offline>
 - model id: <exact model id when known>
@@ -45,6 +50,8 @@ Trial identity:
 - autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
 
 Rules:
+- Resolve lane, host, billing, model, lifecycle, and autonomy constraints from
+  `docs/meta/provider-capability-registry.json`; do not invent a paid combination.
 - Do not score models by confidence or style alone.
 - Score output quality through tests, diffs, CI, security/architecture review, and reviewer effort.
 - Keep one issue per worktree.

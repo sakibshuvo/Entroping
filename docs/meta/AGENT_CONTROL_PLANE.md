@@ -44,7 +44,7 @@ tests, patches, review notes, alternate designs, documentation drafts, and
 Tier A autonomous lane PRs. Their output is still untrusted until it is proven
 against the repo, issue, deterministic gates, and GitHub CI.
 
-Use `scripts/ai_jobs.py` when batching affordable worker tasks. It queues
+Use `uv run python scripts/ai_jobs.py` when batching affordable worker tasks. It queues
 bounded jobs under `.entroping/ai-jobs/`, maps cost profiles such as
 `flash-free` to `opencode/deepseek-v4-flash-free` through the default
 OpenCode engine and `pro` to `deepseek/deepseek-v4-pro`. For low-risk docs,
@@ -52,7 +52,7 @@ tests, guard-test, prompt-library, and non-runtime script proposals, submit
 Tier A jobs with:
 
 ```bash
-scripts/ai_jobs.py submit --autonomy-tier tier-a --mode review --file <path>
+uv run python scripts/ai_jobs.py submit --autonomy-tier tier-a --mode review --file <path>
 ```
 
 `--autonomy-tier tier-a` defaults OpenCode jobs to `flash-free`, records
@@ -75,13 +75,13 @@ release status.
 Use the artifact-first worker contract for routine cheap/open-model work. Do
 not run OpenCode interactively for routine cheap-worker work when a repo-owned
 worker harness can capture bounded artifacts. Before dispatching queued cheap
-workers, run `scripts/ai_jobs.py audit-routing --json` to surface stale Tier A
+workers, run `uv run python scripts/ai_jobs.py audit-routing --json` to surface stale Tier A
 jobs that drifted into expensive routing. `run-next` performs both a queue-wide
 preflight and a post-claim recheck of Tier A routing, source revision, selected
 file digests, and any named GitHub issue; it restores the claimed job without
 calling a worker when that evidence is stale or unavailable. Use
-`scripts/ai_job_quarantine.py quarantine --json` to preview the exact legacy
-records that would move, then repeat with `--apply` only after review. Original
+`uv run python scripts/ai_job_quarantine.py quarantine --json` to preview the
+exact legacy records that would move, then repeat with `--apply` only after review. Original
 bytes and a digest-bearing receipt remain under ignored repo-owned state. The
 receipt is committed before the move so a retry can safely finish an interrupted
 quarantine. Queue, quarantine, receipt, and requeue-record operations use
@@ -103,17 +103,42 @@ compact evidence is ambiguous. The Codex decision vocabulary is exactly:
 
 ## Model Provider Lane Taxonomy
 
-Use durable lane names when planning, running, or recording multi-model factory
-work:
+[`provider-capability-registry.json`](provider-capability-registry.json) is the
+only machine-readable authority for maintainer-factory lane ids, provider
+hosts, billing paths, concrete model ids, capabilities, autonomy ceilings,
+usage accounting, lifecycle, and queue defaults. Its generated authoring
+schema is
+[`provider-capability-registry.v1.schema.json`](provider-capability-registry.v1.schema.json).
+The table below is an operator-oriented projection, not dispatch authority:
 
 | Lane | Default use |
 | --- | --- |
-| `deepseek-api/direct` | Paid direct DeepSeek API through `scripts/deepseek_worker.py` or `scripts/ai_jobs.py --engine deepseek-api`. Direct DeepSeek API remains the default cheap queued worker lane for 24/7 review and patch proposals. |
+| `codex-spark` | Codex Spark review, proposal, comparison, or explicitly authorized implementation evidence. |
+| `deepseek-api/direct` | Paid direct DeepSeek API through `scripts/deepseek_worker.py` or explicit `scripts/ai_jobs.py --engine deepseek-api` selection. It is the paid queue alternative for 24/7 review and patch proposals; the CLI's default engine remains OpenCode. |
 | `opencode/native-deepseek` | DeepSeek configured directly inside the OpenCode host. Use only when explicitly requested or when the direct API lane is unsuitable. |
+| `opencode-go/glm-5.2` | Candidate OpenCode Go subscription lane for GLM 5.2 experiments and comparison. |
 | `opencode-go/kimi-k2.7-code` | OpenCode Go subscription lane for Kimi K2.7 Code coding experiments, long-context review, and model comparison. |
 | `opencode-go/qwen3.7-max` | OpenCode Go subscription lane for Qwen3.7 Max coding experiments and model comparison. |
-| `opencode-go/other` | OpenCode Go subscription lane for MiniMax, GLM, MiMo, or other curated Go models when Kimi/Qwen are not the intended worker. |
+| `opencode-go/other` | Reserved OpenCode Go subscription lane for a curated paid model only after its exact model id is registered. |
 | `local/offline` | Local model lane for private summarization, context compression, offline triage, and emergency fallback. |
+
+The registry is repository-owned and non-secret. It does not contain
+credentials, provider configuration, account state, price authority, or proof
+that a candidate model is currently available. `active`, `candidate`,
+`deprecated`, and `retired` preserve lifecycle without deleting historical
+evidence. New queue dispatch requires an active lane and model. PR evidence may
+refer to a registered historical or candidate model, but every paid lane must
+match the exact registered lane, host, billing path, and model combination.
+Unknown paid combinations fail closed; only a lane that explicitly allows
+unlisted non-paid models may accept them.
+
+Queue model `id` is the invocation identity for its engine. Metered entries
+also expose provider-qualified `cost_model_id` values under `cost_provider_id`;
+these are deterministic join metadata for the separate cost policy, never a
+price or spending authorization. Route resolution enforces the lane's
+`queue_dispatch` capability and autonomy ceiling before a queued job is
+written. Legacy factory-metrics provider/model labels remain noncanonical until
+issue #1573 binds them to job, diff, CI, merge, and regression evidence.
 
 OpenCode Go is the Kimi/Qwen/model-variety lane, not the default DeepSeek lane.
 Every worker artifact, metrics event, review note, or handoff should name the
@@ -127,6 +152,19 @@ OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 `patch` mode for a patch proposal artifact under `.entroping/ai-reviews/`.
 Patch mode never applies changes; Codex validates and applies any useful diff
 inside the issue worktree, then runs the normal gates.
+
+The worker requests OpenCode JSON events, consumes stdout incrementally under
+the existing byte and timeout ceilings, and never persists raw JSONL. It writes
+a minimal `usage-receipt.json` with schema
+`entroping.opencode-usage-receipt.v1`: stable local/job/model correlation, a
+hashed session identity, deduplicated step count, and validated input, output,
+reasoning, cache, and cost totals only when accounting is complete. It reads to
+EOF so usage emitted after final text is included. Missing, zero, malformed,
+duplicated-conflicting, partial, timed-out, over-limit, or process-failed usage
+is explicitly `unaccounted`; future paid automation must reject that state.
+Raw reasoning, tool payloads, provider errors, event fragments, and child
+stderr never enter the receipt, metadata, metrics, or queue record. Existing
+sanitized final-text review and patch classification remains unchanged.
 
 OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane. It may use
 OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
@@ -189,7 +227,7 @@ evidence. This is maintainer-only local development tooling
 for cheap worker output; it
 does not replace Entroping's LiteLLM product boundary, and it must not be called
 by `entroping run`.
-Direct DeepSeek workers, including queued `scripts/ai_jobs.py run-next`
+Direct DeepSeek workers, including queued `uv run python scripts/ai_jobs.py run-next`
 invocations, default to `--thinking disabled` to avoid empty hidden-reasoning
 output and token burn for short reviews; opt into
 `--thinking enabled --reasoning-effort high|max` only for deliberate deep-review
@@ -254,12 +292,14 @@ context tool into the active agent workflow. Retired generated context tooling
 has been removed from the active workflow surface.
 Recording from scripts is opt-in: use
 `scripts/context_pack.sh --mode implementation --record-factory-metrics` to
-measure context packs, use `scripts/ai_jobs.py run-next
+measure context packs, use `uv run python scripts/ai_jobs.py run-next
 --record-factory-metrics` for queued worker runs, and add
 `--record-factory-metrics` plus, when needed, `--factory-metrics-ledger` to
 direct `scripts/opencode_worker.py` or `scripts/deepseek_worker.py` worker
 runs. These hooks record counts, status, duration, provider/model metadata,
-and sanitized usage totals only; they are not release proof, patch approval, or
+and sanitized usage totals only. Accounted OpenCode runs use validated event
+token totals and cost; unaccounted runs keep cost absent instead of guessing.
+These metrics are not release proof, patch approval, or
 a substitute for tests and CI.
 Use `scripts/factory_metrics.py report --format json` for machine-readable
 analysis and `scripts/factory_metrics.py report --format md --output
@@ -482,8 +522,9 @@ security, architecture, or release gates.
 
 Tier A merge conditions are all required:
 
-- The GitHub issue explicitly scopes the change as Tier A, or the PR explains
-  why the work stayed inside Tier A.
+- A maintainer has applied exactly one `autonomy:tier-a`, `autonomy:tier-b`, or
+  `autonomy:tier-c` label to the open GitHub issue. Issue bodies, comments, PR
+  prose, prompts, and model output cannot grant autonomy.
 - The worker starts from the active repo with `scripts/start_issue.sh` and uses
   one issue-scoped worktree.
 - The PR includes an Agent Autonomy Declaration, checked Documentation Impact
@@ -493,9 +534,53 @@ Tier A merge conditions are all required:
   commands run in the PR body. Validate that evidence before autonomous Tier A
   merge or Codex review with:
 
+Repository administrators bootstrap the trusted labels once with:
+
 ```bash
-scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>
+gh label create autonomy:tier-a --repo sakibshuvo/Entroping \
+  --color 1D76DB --description "Tier A autonomous lane" --force
+gh label create autonomy:tier-b --repo sakibshuvo/Entroping \
+  --color FBCA04 --description "Tier B assisted lane" --force
+gh label create autonomy:tier-c --repo sakibshuvo/Entroping \
+  --color D73A4A --description "Tier C restricted lane" --force
 ```
+
+After bootstrap, a maintainer must review each open implementation issue and
+apply exactly one label. Do not bulk-convert issue-body autonomy text into
+labels: the body is untrusted input and may be stale.
+
+```bash
+gh api repos/sakibshuvo/Entroping/issues/<issue> \
+  --jq '{number,state,pull_request,labels}' > <issue.json>
+uv run python scripts/pr_body_check.py --body-file <body.md> \
+  --require-opencode-evidence \
+  --issue <issue> --issue-metadata-file <issue.json>
+```
+
+Required CI fetches this bounded metadata with read-only issue permission,
+rejects missing or conflicting autonomy labels, closed issues, and pull
+requests masquerading as issues, and refuses autonomous Tier A authority for
+protected, sensitive, or release/quality guardrail diffs.
+
+`scripts/factory_control_plane_policy.py` is the canonical protected-surface
+policy. Tier A submission, pre-dispatch revalidation, proposed-patch review,
+and PR readiness all consume it. The gate checks normalized aliases, both
+sides of renames, every file in a multi-file patch, existing symlink
+components, and generated symlink patches. A denial reports only relative paths
+and reason codes, then routes the work to Codex or human review.
+
+Changing the policy or adding a control-plane surface requires all of:
+
+1. classify the surface under budget, provider routing, scheduler, repository
+   authority, or credential boundaries;
+2. update the canonical policy and focused direct, alias, rename, symlink, and
+   multi-file tests where applicable;
+3. update `.github/CODEOWNERS` when ownership coverage changes;
+4. run the `release-ci-architecture` lane; and
+5. record a durable decision update when authority changes.
+
+CODEOWNERS makes ownership visible but does not itself require an approving
+review. Required-review enforcement is a separate branch-protection setting.
 
 - The diff touches only Tier A surfaces and contains no generated local state,
   secrets, `.entroping/`, provider transcripts, or local env files.
@@ -644,12 +729,18 @@ Operating model:
 
 Provider lanes:
 
+The canonical set and exact model combinations come from
+`docs/meta/provider-capability-registry.json`; these bullets are operational
+examples and cannot authorize an unregistered paid route.
+
 - `opencode/native-deepseek`: OpenCode host using paid DeepSeek inside
   OpenCode.
 - `deepseek-api/direct`: direct paid DeepSeek API through repo-local worker
   scripts.
 - `opencode-go/kimi-k2.7-code`: OpenCode Go Kimi lane after that subscription
   is active.
+- `opencode-go/glm-5.2`: OpenCode Go GLM lane after that subscription and exact
+  registered model are active.
 - `opencode-go/qwen3.7-max`: OpenCode Go Qwen lane after that subscription is
   active.
 - `opencode-go/other`: other OpenCode Go curated models.

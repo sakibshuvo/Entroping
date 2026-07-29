@@ -544,6 +544,55 @@ decisions:
     superseded_by: null
 
   - id: ENT-DEC-0024
+    title: Factory provider capability registry
+    status: accepted
+    date: "2026-07-28"
+    summary: >
+      One versioned, non-secret registry governs recognized maintainer-factory
+      provider evidence and queue routes; exact unknown paid combinations fail
+      closed while lifecycle preserves historical evidence and metered routes
+      carry separate invocation and cost-policy join identities.
+    tags: [factory, providers, routing, security, architecture]
+    source_links:
+      - path: decisions/ADR-0024-provider-capability-registry.md
+        role: adr
+      - path: docs/meta/provider-capability-registry.json
+        role: capability-registry
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - docs/meta/AGENT_CONTROL_PLANE.md
+      - docs/meta/FACTORY_OPERATIONS.md
+    related_issues: ["#1558", "#1573"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0025
+    title: Autonomous workers cannot modify the factory control plane
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Maintainer-owned autonomy labels and one canonical protected-surface
+      policy fail closed across Tier A submission, pre-dispatch revalidation,
+      patch review, PR readiness, renames, aliases, and symlinks. Issue prose
+      and model output never grant authority; protected work routes to Codex or
+      human review.
+    tags: [factory, agents, autonomy, security, architecture, ci]
+    source_links:
+      - path: decisions/ADR-0025-factory-control-plane-protection.md
+        role: adr
+      - path: scripts/factory_control_plane_policy.py
+        role: enforcement-policy
+      - path: docs/meta/AGENT_CONTROL_PLANE.md
+        role: workflow-policy
+    related_docs:
+      - docs/meta/FACTORY_OPERATIONS.md
+      - docs/meta/prompt-library/model-output-acceptance-gate.md
+    related_issues: ["#1561"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0026
     title: Transactional factory budget ledger
     status: accepted
     date: "2026-07-27"
@@ -552,7 +601,7 @@ decisions:
       immutable entries and serialized cap enforcement.
     tags: [factory, budget, sqlite, security, reliability]
     source_links:
-      - path: decisions/ADR-0024-factory-budget-ledger.md
+      - path: decisions/ADR-0026-factory-budget-ledger.md
         role: adr
       - path: docs/technical/TDS.md
         role: technical-contract

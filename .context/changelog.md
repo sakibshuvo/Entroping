@@ -1,5 +1,57 @@
 # Entroping Changelog
 
+## 2026-07-29
+
+- Added issue #1561's canonical autonomous control-plane protection. Exactly
+  one maintainer-owned GitHub label now grants an issue's autonomy tier; issue
+  bodies and model output cannot self-promote. Tier A queue submission,
+  pre-dispatch revalidation, patch review, and PR readiness fail closed across
+  normalized aliases, case variants, renames, multi-file patches, symlink
+  components, generated symlink patches, hostile Unicode paths, and bounded
+  parser truncation. The review-packet CLI, data projection, patch inspection,
+  and policy validation are split into bounded modules, and the complete
+  serialized packet is rejected before rendering if it contains secret-like
+  output. Protected proposals route to Codex/human review with value-free path
+  and reason evidence.
+
+## 2026-07-28
+
+- Added issue #1560's sanitized OpenCode JSON usage receipts. The bounded worker
+  stream-parses events through EOF, preserves final-text review and patch
+  classification, deduplicates step usage, hashes session identity, validates
+  exact token/cost fields, and never persists raw JSONL, reasoning, tool
+  payloads, provider errors, or raw child stderr. Queue records fail closed to
+  explicit unaccounted evidence for missing, ambiguous-zero, malformed,
+  conflicting, partial, timed-out, over-limit, or invalid receipts, while
+  accounted totals can feed opt-in metrics without authorizing spend or merge.
+  The parser is split into bounded framing, usage aggregation, and receipt
+  schema modules; float-underflow costs fail closed, and the shared queue keeps
+  DeepSeek prompt-cache hit/miss counters intact. Accounted queue receipts must
+  carry a positive cost, and reusing one step-part id under a different message
+  is a conflicting duplicate rather than a second billable step.
+
+- Added issue #1558's versioned maintainer provider-capability registry and
+  generated schema. Queue submission, audit, requeue, pre-dispatch, and strict
+  PR evidence checks now share typed lane, host, billing, model, lifecycle,
+  autonomy, usage-accounting, and queue-default data. Exact unknown paid routes
+  fail closed; explicitly non-paid local lanes may allow unlisted models;
+  deprecated evidence remains reviewable without authorizing new dispatch.
+  Queue capabilities and autonomy ceilings are enforced at resolution, while
+  metered routes keep engine invocation ids separate from provider-qualified
+  cost-policy join ids. Required CI now binds autonomy claims to bounded,
+  read-only metadata from the single closing GitHub issue and rejects Tier A
+  autonomous authority for sensitive or release/quality guardrail diffs.
+  Provider-control-plane sources, schemas, governed authority docs, and their
+  policy tests are explicitly Tier A-ineligible. Hidden Markdown comments,
+  quotes and true lazy continuations, indented code, mismatched fenced-code
+  delimiters, duplicate authority sections, and duplicate structured evidence
+  fields cannot grant merge authority; rendered ATX headings correctly end a
+  lazy blockquote continuation, and backslash-escaped backticks stay literal
+  instead of hiding later visible authority. Strict validator, queue-operation,
+  and quarantine recovery commands now name the required `uv run python`
+  environment, while raw host Python reports a controlled instruction instead
+  of an import traceback.
+
 ## 2026-07-27
 
 - Added issue #1565's authoritative local factory budget ledger. A separate

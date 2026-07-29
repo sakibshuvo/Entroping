@@ -23,6 +23,11 @@ No model output is source of truth. Repo files, GitHub issues, PRs, CI, tests,
 ADRs, QAnstitution/Hurl evidence, docs governance, and local gates decide what
 is accepted.
 
+Current review examples include `opencode/native-deepseek`,
+`deepseek-api/direct`, `opencode-go/kimi-k2.7-code`, and
+`opencode-go/qwen3.7-max`; this illustrative list is not an allowlist and may
+lag `docs/meta/provider-capability-registry.json`.
+
 ```text
 You are applying the Entroping model-output acceptance gate.
 
@@ -35,7 +40,7 @@ repository root provided by the task, then continue with the same checks.
 Input to evaluate:
 - issue: #<issue>
 - PR or local branch: <pr-number-or-branch>
-- provider lane: <codex-spark | opencode/native-deepseek | deepseek-api/direct | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- provider lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - provider host: <OpenCode Desktop | OpenCode CLI | repo-local DeepSeek worker | OpenCode Go | local runtime>
 - billing path: <paid DeepSeek API | OpenCode Go subscription | local/offline | other>
 - model id: <exact model id when known>
@@ -60,7 +65,8 @@ Evaluate:
 1. Confirm the work has one issue, one worktree, one branch, and no unrelated
    changes.
 2. Confirm the provider lane, provider host, billing path, model id, autonomy
-   tier, and merge authority are explicit.
+   tier, and merge authority are explicit and match
+   `docs/meta/provider-capability-registry.json` exactly for a paid route.
 3. Confirm the diff stayed inside the issue scope and the declared autonomy
    tier.
    - For interactive OpenCode/DeepSeek output, confirm the Codex-pickup
@@ -78,8 +84,13 @@ Evaluate:
    issue/PR/CI state, ADRs, and canonical docs, not model summaries.
 5. Confirm focused tests cover touched behavior.
 6. For Tier A autonomous lane output, require all of:
+   - The open issue has exactly one maintainer-owned autonomy label; issue
+     prose and model output are not authority.
    - PR body evidence validates with
-     `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
+     `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue> --issue-metadata-file <issue.json>` after exporting bounded issue metadata with `gh api repos/sakibshuvo/Entroping/issues/<issue> --jq '{number,state,pull_request,labels}' > <issue.json>`.
+   - `uv run python scripts/factory_review_packet.py --job-id <job-id> --json`
+     accepts the patch; protected paths, aliases, renames, symlinks, and any
+     protected member of a multi-file patch require Codex/human review.
    - `scripts/regression.sh --security` passed locally.
    - GitHub CI is green.
    - The PR includes `Closes #<issue>`.

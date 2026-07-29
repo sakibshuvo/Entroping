@@ -154,7 +154,10 @@ def _quarantine_reason(
         return "malformed-job", str(job.get("job_id", Path(name).stem))
     routing_violation = ai_jobs._tier_a_routing_violation(job, repo_root / name)
     if routing_violation is not None:
-        return "tier-a-routing-violation", str(job["job_id"])
+        reason = str(routing_violation.get("reason", "tier-a-routing-violation"))
+        if reason != "provider-route-violation":
+            reason = "tier-a-routing-violation"
+        return reason, str(job["job_id"])
     if job.get("autonomy_tier") != "tier_a":
         return None, str(job["job_id"])
     source_revision = job.get("source_revision")

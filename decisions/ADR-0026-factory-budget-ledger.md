@@ -1,5 +1,5 @@
 ---
-title: ADR-0024 Transactional Factory Budget Ledger
+title: ADR-0026 Transactional Factory Budget Ledger
 type: decision
 status: accepted
 date: 2026-07-27
@@ -12,7 +12,7 @@ tags:
   - reliability
 ---
 
-# ADR-0024: Transactional Factory Budget Ledger
+# ADR-0026: Transactional Factory Budget Ledger
 
 ## Decision
 

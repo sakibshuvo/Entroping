@@ -62,10 +62,12 @@ automation lane; human-authored PRs still complete this template.
 ## OpenCode Provider Lane Evidence
 
 Complete this section for OpenCode/DeepSeek-produced or autonomous-lane PRs.
-Before merge, strict validation can run with
-`scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
+CI binds this evidence to the closing issue's maintainer-owned autonomy label.
+For local Tier A validation, export issue metadata with
+`gh api repos/sakibshuvo/Entroping/issues/<issue> --jq '{number,state,pull_request,labels}' > <issue.json>` and pass
+`--issue-metadata-file <issue.json>` to the strict checker.
 
-- Provider lane: <codex-spark | deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- Provider lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - Provider host:
 - Billing path:
 - Model id:

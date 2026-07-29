@@ -42,7 +42,7 @@ Issue:
 #<issue-number> - <issue-title>
 
 Worker evidence:
-- Provider lane: <codex-spark | deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- Provider lane: <registered lane id from docs/meta/provider-capability-registry.json>
 - Provider host: <OpenCode native | OpenCode Go | direct API | local runner>
 - Billing path: <paid DeepSeek | OpenCode Go | local | other>
 - Model id: <exact model id>
@@ -82,7 +82,7 @@ Artifact-first review protocol (before raw transcript output):
   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
 - For marathon output, prefer:
   `uv run python scripts/factory_inbox.py next --json`.
-- Confirm `scripts/ai_jobs.py audit-routing --json` was checked before
+- Confirm `uv run python scripts/ai_jobs.py audit-routing --json` was checked before
   dispatching queued cheap workers when the job came from the queue.
 - Review worker job metadata.
 - Review result summary.
@@ -147,7 +147,7 @@ Expected issue:
 #<issue-number>
 
 Expected provider lane:
-<codex-spark | deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+<registered lane id from docs/meta/provider-capability-registry.json>
 
 Expected autonomy tier:
 <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
