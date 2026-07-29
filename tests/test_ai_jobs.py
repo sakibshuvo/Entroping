@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import uuid
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -150,13 +151,100 @@ def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
     ]
 
 
+def write_paid_deepseek_policy(path: Path, *, now: datetime) -> Path:
+    model_id = "deepseek/deepseek-v4-pro"
+    policy = {
+        "schema_version": "entroping.factory-cost-policy.v1",
+        "policy_id": "queue-paid-policy",
+        "policy_revision": 1,
+        "currency": "USD",
+        "monetary_unit": "microcent",
+        "valid_from": (now - timedelta(hours=1)).isoformat(),
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "unknown_cost_behavior": "deny_paid_dispatch",
+        "unknown_quota_behavior": "deny_affected_paid_lane",
+        "cash": {
+            "calendar_month_timezone": "UTC",
+            "calendar_month_cap_microcents": 10_000_000,
+            "emergency_reserve_microcents": 1_000_000,
+            "thresholds": {
+                "stop_experiments_basis_points": 8000,
+                "subscription_only_basis_points": 9000,
+                "stop_paid_dispatch_basis_points": 10000,
+            },
+        },
+        "subscriptions": [],
+        "price_snapshots": [
+            {
+                "id": "queue-input-price",
+                "provider_id": "deepseek",
+                "model_id": model_id,
+                "unit": "input_token",
+                "quantity": 1_000_000,
+                "price_microcents": 20_000,
+                "observed_at": (now - timedelta(minutes=5)).isoformat(),
+                "expires_at": (now + timedelta(hours=2)).isoformat(),
+            },
+            {
+                "id": "queue-output-price",
+                "provider_id": "deepseek",
+                "model_id": model_id,
+                "unit": "output_token",
+                "quantity": 1_000_000,
+                "price_microcents": 80_000,
+                "observed_at": (now - timedelta(minutes=5)).isoformat(),
+                "expires_at": (now + timedelta(hours=2)).isoformat(),
+            },
+        ],
+        "provider_quotas": [],
+        "automatic_top_up": {"mode": "disabled"},
+        "automation_lanes": [
+            {
+                "id": "queue-deepseek-pro",
+                "provider_id": "deepseek",
+                "model_id": model_id,
+                "billing_mode": "metered",
+                "enabled": True,
+                "price_snapshot_ids": ["queue-input-price", "queue-output-price"],
+                "quota_ids": [],
+            }
+        ],
+    }
+    path.write_text(json.dumps(policy), encoding="utf-8")
+    return path
+
+
+def write_queued_paid_job(job_root: Path, *, job_id: str) -> Path:
+    queued = job_root / "queued"
+    queued.mkdir(parents=True, exist_ok=True)
+    path = queued / f"{job_id}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.ai-job.v1",
+                "job_id": job_id,
+                "queue_status": "queued",
+                "engine": "deepseek-api",
+                "mode": "review",
+                "profile": "pro",
+                "model": "deepseek-v4-pro",
+                "files": ["README.md"],
+                "timeout_seconds": 300,
+                "attempts": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def write_running_job(
     running_dir: Path,
     *,
     job_id: str,
     started_at: str | None,
     updated_at: str | None,
-    timeout_seconds: int = 1,
+    timeout_seconds: float = 1.0,
 ) -> Path:
     running_dir.mkdir(parents=True, exist_ok=True)
     job: dict[str, object] = {
@@ -194,6 +282,8 @@ class DeepSeekQueueStubHandler(BaseHTTPRequestHandler):
             }
         )
         response = {
+            "id": "chatcmpl-queue-test",
+            "model": "deepseek-v4-pro",
             "choices": [{"message": {"content": "Concrete finding"}}],
             "usage": {
                 "completion_tokens": 7,
@@ -609,6 +699,33 @@ def test_ai_jobs_submit_tier_a_deepseek_api_defaults_to_flash(
     assert job["billing_path"] == "paid direct DeepSeek API"
 
 
+@pytest.mark.parametrize("timeout_seconds", ("nan", "inf", "86401"))
+def test_ai_jobs_submit_rejects_unsafe_timeout(
+    tmp_path: Path,
+    timeout_seconds: str,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "flash-free",
+        "--file",
+        "README.md",
+        "--timeout-seconds",
+        timeout_seconds,
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+
+    assert result.returncode == 2
+    assert "--timeout-seconds must be finite and at most 86400 seconds" in result.stderr
+    assert not list((job_root / "queued").glob("*.json"))
+
+
 def test_ai_jobs_submit_writes_queued_job_with_model_profile(tmp_path: Path) -> None:
     job_root = tmp_path / "ai-jobs"
 
@@ -798,6 +915,169 @@ def test_ai_jobs_run_next_routes_deepseek_api_engine_to_direct_worker(
     assert metadata["schema_version"] == "entroping.deepseek-worker.v1"
     assert metadata["model"] == "deepseek-v4-pro"
     assert not (artifact_dir / "stdout.txt").exists()
+
+
+def test_ai_jobs_paid_direct_reserves_before_worker_and_settles_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_root.mkdir()
+    policy = write_paid_deepseek_policy(
+        tmp_path / "factory-cost-policy.json",
+        now=datetime.now(UTC),
+    )
+    _ = write_queued_paid_job(job_root, job_id="job-paid-queue")
+    worker_observation: dict[str, object] = {}
+
+    def fake_worker(
+        args: object,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        worker_observation.update(job)
+        (artifact_root / "run-paid").mkdir()
+        return (
+            {
+                "status": "completed",
+                "returncode": 0,
+                "artifact_dir": str(artifact_root / "run-paid"),
+                "usage_receipt": {
+                    "schema_version": "entroping.deepseek-usage-receipt.v1",
+                    "accounting_status": "accounted",
+                    "job_id": "job-paid-queue",
+                    "requested_model": "deepseek-v4-pro",
+                    "reported_model": "deepseek-v4-pro",
+                    "run_id": "run-paid",
+                    "provider_session_digest": "b" * 64,
+                    "requests": 1,
+                    "input_tokens": 1_000,
+                    "output_tokens": 100,
+                    "total_tokens": 1_100,
+                },
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_worker)
+    args = SimpleNamespace(
+        artifact_root=artifact_root,
+        worker_dry_run=False,
+        factory_cost_policy=policy,
+    )
+
+    payload, returncode = ai_jobs._run_next(args, tmp_path, job_root)
+
+    assert returncode == 0
+    assert isinstance(worker_observation.get("reservation_id"), str)
+    assert worker_observation["settlement_state"] == "unresolved"
+    completed = read_job(Path(str(payload["job_path"])))
+    assert completed["settlement_state"] == "settled"
+    assert completed["usage_receipt"] == {
+        "accounting_status": "accounted",
+        "schema_version": "entroping.deepseek-usage-receipt.v1",
+    }
+
+
+@pytest.mark.parametrize("artifact_kind", ("missing", "regular-file"))
+def test_ai_jobs_paid_direct_invalid_artifact_keeps_reservation_unresolved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    artifact_kind: str,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    from scripts.factory_budget_ledger import FactoryBudgetLedger
+
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_root.mkdir()
+    artifact_target = artifact_root / "run-invalid"
+    if artifact_kind == "regular-file":
+        artifact_target.write_text("not a run directory", encoding="utf-8")
+    policy = write_paid_deepseek_policy(
+        tmp_path / "factory-cost-policy.json",
+        now=datetime.now(UTC),
+    )
+    _ = write_queued_paid_job(job_root, job_id="job-invalid-artifact")
+
+    def fake_worker(
+        args: object,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        return (
+            {
+                "status": "completed",
+                "returncode": 0,
+                "artifact_dir": str(artifact_target),
+                "usage_receipt": {
+                    "schema_version": "entroping.deepseek-usage-receipt.v1",
+                    "accounting_status": "accounted",
+                    "job_id": "job-invalid-artifact",
+                    "requested_model": "deepseek-v4-pro",
+                    "reported_model": "deepseek-v4-pro",
+                    "run_id": "run-invalid",
+                    "provider_session_digest": "c" * 64,
+                    "requests": 1,
+                    "input_tokens": 1_000,
+                    "output_tokens": 100,
+                    "total_tokens": 1_100,
+                },
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_worker)
+    args = SimpleNamespace(
+        artifact_root=artifact_root,
+        worker_dry_run=False,
+        factory_cost_policy=policy,
+    )
+
+    payload, returncode = ai_jobs._run_next(args, tmp_path, job_root)
+
+    assert returncode == 1
+    failed = read_job(Path(str(payload["job_path"])))
+    reservation = FactoryBudgetLedger.reservation_for_job_readonly(
+        tmp_path,
+        "job-invalid-artifact",
+    )
+    assert failed["artifact_dir"] is None
+    assert failed["settlement_state"] == "unresolved"
+    assert reservation is not None
+    assert reservation.state == "uncertain"
+    assert reservation.reason == "run_mismatch"
+
+
+def test_ai_jobs_paid_direct_missing_policy_restores_queue_without_worker_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    queued_path = write_queued_paid_job(job_root, job_id="job-policy-block")
+
+    def unexpected_worker(*args: object, **kwargs: object) -> tuple[dict[str, object], int]:
+        pytest.fail("paid worker launched without a reservation")
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", unexpected_worker)
+    args = SimpleNamespace(
+        artifact_root=tmp_path / "ai-reviews",
+        worker_dry_run=False,
+        factory_cost_policy=tmp_path / "missing-policy.json",
+    )
+
+    payload, returncode = ai_jobs._run_next(args, tmp_path, job_root)
+
+    assert returncode == 1
+    assert payload["status"] == "dispatch-preflight-blocked"
+    assert cast(dict[str, object], payload["violation"])["reason"] == (
+        "paid-cost-preflight-blocked"
+    )
+    assert queued_path.exists()
+    assert not (tmp_path / ".entroping" / "factory-budget").exists()
 
 
 def test_ai_jobs_run_next_records_opencode_factory_metrics_when_requested(
@@ -1603,6 +1883,7 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
         factory_metrics_ledger=None,
     )
     job = {
+        "job_id": "job-command-test",
         "engine": "deepseek-api",
         "mode": "review",
         "model": "deepseek-v4-pro",
@@ -1630,6 +1911,12 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     base_url = f"http://127.0.0.1:{server.server_port}"
+    budget_root = tmp_path / "budget-root"
+    budget_root.mkdir()
+    policy = write_paid_deepseek_policy(
+        tmp_path / "factory-cost-policy.json",
+        now=datetime.now(UTC),
+    )
 
     submit = run_ai_jobs(
         "submit",
@@ -1659,6 +1946,10 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
             "--allow-insecure-local-deepseek-base-url",
             "--deepseek-api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--factory-cost-policy",
+            str(policy),
+            "--test-factory-project-root",
+            str(budget_root),
             "--json",
             env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
         )
@@ -1716,6 +2007,12 @@ def test_ai_jobs_run_next_deepseek_thinking_enabled_is_explicit_opt_in(
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     base_url = f"http://127.0.0.1:{server.server_port}"
+    budget_root = tmp_path / "budget-root"
+    budget_root.mkdir()
+    policy = write_paid_deepseek_policy(
+        tmp_path / "factory-cost-policy.json",
+        now=datetime.now(UTC),
+    )
 
     submit = run_ai_jobs(
         "submit",
@@ -1749,6 +2046,10 @@ def test_ai_jobs_run_next_deepseek_thinking_enabled_is_explicit_opt_in(
             "enabled",
             "--deepseek-reasoning-effort",
             "max",
+            "--factory-cost-policy",
+            str(policy),
+            "--test-factory-project-root",
+            str(budget_root),
             "--json",
             env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
         )
@@ -1779,7 +2080,7 @@ def test_ai_jobs_run_next_concurrent_invocations_process_distinct_jobs_once(tmp_
             "--mode",
             "review",
             "--profile",
-            "pro",
+            "flash-free",
             "--file",
             "README.md",
             "--job-root",
@@ -1846,7 +2147,7 @@ def test_ai_jobs_run_next_completes_oldest_job_and_records_worker_result(
         "--mode",
         "review",
         "--profile",
-        "flash",
+        "flash-free",
         "--file",
         "README.md",
         "--job-root",
@@ -1901,7 +2202,7 @@ def test_ai_jobs_run_next_moves_failed_job_to_failed(tmp_path: Path) -> None:
         "--mode",
         "review",
         "--profile",
-        "pro",
+        "flash-free",
         "--file",
         "README.md",
         "--job-root",
@@ -1949,7 +2250,7 @@ def test_ai_jobs_run_next_recoverable_from_corrupt_queued_artifact(tmp_path: Pat
         "--mode",
         "review",
         "--profile",
-        "pro",
+        "flash-free",
         "--file",
         "README.md",
         "--job-root",
@@ -2044,6 +2345,65 @@ def test_ai_jobs_run_next_fails_stale_running_job_before_new_work(tmp_path: Path
     assert not list(running.glob("*.json"))
 
 
+def test_ai_jobs_stale_paid_job_recovers_hold_by_job_id_without_redispatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    from scripts.factory_paid_dispatch import prepare_paid_dispatch
+
+    now = datetime.now(UTC)
+    policy = write_paid_deepseek_policy(
+        tmp_path / "factory-cost-policy.json",
+        now=now,
+    )
+    job: dict[str, object] = {
+        "schema_version": "entroping.ai-job.v1",
+        "job_id": "job-paid-crash-window",
+        "queue_status": "running",
+        "engine": "deepseek-api",
+        "mode": "review",
+        "profile": "pro",
+        "model": "deepseek-v4-pro",
+        "files": ["README.md"],
+        "timeout_seconds": 1,
+        "attempts": 1,
+        "started_at": "1970-01-01T00:00:00+00:00",
+        "updated_at": "1970-01-01T00:00:00+00:00",
+    }
+    reservation = prepare_paid_dispatch(
+        tmp_path,
+        job,
+        policy_path=policy,
+        occurred_at=now,
+        worker_dry_run=False,
+    )
+    assert reservation is not None
+    running = tmp_path / "ai-jobs" / "running"
+    running.mkdir(parents=True)
+    running_path = running / "job-paid-crash-window.json"
+    running_path.write_text(json.dumps(job), encoding="utf-8")
+
+    def unexpected_worker(*args: object, **kwargs: object) -> tuple[dict[str, object], int]:
+        pytest.fail("stale paid worker was redispatched")
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", unexpected_worker)
+    args = SimpleNamespace(
+        artifact_root=tmp_path / "ai-reviews",
+        worker_dry_run=False,
+        factory_cost_policy=policy,
+    )
+
+    payload, returncode = ai_jobs._run_next(args, tmp_path, tmp_path / "ai-jobs")
+
+    assert returncode == 1
+    recovered = read_job(Path(str(payload["job_path"])))
+    assert recovered["reservation_id"] == reservation.reservation_id
+    assert recovered["settlement_state"] == "unresolved"
+    assert recovered["worker_status"] == "stale-paid-worker"
+    assert not running_path.exists()
+
+
 @pytest.mark.parametrize(
     ("started_at", "updated_at"),
     [
@@ -2081,6 +2441,32 @@ def test_ai_jobs_run_next_fails_invalid_running_job_timestamps(
     assert not list(running.glob("*.json"))
 
 
+@pytest.mark.parametrize("timeout_seconds", (float("nan"), float("inf"), 86_401.0))
+def test_ai_jobs_run_next_quarantines_unsafe_running_timeout(
+    tmp_path: Path,
+    timeout_seconds: float,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    running = job_root / "running"
+    invalid_path = write_running_job(
+        running,
+        job_id="invalid-running-timeout",
+        started_at="1970-01-01T00:00:00+00:00",
+        updated_at="1970-01-01T00:00:00+00:00",
+        timeout_seconds=timeout_seconds,
+    )
+
+    result = run_ai_jobs("run-next", "--job-root", str(job_root), "--json")
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    failed_path = Path(str(payload["job_path"]))
+    job = read_job(failed_path)
+    assert payload["worker_status"] == "invalid-running-job"
+    assert job["worker_status"] == "invalid-running-job"
+    assert not invalid_path.exists()
+
+
 def test_ai_jobs_run_next_drains_all_stale_running_jobs_before_queued_work(
     tmp_path: Path,
 ) -> None:
@@ -2110,7 +2496,7 @@ def test_ai_jobs_run_next_drains_all_stale_running_jobs_before_queued_work(
         "--mode",
         "review",
         "--profile",
-        "pro",
+        "flash-free",
         "--file",
         "README.md",
         "--job-root",

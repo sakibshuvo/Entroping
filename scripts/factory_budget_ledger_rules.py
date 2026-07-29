@@ -85,10 +85,11 @@ def prospective_net(
     current_net: int,
     cap: int,
     reserve: int,
+    active_reserved: int,
     entry: LedgerEntryInput,
 ) -> int:
     if entry.direction == "debit":
-        available = (cap - reserve) - max(current_net, 0)
+        available = (cap - reserve) - max(current_net, 0) - active_reserved
         if entry.amount_microcents > available:
             raise FactoryBudgetLedgerError(
                 "budget",

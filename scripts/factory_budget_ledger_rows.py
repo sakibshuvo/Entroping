@@ -7,13 +7,14 @@ from pydantic import TypeAdapter, ValidationError
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 
 type ReserveSignature = tuple[str, str, int, str, str, str, None, str, int, int]
-type PeriodSummaryRow = tuple[str, str, str, int, int, int, int, str, int]
-type PeriodState = tuple[int, int, int, int, int]
+type PeriodSummaryRow = tuple[str, str, str, int, int, int, int, int, str, int]
+type PeriodState = tuple[int, int, int, int, int, int]
 type EntrySignature = tuple[int, str, str, int, str, str, str, str, str | None]
 type OriginalCharge = tuple[int, str, int, str, str]
 type SchemaObject = tuple[str, str, str]
 type PeriodValidationRow = tuple[int, str, str]
 type EntryValidationRow = tuple[int, str, str]
+type ManualAdjustmentAuthority = tuple[str, str, int, str]
 
 RESERVE_SIGNATURE: TypeAdapter[ReserveSignature | None] = TypeAdapter(ReserveSignature | None)
 PERIOD_SUMMARY_ROW: TypeAdapter[PeriodSummaryRow | None] = TypeAdapter(PeriodSummaryRow | None)
@@ -27,6 +28,9 @@ PERIOD_VALIDATION_ROWS: TypeAdapter[list[PeriodValidationRow]] = TypeAdapter(
     list[PeriodValidationRow]
 )
 ENTRY_VALIDATION_ROWS: TypeAdapter[list[EntryValidationRow]] = TypeAdapter(list[EntryValidationRow])
+MANUAL_ADJUSTMENT_AUTHORITY: TypeAdapter[ManualAdjustmentAuthority | None] = TypeAdapter(
+    ManualAdjustmentAuthority | None
+)
 
 
 def reserve_signature(cursor: sqlite3.Cursor) -> ReserveSignature | None:
@@ -60,6 +64,13 @@ def entry_signature(cursor: sqlite3.Cursor) -> EntrySignature | None:
 def original_charge(cursor: sqlite3.Cursor) -> OriginalCharge | None:
     try:
         return ORIGINAL_CHARGE.validate_python(cursor.fetchone(), strict=True)
+    except ValidationError:
+        raise _invalid_values() from None
+
+
+def manual_adjustment_authority(cursor: sqlite3.Cursor) -> ManualAdjustmentAuthority | None:
+    try:
+        return MANUAL_ADJUSTMENT_AUTHORITY.validate_python(cursor.fetchone(), strict=True)
     except ValidationError:
         raise _invalid_values() from None
 

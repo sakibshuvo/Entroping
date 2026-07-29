@@ -30,12 +30,27 @@ from .factory_budget_ledger_fs import (
     validate_regular,
     validated_root,
 )
+from .factory_budget_ledger_migration import migrate_schema_v1_to_v2
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_parent_fs import open_private_relative_directory
 from .factory_budget_ledger_rows import integer_row
 from .factory_budget_ledger_schema import initialize_schema, validate_schema
 
 BUSY_TIMEOUT_MILLISECONDS = 5_000
+
+
+def migrate_ledger(repo_root: Path) -> bool:
+    root = validated_root(repo_root)
+    db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
+    if not db_path.exists():
+        raise FactoryBudgetLedgerError("missing", "ledger database not found")
+    with _retention_guard(root):
+        identity = validate_existing_entry(root, LEDGER_NAME)
+        connection = _connect(db_path, readonly=False, expected_identity=identity)
+        try:
+            return migrate_schema_v1_to_v2(connection)
+        finally:
+            connection.close()
 
 
 def prepare_ledger(repo_root: Path) -> Path:

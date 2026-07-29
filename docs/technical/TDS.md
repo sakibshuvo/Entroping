@@ -2348,18 +2348,21 @@ destination ledger. Reports expose only artifact identifiers,
 classes, states, timestamps, relative paths, reason codes, counts, and byte
 totals; artifact contents are never rendered.
 
-### 17.2 Factory Budget Ledger
+### 17.2 Factory Budget Ledger and Paid Dispatch
 
 Factory cash authority is isolated from the product traffic store in the
-ignored `.entroping/factory-budget/ledger.sqlite3` database. The versioned
+ignored `.entroping/factory-budget/ledger.sqlite3` database. Version 2 of the
+versioned
 SQLite schema records UTC cash periods, their reviewed USD cap and positive
 reserve, immutable reserve allocations, fixed subscription and provider debits,
-charge-bound refunds, and explicit manual debit or credit adjustments. Raw
+charge-bound refunds, explicit manual debit or credit adjustments, immutable
+paid-work reservations and price terms, and append-only settlement events. Raw
 idempotency keys are never persisted: a globally unique SHA-256 digest is bound
 to the normalized entry payload, so exact retries are harmless and conflicting
 reuse fails closed.
 
-Period initialization and entry recording open bounded connections and enclose
+Period initialization, entry recording, reservation, settlement, and explicit
+reconciliation open bounded connections and enclose
 idempotency, reference, refund, period, entry-count, cash-cap, insert, and
 cached-balance checks in `BEGIN IMMEDIATE`. One-time schema bootstrap uses
 `BEGIN EXCLUSIVE`. SQLite therefore admits only one successful writer at the
@@ -2390,9 +2393,31 @@ Timestamp validation streams in fixed batches. Malformed, partial, future, or
 drifted schemas are rejected and preserved for inspection. The local trust
 boundary excludes noncooperating same-UID mutation; exact
 descriptor-to-SQLite binding would require OS isolation or a custom/native VFS.
-CLI access is read-only and value-bounded. Provider reservation, settlement,
-quota observation, scheduler authorization, and provider calls stay outside
-this component.
+The cached active-reservation total is validated against nonterminal rows and
+is subtracted from paid availability. A reservation binds one job to its
+provider lane, provider/model cost identities, worker model, reviewed policy,
+fresh immutable price terms, and enforceable usage envelope. Concurrent
+reservation decisions serialize in `BEGIN IMMEDIATE`, preventing two jobs from
+spending the same remainder. Actual settlement recomputes integer-microcent
+cost from the stored terms; a complete identity-bound receipt posts at most one
+debit and releases the verified remainder atomically. Interrupted, partial,
+malformed, conflicting, mismatched, or over-ceiling evidence preserves the
+hold as `uncertain`. Explicit no-charge evidence or a bounded manual debit is
+required for reconciliation.
+
+Queue JSON is a recoverable projection. Stale recovery queries the ledger by
+job id, including a crash after reservation commit but before queue rewrite;
+unresolved work is never redispatched and already settled work terminalizes
+without a second charge. Schema version 1 requires an explicit, transactional
+v1-to-v2 migration. Sanitized summary, balance, and migration commands are
+value-bounded; reservation and settlement remain Python control-plane APIs.
+
+Paid queue coordination stays outside product runtime. Direct DeepSeek is the
+first supported metered route because its request and completion ceilings are
+enforceable and its provider receipt binds job, model, usage, and a hashed
+session. Metered OpenCode fails closed until it has the same guarantees.
+Provider calls, balance scraping, automatic top-up, and quota observation are
+not ledger responsibilities.
 
 ## 18. Testing Strategy
 

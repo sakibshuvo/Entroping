@@ -7,11 +7,14 @@ from functools import cache
 from .factory_budget_ledger_integrity import validate_ledger_integrity
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_rows import integer_row, metadata_rows, schema_objects
+from .factory_budget_reservation_schema import RESERVATION_SCHEMA_STATEMENTS
 
-LEDGER_SCHEMA_VERSION = 1
-LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v1"
+LEDGER_SCHEMA_VERSION = 2
+LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v2"
+LEGACY_LEDGER_SCHEMA_VERSION = 1
+LEGACY_LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v1"
 
-SCHEMA_STATEMENTS = (
+BASE_SCHEMA_STATEMENTS = (
     """
     CREATE TABLE ledger_metadata (
         key TEXT PRIMARY KEY,
@@ -106,6 +109,8 @@ SCHEMA_STATEMENTS = (
     END
     """,
 )
+
+SCHEMA_STATEMENTS = BASE_SCHEMA_STATEMENTS + RESERVATION_SCHEMA_STATEMENTS
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:

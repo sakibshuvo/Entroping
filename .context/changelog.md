@@ -2,6 +2,14 @@
 
 ## 2026-07-29
 
+- Added issue #1568's paid-work financial control. Ledger schema v2 atomically
+  reserves enforceable worst-case direct-worker usage against fresh immutable
+  prices, settles actual integer-microcent cost from strict identity-bound
+  receipts, and preserves ambiguous or interrupted holds until explicit
+  evidence-backed reconciliation. Queue recovery joins by job id across the
+  ledger-commit/queue-write crash window and never redispatches unresolved
+  work; metered OpenCode remains denied until it can enforce a usage ceiling.
+
 - Added issue #1566's unattended OpenCode isolation profiles. Direct and queued
   real runs now use private ephemeral HOME/XDG/temp roots outside Git discovery,
   pure fixed-agent commands, active registered models, a tool-free deny-first

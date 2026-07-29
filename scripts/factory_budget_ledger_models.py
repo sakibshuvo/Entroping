@@ -80,6 +80,7 @@ class BudgetPeriodSummary:
     cash_cap_microcents: int
     emergency_reserve_microcents: int
     net_spent_microcents: int
+    active_reserved_microcents: int
     available_paid_microcents: int
     entry_count: int
     policy_id: str

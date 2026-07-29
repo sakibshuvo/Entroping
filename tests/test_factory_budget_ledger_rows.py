@@ -139,7 +139,7 @@ def test_schema_validation_does_not_sort_unbounded_metadata_before_rejection() -
         _ = connection.execute(
             "CREATE TABLE ledger_metadata (key TEXT, value TEXT) STRICT"
         )
-        _ = connection.execute("PRAGMA user_version = 1")
+        _ = connection.execute("PRAGMA user_version = 2")
         _ = connection.executemany(
             "INSERT INTO ledger_metadata(key, value) VALUES (?, ?)",
             [(f"key-{index}", "value") for index in range(1000)],

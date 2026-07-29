@@ -53,6 +53,7 @@ downstream feedback (#306), and non-GitHub runner proof (#309-#310).
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Paid cost reservation and settlement](https://github.com/sakibshuvo/Entroping/issues/1568) | Done | Metered direct work reserves worst-case cash before launch, settles from strict identity-bound receipts, and preserves interrupted or ambiguous holds for evidence-backed reconciliation. |
 | [Unattended OpenCode isolation](https://github.com/sakibshuvo/Entroping/issues/1566) | Pending merge | Pure fixed-agent workers use private ephemeral HOME/XDG roots, typed deny-first effective-config preflight, executable/profile binding, tool-free explicit-attachment review/patch profiles, and value-free capability receipts. |
 | [Live factory issue selection](https://github.com/sakibshuvo/Entroping/issues/1567) | Done | Read-only deterministic selection fails closed on stale GitHub, ownership, lease, overlap, dependency, or ambiguous issue-contract state and never authorizes paid work. |
 | [Factory budget ledger](https://github.com/sakibshuvo/Entroping/issues/1565) | Done | Transactional SQLite cash authority, immutable reviewed policy, global idempotency and resource caps, serialized spend enforcement, bounded refunds, and read-only reporting. |

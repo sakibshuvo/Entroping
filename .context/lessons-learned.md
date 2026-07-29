@@ -1,5 +1,19 @@
 # Entroping Lessons Learned
 
+## 2026-07-29
+
+- Cash authority must cross the dispatch boundary before the provider process
+  does. Commit the reservation and durable job identity first, treat queue JSON
+  as a recoverable projection, and recover the ledger by job id when a crash
+  lands between those writes.
+- A token count is settlement evidence only when it is bound to the reserved
+  job, provider lane, requested and reported model, and hashed provider
+  session. Recompute integer cost from immutable stored price terms; do not
+  trust provider floats or interpret missing usage as zero.
+- A metered route needs a provable worst-case envelope before it can be
+  automated. A provider receipt after the fact cannot compensate for a host
+  that cannot cap requests or output before launch.
+
 ## 2026-07-28
 
 - Provider JSON streaming completion follows the provider's actual transport

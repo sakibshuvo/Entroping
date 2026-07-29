@@ -119,7 +119,8 @@ def period_summary_at(
                 """
                 SELECT period_start_utc, period_end_utc, currency,
                        cash_cap_microcents, emergency_reserve_microcents,
-                       net_spent_microcents, entry_count, policy_id, policy_revision
+                       net_spent_microcents, active_reserved_microcents,
+                       entry_count, policy_id, policy_revision
                 FROM budget_periods
                 WHERE period_start_utc = ?
                 """,
@@ -131,7 +132,7 @@ def period_summary_at(
     if row is None:
         raise FactoryBudgetLedgerError("period", "budget period not found")
     spendable = row[3] - row[4]
-    available = spendable - max(row[5], 0)
+    available = spendable - max(row[5], 0) - row[6]
     return BudgetPeriodSummary(
         period_start_utc=row[0],
         period_end_utc=row[1],
@@ -139,10 +140,11 @@ def period_summary_at(
         cash_cap_microcents=row[3],
         emergency_reserve_microcents=row[4],
         net_spent_microcents=row[5],
+        active_reserved_microcents=row[6],
         available_paid_microcents=max(available, 0),
-        entry_count=row[6],
-        policy_id=row[7],
-        policy_revision=row[8],
+        entry_count=row[7],
+        policy_id=row[8],
+        policy_revision=row[9],
     )
 
 
