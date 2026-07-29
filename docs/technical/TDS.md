@@ -131,6 +131,30 @@ malformed, conflicting, partial, timed-out, or over-limit evidence remains
 explicitly unaccounted and cannot authorize future paid automation. This
 maintainer evidence path does not change Brain, LiteLLM, or `entroping run`.
 
+The worker process adapter builds one of two typed unattended profiles:
+`entroping.opencode-unattended-review.v1` or
+`entroping.opencode-unattended-patch-proposal.v1`. A private ephemeral `HOME`
+and XDG/config/data/state/cache/temp surface keeps user-global and project
+configuration outside the child. The command fixes `--pure`, `--agent`,
+`--dir`, JSON output, and an active registered model. The config is deny-first,
+sets subagent depth zero, disables plugin/MCP/instruction/share/snapshot/LSP
+surfaces, and denies every model-issued tool. Explicit `--file` snapshots cross
+only the trusted, wrapper-validated CLI attachment boundary.
+
+The same selected executable and isolated config environment perform process-group-
+cleaned, output-bounded version, `run --help`, and `--pure debug config` probes
+without provider credentials and within a 20-second maximum. Only the final
+attested dispatch receives the allowlisted authentication key. The supported CLI version and typed,
+extra-forbidden effective configuration, profile digest, executable digest, and version must remain bound through
+dispatch. The value-free
+`entroping.opencode-unattended-capability-receipt.v1` records names, digests,
+categories, and booleans, never raw prompts, config or environment values, tool
+arguments, events, or user-global paths. Patch output remains a textual proposal
+only. The selected executable is trusted after digest and version binding; this
+does not replace OS or container isolation against malicious same-UID code or
+unrestricted egress. A wrapper digest binds the wrapper rather than a downstream
+binary.
+
 Current Brain foundation modules:
 
 - `models.architect` defines validated Architect Hurl edit output models.

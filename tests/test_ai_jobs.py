@@ -48,7 +48,23 @@ def run_ai_jobs(
 
 def write_fake_opencode(path: Path, *, body: str) -> Path:
     binary = path / "opencode"
-    binary.write_text(body, encoding="utf-8")
+    shebang, script = body.split("\n", maxsplit=1)
+    preflight = (
+        "if [[ \"${1:-}\" == '--version' ]]; then\n"
+        "  printf '%s\\n' '1.18.4'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-} ${2:-}\" == 'run --help' ]]; then\n"
+        "  printf '%s\\n' '--pure --agent --dir --format json --model --file "
+        "--auto dangerous'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-} ${2:-} ${3:-}\" == '--pure debug config' ]]; then\n"
+        "  printf '%s\\n' \"$OPENCODE_CONFIG_CONTENT\"\n"
+        "  exit 0\n"
+        "fi\n"
+    )
+    binary.write_text(f"{shebang}\n{preflight}{script}", encoding="utf-8")
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
     return binary
 
@@ -92,9 +108,21 @@ def write_fake_counting_opencode(
     binary.write_text(
         "#!/usr/bin/env python3\n"
         "import json\n"
+        "import os\n"
         "import pathlib\n"
+        "import sys\n"
         "import time\n\n"
         "import uuid\n\n"
+        "if sys.argv[1:] == ['--version']:\n"
+        "    print('1.18.4')\n"
+        "    raise SystemExit(0)\n"
+        "if sys.argv[1:] == ['run', '--help']:\n"
+        "    print('--pure --agent --dir --format json --model --file --auto "
+        "dangerous')\n"
+        "    raise SystemExit(0)\n"
+        "if sys.argv[1:] == ['--pure', 'debug', 'config']:\n"
+        "    print(os.environ['OPENCODE_CONFIG_CONTENT'])\n"
+        "    raise SystemExit(0)\n\n"
         f"MARKER_DIR = pathlib.Path({str(marker_dir)!r})\n"
         "MARKER_DIR.mkdir(parents=True, exist_ok=True)\n"
         "(MARKER_DIR / f'{uuid.uuid4().hex}.txt').write_text('1', encoding='utf-8')\n"

@@ -166,20 +166,65 @@ Raw reasoning, tool payloads, provider errors, event fragments, and child
 stderr never enter the receipt, metadata, metrics, or queue record. Existing
 sanitized final-text review and patch classification remains unchanged.
 
+### Unattended OpenCode Isolation
+
+Every real direct or queued OpenCode worker run uses a private ephemeral `HOME`,
+`XDG_CONFIG_HOME`, data, state, cache, temporary, and working directory outside
+Git discovery. The worker invokes an active registered model with `--pure`, a
+fixed `--agent`, explicit `--dir`, and JSON format. It never uses auto approval,
+attach, continue, session reuse, sharing, or interactive mode. Review uses
+`entroping.opencode-unattended-review.v1`; patch mode uses
+`entroping.opencode-unattended-patch-proposal.v1` and may return only a textual
+unified diff that the harness does not apply.
+
+The inline configuration is deny-first, sets subagent depth zero, disables
+sharing, snapshots, LSP, plugins, MCP, instructions, and formatters, and denies
+every model-issued tool, including read, glob, and grep. The trusted CLI may
+ingest only explicit `--file` snapshots that the wrapper already validated as
+regular non-symlink files. Shell, edit/write, patch application, task/subagent,
+skill, web, external-directory, question, task-list, MCP, custom, and unknown
+tools are denied. Defense-in-depth flags include
+`OPENCODE_DISABLE_PROJECT_CONFIG=1` and disable Claude context, external skills,
+default plugins, model fetches, updates, and autocompaction. Inherited proxy,
+Exa, shell-startup, runtime-injection, arbitrary `OPENCODE_CONFIG*`, HOME/XDG,
+and non-allowlisted keys are scrubbed. A `deepseek/*` route may forward only the
+exact `DEEPSEEK_API_KEY` key to final attested dispatch; its value is never
+inspected or persisted.
+
+Before dispatch, the exact selected executable runs `--version`, `run --help`,
+and `--pure debug config` in the same isolated config environment but without
+any provider credential. The reviewed CLI
+version is pinned, and all four probes share a maximum 20-second budget with
+bounded output and process-group cleanup. The worker validates the typed,
+extra-forbidden effective deny-first profile and performs digest and version
+binding before rechecking the executable and profile immediately before the
+credential-bearing model process. Version, schema, config, output, or lifecycle drift fails closed. A successful
+run writes the value-free
+`entroping.opencode-unattended-capability-receipt.v1` contract with only names,
+digests, categories, and booleans. It never records environment or config
+values, raw prompts, raw config, tool arguments, raw events, or user-global
+paths; metadata replaces the prompt argument with a redacted placeholder.
+
+The trusted executable boundary is explicit. These controls do not provide OS
+or container isolation from a malicious same-UID executable and do not restrict
+unrestricted egress. Use a separate account, sandbox/container, and network
+policy when that threat matters. When `--opencode-bin` selects a wrapper, the
+receipt binds the wrapper, not any downstream binary it launches; pass a direct
+regular binary when downstream executable identity must also be bound.
+
 OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane. It may use
-OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
-GitHub integrations only when those capabilities are present in the active
-OpenCode host and permissioned there. Codex-native plugins, skills, Codex Security, Browser, Computer Use, thread tools, and Codex-specific MCP state are
-not automatically available unless the OpenCode host exposes equivalent
-capabilities. The `scripts/opencode_worker.py` prompt includes an OpenCode Host Capability Context that preserves this boundary, forbids
-`--dangerously-skip-permissions`, keeps selected-file snapshots as the worker's
-truth surface, and keeps `entroping run` deterministic, Hurl-backed,
-QAnstitution-governed, and provider-free.
+OpenCode's native provider route, but unattended runs do not inherit host
+agents, plugins, MCP servers, hooks, shell tools, GitHub integrations, or
+Codex-native capabilities. Interactive maintainer sessions remain a separate
+surface. The bounded prompt keeps selected-file snapshots as truth and keeps
+`entroping run` deterministic, Hurl-backed, QAnstitution-governed, and
+provider-free.
 Before an OpenCode Desktop or OpenCode CLI session edits files independently,
 run `uv run python scripts/opencode_readiness.py --mode implementation
 --require-clean --format json` from the issue worktree. For PR verification or
 read-only monitoring, use `--mode verification` or `--mode monitoring` instead.
-The preflight checks OpenCode availability, active repo path, branch/worktree
+The preflight checks OpenCode availability and unattended effective-profile
+capability, active repo path, branch/worktree
 state, prompt-library guardrails, required workflow command surfaces, ignored
 local OpenCode/Codex/artifact paths, and tracked local-state leaks without
 reading provider keys, MCP credentials, local config values, prompts,

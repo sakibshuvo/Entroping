@@ -155,3 +155,30 @@ def test_factory_runbook_documents_authoritative_budget_ledger_boundaries() -> N
 
     for term in required:
         assert term in normalized
+
+
+def test_factory_runbook_documents_unattended_opencode_preflight_and_receipt() -> None:
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+    normalized = " ".join(runbook.split())
+
+    required = [
+        "## Unattended OpenCode Isolation",
+        "scripts/opencode_readiness.py --mode verification --format json",
+        "scripts/opencode_worker.py --mode review",
+        "capability-receipt.json",
+        "value-free",
+        "private ephemeral `HOME`",
+        "`OPENCODE_CONFIG_CONTENT`",
+        "no model-issued tools",
+        "wrapper-validated explicit `--file` snapshots",
+        "20 seconds total",
+        "credential-free",
+        "`DEEPSEEK_API_KEY`",
+        "never persists its value",
+        "textual unified-diff proposal",
+        "does not apply it",
+        "trusted executable",
+        "OS or container isolation",
+    ]
+    for term in required:
+        assert term in normalized

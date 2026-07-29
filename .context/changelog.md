@@ -2,6 +2,21 @@
 
 ## 2026-07-29
 
+- Added issue #1566's unattended OpenCode isolation profiles. Direct and queued
+  real runs now use private ephemeral HOME/XDG/temp roots outside Git discovery,
+  pure fixed-agent commands, active registered models, a tool-free deny-first
+  profile, explicit file attachments, zero subagent depth, and typed
+  effective-config preflight. The
+  worker binds executable version/digest and the complete profile through
+  dispatch, scrubs hostile config/proxy/plugin/MCP/runtime environment input,
+  keeps provider credentials out of all preflight probes, injects the allowed
+  authentication key only into final attested dispatch, removes raw prompt persistence,
+  bounds preflight output and descendants, and
+  writes only a value-free capability receipt. Review and textual patch
+  proposals remain distinct while both deny
+  writes; the trusted-executable boundary explicitly leaves malicious same-UID
+  code and unrestricted egress to OS/container/network isolation.
+
 - Added issue #1567's read-only, deterministic selector for live ready GitHub
   issues with fresh-state, issue-contract, autonomy, ownership, dependency, and
   explicit file-overlap gates. Sanitized short-lived caching plus bounded local
