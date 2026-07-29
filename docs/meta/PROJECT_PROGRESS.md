@@ -53,7 +53,8 @@ downstream feedback (#306), and non-GitHub runner proof (#309-#310).
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
-| [Factory control-plane protection](https://github.com/sakibshuvo/Entroping/issues/1561) | Pending merge | Maintainer autonomy labels and one protected-surface policy gate Tier A dispatch, patch review, and PR readiness across aliases, renames, symlinks, and multi-file changes. |
+| [Factory budget ledger](https://github.com/sakibshuvo/Entroping/issues/1565) | Pending merge | Transactional SQLite cash authority, immutable reviewed policy, global idempotency and resource caps, serialized spend enforcement, bounded refunds, and read-only reporting. |
+| [Factory control-plane protection](https://github.com/sakibshuvo/Entroping/issues/1561) | Done | Maintainer autonomy labels and one protected-surface policy gate Tier A dispatch, patch review, and PR readiness across aliases, renames, symlinks, and multi-file changes. |
 | [OpenCode usage receipts](https://github.com/sakibshuvo/Entroping/issues/1560) | Done | Bounded JSONL parsing emits sanitized, deduplicated token/cost evidence or an explicit unaccounted state without persisting raw events. |
 | [Provider capability registry](https://github.com/sakibshuvo/Entroping/issues/1558) | Done | One typed source governs maintainer-factory provider evidence and queue routes; unknown paid combinations fail closed without changing the product LiteLLM boundary. |
 | [Factory artifact retention](https://github.com/sakibshuvo/Entroping/issues/1562) | Done | Five-class plan-first retention, bounded live metrics and logs, tracked-path protection, crash recovery, and metadata-only reporting without artifact contents. |

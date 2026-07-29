@@ -17,6 +17,7 @@ consumer-qanstitution.yaml @sakibshuvo
 /.github/workflows/** @sakibshuvo
 /prompts/** @sakibshuvo
 /scripts/factory_control_plane_policy.py @sakibshuvo
+/scripts/factory_budget_ledger*.py @sakibshuvo
 /scripts/factory_cost_policy*.py @sakibshuvo
 /docs/meta/factory-cost-policy*.json @sakibshuvo
 /scripts/provider_capability_*.py @sakibshuvo
@@ -36,3 +37,4 @@ consumer-qanstitution.yaml @sakibshuvo
 /docs/meta/FACTORY_OPERATIONS.md @sakibshuvo
 /docs/meta/prompt-library/** @sakibshuvo
 /tests/test_factory_control_plane_policy.py @sakibshuvo
+/tests/test_factory_budget_ledger*.py @sakibshuvo

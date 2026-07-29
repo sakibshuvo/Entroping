@@ -20,6 +20,8 @@ patch_inspection = importlib.import_module("scripts.factory_patch_inspection")
     ("path", "reason"),
     [
         ("scripts/factory_cost_policy.py", "budget-governor"),
+        ("scripts/factory_budget_ledger.py", "budget-governor"),
+        ("tests/test_factory_budget_ledger_safety.py", "budget-governor"),
         ("./scripts//ai_jobs.py", "factory-scheduler"),
         ("SCRIPTS/AI_JOBS.PY", "factory-scheduler"),
         ("src/entroping/core/hurl_runner.py", "runtime-security"),

@@ -132,3 +132,26 @@ def test_factory_runbook_is_linked_from_the_vault_index() -> None:
     )
 
     assert "[[docs/meta/FACTORY_OPERATIONS|FACTORY_OPERATIONS]]" in index
+
+
+def test_factory_runbook_documents_authoritative_budget_ledger_boundaries() -> None:
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+    normalized = " ".join(runbook.split())
+
+    required = [
+        ".entroping/factory-budget/ledger.sqlite3",
+        "python -m scripts.factory_budget_ledger summary",
+        "python -m scripts.factory_budget_ledger balance",
+        "BEGIN IMMEDIATE",
+        "journal_mode=DELETE",
+        "synchronous=EXTRA",
+        "read-only",
+        "global idempotency",
+        "refund",
+        "manual adjustment",
+        "non-spendable reserve",
+        "does not reserve or settle provider work",
+    ]
+
+    for term in required:
+        assert term in normalized

@@ -163,7 +163,7 @@ Version 1 has these fixed semantics:
   100,000,000 microcents. The approved $200 cap is 20,000,000,000 microcents;
   the $20 emergency reserve is 2,000,000,000 microcents.
 - Cash months and renewal dates use UTC. The reserve is a non-spendable floor
-  inside the cap, not another charge.
+  inside the cap, not another charge, and must be positive.
   Experiments stop at 80%, only subscription/included-quota work remains at
   90%, and paid dispatch stops at 100%; validation rejects a reserve too large
   for the 90% transition to protect.
@@ -191,6 +191,76 @@ symlinked path components. Validation success proves only that the declaration
 is structurally safe and current at `--as-of`; the authoritative ledger,
 reservation, settlement, and quota-observation behavior remains in downstream
 factory issues.
+
+## Authoritative Budget Ledger
+
+The ignored `.entroping/factory-budget/ledger.sqlite3` database is the
+authoritative local record of factory cash activity. Dashboard metrics and
+worker receipts may summarize it, but they are not spending authority. Version
+1 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
+calendar months. A period records the reviewed cash cap and an emergency
+reserve allocation; that allocation is a non-spendable reserve inside the cap,
+not a cash charge.
+
+Ledger writes use a global idempotency key whose SHA-256 digest is stored and
+bound to the complete normalized payload. An exact replay is a no-op; reuse
+with different evidence fails closed. Fixed subscription and provider charges
+are debits. A refund is a credit linked to its original charge, must match its
+currency and source, and cannot make cumulative refunds exceed that charge. A
+cross-month refund reduces net spend in the month it is received. A manual
+adjustment must explicitly select debit or credit. Credits may make net spend
+negative, but the reported immediately available paid balance never exceeds
+the period's paid limit after the reserve.
+
+Each write serializes the idempotency lookup, period and cap checks, immutable
+entry insert, and cached balance update with `BEGIN IMMEDIATE`. The database
+uses `journal_mode=DELETE`, `synchronous=EXTRA`, foreign keys, strict tables,
+immutable-entry triggers, and a bounded busy timeout. The rollback journal was
+chosen so reporting can use a genuinely read-only connection without creating
+WAL sidecars. A no-follow header check rejects WAL-mode state before SQLite can
+open it or create `-wal`/`-shm` files. Initialization builds and validates a
+private temporary database,
+syncs it, links it into place atomically, and syncs the containing directory.
+Incomplete initialization state is never authoritative.
+
+The ledger descriptor-walks the full repository path. Every ancestor must be
+root-owned or owned by the effective user; a group/other-writable ancestor is
+accepted only when sticky-directory protection covers a root/user-owned child.
+The repository root and shared `.entroping` directory must be owned by the
+effective user and not group/other writable. Existing owner-controlled 0755
+shared state remains valid, while `.entroping/factory-budget/` is private 0700.
+The ledger shares the factory retention lock and rejects symlinked, non-owner,
+unsafe-writable, or special state, unsafe sidecars, persistent leaf replacement
+during open, files above 512 MiB, malformed databases, schema drift, future or
+partial schemas, more than 100,000 total entries, more than 600 periods, and
+periods above 100,000 entries. A retry completes the narrow crash window where
+the validated database inode was published but its reserved initialization hard
+link was not yet removed. Integrity timestamp reads stream in bounded batches.
+Rejected or corrupt state is preserved for operator inspection instead of
+migrated or rewritten automatically. Entry values and cached balances remain
+inside signed 64-bit bounds.
+
+Ledger files and locks must remain owned by the effective user at mode 0600 in
+the private mode-0700 ledger directory. The retention and ledger locks
+coordinate Entroping processes. A noncooperating process already running as
+that same user can race ordinary-file replacement because Python's standard
+SQLite wrapper cannot open the main database from a previously validated file
+descriptor. Same-UID host compromise is outside this maintainer-only local
+trust boundary; use OS account or sandbox isolation where that threat applies.
+
+Only sanitized read-only summaries are exposed on the command line:
+
+```text
+uv run python -m scripts.factory_budget_ledger summary \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+uv run python -m scripts.factory_budget_ledger balance \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+```
+
+The Python API owns explicit period initialization and entry recording. This
+ledger does not reserve or settle provider work, call providers, observe quota,
+or authorize scheduler dispatch. Those integrations remain downstream and
+must fail closed against this evidence rather than infer spend from metrics.
 
 ## Artifact and Log Retention
 

@@ -19,8 +19,10 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     (
         "budget-governor",
         (
+            "scripts/factory_budget_ledger*.py",
             "scripts/factory_cost_policy*.py",
             "scripts/update_factory_cost_policy_schema.py",
+            "tests/test_factory_budget_ledger*.py",
             "tests/test_factory_cost_policy*.py",
             "docs/meta/FACTORY_COST_POLICY*",
             "docs/meta/factory-cost-policy*.json",
