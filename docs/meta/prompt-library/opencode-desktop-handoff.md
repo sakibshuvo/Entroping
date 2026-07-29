@@ -87,7 +87,7 @@ Setup items to verify locally, without committing local config:
 - PR-body evidence: include `Closes #<issue>`, commands run, Agent Autonomy
   Declaration, Documentation Impact Declaration, and OpenCode Provider Lane
   Evidence; validate with
-  `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue> --issue-metadata-file <issue.json>` after exporting the issue with `gh issue view <issue> --json number,state,body > <issue.json>`.
+  `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue> --issue-metadata-file <issue.json>` after exporting maintainer-owned issue labels with `gh api repos/sakibshuvo/Entroping/issues/<issue> --jq '{number,state,pull_request,labels}' > <issue.json>`.
 - CI and finish cleanup: merge only through a PR after GitHub CI is green, then
   run `scripts/finish_issue.sh <issue>` from a separate checkout.
 - Metrics hooks: record useful context, cost, model, and gate evidence with
@@ -368,7 +368,7 @@ Workflow:
 10. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
 11. Commit with a Conventional Commit message.
 12. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
-    Run `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number> --issue-metadata-file <issue.json>` after `gh issue view <issue-number> --json number,state,body > <issue.json>` before autonomous Tier A merge or before handing the PR to Codex/human review.
+    Run `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number> --issue-metadata-file <issue.json>` after `gh api repos/sakibshuvo/Entroping/issues/<issue-number> --jq '{number,state,pull_request,labels}' > <issue.json>` before autonomous Tier A merge or before handing the PR to Codex/human review.
 13. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
 14. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
 

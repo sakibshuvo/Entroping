@@ -62,9 +62,9 @@ automation lane; human-authored PRs still complete this template.
 ## OpenCode Provider Lane Evidence
 
 Complete this section for OpenCode/DeepSeek-produced or autonomous-lane PRs.
-CI binds this evidence to the closing issue's trusted `## Autonomy` section.
+CI binds this evidence to the closing issue's maintainer-owned autonomy label.
 For local Tier A validation, export issue metadata with
-`gh issue view <issue> --json number,state,body > <issue.json>` and pass
+`gh api repos/sakibshuvo/Entroping/issues/<issue> --jq '{number,state,pull_request,labels}' > <issue.json>` and pass
 `--issue-metadata-file <issue.json>` to the strict checker.
 
 - Provider lane: <registered lane id from docs/meta/provider-capability-registry.json>

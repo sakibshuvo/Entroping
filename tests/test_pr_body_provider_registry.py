@@ -53,6 +53,7 @@ def _write_tier_a_issue(
                 "number": 1558,
                 "state": "open",
                 "body": body,
+                "labels": [{"name": "autonomy:tier-a"}],
                 "pull_request": None,
             }
         ),
@@ -80,6 +81,21 @@ def _run_pr_body_check(
         capture_output=True,
         text=True,
     )
+
+
+def test_pr_body_help_describes_label_owned_issue_authority() -> None:
+    result = subprocess.run(
+        [sys.executable, str(PR_BODY_CHECK), "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    normalized_help = " ".join(result.stdout.split())
+    assert "number, state, labels, and pull_request" in normalized_help
+    assert "number, state, body, and pull_request" not in normalized_help
 
 
 def test_pr_body_rejects_unknown_paid_provider_model_combination(
@@ -280,6 +296,7 @@ def test_pr_body_rejects_tier_a_self_promotion_against_trusted_issue(
                 "number": 1558,
                 "state": "open",
                 "body": "## Autonomy\n\nTier C restricted architecture lane.",
+                "labels": [{"name": "autonomy:tier-c"}],
                 "pull_request": None,
             }
         ),
@@ -303,6 +320,7 @@ def test_pr_body_rejects_tier_a_self_promotion_against_trusted_issue(
                 "number": 1558,
                 "state": "open",
                 "body": "## Autonomy\n\nTier A autonomous lane.",
+                "labels": [{"name": "autonomy:tier-a"}],
                 "pull_request": None,
             }
         ),
@@ -583,7 +601,7 @@ def test_pr_body_ignores_closing_issue_in_lazy_blockquote_continuation(
         "````markdown\n```\n## Autonomy\n\nTier A autonomous lane.\n````",
     ],
 )
-def test_pr_body_rejects_hidden_trusted_issue_autonomy(
+def test_pr_body_ignores_prompt_like_issue_body_when_label_grants_tier_a(
     tmp_path: Path,
     issue_body: str,
 ) -> None:
@@ -601,8 +619,7 @@ def test_pr_body_rejects_hidden_trusted_issue_autonomy(
         str(issue_path),
     )
 
-    assert result.returncode == 1
-    assert "must include ## Autonomy" in result.stderr
+    assert result.returncode == 0, result.stderr
 
 
 def test_pr_body_accepts_trusted_issue_heading_after_blockquote(

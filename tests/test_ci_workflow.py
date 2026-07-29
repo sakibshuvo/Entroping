@@ -161,6 +161,9 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
     assert "GH_TOKEN: ${{ github.token }}" in _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "--changed-file" in checks_run_blocks
     assert "git diff --name-only" in checks_run_blocks
+    assert "--no-renames" in checks_run_blocks
+    assert "-z" in checks_run_blocks
+    assert "read -r -d '' path" in checks_run_blocks
     assert "git merge-base" in checks_run_blocks
     assert "--depth=1" not in checks_run_blocks
     assert 'diff_range="origin/$GITHUB_BASE_REF...HEAD"' in checks_run_blocks
@@ -225,7 +228,7 @@ def test_ci_pr_body_step_rejects_tier_a_self_promotion_for_tier_c_issue(
         "if [[ \"$1\" == \"fetch\" ]]; then exit 0; fi\n"
         "if [[ \"$1\" == \"merge-base\" ]]; then exit 0; fi\n"
         "if [[ \"$1\" == \"diff\" && \"$2\" == \"--name-only\" ]]; then\n"
-        "  printf '%s\\n' scripts/pr_body_check.py\n"
+        "  printf '%s\\0' scripts/pr_body_check.py\n"
         "  exit 0\n"
         "fi\n"
         "exit 2\n",
@@ -236,9 +239,8 @@ def test_ci_pr_body_step_rejects_tier_a_self_promotion_for_tier_c_issue(
     gh_stub.write_text(
         "#!/usr/bin/env bash\n"
         "printf '%s\\n' "
-        "'{\"number\":1558,\"state\":\"open\",\"body\":"
-        "\"## Autonomy\\n\\nTier C restricted architecture lane.\","
-        "\"pull_request\":null}'\n",
+        "'{\"number\":1558,\"state\":\"open\",\"pull_request\":null,"
+        "\"labels\":[{\"name\":\"autonomy:tier-c\"}]}'\n",
         encoding="utf-8",
     )
     gh_stub.chmod(0o755)

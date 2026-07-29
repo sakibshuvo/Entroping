@@ -67,6 +67,35 @@ not canonical registry or cost-policy join keys. Do not combine them by string
 shape. Issue #1573 owns evidence-bound migration to explicit lane, invocation,
 and cost identities.
 
+## Autonomous Control-Plane Protection
+
+Before a Tier A queue job is written, `scripts/ai_jobs.py` rejects selected
+files protected by `scripts/factory_control_plane_policy.py`. The same check
+runs again after queue claim and before worker invocation so a stale or altered
+job cannot bypass submission checks. The issue must remain open and
+`status:ready` with exactly one maintainer-owned autonomy label; issue prose is
+never dispatch authority.
+
+Before enabling Tier A dispatch in a repository, run the label bootstrap from
+`AGENT_CONTROL_PLANE.md`, inventory open issues with
+`gh issue list --state open --json number,title,labels`, and have a maintainer
+apply exactly one autonomy label per issue after reviewing its current scope.
+Missing or conflicting labels intentionally stop dispatch; never infer or
+backfill authority from issue-body text.
+
+Before accepting a patch proposal, run
+`uv run python scripts/factory_review_packet.py --job-id <job-id> --json`.
+Tier A packets fail closed on protected paths, renames from or to protected
+paths, multi-file policy violations, generated symlinks, malformed Git patches,
+and invalid aliases. The error contains only paths and reason codes. Requeue or
+hand the proposal to Codex/human review under the correct Tier B or Tier C
+authority; do not edit the job record to downgrade the failure.
+
+For a policy change, use a Tier C issue worktree, update the canonical policy,
+tests, CODEOWNERS if ownership changes, ADR/decision registry when authority
+changes, and run the `release-ci-architecture` verification lane. CODEOWNERS is
+an ownership map, not proof that branch protection requires an approval.
+
 ## OpenCode Usage Receipts
 
 Queued OpenCode workers invoke `opencode run --format json` and consume its

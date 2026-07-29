@@ -66,8 +66,9 @@ join from legacy metric labels.
 - Registry edits require schema parity and boundary tests.
 - CI correlates declared provider/autonomy evidence with bounded read-only
   metadata from the single closing GitHub issue. Tier A autonomous authority
-  requires the trusted issue to declare Tier A and a diff outside sensitive
-  and release/quality guardrail surfaces.
+  requires exactly one maintainer-owned `autonomy:tier-a` label and a diff
+  outside protected, sensitive, and release/quality guardrail surfaces. Issue
+  prose does not grant authority.
 - Provider renames and deprecations preserve audit history without silently
   widening new-dispatch authority.
 - Descriptive lane tables and prompts are non-authoritative projections and

@@ -1,5 +1,19 @@
 # Entroping Changelog
 
+## 2026-07-29
+
+- Added issue #1561's canonical autonomous control-plane protection. Exactly
+  one maintainer-owned GitHub label now grants an issue's autonomy tier; issue
+  bodies and model output cannot self-promote. Tier A queue submission,
+  pre-dispatch revalidation, patch review, and PR readiness fail closed across
+  normalized aliases, case variants, renames, multi-file patches, symlink
+  components, generated symlink patches, hostile Unicode paths, and bounded
+  parser truncation. The review-packet CLI, data projection, patch inspection,
+  and policy validation are split into bounded modules, and the complete
+  serialized packet is rejected before rendering if it contains secret-like
+  output. Protected proposals route to Codex/human review with value-free path
+  and reason evidence.
+
 ## 2026-07-28
 
 - Added issue #1560's sanitized OpenCode JSON usage receipts. The bounded worker

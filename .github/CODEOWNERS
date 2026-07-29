@@ -10,3 +10,29 @@ consumer-qanstitution.yaml @sakibshuvo
 /src/entroping/core/gate_injector.py @sakibshuvo
 /src/entroping/bridge/policy_to_hurl.py @sakibshuvo
 /scripts/update_qanstitution_schema.py @sakibshuvo
+
+# Maintainer factory authority and security boundaries.
+/AGENTS.md @sakibshuvo
+/.git* @sakibshuvo
+/.github/workflows/** @sakibshuvo
+/prompts/** @sakibshuvo
+/scripts/factory_control_plane_policy.py @sakibshuvo
+/scripts/factory_cost_policy*.py @sakibshuvo
+/docs/meta/factory-cost-policy*.json @sakibshuvo
+/scripts/provider_capability_*.py @sakibshuvo
+/scripts/ai_jobs.py @sakibshuvo
+/scripts/ai_job_*/** @sakibshuvo
+/scripts/ai_worker_file_safety.py @sakibshuvo
+/scripts/factory_patch_inspection.py @sakibshuvo
+/scripts/factory_review_packet.py @sakibshuvo
+/scripts/factory_review_packet_model.py @sakibshuvo
+/scripts/factory_review_packet_validation.py @sakibshuvo
+/scripts/pr_body_check.py @sakibshuvo
+/scripts/*gate*.py @sakibshuvo
+/scripts/*gate*.sh @sakibshuvo
+/scripts/audit_quality.sh @sakibshuvo
+/scripts/regression.sh @sakibshuvo
+/docs/meta/AGENT_CONTROL_PLANE.md @sakibshuvo
+/docs/meta/FACTORY_OPERATIONS.md @sakibshuvo
+/docs/meta/prompt-library/** @sakibshuvo
+/tests/test_factory_control_plane_policy.py @sakibshuvo

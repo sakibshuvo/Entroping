@@ -853,7 +853,7 @@ def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
                 ' --issue <issue-number> --issue-metadata-file <issue.json>',
             )
         ),
-        "gh issue view <issue-number> --json number,state,body",
+        "gh api repos/sakibshuvo/Entroping/issues/<issue-number>",
         "gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch",
         "scripts/finish_issue.sh <issue-number>",
         "Do not ask Codex for routine Tier A implementation details",

@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-07-28
-**Status:** Issue #1560 locally verified; CI and merge pending
+**Date:** 2026-07-29
+**Status:** Issue #1561 implementation and release gates in progress
 
 ## Objective
 
@@ -16,14 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1560 Sanitized OpenCode Usage Receipts
+## Current Issue Slice: #1561 Factory Control-Plane Protection
 
-Consume bounded `opencode run --format json` events without persisting raw
-JSONL. Preserve existing final-text review and patch classification while
-emitting a minimal typed usage receipt with stable job/run/model correlation,
-hashed session identity, deduplicated token/cost totals when trustworthy, and
-explicit unaccounted reasons otherwise. Keep product runtime, Brain/LiteLLM,
-Hurl, QAnstitution, traffic, and direct patch-application behavior unchanged.
+Prevent Tier A workers from changing budget, routing, scheduler,
+repository-authority, workflow, security-gate, or credential boundaries.
+Maintainer labels own autonomy; issue prose and model output remain untrusted.
+Enforce the canonical policy at queue submission, pre-dispatch revalidation,
+patch review, and PR readiness with rename, alias, symlink, and multi-file
+coverage. Keep product runtime, Brain/LiteLLM, Hurl, QAnstitution, and traffic
+behavior unchanged.
 
 ## Current Baseline
 

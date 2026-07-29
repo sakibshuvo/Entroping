@@ -19,10 +19,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from scripts.factory_control_plane_policy import (  # noqa: E402
+    autonomy_tier_from_labels,
+    normalize_repo_path,
+    protected_surface_reason,
+)
+
 SECTION_TITLE = "## Documentation Impact Declaration"
 AGENT_AUTONOMY_SECTION_TITLE = "## Agent Autonomy Declaration"
 OPENCODE_EVIDENCE_SECTION_TITLE = "## OpenCode Provider Lane Evidence"
-ISSUE_AUTONOMY_SECTION_TITLE = "## Autonomy"
 VERIFICATION_LANE_LABEL = "Verification lane"
 ISSUE_METADATA_MAX_BYTES = 1024 * 1024
 
@@ -115,7 +120,6 @@ BLOCKQUOTE_RE = re.compile(r"^ {0,3}>[ \t]?(?P<content>.*)$")
 ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
 LIST_ITEM_RE = re.compile(r"^ {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+")
 CLOSING_ISSUE_RE = re.compile(r"(?im)\bCloses\s+#(\d+)\b")
-ISSUE_AUTONOMY_TIER_RE = re.compile(r"(?i)\bTier\s+([ABC])\b")
 SENSITIVE_SURFACE_PATTERNS = (
     (
         "hurl-runner",
@@ -688,38 +692,11 @@ def _trusted_issue_autonomy_tier(path: Path, *, issue: str) -> str:
         raise ValueError(f"trusted issue #{number} must still be open")
     if payload.get("pull_request") is not None:
         raise ValueError(f"trusted issue #{number} must not be a pull request")
-    issue_body = payload.get("body")
-    if not isinstance(issue_body, str):
-        raise ValueError(f"trusted issue #{number} must include a text body")
-    autonomy_sections = _extract_sections(issue_body, ISSUE_AUTONOMY_SECTION_TITLE)
-    if not autonomy_sections:
-        raise ValueError(
-            f"trusted issue #{number} must include {ISSUE_AUTONOMY_SECTION_TITLE}"
-        )
-    if len(autonomy_sections) != 1:
-        raise ValueError(
-            f"trusted issue #{number} must include exactly one "
-            f"{ISSUE_AUTONOMY_SECTION_TITLE} section"
-        )
-    visible_autonomy = "\n".join(_iter_visible_lines(autonomy_sections[0]))
-    tier_letters = set(ISSUE_AUTONOMY_TIER_RE.findall(visible_autonomy))
-    if len(tier_letters) != 1:
-        raise ValueError(
-            f"trusted issue #{number} autonomy must name exactly one Tier A, B, or C"
-        )
-    tier_by_letter = {
-        "A": "Tier A autonomous lane",
-        "B": "Tier B assisted lane",
-        "C": "Tier C restricted lane",
-    }
-    return tier_by_letter[tier_letters.pop().upper()]
+    return autonomy_tier_from_labels(payload.get("labels"))
 
 
 def _normalize_changed_file(path: str) -> str:
-    normalized = path.strip().replace("\\", "/")
-    if normalized.startswith("./"):
-        return normalized[2:]
-    return normalized
+    return normalize_repo_path(path) or path.strip().replace("\\", "/")
 
 
 def _dependency_automation_login(pull_request: dict[str, object]) -> str | None:
@@ -789,6 +766,15 @@ def _sensitive_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
         if reason is not None:
             sensitive.append((_normalize_changed_file(path), reason))
     return sensitive
+
+
+def _protected_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
+    protected: list[tuple[str, str]] = []
+    for path in changed_files:
+        reason = protected_surface_reason(path, repo_root=_REPO_ROOT)
+        if reason is not None:
+            protected.append((_normalize_changed_file(path), reason))
+    return protected
 
 
 def _quality_guardrail_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
@@ -1096,7 +1082,8 @@ def _validate_opencode_evidence(
             tier_a_blocked_files = {
                 path
                 for path, _reason in (
-                    _sensitive_changed_files(changed_files)
+                    _protected_changed_files(changed_files)
+                    + _sensitive_changed_files(changed_files)
                     + _quality_guardrail_changed_files(changed_files)
                 )
             }
@@ -1220,7 +1207,7 @@ def main(argv: list[str] | None = None) -> int:
         "--issue-metadata-file",
         type=Path,
         help=(
-            "Trusted GitHub issue JSON containing number, state, body, and "
+            "Trusted GitHub issue JSON containing number, state, labels, and "
             "pull_request fields for autonomy binding."
         ),
     )

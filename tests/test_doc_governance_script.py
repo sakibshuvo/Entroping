@@ -1225,6 +1225,7 @@ def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
                 "number": 706,
                 "state": "OPEN",
                 "body": "## Autonomy\n\nTier A autonomous lane.",
+                "labels": [{"name": "autonomy:tier-a"}],
                 "pull_request": None,
             }
         ),
