@@ -96,6 +96,62 @@ tests, CODEOWNERS if ownership changes, ADR/decision registry when authority
 changes, and run the `release-ci-architecture` verification lane. CODEOWNERS is
 an ownership map, not proof that branch protection requires an approval.
 
+## Live Issue Selection
+
+`scripts/factory_issue_selector.py` is a read-only planning adapter. It selects
+at most one GitHub issue and always emits `paid_work_authorized: false`; it does
+not create jobs, acquire leases, invoke providers, edit issues, or dispatch
+workers. Issue #1569 owns the later atomic lease and dispatch-time revalidation
+boundary.
+
+Run it only after supplying a complete snapshot of external leases:
+
+```text
+uv run python scripts/factory_issue_selector.py \
+  --active-state-complete \
+  --autonomy-ceiling tier-a
+```
+
+Repeat `--active-issue` and `--active-file` for every externally held lease.
+Omitting `--active-state-complete` intentionally returns a blocked result.
+The adapter also reads local queued/running jobs and issue-scoped worktrees,
+then combines those with open-PR ownership and supplied leases before checking
+file-scope overlap.
+
+The command owns its current UTC freshness clock; callers cannot replay an old
+cache by supplying a historical time. Unmerged local branches without a
+worktree must contain an `issue-<number>` segment, otherwise branch ownership is
+ambiguous and selection blocks. Worktree paths follow the existing
+`Entroping-issue-<number>` convention. Human-authored PRs require a GitHub
+closing-issue association; bot-authored dependency PRs may instead contribute
+their complete changed-file scopes. Queued and running jobs contribute their
+immutable submitted `files` receipt, not only mutable current issue metadata.
+
+Eligibility requires one maintainer-owned type, priority, ready-status, and
+autonomy label; a milestone; every required issue section; one declared
+verification lane; no assignee or active owner; resolved dependencies; and an
+explicit machine-readable file scope. Declare scopes as bullets under
+`## Allowed files` or as `allowed_files` in a YAML issue packet. The selector
+accepts exact paths, recursive `directory/**` scopes, and final-component file
+families such as `scripts/factory_issue_selector*.py`. Existing symlink aliases
+are unsafe, and overlap comparison is case-insensitive for portable safety on
+case-preserving filesystems. The selector does not infer scope from titles,
+area labels, or prose.
+
+GitHub issue and pull-request state is refreshed through bounded GitHub CLI
+subprocesses (`gh api` and `gh pr list`) and cached for at most 300 seconds at
+`.entroping/factory-selector/github-snapshot.v1.json`. The cache contains only
+parsed allowlisted fields, uses owner-only permissions, and never stores issue
+bodies, comments, raw user evidence, provider output, or credentials. Stale,
+future-dated, incomplete, malformed, rate-limited, unsafe, or failed refresh
+state cannot select or authorize work. A failed refresh never falls back to a
+stale cache.
+
+Selection is deterministic for the same complete snapshot: P0 issues first,
+then verified user blockers, then verified P1 issues, then ordinary eligible
+work; ties use priority and ascending issue number. Every rejected issue emits
+a stable reason code so operators can repair metadata instead of guessing.
+
 ## OpenCode Usage Receipts
 
 Queued OpenCode workers invoke `opencode run --format json` and consume its

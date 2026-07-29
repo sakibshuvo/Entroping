@@ -2,6 +2,13 @@
 
 ## 2026-07-29
 
+- Added issue #1567's read-only, deterministic selector for live ready GitHub
+  issues with fresh-state, issue-contract, autonomy, ownership, dependency, and
+  explicit file-overlap gates. Sanitized short-lived caching plus bounded local
+  branch, worktree, queue, and PR inspection fail closed on ambiguity. Selection remains
+  plan-only and always reports that paid work is not authorized; issue #1569
+  retains lease and dispatch authority.
+
 - Added issue #1561's canonical autonomous control-plane protection. Exactly
   one maintainer-owned GitHub label now grants an issue's autonomy tier; issue
   bodies and model output cannot self-promote. Tier A queue submission,

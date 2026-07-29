@@ -129,9 +129,10 @@ Never put raw feedback, private conversations, direct quotes, private URLs,
 identifiers, or unredacted logs in GitHub or provider prompts. Provider
 dispatch may receive only the sanitized issue packet.
 
-Apply this precedence only after issue #1567's complete fresh-state,
-verification, autonomy, ownership, branch, worktree, PR, lease, overlap, and
-dependency gates pass. Then select the first non-empty bucket: `priority:p0`;
+Apply this precedence only after issue #1567's complete fresh-state, issue
+contract, milestone, verification, autonomy, ownership, active unmerged branch,
+PR, lease, explicit-file-scope, overlap, and dependency gates pass. Then select
+the first non-empty bucket: `priority:p0`;
 verified `severity: blocker` user evidence; verified `priority:p1` user
 evidence; other eligible work. Within a bucket, use priority then ascending
 issue number. Malformed, repeated, unlabelled-verified, or unknown metadata

@@ -23,6 +23,8 @@ consumer-qanstitution.yaml @sakibshuvo
 /scripts/provider_capability_*.py @sakibshuvo
 /scripts/ai_jobs.py @sakibshuvo
 /scripts/ai_job_*/** @sakibshuvo
+/scripts/factory_issue_selector*.py @sakibshuvo
+/tests/test_factory_issue_selector*.py @sakibshuvo
 /scripts/ai_worker_file_safety.py @sakibshuvo
 /scripts/factory_patch_inspection.py @sakibshuvo
 /scripts/factory_review_packet.py @sakibshuvo

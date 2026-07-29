@@ -44,6 +44,7 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     (
         "factory-scheduler",
         (
+            "scripts/factory_issue_selector*.py",
             "scripts/ai_jobs.py",
             "scripts/ai_job_*.py",
             "scripts/ai_job_*/*",
@@ -51,6 +52,7 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "tests/test_ai_jobs*.py",
             "tests/test_ai_job_*.py",
             "tests/test_factory_tick_runner.py",
+            "tests/test_factory_issue_selector*.py",
         ),
     ),
     (

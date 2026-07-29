@@ -98,7 +98,7 @@ metrics.
 
 ## Evidence
 
-- GitHub issue #1565 owns the security-runtime acceptance lane.
+- GitHub issue #1565 owned the completed security-runtime acceptance lane.
 - `docs/meta/FACTORY_OPERATIONS.md` owns operator semantics and commands.
 - `docs/technical/TDS.md` owns the component and durability boundaries.
 - `scripts/factory_budget_ledger.py` owns the Python and read-only CLI facade.
