@@ -150,7 +150,11 @@ def test_factory_runbook_documents_authoritative_budget_ledger_boundaries() -> N
         "refund",
         "manual adjustment",
         "non-spendable reserve",
-        "does not reserve or settle provider work",
+        "reserves the route's worst-case enforceable usage",
+        "Direct DeepSeek is currently the only supported metered queue lane",
+        "Metered OpenCode remains blocked",
+        "the hold stays `uncertain`",
+        "do not call providers from product runtime",
     ]
 
     for term in required:

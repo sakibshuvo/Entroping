@@ -289,21 +289,21 @@ overflowing integers, zero charges, duplicate identifiers/references, broken
 provider references, naive or reversed timestamps, stale policies/prices,
 secret-like content, oversized or invalid UTF-8 files, non-regular files, and
 symlinked path components. Validation success proves only that the declaration
-is structurally safe and current at `--as-of`; the authoritative ledger,
-reservation, settlement, and quota-observation behavior remains in downstream
-factory issues.
+is structurally safe and current at `--as-of`; the ledger and paid-dispatch
+coordinator enforce cash reservation and settlement separately. Quota
+observation remains downstream.
 
-## Authoritative Budget Ledger
+## Authoritative Budget Ledger and Paid Dispatch
 
 The ignored `.entroping/factory-budget/ledger.sqlite3` database is the
 authoritative local record of factory cash activity. Dashboard metrics and
 worker receipts may summarize it, but they are not spending authority. Version
-1 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
+2 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
 calendar months. A period records the reviewed cash cap and an emergency
 reserve allocation; that allocation is a non-spendable reserve inside the cap,
 not a cash charge.
 
-Ledger writes use a global idempotency key whose SHA-256 digest is stored and
+Ledger schema version 2 uses a global idempotency key whose SHA-256 digest is stored and
 bound to the complete normalized payload. An exact replay is a no-op; reuse
 with different evidence fails closed. Fixed subscription and provider charges
 are debits. A refund is a credit linked to its original charge, must match its
@@ -358,10 +358,47 @@ uv run python -m scripts.factory_budget_ledger balance \
   --repo /absolute/path/to/Entroping --period 2026-07-01
 ```
 
-The Python API owns explicit period initialization and entry recording. This
-ledger does not reserve or settle provider work, call providers, observe quota,
-or authorize scheduler dispatch. Those integrations remain downstream and
-must fail closed against this evidence rather than infer spend from metrics.
+Before a metered queue worker launches, `scripts/ai_jobs.py run-next` loads the
+reviewed local cost policy, requires an enabled lane with fresh price terms,
+initializes the matching UTC period, and atomically reserves the route's
+worst-case enforceable usage. The durable ledger hold is authoritative; the
+job's `reservation_id` and `settlement_state` are recoverable projections.
+Included-quota and fixed-subscription routes do not create cash holds. Worker
+dry runs remain value-free.
+
+Direct DeepSeek is currently the only supported metered queue lane. Its request
+bytes and completion tokens are bounded before the network call, and a strict
+receipt binds job id, requested and reported model, token counts, local run, and
+the SHA-256 digest of the provider session. The raw provider session is not
+stored in queue metadata or persisted response JSON. Metered OpenCode remains
+blocked because its current host contract cannot enforce a worst-case usage
+ceiling; choose an included-quota route or use direct DeepSeek with a reviewed
+policy instead.
+
+Version 1 ledgers do not migrate implicitly. Run the explicit migration once,
+then inspect the sanitized balance:
+
+```text
+uv run python -m scripts.factory_budget_ledger migrate \
+  --repo /absolute/path/to/Entroping
+uv run python -m scripts.factory_budget_ledger balance \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+```
+
+If a provider call is interrupted or its receipt is missing, malformed,
+partial, conflicting, mismatched, or above the reserved ceiling, the hold stays
+`uncertain`. Do not edit the SQLite database or infer zero cost. Preserve the
+job and review artifacts, obtain value-free provider evidence, and use the
+`FactoryBudgetLedger.reconcile_no_charge` or
+`FactoryBudgetLedger.reconcile_manual_debit` Python API with a new idempotency
+key, SHA-256 evidence digest, and offset-aware timestamp. A manual debit cannot
+exceed the original hold. Stale queue recovery finds the reservation by job id
+and will not redispatch unresolved work; an already settled job terminalizes
+without a second debit.
+
+The ledger and queue control paid maintainer workers only. They do not call
+providers from product runtime, scrape provider balances, observe quota, or
+enable automatic top-up.
 
 ## Artifact and Log Retention
 

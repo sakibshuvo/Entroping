@@ -78,6 +78,7 @@ class DeepSeekStubHandler(BaseHTTPRequestHandler):
         )
         response = DeepSeekStubHandler.response_payload or {
             "id": "chatcmpl-test",
+            "model": "deepseek-v4-pro",
             "choices": [
                 {
                     "message": {
@@ -113,10 +114,37 @@ def test_deepseek_worker_help_documents_direct_api_options() -> None:
     assert "--base-url" in result.stdout
     assert "--max-file-bytes" in result.stdout
     assert "--max-response-bytes" in result.stdout
+    assert "--max-request-bytes" in result.stdout
+    assert "--job-id" in result.stdout
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
     assert "Default: disabled" in result.stdout
     assert "deepseek-v4-pro" in result.stdout
+
+
+@pytest.mark.parametrize("timeout_seconds", ("nan", "inf", "86401"))
+def test_deepseek_worker_rejects_unsafe_timeout_before_artifact_creation(
+    tmp_path: Path,
+    timeout_seconds: str,
+) -> None:
+    artifact_root = tmp_path / "reviews"
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(artifact_root),
+        "--timeout-seconds",
+        timeout_seconds,
+        "--dry-run",
+        "--json",
+    )
+
+    assert result.returncode == 2
+    assert "--timeout-seconds must be finite and at most 86400 seconds" in result.stderr
+    assert not artifact_root.exists()
 
 
 def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
@@ -408,6 +436,8 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
             "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--job-id",
+            "job-direct-1",
             "--json",
             env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
         )
@@ -439,6 +469,21 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
         == "entroping.deepseek-capability-context.v1"
     )
     assert metadata["status"] == "completed"
+    assert payload["usage_receipt"] == {
+        "accounting_status": "accounted",
+        "input_tokens": 11,
+        "job_id": "job-direct-1",
+        "output_tokens": 7,
+        "provider_session_digest": (
+            "a561165cb4bb29b35a07f18118186a6ea6a0ecac2bda09c348e11837427a42cc"
+        ),
+        "reported_model": "deepseek-v4-pro",
+        "requested_model": "deepseek-v4-pro",
+        "requests": 1,
+        "run_id": artifact_dir.name,
+        "schema_version": "entroping.deepseek-usage-receipt.v1",
+        "total_tokens": 18,
+    }
     assert metadata["usage"] == {
         "completion_tokens": 7,
         "prompt_tokens": 11,
@@ -450,6 +495,58 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert "test-secret-token" not in (artifact_dir / "metadata.json").read_text(
         encoding="utf-8"
     )
+    assert "chatcmpl-test" not in (artifact_dir / "response.json").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_deepseek_worker_blocks_oversized_request_before_network_call(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--job-id",
+            "job-request-limit",
+            "--max-request-bytes",
+            "128",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 1
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    assert payload["usage_receipt"] == {
+        "accounting_reason": "request_not_dispatched",
+        "accounting_status": "unaccounted",
+        "job_id": "job-request-limit",
+        "requested_model": "deepseek-v4-pro",
+        "run_id": artifact_dir.name,
+        "schema_version": "entroping.deepseek-usage-receipt.v1",
+    }
+    assert "request exceeded the 128-byte limit" in (
+        artifact_dir / "stderr.txt"
+    ).read_text(encoding="utf-8")
+    assert DeepSeekStubHandler.requests == []
 
 
 def test_deepseek_worker_withholds_secret_like_assistant_output(

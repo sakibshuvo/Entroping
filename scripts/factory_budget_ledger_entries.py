@@ -63,7 +63,7 @@ def record_entry(
             _ = connection.execute("COMMIT")
             return receipt
         period = _period_state(connection, period_start)
-        if period[4] >= MAX_PERIOD_ENTRIES:
+        if period[5] >= MAX_PERIOD_ENTRIES:
             raise FactoryBudgetLedgerError("limit", "budget period entry limit reached")
         require_entry_capacity(connection)
         reference_id = validate_reference(connection, entry, reference_digest)
@@ -71,6 +71,7 @@ def record_entry(
             current_net=period[3],
             cap=period[1],
             reserve=period[2],
+            active_reserved=period[4],
             entry=entry,
         )
         entry_id = _insert_entry(
@@ -116,7 +117,7 @@ def _period_state(connection: sqlite3.Connection, period_start: str) -> PeriodSt
         connection.execute(
             """
             SELECT id, cash_cap_microcents, emergency_reserve_microcents,
-                   net_spent_microcents, entry_count
+                   net_spent_microcents, active_reserved_microcents, entry_count
             FROM budget_periods WHERE period_start_utc = ?
             """,
             (period_start,),

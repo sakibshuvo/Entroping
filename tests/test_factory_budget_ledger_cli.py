@@ -87,6 +87,7 @@ def test_summary_cli_outputs_only_the_bounded_period_view(tmp_path: Path) -> Non
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {
         "cash_cap_microcents": 20_000_000_000,
+        "active_reserved_microcents": 0,
         "currency": "USD",
         "emergency_reserve_microcents": 2_000_000_000,
         "entry_count": 2,
@@ -95,7 +96,7 @@ def test_summary_cli_outputs_only_the_bounded_period_view(tmp_path: Path) -> Non
         "period_start_utc": "2026-07-01T00:00:00Z",
         "policy_id": "monthly-budget",
         "policy_revision": 1,
-        "schema_version": "entroping.factory-budget-period-summary.v1",
+        "schema_version": "entroping.factory-budget-period-summary.v2",
         "available_paid_microcents": 17_000_000_000,
     }
     assert ledger.db_path.stat().st_mtime_ns == before
@@ -115,7 +116,7 @@ def test_balance_cli_outputs_only_admission_fields(tmp_path: Path) -> None:
         "paid_dispatch_permitted": True,
         "paid_limit_microcents": 18_000_000_000,
         "period_start_utc": "2026-07-01T00:00:00Z",
-        "schema_version": "entroping.factory-budget-balance.v1",
+        "schema_version": "entroping.factory-budget-balance.v2",
     }
     assert "openai" not in result.stdout
     assert "provider-charge-1" not in result.stdout

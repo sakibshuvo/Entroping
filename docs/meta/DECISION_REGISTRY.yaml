@@ -635,3 +635,22 @@ decisions:
     related_issues: ["#1566"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0028
+    title: Paid factory work requires reservation and identity-bound settlement
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Metered direct workers reserve worst-case cost before launch, settle only
+      from strict receipts, and preserve ambiguous or interrupted holds until
+      evidence-backed reconciliation.
+    tags: [factory, budget, providers, security, reliability]
+    source_links:
+      - path: decisions/ADR-0028-paid-cost-reservation-settlement.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1568"]
+    supersedes: []
+    superseded_by: null

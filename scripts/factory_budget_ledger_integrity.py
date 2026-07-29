@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_rows import entry_validation_rows, period_validation_rows
+from .factory_budget_reservation_integrity import validate_reservation_integrity
 
 MAX_BUDGET_PERIODS = 600
 MAX_LEDGER_ENTRIES = 100_000
@@ -20,6 +21,7 @@ def validate_ledger_integrity(connection: sqlite3.Connection) -> None:
         raise FactoryBudgetLedgerError("integrity", "ledger entries are invalid")
     if not _timestamps_valid(connection):
         raise FactoryBudgetLedgerError("integrity", "ledger timestamps are invalid")
+    validate_reservation_integrity(connection)
 
 
 def require_entry_capacity(connection: sqlite3.Connection) -> None:
@@ -113,7 +115,7 @@ def _entries_valid(connection: sqlite3.Connection) -> bool:
             SELECT id
             FROM budget_periods
             WHERE entry_count > 100000
-                OR net_spent_microcents
+                OR MAX(net_spent_microcents, 0) + active_reserved_microcents
                     > cash_cap_microcents - emergency_reserve_microcents
             LIMIT 1
             """

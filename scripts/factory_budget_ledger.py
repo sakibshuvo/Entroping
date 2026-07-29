@@ -17,10 +17,33 @@ from .factory_budget_ledger_models import (
 from .factory_budget_ledger_periods import initialize_period, period_summary
 from .factory_budget_ledger_reporting import balance_from_period
 from .factory_budget_ledger_storage import (
+    migrate_ledger,
     prepare_ledger,
     readonly_connection,
     writable_connection,
 )
+from .factory_budget_reconciliation import (
+    reconcile_manual_debit,
+    reconcile_no_charge,
+)
+from .factory_budget_reservation_models import (
+    CostReservationReceipt,
+    CostReservationRequest,
+    ManualReconciliationInput,
+    NoChargeReconciliationInput,
+    PriceTerm,
+    PriceUnit,
+    SettlementOutcome,
+    SettlementReceipt,
+    UncertaintyReason,
+    UsageEnvelope,
+)
+from .factory_budget_reservations import (
+    reservation_for_job,
+    reserve_for_dispatch,
+)
+from .factory_budget_settlement import settle_reservation
+from .factory_budget_uncertainty import mark_reservation_uncertain
 
 
 class FactoryBudgetLedger:
@@ -35,6 +58,10 @@ class FactoryBudgetLedger:
     def open_project(cls, project_root: Path) -> FactoryBudgetLedger:
         db_path = prepare_ledger(project_root)
         return cls(db_path.parents[2], db_path)
+
+    @classmethod
+    def migrate_project(cls, project_root: Path) -> bool:
+        return migrate_ledger(project_root)
 
     @classmethod
     def period_summary_readonly(
@@ -60,6 +87,63 @@ class FactoryBudgetLedger:
         with writable_connection(self.project_root) as connection:
             return record_entry(connection, entry)
 
+    def reserve_for_dispatch(
+        self,
+        request: CostReservationRequest,
+    ) -> CostReservationReceipt:
+        with writable_connection(self.project_root) as connection:
+            return reserve_for_dispatch(connection, request)
+
+    def reservation_for_job(self, job_id: str) -> CostReservationReceipt | None:
+        with readonly_connection(self.project_root) as connection:
+            return reservation_for_job(connection, job_id)
+
+    @classmethod
+    def reservation_for_job_readonly(
+        cls,
+        project_root: Path,
+        job_id: str,
+    ) -> CostReservationReceipt | None:
+        with readonly_connection(project_root) as connection:
+            return reservation_for_job(connection, job_id)
+
+    def settle_reservation(self, receipt: SettlementReceipt) -> SettlementOutcome:
+        with writable_connection(self.project_root) as connection:
+            return settle_reservation(connection, receipt)
+
+    def mark_reservation_uncertain(
+        self,
+        reservation_id: str,
+        *,
+        idempotency_key: str,
+        reason: UncertaintyReason,
+        occurred_at: datetime,
+        evidence_digest: str,
+    ) -> SettlementOutcome:
+        with writable_connection(self.project_root) as connection:
+            return mark_reservation_uncertain(
+                connection,
+                reservation_id,
+                idempotency_key=idempotency_key,
+                reason=reason,
+                occurred_at=occurred_at,
+                evidence_digest=evidence_digest,
+            )
+
+    def reconcile_no_charge(
+        self,
+        command: NoChargeReconciliationInput,
+    ) -> SettlementOutcome:
+        with writable_connection(self.project_root) as connection:
+            return reconcile_no_charge(connection, command)
+
+    def reconcile_manual_debit(
+        self,
+        command: ManualReconciliationInput,
+    ) -> SettlementOutcome:
+        with writable_connection(self.project_root) as connection:
+            return reconcile_manual_debit(connection, command)
+
     @classmethod
     def balance_summary_readonly(
         cls,
@@ -76,11 +160,20 @@ __all__ = [
     "BudgetBalanceSummary",
     "BudgetPeriodConfig",
     "BudgetPeriodSummary",
+    "CostReservationReceipt",
+    "CostReservationRequest",
     "FactoryBudgetLedger",
     "FactoryBudgetLedgerError",
     "LedgerEntryInput",
     "LedgerEntryReceipt",
+    "ManualReconciliationInput",
+    "NoChargeReconciliationInput",
     "PeriodInitialization",
+    "PriceTerm",
+    "PriceUnit",
+    "SettlementOutcome",
+    "SettlementReceipt",
+    "UsageEnvelope",
 ]
 
 
