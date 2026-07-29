@@ -26,7 +26,7 @@ subagent depth zero and uses a deny-first tool and permission map. Every
 model-issued tool, including read, glob, and grep, is denied. The trusted CLI
 may ingest only explicit `--file` snapshots that the wrapper already validated
 as regular non-symlink files; shell, edit/write, patch application,
-task/subagent, skill, web, question, todo, external path, MCP, custom, and
+task/subagent, skill, web, question, task-list, external path, MCP, custom, and
 unknown tools remain denied.
 
 The child environment is rebuilt from an explicit key allowlist with a
