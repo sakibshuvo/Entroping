@@ -2,6 +2,20 @@
 
 ## 2026-07-28
 
+- Added issue #1560's sanitized OpenCode JSON usage receipts. The bounded worker
+  stream-parses events through EOF, preserves final-text review and patch
+  classification, deduplicates step usage, hashes session identity, validates
+  exact token/cost fields, and never persists raw JSONL, reasoning, tool
+  payloads, provider errors, or raw child stderr. Queue records fail closed to
+  explicit unaccounted evidence for missing, ambiguous-zero, malformed,
+  conflicting, partial, timed-out, over-limit, or invalid receipts, while
+  accounted totals can feed opt-in metrics without authorizing spend or merge.
+  The parser is split into bounded framing, usage aggregation, and receipt
+  schema modules; float-underflow costs fail closed, and the shared queue keeps
+  DeepSeek prompt-cache hit/miss counters intact. Accounted queue receipts must
+  carry a positive cost, and reusing one step-part id under a different message
+  is a conflicting duplicate rather than a second billable step.
+
 - Added issue #1558's versioned maintainer provider-capability registry and
   generated schema. Queue submission, audit, requeue, pre-dispatch, and strict
   PR evidence checks now share typed lane, host, billing, model, lifecycle,

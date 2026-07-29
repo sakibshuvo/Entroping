@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import subprocess  # nosec B404
 import sys
 import tempfile
@@ -39,6 +40,50 @@ TIER_A_MERGE_AUTHORITY = "Tier A autonomous after gates and green CI"
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 SUCCESSFUL_WORKER_STATUSES = {"completed", "dry-run", "inconclusive", "patch-proposed"}
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
+MAX_USAGE_VALUE = 9_223_372_036_854_775_807
+TOKEN_USAGE_FIELDS = frozenset(
+    {
+        "cache_read_tokens",
+        "cache_write_tokens",
+        "completion_tokens",
+        "input_tokens",
+        "output_tokens",
+        "prompt_cache_hit_tokens",
+        "prompt_cache_miss_tokens",
+        "prompt_tokens",
+        "reasoning_tokens",
+        "total_tokens",
+    }
+)
+OPENCODE_USAGE_FIELDS = frozenset(
+    {
+        "cache_read_tokens",
+        "cache_write_tokens",
+        "cost_usd",
+        "input_tokens",
+        "output_tokens",
+        "reasoning_tokens",
+    }
+)
+OPENCODE_UNACCOUNTED_REASONS = frozenset(
+    {
+        "ambiguous_zero_cost",
+        "conflicting_duplicate_usage",
+        "dry_run",
+        "error_event",
+        "inconsistent_session",
+        "invalid_receipt",
+        "malformed_event",
+        "malformed_usage",
+        "missing_cost",
+        "output_limit_exceeded",
+        "process_failed",
+        "secret_like_output",
+        "text_limit_exceeded",
+        "timed_out",
+        "usage_absent",
+    }
+)
 
 Mode = Literal["review", "patch"]
 QueueState = Literal["queued", "running", "completed", "failed"]
@@ -844,7 +889,18 @@ def _run_next_pinned(
     job["artifact_dir"] = artifact_dir
     if artifact_validation_error is not None:
         job["error"] = artifact_validation_error
-    worker_usage = _usage_payload(worker_payload.get("usage"))
+    worker_usage: dict[str, object] | None
+    usage_receipt: dict[str, object] | None = None
+    if job.get("engine") == "opencode":
+        usage_receipt, worker_usage = _opencode_usage_receipt_payload(
+            worker_payload.get("usage_receipt"),
+            expected_job_id=str(job["job_id"]),
+            expected_model=str(job["model"]),
+            artifact_dir=artifact_dir,
+        )
+        job["usage_receipt"] = usage_receipt
+    else:
+        worker_usage = _usage_payload(worker_payload.get("usage"))
     if worker_usage is not None:
         job["usage"] = worker_usage
     job["completed_at"] = _now()
@@ -867,6 +923,7 @@ def _run_next_pinned(
                 else {}
             ),
             **({"usage": worker_usage} if worker_usage is not None else {}),
+            **({"usage_receipt": usage_receipt} if usage_receipt is not None else {}),
         },
         0 if terminal_state == "completed" else 1,
     )
@@ -1163,6 +1220,8 @@ def _run_worker(
         str(artifact_root),
         "--timeout-seconds",
         str(job_timeout_seconds),
+        "--job-id",
+        str(job["job_id"]),
         "--json",
     ]
     for scoped_file in _string_list(job.get("files")):
@@ -1321,6 +1380,9 @@ def _collect(job_root: Path) -> dict[str, object]:
         usage = _usage_payload(job.get("usage"))
         if usage is not None:
             record["usage"] = usage
+        usage_receipt = _stored_usage_receipt_payload(job.get("usage_receipt"))
+        if usage_receipt is not None:
+            record["usage_receipt"] = usage_receipt
         completed_jobs.append(record)
     return {
         "status": "ok",
@@ -1562,9 +1624,165 @@ def _usage_payload(value: object) -> dict[str, object] | None:
         return None
     usage: dict[str, object] = {}
     for key, item in value.items():
-        if isinstance(key, str) and not isinstance(item, bool) and isinstance(item, (int, float)):
-            usage[key] = item
+        if key in TOKEN_USAGE_FIELDS:
+            if (
+                isinstance(item, int)
+                and not isinstance(item, bool)
+                and 0 <= item <= MAX_USAGE_VALUE
+            ):
+                usage[key] = item
+        elif key == "cost_usd" and (cost := _bounded_cost_value(item)) is not None:
+            usage[key] = cost
     return usage or None
+
+
+def _bounded_cost_value(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        cost = float(value)
+    except (OverflowError, ValueError):
+        return None
+    if not math.isfinite(cost) or not 0 <= cost <= 1_000_000_000:
+        return None
+    return cost
+
+
+def _opencode_usage_payload(value: object) -> dict[str, object] | None:
+    usage = _usage_payload(value)
+    if usage is None or frozenset(usage) != OPENCODE_USAGE_FIELDS:
+        return None
+    cost = usage["cost_usd"]
+    if not isinstance(cost, float) or cost <= 0:
+        return None
+    return usage
+
+
+def _opencode_usage_receipt_payload(
+    value: object,
+    *,
+    expected_job_id: str,
+    expected_model: str,
+    artifact_dir: str | None,
+) -> tuple[dict[str, object], dict[str, object] | None]:
+    fallback = _invalid_opencode_usage_receipt(
+        expected_job_id=expected_job_id,
+        expected_model=expected_model,
+        artifact_dir=artifact_dir,
+    )
+    if not isinstance(value, dict) or artifact_dir is None:
+        return fallback, None
+    status = value.get("accounting_status")
+    reason = value.get("accounting_reason")
+    run_id = value.get("run_id")
+    session_fingerprint = value.get("session_fingerprint")
+    unique_step_count = value.get("unique_step_count")
+    if (
+        value.get("schema_version") != "entroping.opencode-usage-receipt.v1"
+        or value.get("job_id") != expected_job_id
+        or value.get("requested_model") != expected_model
+        or run_id != Path(artifact_dir).name
+        or not _valid_receipt_identifier(run_id)
+        or not isinstance(unique_step_count, int)
+        or isinstance(unique_step_count, bool)
+        or not 0 <= unique_step_count <= MAX_USAGE_VALUE
+        or not _valid_session_fingerprint(session_fingerprint)
+    ):
+        return fallback, None
+    if status == "accounted":
+        usage = _opencode_usage_payload(value.get("usage"))
+        if (
+            reason != "complete"
+            or session_fingerprint is None
+            or unique_step_count <= 0
+            or usage is None
+        ):
+            return fallback, None
+    elif status == "unaccounted":
+        if reason not in OPENCODE_UNACCOUNTED_REASONS or "usage" in value:
+            return fallback, None
+        usage = None
+    else:
+        return fallback, None
+    return (
+        {
+            "accounting_reason": reason,
+            "accounting_status": status,
+            "job_id": expected_job_id,
+            "requested_model": expected_model,
+            "run_id": run_id,
+            "schema_version": "entroping.opencode-usage-receipt.v1",
+            "session_fingerprint": session_fingerprint,
+            "unique_step_count": unique_step_count,
+        },
+        usage,
+    )
+
+
+def _invalid_opencode_usage_receipt(
+    *,
+    expected_job_id: str,
+    expected_model: str,
+    artifact_dir: str | None,
+) -> dict[str, object]:
+    return {
+        "accounting_reason": "invalid_receipt",
+        "accounting_status": "unaccounted",
+        "job_id": expected_job_id,
+        "requested_model": expected_model,
+        "run_id": _safe_artifact_run_id(artifact_dir),
+        "schema_version": "entroping.opencode-usage-receipt.v1",
+        "session_fingerprint": None,
+        "unique_step_count": 0,
+    }
+
+
+def _stored_usage_receipt_payload(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    status = value.get("accounting_status")
+    reason = value.get("accounting_reason")
+    if value.get("schema_version") != "entroping.opencode-usage-receipt.v1":
+        return None
+    if status == "accounted":
+        if reason != "complete":
+            return None
+    elif status == "unaccounted":
+        if reason not in OPENCODE_UNACCOUNTED_REASONS:
+            return None
+    else:
+        return None
+    return {
+        "accounting_reason": reason,
+        "accounting_status": status,
+        "schema_version": "entroping.opencode-usage-receipt.v1",
+    }
+
+
+def _valid_session_fingerprint(value: object) -> bool:
+    if value is None:
+        return True
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _valid_receipt_identifier(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= 128
+        and value[0].isalnum()
+        and all(character.isalnum() or character in "._-" for character in value)
+    )
+
+
+def _safe_artifact_run_id(artifact_dir: str | None) -> str | None:
+    if artifact_dir is None:
+        return None
+    run_id = Path(artifact_dir).name
+    return run_id if _valid_receipt_identifier(run_id) else None
 
 
 def _optional_string(value: object) -> str | None:

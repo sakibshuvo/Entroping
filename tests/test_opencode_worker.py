@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -43,6 +44,46 @@ def write_fake_opencode(path: Path, *, body: str) -> Path:
     return binary
 
 
+def event_script(payload: dict[str, object]) -> str:
+    return f"printf '%s\\n' {shlex.quote(json.dumps(payload))}\n"
+
+
+def text_event_script(text: str, *, session_id: str = "session-1") -> str:
+    return event_script(
+        {
+            "type": "text",
+            "sessionID": session_id,
+            "part": {"text": text},
+        }
+    )
+
+
+def usage_event_script(
+    *,
+    session_id: str = "session-1",
+    part_id: str = "step-1",
+    cost: float = 0.01,
+) -> str:
+    return event_script(
+        {
+            "type": "step_finish",
+            "sessionID": session_id,
+            "part": {
+                "id": part_id,
+                "messageID": "message-1",
+                "sessionID": session_id,
+                "cost": cost,
+                "tokens": {
+                    "input": 100,
+                    "output": 20,
+                    "reasoning": 5,
+                    "cache": {"read": 7, "write": 3},
+                },
+            },
+        }
+    )
+
+
 def write_fake_git(path: Path) -> Path:
     binary = path / "git"
     binary.write_text(
@@ -76,6 +117,11 @@ def read_metadata(artifact_dir: Path) -> dict[str, object]:
     return cast(dict[str, object], payload)
 
 
+def read_usage_receipt(artifact_dir: Path) -> dict[str, object]:
+    payload = json.loads((artifact_dir / "usage-receipt.json").read_text(encoding="utf-8"))
+    return cast(dict[str, object], payload)
+
+
 def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
     return [
         cast(dict[str, object], json.loads(line))
@@ -93,6 +139,217 @@ def test_opencode_worker_help_documents_review_and_patch_modes() -> None:
     assert "DeepSeek" in result.stdout
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
+    assert "--job-id" in result.stdout
+
+
+def test_opencode_worker_persists_only_sanitized_json_usage_evidence(
+    tmp_path: Path,
+) -> None:
+    secret = "sk-test-super-secret-provider-value"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            + event_script(
+                {
+                    "type": "tool_use",
+                    "sessionID": "session-1",
+                    "part": {"state": {"input": {"token": secret}}},
+                }
+            )
+            + event_script(
+                {
+                    "type": "reasoning",
+                    "sessionID": "session-1",
+                    "part": {"text": secret},
+                }
+            )
+            + text_event_script("Concrete review finding")
+            + usage_event_script()
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--job-id",
+        "job-review-1",
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(cast(str, payload["artifact_dir"]))
+    receipt = read_usage_receipt(artifact_dir)
+    metadata = read_metadata(artifact_dir)
+    command = cast(list[str], metadata["command"])
+    persisted = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            artifact_dir / "stdout.txt",
+            artifact_dir / "stderr.txt",
+            artifact_dir / "metadata.json",
+            artifact_dir / "usage-receipt.json",
+        )
+    )
+
+    assert payload["usage"] == {
+        "cache_read_tokens": 7,
+        "cache_write_tokens": 3,
+        "cost_usd": 0.01,
+        "input_tokens": 100,
+        "output_tokens": 20,
+        "reasoning_tokens": 5,
+    }
+    assert receipt["accounting_status"] == "accounted"
+    assert receipt["accounting_reason"] == "complete"
+    assert receipt["job_id"] == "job-review-1"
+    assert receipt["requested_model"] == "deepseek/deepseek-v4-pro"
+    assert receipt["run_id"] == artifact_dir.name
+    assert receipt["session_fingerprint"] != "session-1"
+    assert (artifact_dir / "stdout.txt").read_text(encoding="utf-8") == (
+        "Concrete review finding"
+    )
+    assert command[command.index("--format") + 1] == "json"
+    assert secret not in persisted
+    assert '"type"' not in (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+
+
+def test_opencode_worker_zero_cost_is_explicitly_unaccounted(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            + text_event_script("Review complete")
+            + usage_event_script(cost=0.0)
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(cast(str, payload["artifact_dir"]))
+    receipt = read_usage_receipt(artifact_dir)
+    assert receipt["accounting_status"] == "unaccounted"
+    assert receipt["accounting_reason"] == "ambiguous_zero_cost"
+    assert "usage" not in payload
+    assert "usage" not in receipt
+
+
+def test_opencode_worker_malformed_event_fails_without_persisting_raw_content(
+    tmp_path: Path,
+) -> None:
+    secret = "api_key=abcdefghijklmnopqrstuvwxyz123456"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            f"printf '%s\\n' {shlex.quote(secret + ' not-json')}\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    artifact_dir = Path(cast(str, payload["artifact_dir"]))
+    receipt = read_usage_receipt(artifact_dir)
+    persisted = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            artifact_dir / "stdout.txt",
+            artifact_dir / "stderr.txt",
+            artifact_dir / "metadata.json",
+            artifact_dir / "usage-receipt.json",
+        )
+    )
+    assert receipt["accounting_status"] == "unaccounted"
+    assert receipt["accounting_reason"] == "malformed_event"
+    assert secret not in persisted
+
+
+def test_opencode_worker_records_accounted_usage_in_opt_in_metrics(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            + text_event_script("Review complete")
+            + usage_event_script()
+        ),
+    )
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"opencode-usage-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            str(REPO_ROOT / "README.md"),
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--opencode-bin",
+            str(fake_opencode),
+            "--record-factory-metrics",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+            "--json",
+        )
+
+        assert result.returncode == 0, result.stderr
+        event = read_metrics_events(full_ledger)[0]
+        metrics = cast(dict[str, object], event["metrics"])
+        assert metrics["estimated_tokens"] == 125
+        assert metrics["cost_usd"] == 0.01
+        assert "Review complete" not in full_ledger.read_text(encoding="utf-8")
+    finally:
+        full_ledger.unlink(missing_ok=True)
 
 
 def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> None:
@@ -275,9 +532,12 @@ def test_opencode_worker_patch_mode_captures_unified_diff(tmp_path: Path) -> Non
         body=(
             "#!/usr/bin/env bash\n"
             "set -euo pipefail\n"
-            "printf '%s\\n' 'diff --git a/example.py b/example.py'\n"
-            "printf '%s\\n' '--- a/example.py' '+++ b/example.py'\n"
-            "printf '%s\\n' '@@ -1 +1 @@' '-old' '+new'\n"
+            + text_event_script(
+                "diff --git a/example.py b/example.py\n"
+                "--- a/example.py\n+++ b/example.py\n"
+                "@@ -1 +1 @@\n-old\n+new\n"
+            )
+            + usage_event_script()
         ),
     )
 
@@ -319,12 +579,13 @@ def test_opencode_worker_patch_mode_extracts_diff_from_noisy_output(tmp_path: Pa
         body=(
             "#!/usr/bin/env bash\n"
             "set -euo pipefail\n"
-            "printf '%s\\n' 'I found one improvement:'\n"
-            "printf '%s\\n' '```diff'\n"
-            "printf '%s\\n' 'diff --git a/example.py b/example.py'\n"
-            "printf '%s\\n' '--- a/example.py' '+++ b/example.py'\n"
-            "printf '%s\\n' '@@ -1 +1 @@' '-old' '+new'\n"
-            "printf '%s\\n' '```'\n"
+            + text_event_script(
+                "I found one improvement:\n```diff\n"
+                "diff --git a/example.py b/example.py\n"
+                "--- a/example.py\n+++ b/example.py\n"
+                "@@ -1 +1 @@\n-old\n+new\n```\n"
+            )
+            + usage_event_script()
         ),
     )
     target_file = REPO_ROOT / "README.md"
@@ -362,8 +623,9 @@ def test_opencode_worker_withholds_secret_like_subprocess_output(
         body=(
             "#!/usr/bin/env bash\n"
             "set -euo pipefail\n"
-            "printf '%s\\n' 'api_key = \"abcdefghijklmnopqrstuvwxyz123456\"'\n"
-            "printf '%s\\n' 'ordinary diagnostic' >&2\n"
+            + text_event_script('api_key = "abcdefghijklmnopqrstuvwxyz123456"')
+            + usage_event_script()
+            + "printf '%s\\n' 'ordinary diagnostic' >&2\n"
         ),
     )
     target_file = REPO_ROOT / "README.md"
@@ -392,7 +654,8 @@ def test_opencode_worker_withholds_secret_like_subprocess_output(
     assert "OpenCode stdout withheld because it contained secret-like content" in (
         persisted_stdout
     )
-    assert "ordinary diagnostic" in persisted_stderr
+    assert "raw provider stderr was withheld" in persisted_stderr
+    assert "ordinary diagnostic" not in persisted_stderr
     assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
     assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stderr
     assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
@@ -408,9 +671,10 @@ def test_opencode_worker_nonzero_subprocess_exits_failed_and_writes_artifacts(
         body=(
             "#!/usr/bin/env bash\n"
             "set -euo pipefail\n"
-            "printf '%s\\n' 'Some normal output on stdout'\n"
-            "printf '%s\\n' 'Ack! An error occurred.' >&2\n"
-            "exit 7\n"
+            + text_event_script("Some normal output on stdout")
+            + usage_event_script()
+            + "printf '%s\\n' 'Ack! An error occurred.' >&2\n"
+            + "exit 7\n"
         ),
     )
     target_file = REPO_ROOT / "README.md"
@@ -438,9 +702,9 @@ def test_opencode_worker_nonzero_subprocess_exits_failed_and_writes_artifacts(
     command = cast(list[str], metadata["command"])
     assert command[:3] == [str(fake_opencode), "run", "--model"]
     assert "Some normal output" in (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
-    assert "Ack! An error occurred." in (artifact_dir / "stderr.txt").read_text(
-        encoding="utf-8"
-    )
+    persisted_stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    assert "raw provider stderr was withheld" in persisted_stderr
+    assert "Ack! An error occurred." not in persisted_stderr
     assert not (artifact_dir / "proposal.diff").exists()
     assert target_file.read_text(encoding="utf-8") == original_content
 
@@ -470,10 +734,12 @@ def test_opencode_worker_attaches_preflight_snapshot_to_subprocess(
             "fi\n"
             "printf '%s\\n' \"worker-cwd=$PWD\" > opencode-cwd.txt\n"
             "printf '%s\\n' 'mutated live file content' > notes.md\n"
-            "printf '%s\\n' 'snapshot:'\n"
-            "cat \"$attached\"\n"
-            "printf '%s\\n' 'worker-cwd-note:'\n"
-            "cat notes.md\n"
+            "if [[ \"$(cat \"$attached\")\" != 'vetted snapshot content' ]]; then exit 8; fi\n"
+            + text_event_script(
+                "snapshot:\nvetted snapshot content\n"
+                "worker-cwd-note:\nmutated live file content\n"
+            )
+            + usage_event_script()
         ),
     )
 
@@ -497,8 +763,8 @@ def test_opencode_worker_attaches_preflight_snapshot_to_subprocess(
     command = cast(list[str], metadata["command"])
 
     assert "--file" in command
-    assert command[4].startswith("Review template")
-    assert command.index("--file") > 4
+    assert command[6].startswith("Review template")
+    assert command.index("--file") > 6
     snapshot_path = Path(command[command.index("--file") + 1])
     assert snapshot_path == artifact_dir / "selected-files" / "notes.md"
     assert snapshot_path.read_text(encoding="utf-8") == "vetted snapshot content\n"
@@ -530,8 +796,9 @@ def test_opencode_worker_parent_artifacts_are_outside_worker_writable_cwd(
             "set -euo pipefail\n"
             "ln -sf \"$VICTIM\" stdout.txt\n"
             "ln -sf \"$VICTIM\" ../stdout.txt\n"
-            "printf '%s\\n' \"worker-cwd=$PWD\"\n"
-            "printf '%s\\n' 'captured stdout stays in parent artifact file'\n"
+            "printf '%s\\n' \"worker-cwd=$PWD\" > opencode-cwd.txt\n"
+            + text_event_script("captured stdout stays in parent artifact file")
+            + usage_event_script()
         ),
     )
 
@@ -555,8 +822,10 @@ def test_opencode_worker_parent_artifacts_are_outside_worker_writable_cwd(
     worker_cwd = artifact_dir / "worker-cwd"
     raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
 
-    assert f"worker-cwd={worker_cwd}\n" in raw_output
-    assert "captured stdout stays in parent artifact file\n" in raw_output
+    assert "captured stdout stays in parent artifact file" in raw_output
+    assert (worker_cwd / "opencode-cwd.txt").read_text(encoding="utf-8").strip() == (
+        f"worker-cwd={worker_cwd}"
+    )
     assert victim.read_text(encoding="utf-8") == "untouched\n"
     assert (worker_cwd / "stdout.txt").is_symlink()
     assert not (artifact_dir / "stdout.txt").is_symlink()
@@ -593,6 +862,9 @@ def test_opencode_worker_timeout_is_inconclusive_and_bounded(tmp_path: Path) -> 
     assert metadata["status"] == "timed-out"
     assert metadata["timeout_seconds"] == 0.1
     assert "timed out" in (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    receipt = read_usage_receipt(artifact_dir)
+    assert receipt["accounting_status"] == "unaccounted"
+    assert receipt["accounting_reason"] == "timed_out"
 
 
 def test_opencode_worker_kills_and_bounds_output_flood(tmp_path: Path) -> None:
@@ -627,8 +899,12 @@ def test_opencode_worker_kills_and_bounds_output_flood(tmp_path: Path) -> None:
     metadata = read_metadata(artifact_dir)
     assert len(stdout.encode("utf-8")) <= 1024
     assert len(stderr.encode("utf-8")) <= 1024
-    assert "output truncated: byte limit exceeded" in stdout
+    assert stdout == ""
     assert "exceeded the 1024-byte output limit" in stderr
+    assert "0000000000" not in stderr
+    assert read_usage_receipt(artifact_dir)["accounting_reason"] == (
+        "output_limit_exceeded"
+    )
     assert metadata["max_output_bytes"] == 1024
 
 
@@ -666,7 +942,8 @@ def test_opencode_worker_bounds_stderr_flood_after_adding_failure_context(
     stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
     assert len(stderr.encode("utf-8")) <= 1024
     assert stderr.startswith("OpenCode worker exceeded the 1024-byte output limit.")
-    assert "output truncated: byte limit exceeded" in stderr
+    assert "output truncated: byte limit exceeded" not in stderr
+    assert "0000000000" not in stderr
 
 
 def test_opencode_worker_rejects_missing_file_before_model_call(tmp_path: Path) -> None:

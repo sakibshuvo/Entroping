@@ -153,6 +153,19 @@ OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 Patch mode never applies changes; Codex validates and applies any useful diff
 inside the issue worktree, then runs the normal gates.
 
+The worker requests OpenCode JSON events, consumes stdout incrementally under
+the existing byte and timeout ceilings, and never persists raw JSONL. It writes
+a minimal `usage-receipt.json` with schema
+`entroping.opencode-usage-receipt.v1`: stable local/job/model correlation, a
+hashed session identity, deduplicated step count, and validated input, output,
+reasoning, cache, and cost totals only when accounting is complete. It reads to
+EOF so usage emitted after final text is included. Missing, zero, malformed,
+duplicated-conflicting, partial, timed-out, over-limit, or process-failed usage
+is explicitly `unaccounted`; future paid automation must reject that state.
+Raw reasoning, tool payloads, provider errors, event fragments, and child
+stderr never enter the receipt, metadata, metrics, or queue record. Existing
+sanitized final-text review and patch classification remains unchanged.
+
 OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane. It may use
 OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
 GitHub integrations only when those capabilities are present in the active
@@ -284,7 +297,9 @@ measure context packs, use `uv run python scripts/ai_jobs.py run-next
 `--record-factory-metrics` plus, when needed, `--factory-metrics-ledger` to
 direct `scripts/opencode_worker.py` or `scripts/deepseek_worker.py` worker
 runs. These hooks record counts, status, duration, provider/model metadata,
-and sanitized usage totals only; they are not release proof, patch approval, or
+and sanitized usage totals only. Accounted OpenCode runs use validated event
+token totals and cost; unaccounted runs keep cost absent instead of guessing.
+These metrics are not release proof, patch approval, or
 a substitute for tests and CI.
 Use `scripts/factory_metrics.py report --format json` for machine-readable
 analysis and `scripts/factory_metrics.py report --format md --output

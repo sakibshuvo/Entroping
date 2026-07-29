@@ -102,6 +102,17 @@ Required CI also binds provider/autonomy PR evidence to the open closing issue's
 text alone cannot grant Tier A autonomous merge authority, and sensitive or
 release/quality guardrail diffs remain ineligible for that authority.
 
+The maintainer-only OpenCode worker consumes `opencode run --format json`
+incrementally through the shared bounded subprocess adapter. Raw JSON events,
+reasoning, tool payloads, provider errors, and child stderr do not cross into
+worker artifacts or metrics. A frozen typed collector deduplicates and sums
+validated `step_finish` usage through EOF, hashes rather than stores the raw
+session id, and emits the local
+`entroping.opencode-usage-receipt.v1` contract. Missing, ambiguous-zero,
+malformed, conflicting, partial, timed-out, or over-limit evidence remains
+explicitly unaccounted and cannot authorize future paid automation. This
+maintainer evidence path does not change Brain, LiteLLM, or `entroping run`.
+
 Current Brain foundation modules:
 
 - `models.architect` defines validated Architect Hurl edit output models.
