@@ -97,9 +97,10 @@ allow an unlisted local model. Queue model ids are engine invocation values;
 provider-qualified cost model ids are separate cost-policy join keys and do not
 authorize spending. This registry contains no credentials or provider configuration, makes
 no provider calls, and does not alter the product's LiteLLM-only Brain boundary.
-Required CI also binds provider/autonomy PR evidence to the open closing issue's
-`## Autonomy` section through bounded read-only metadata. Self-consistent PR
-text alone cannot grant Tier A autonomous merge authority, and sensitive or
+Required CI also binds provider/autonomy PR evidence to exactly one
+maintainer-owned autonomy label on the open closing issue through bounded
+read-only metadata. Issue bodies, comments, and self-consistent PR text cannot
+grant Tier A autonomous merge authority, and protected, sensitive, or
 release/quality guardrail diffs remain ineligible for that authority.
 
 The maintainer-only OpenCode worker consumes `opencode run --format json`

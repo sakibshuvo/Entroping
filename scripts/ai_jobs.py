@@ -24,6 +24,10 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts import ai_job_fs  # noqa: E402
 from scripts.ai_job_runtime_fs import QueueStateHandles, open_queue_state  # noqa: E402
+from scripts.factory_control_plane_policy import (  # noqa: E402
+    autonomy_tier_from_labels,
+    protected_paths,
+)
 
 if TYPE_CHECKING:
     from scripts.bounded_process import BoundedProcessResult
@@ -382,6 +386,9 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
 
     engine: WorkerEngine = args.engine
     autonomy_tier = _normalize_autonomy_tier(args.autonomy_tier)
+    if autonomy_tier == "tier_a":
+        _issue_number(args.issue, required=True)
+        _enforce_tier_a_control_plane(files, repo_root=repo_root)
     profile = _default_profile(
         engine=engine,
         autonomy_tier=autonomy_tier,
@@ -682,7 +689,11 @@ def _issue_number(value: object, *, required: bool) -> str | None:
     return issue
 
 
-def _github_issue_snapshot(issue: str) -> dict[str, object]:
+def _github_issue_snapshot(
+    issue: str,
+    *,
+    required_autonomy_tier: AutonomyTier | None = None,
+) -> dict[str, object]:
     try:
         completed = subprocess.run(  # nosec B603
             [
@@ -718,13 +729,41 @@ def _github_issue_snapshot(issue: str) -> dict[str, object]:
     ready = _labels_include_ready(snapshot.get("labels"))
     if state != "OPEN" or not ready:
         raise AiJobError(f"GitHub issue #{issue} must be OPEN with status:ready")
-    return {"state": state, "ready": ready}
+    snapshot_payload: dict[str, object] = {"state": state, "ready": ready}
+    if required_autonomy_tier is not None:
+        try:
+            autonomy_tier = autonomy_tier_from_labels(snapshot.get("labels"))
+        except ValueError as exc:
+            raise AiJobError(f"GitHub issue #{issue} {exc}") from exc
+        expected_tier = {
+            "tier_a": "Tier A autonomous lane",
+            "tier_b": "Tier B assisted lane",
+            "tier_c": "Tier C restricted lane",
+        }[required_autonomy_tier]
+        if autonomy_tier != expected_tier:
+            raise AiJobError(
+                f"GitHub issue #{issue} autonomy label does not permit "
+                f"{required_autonomy_tier.replace('_', '-')} dispatch"
+            )
+        snapshot_payload["autonomy_tier"] = required_autonomy_tier
+    return snapshot_payload
 
 
 def _labels_include_ready(value: object) -> bool:
     if not isinstance(value, list):
         return False
     return any(isinstance(label, dict) and label.get("name") == "status:ready" for label in value)
+
+
+def _enforce_tier_a_control_plane(files: list[str], *, repo_root: Path) -> None:
+    violations = protected_paths(files, repo_root=repo_root)
+    if not violations:
+        return
+    details = ", ".join(f"{path} ({reason})" for path, reason in violations)
+    raise AiJobError(
+        "Tier A control-plane protection denied selected files: "
+        f"{details}; route this work to Codex/human review"
+    )
 
 
 def _selected_file_digests(repo_root: Path, files: list[str]) -> dict[str, str]:
@@ -984,6 +1023,20 @@ def _claimed_dispatch_violation(
             repo_root,
             tuple(Path(path) for path in files),
         )
+    except AiJobError:
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="selected-files-unavailable",
+        )
+    if protected_paths(validated_files, repo_root=repo_root):
+        return _dispatch_violation_payload(
+            job,
+            running_path,
+            reason="protected-control-plane",
+            suggested_action="route the issue to Codex/human review as Tier B or Tier C",
+        )
+    try:
         actual_digests = _selected_file_digests(repo_root, validated_files)
     except AiJobError:
         return _dispatch_violation_payload(
@@ -998,9 +1051,9 @@ def _claimed_dispatch_violation(
             reason="selected-files-changed",
         )
     try:
-        issue = _issue_number(job.get("issue"), required=False)
-        if issue is not None:
-            _github_issue_snapshot(issue)
+        issue = _issue_number(job.get("issue"), required=True)
+        assert issue is not None
+        _github_issue_snapshot(issue, required_autonomy_tier="tier_a")
     except AiJobError:
         return _dispatch_violation_payload(
             job,
@@ -1015,13 +1068,15 @@ def _dispatch_violation_payload(
     path: Path,
     *,
     reason: str,
+    suggested_action: str | None = None,
 ) -> dict[str, object]:
     return {
         "job_id": job.get("job_id", path.stem),
         "job_path": str(path),
         "queue_status": "queued",
         "reason": reason,
-        "suggested_action": (
+        "suggested_action": suggested_action
+        or (
             "use `uv run python scripts/ai_job_quarantine.py quarantine` and review "
             "the plan before --apply"
         ),

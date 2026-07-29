@@ -53,9 +53,9 @@ jobs:
             diff_range="origin/$GITHUB_BASE_REF..HEAD"
           fi
           changed_args=()
-          while IFS= read -r path; do
+          while IFS= read -r -d '' path; do
             changed_args+=(--changed-file "$path")
-          done < <(git diff --name-only "$diff_range")
+          done < <(git diff --name-only --no-renames -z "$diff_range")
           provider_issue="$(
             uv run python scripts/pr_body_check.py \
               "$GITHUB_EVENT_PATH" --print-provider-evidence-issue
@@ -63,7 +63,7 @@ jobs:
           if [[ -n "$provider_issue" ]]; then
             issue_metadata="$RUNNER_TEMP/entroping-issue-$provider_issue.json"
             gh api "repos/${GITHUB_REPOSITORY}/issues/${provider_issue}" \
-              --jq '{number, state, body, pull_request}' > "$issue_metadata"
+              --jq '{number, state, pull_request, labels}' > "$issue_metadata"
             uv run python scripts/pr_body_check.py "$GITHUB_EVENT_PATH" \
               --require-opencode-evidence \
               --issue "$provider_issue" \

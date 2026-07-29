@@ -153,14 +153,15 @@ def _write_fake_ready_gh(fake_bin: Path) -> dict[str, str]:
     fake_gh = fake_bin / "gh"
     fake_gh.write_text(
         "#!/usr/bin/env python3\n"
-        "print('{\"state\":\"OPEN\",\"labels\":[{\"name\":\"status:ready\"}]}')\n",
+        "print('{\"state\":\"OPEN\",\"labels\":[{\"name\":\"status:ready\"},"
+        "{\"name\":\"autonomy:tier-a\"}]}')\n",
         encoding="utf-8",
     )
     fake_gh.chmod(0o755)
     return {"PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"}
 
 
-def _safe_tier_a_job(ai_jobs: ModuleType, *, issue: str | None = None) -> dict[str, object]:
+def _safe_tier_a_job(ai_jobs: ModuleType, *, issue: str = "1557") -> dict[str, object]:
     revision = ai_jobs._current_revision(REPO_ROOT)
     digests = ai_jobs._selected_file_digests(REPO_ROOT, ["README.md"])
     return {
@@ -1096,6 +1097,15 @@ def test_post_claim_running_directory_swap_cannot_substitute_worker_job(
 
     monkeypatch.setattr(ai_jobs, "_claim_next_queued_job", claim_then_swap)
     monkeypatch.setattr(ai_jobs, "_run_worker", record_worker_job)
+    monkeypatch.setattr(
+        ai_jobs,
+        "_github_issue_snapshot",
+        lambda issue, *, required_autonomy_tier=None: {
+            "state": "OPEN",
+            "ready": True,
+            "autonomy_tier": required_autonomy_tier,
+        },
+    )
 
     payload, returncode = ai_jobs._run_next(
         SimpleNamespace(artifact_root=tmp_path / "artifacts"),
@@ -1155,7 +1165,11 @@ def test_claimed_tier_a_job_fails_closed_when_issue_revalidation_fails(
     queued_path = job_root / "queued" / "safe-tier-a.json"
     ai_jobs._write_job(queued_path, _safe_tier_a_job(ai_jobs, issue="1557"))
 
-    def unavailable(issue: str) -> dict[str, object]:
+    def unavailable(
+        issue: str,
+        *,
+        required_autonomy_tier: str | None = None,
+    ) -> dict[str, object]:
         raise ai_jobs.AiJobError("unavailable")
 
     monkeypatch.setattr(ai_jobs, "_github_issue_snapshot", unavailable)

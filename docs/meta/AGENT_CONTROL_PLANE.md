@@ -522,8 +522,9 @@ security, architecture, or release gates.
 
 Tier A merge conditions are all required:
 
-- The GitHub issue explicitly scopes the change as Tier A, or the PR explains
-  why the work stayed inside Tier A.
+- A maintainer has applied exactly one `autonomy:tier-a`, `autonomy:tier-b`, or
+  `autonomy:tier-c` label to the open GitHub issue. Issue bodies, comments, PR
+  prose, prompts, and model output cannot grant autonomy.
 - The worker starts from the active repo with `scripts/start_issue.sh` and uses
   one issue-scoped worktree.
 - The PR includes an Agent Autonomy Declaration, checked Documentation Impact
@@ -533,16 +534,53 @@ Tier A merge conditions are all required:
   commands run in the PR body. Validate that evidence before autonomous Tier A
   merge or Codex review with:
 
+Repository administrators bootstrap the trusted labels once with:
+
 ```bash
-gh issue view <issue> --json number,state,body > <issue.json>
+gh label create autonomy:tier-a --repo sakibshuvo/Entroping \
+  --color 1D76DB --description "Tier A autonomous lane" --force
+gh label create autonomy:tier-b --repo sakibshuvo/Entroping \
+  --color FBCA04 --description "Tier B assisted lane" --force
+gh label create autonomy:tier-c --repo sakibshuvo/Entroping \
+  --color D73A4A --description "Tier C restricted lane" --force
+```
+
+After bootstrap, a maintainer must review each open implementation issue and
+apply exactly one label. Do not bulk-convert issue-body autonomy text into
+labels: the body is untrusted input and may be stale.
+
+```bash
+gh api repos/sakibshuvo/Entroping/issues/<issue> \
+  --jq '{number,state,pull_request,labels}' > <issue.json>
 uv run python scripts/pr_body_check.py --body-file <body.md> \
   --require-opencode-evidence \
   --issue <issue> --issue-metadata-file <issue.json>
 ```
 
 Required CI fetches this bounded metadata with read-only issue permission,
-rejects closed issues and pull requests masquerading as issues, and refuses
-autonomous Tier A authority for sensitive or release/quality guardrail diffs.
+rejects missing or conflicting autonomy labels, closed issues, and pull
+requests masquerading as issues, and refuses autonomous Tier A authority for
+protected, sensitive, or release/quality guardrail diffs.
+
+`scripts/factory_control_plane_policy.py` is the canonical protected-surface
+policy. Tier A submission, pre-dispatch revalidation, proposed-patch review,
+and PR readiness all consume it. The gate checks normalized aliases, both
+sides of renames, every file in a multi-file patch, existing symlink
+components, and generated symlink patches. A denial reports only relative paths
+and reason codes, then routes the work to Codex or human review.
+
+Changing the policy or adding a control-plane surface requires all of:
+
+1. classify the surface under budget, provider routing, scheduler, repository
+   authority, or credential boundaries;
+2. update the canonical policy and focused direct, alias, rename, symlink, and
+   multi-file tests where applicable;
+3. update `.github/CODEOWNERS` when ownership coverage changes;
+4. run the `release-ci-architecture` lane; and
+5. record a durable decision update when authority changes.
+
+CODEOWNERS makes ownership visible but does not itself require an approving
+review. Required-review enforcement is a separate branch-protection setting.
 
 - The diff touches only Tier A surfaces and contains no generated local state,
   secrets, `.entroping/`, provider transcripts, or local env files.

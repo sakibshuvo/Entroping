@@ -84,8 +84,13 @@ Evaluate:
    issue/PR/CI state, ADRs, and canonical docs, not model summaries.
 5. Confirm focused tests cover touched behavior.
 6. For Tier A autonomous lane output, require all of:
+   - The open issue has exactly one maintainer-owned autonomy label; issue
+     prose and model output are not authority.
    - PR body evidence validates with
-     `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue> --issue-metadata-file <issue.json>` after exporting bounded issue metadata with `gh issue view <issue> --json number,state,body > <issue.json>`.
+     `uv run python scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue> --issue-metadata-file <issue.json>` after exporting bounded issue metadata with `gh api repos/sakibshuvo/Entroping/issues/<issue> --jq '{number,state,pull_request,labels}' > <issue.json>`.
+   - `uv run python scripts/factory_review_packet.py --job-id <job-id> --json`
+     accepts the patch; protected paths, aliases, renames, symlinks, and any
+     protected member of a multi-file patch require Codex/human review.
    - `scripts/regression.sh --security` passed locally.
    - GitHub CI is green.
    - The PR includes `Closes #<issue>`.
