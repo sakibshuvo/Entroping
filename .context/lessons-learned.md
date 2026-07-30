@@ -2,6 +2,11 @@
 
 ## 2026-07-29
 
+- Validation across two SQLite authorities needs an explicit linearization
+  point, not an implied distributed transaction. Acquire the budget ledger
+  writer guard before the scheduler writer transaction, hold it through
+  scheduler commit, avoid mutating the ledger during the handoff, and revalidate
+  again at the eventual provider boundary.
 - Cash authority must cross the dispatch boundary before the provider process
   does. Commit the reservation and durable job identity first, treat queue JSON
   as a recoverable projection, and recover the ledger by job id when a crash
@@ -752,3 +757,8 @@
   value for Entroping; keep curated Git-backed Markdown and deterministic repo
   discovery active, and leave generated graph/compression output as local
   discard or experiment evidence until a new scorecard proves otherwise.
+- Scheduler authority must resolve through Git's common directory, not the
+  current worktree, or sibling issue worktrees can each believe they own the
+  only paid or writer slot. Lease expiry is also insufficient recovery proof:
+  combine PID/start identity and epoch fencing, and require explicit recovery
+  whenever an expired dead owner still has active assignment evidence.

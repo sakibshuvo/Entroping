@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
 
@@ -17,6 +20,7 @@ from .factory_budget_ledger_models import (
 from .factory_budget_ledger_periods import initialize_period, period_summary
 from .factory_budget_ledger_reporting import balance_from_period
 from .factory_budget_ledger_storage import (
+    existing_writable_connection,
     migrate_ledger,
     prepare_ledger,
     readonly_connection,
@@ -106,6 +110,36 @@ class FactoryBudgetLedger:
     ) -> CostReservationReceipt | None:
         with readonly_connection(project_root) as connection:
             return reservation_for_job(connection, job_id)
+
+    @classmethod
+    @contextmanager
+    def reservation_for_scheduler_handoff(
+        cls,
+        project_root: Path,
+        job_id: str,
+    ) -> Generator[CostReservationReceipt | None, None, None]:
+        with existing_writable_connection(project_root) as connection:
+            try:
+                _ = connection.execute("BEGIN IMMEDIATE")
+                yield reservation_for_job(connection, job_id)
+                _ = connection.execute("ROLLBACK")
+            except sqlite3.OperationalError as exc:
+                if connection.in_transaction:
+                    _ = connection.execute("ROLLBACK")
+                detail = str(exc).casefold()
+                if "locked" in detail or "busy" in detail:
+                    raise FactoryBudgetLedgerError(
+                        "busy",
+                        "ledger database is busy",
+                    ) from exc
+                raise FactoryBudgetLedgerError(
+                    "database",
+                    "ledger reservation handoff failed",
+                ) from exc
+            except BaseException:
+                if connection.in_transaction:
+                    _ = connection.execute("ROLLBACK")
+                raise
 
     def settle_reservation(self, receipt: SettlementReceipt) -> SettlementOutcome:
         with writable_connection(self.project_root) as connection:

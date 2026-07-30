@@ -44,6 +44,8 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     (
         "factory-scheduler",
         (
+            "scripts/factory_scheduler*.py",
+            "scripts/factoryctl.py",
             "scripts/factory_issue_selector*.py",
             "scripts/ai_jobs.py",
             "scripts/ai_job_*.py",
@@ -52,6 +54,8 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "tests/test_ai_jobs*.py",
             "tests/test_ai_job_*.py",
             "tests/test_factory_tick_runner.py",
+            "tests/test_factory_scheduler*.py",
+            "tests/test_factoryctl.py",
             "tests/test_factory_issue_selector*.py",
         ),
     ),
@@ -159,10 +163,7 @@ def normalize_repo_path(raw_path: str) -> str | None:
         or candidate.startswith("/")
         or candidate.startswith("//")
         or _WINDOWS_ABSOLUTE_RE.match(candidate)
-        or any(
-            unicodedata.category(character) in {"Cc", "Cf", "Cs"}
-            for character in candidate
-        )
+        or any(unicodedata.category(character) in {"Cc", "Cf", "Cs"} for character in candidate)
     ):
         return None
     parts = candidate.split("/")

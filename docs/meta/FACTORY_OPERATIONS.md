@@ -14,13 +14,11 @@ tags:
 ## Current Safety State
 
 This runbook defines the future local macOS scheduler contract. The tracked
-template is inactive by default and must not be bootstrapped yet. Activation is
-blocked until all of these repository-owned dependencies exist:
-
-- the `factoryctl tick` scheduler surface, lease, and duplicate-tick guard
-  tracked by issue #1569;
-- the read-only `factoryctl status` diagnostics tracked by issue #1572;
-- bounded artifact and stream-log retention implemented by issue #1562.
+template is inactive by default and must not be bootstrapped yet. Issue #1569
+implements the `factoryctl tick` lease and duplicate-tick guard, and issue #1562
+implements bounded artifact and stream-log retention. Activation remains
+blocked on crash/outage recovery (#1571), read-only `factoryctl status`
+diagnostics (#1572), and the proposal-only end-to-end proof (#1575).
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
@@ -101,8 +99,9 @@ an ownership map, not proof that branch protection requires an approval.
 `scripts/factory_issue_selector.py` is a read-only planning adapter. It selects
 at most one GitHub issue and always emits `paid_work_authorized: false`; it does
 not create jobs, acquire leases, invoke providers, edit issues, or dispatch
-workers. Issue #1569 owns the later atomic lease and dispatch-time revalidation
-boundary.
+workers. Its validated candidate can cross into the scheduler boundary
+implemented by issue #1569, but selection alone grants no lease or dispatch
+authority.
 
 Run it only after supplying a complete snapshot of external leases:
 
@@ -151,6 +150,43 @@ Selection is deterministic for the same complete snapshot: P0 issues first,
 then verified user blockers, then verified P1 issues, then ordinary eligible
 work; ties use priority and ascending issue number. Every rejected issue emits
 a stable reason code so operators can repair metadata instead of guessing.
+
+## Scheduler Lease and Assignment Authority
+
+`scripts/factoryctl.py tick` is a maintainer control-plane surface. It plans by
+default and does not create `.entroping/` state, dispatch a provider, mutate a
+queue job, or authorize paid work. Inspect its complete input contract with:
+
+```text
+uv run python scripts/factoryctl.py tick --help
+```
+
+`--apply` requires a complete validated candidate and `--owner-id`. The
+scheduler derives the current PID/start identity, then serializes lease
+acquisition, capacity checks, clock advancement, and assignment insert in its
+private SQLite transaction before emitting a bounded value-free receipt. The
+shared authority lives under the Git common root at
+`.entroping/factory-scheduler/scheduler.sqlite3`, so sibling issue worktrees do
+not acquire independent concurrency slots.
+
+The initial ceiling is one paid assignment globally, one optional free/local
+read-only review globally, and one writer per issue/worktree scope. Paid apply
+also requires a matching `dispatching` reservation from the authoritative
+budget ledger. The scheduler acquires the budget ledger writer guard first and
+keeps it held through the scheduler transaction commit. The guard uses an empty
+`BEGIN IMMEDIATE` transaction that rolls back after the scheduler decision, so
+the two database files are not presented as one cross-store transaction and no
+financial state is mutated by the handoff. This prevents another ledger writer
+from invalidating the checked reservation during assignment. An assignment
+receipt still reports
+`paid_work_authorized: false`: the scheduler never launches a provider, and a
+later dispatch adapter must revalidate budget and provider authority.
+
+Lease expiry alone never transfers authority. A different owner can advance
+the epoch only after the previous process identity is dead and no active
+assignment remains. A healthy or unknown owner blocks takeover; an expired dead
+owner with active work returns `recovery-required` for issue #1571. Do not edit
+or delete scheduler rows to clear this condition.
 
 ## OpenCode Usage Receipts
 
@@ -474,7 +510,8 @@ The source template is
 `StartInterval` requests one short idempotent tick. launchd does not start a
 second copy when the previous interval is still running, but that is not a
 replacement for the repository lease and idempotency contract. A separate
-operator or duplicate service can still race without issue #1569's guard.
+operator or duplicate service can still race; the repository scheduler lease
+and idempotency contract is the guard.
 
 launchd's `StandardOutPath` and `StandardErrorPath` never receive factory output.
 The runner captures each stream with a 256 KiB per-tick ceiling, terminates a

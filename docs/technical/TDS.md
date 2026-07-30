@@ -117,8 +117,24 @@ issue worktrees, explicitly issue-numbered unmerged branches, open PR changed
 files, immutable queued/running file receipts, and caller-declared leases.
 File-scope overlap is case-insensitive for portable safety; missing association,
 unsafe symlink aliases, or incomplete state blocks.
-Atomic leases, duplicate-tick exclusion, and dispatch-time revalidation remain
-the downstream scheduler boundary tracked by issue #1569.
+The downstream scheduler is a separate maintainer adapter under
+`scripts/factory_scheduler*.py`, exposed by plan-first `scripts/factoryctl.py`.
+Its private SQLite authority is rooted at the Git common directory so sibling
+worktrees share one lease and concurrency ledger. Scheduler `BEGIN IMMEDIATE`,
+partial unique indexes, immutable assignment identities, monotonic UTC
+evidence, and owner PID/start-token plus epoch fencing make lease acquisition,
+capacity checks, and assignment insertion one serialized decision. For a paid
+tick, the separate budget ledger writer guard is acquired first and held
+through scheduler commit. Its empty transaction is rolled back after the
+scheduler decision, so the lock-coupled validation is not represented as a
+cross-database mutation or reservation claim.
+The initial limits are one paid assignment, one free/local read-only review,
+and one writer per issue/worktree scope. Expiry permits takeover only when the
+recorded process is dead and no active assignment requires recovery. Receipts
+are value-free and always keep `paid_work_authorized: false`; the scheduler has
+no provider, GitHub-selection, queue-mutation, or product-runtime call path.
+Paid candidates must reference an authoritative `dispatching` budget
+reservation, and the eventual dispatch boundary must revalidate it.
 
 The maintainer-only OpenCode worker consumes `opencode run --format json`
 incrementally through the shared bounded subprocess adapter. Raw JSON events,

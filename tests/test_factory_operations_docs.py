@@ -6,13 +6,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNBOOK = REPO_ROOT / "docs" / "meta" / "FACTORY_OPERATIONS.md"
-TEMPLATE = (
-    REPO_ROOT
-    / "docs"
-    / "meta"
-    / "templates"
-    / "com.entroping.factory-tick.plist"
-)
+TEMPLATE = REPO_ROOT / "docs" / "meta" / "templates" / "com.entroping.factory-tick.plist"
 
 
 def _section(document: str, heading: str, next_heading: str) -> str:
@@ -23,17 +17,30 @@ def _section(document: str, heading: str, next_heading: str) -> str:
 
 def test_factory_runbook_is_inactive_until_owned_safety_surfaces_exist() -> None:
     runbook = RUNBOOK.read_text(encoding="utf-8")
+    safety_state = _section(
+        runbook,
+        "## Current Safety State",
+        "## Provider Capability Registry",
+    )
+    scheduler = _section(
+        runbook,
+        "## Scheduler Lease and Assignment Authority",
+        "## OpenCode Usage Receipts",
+    )
 
     assert "template is inactive by default and must not be bootstrapped yet" in (
-        " ".join(runbook.split())
+        " ".join(safety_state.split())
     )
-    assert "`factoryctl tick`" in runbook
-    assert "tracked by issue #1569" in runbook
-    assert "`factoryctl status`" in runbook
-    assert "tracked by issue #1572" in runbook
-    assert "retention implemented by issue #1562" in " ".join(runbook.split())
-    assert "factory_tick_runner" in runbook
-    assert "never receive factory output" in runbook
+    assert "crash/outage recovery" in safety_state
+    assert "read-only `factoryctl status`" in safety_state
+    assert "proposal-only end-to-end proof" in safety_state
+    assert "`scripts/factoryctl.py tick`" in scheduler
+    assert ".entroping/factory-scheduler/scheduler.sqlite3" in scheduler
+    assert "budget ledger writer guard" in scheduler
+    assert "held through the scheduler transaction commit" in scheduler
+    assert "paid_work_authorized: false" in scheduler
+    launchd = _section(runbook, "## Contract", "## Render and Validate")
+    assert "scheduler lease and idempotency contract is the guard" in " ".join(launchd.split())
 
 
 def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
@@ -42,9 +49,7 @@ def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
     lifecycle = _section(runbook, "## Disable, Restart", "## Recovery Boundaries")
 
     assert install.index("factoryctl status") < install.index("launchctl bootout")
-    assert install.index("terminal tick and settled budget") < install.index(
-        "launchctl bootout"
-    )
+    assert install.index("terminal tick and settled budget") < install.index("launchctl bootout")
     assert lifecycle.index("factoryctl status") < lifecycle.index("launchctl bootout")
     assert lifecycle.index("terminal and its reservation/cost settlement") < (
         lifecycle.index("launchctl bootout")
@@ -113,9 +118,7 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
             "/opt/entroping/repository/.entroping/factory-logs",
         ],
         "WorkingDirectory": "/opt/entroping/repository",
-        "EnvironmentVariables": {
-            "PATH": "/opt/entroping:/usr/bin:/bin:/usr/sbin:/sbin"
-        },
+        "EnvironmentVariables": {"PATH": "/opt/entroping:/usr/bin:/bin:/usr/sbin:/sbin"},
         "RunAtLoad": False,
         "KeepAlive": False,
         "StartInterval": 300,
@@ -127,9 +130,7 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
 
 
 def test_factory_runbook_is_linked_from_the_vault_index() -> None:
-    index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(
-        encoding="utf-8"
-    )
+    index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "[[docs/meta/FACTORY_OPERATIONS|FACTORY_OPERATIONS]]" in index
 

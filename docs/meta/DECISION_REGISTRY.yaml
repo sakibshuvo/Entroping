@@ -654,3 +654,25 @@ decisions:
     related_issues: ["#1568"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0029
+    title: Scheduler authority is shared, fenced, and non-dispatching
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      One Git-common-root SQLite scheduler authority serializes lease, capacity,
+      and assignment decisions. Paid ticks hold the separate budget ledger
+      writer guard through scheduler commit, while process identity and epoch
+      fencing prevent unsafe takeover; receipts never authorize provider dispatch.
+    tags: [factory, scheduler, sqlite, concurrency, security, reliability]
+    source_links:
+      - path: decisions/ADR-0029-factory-scheduler-authority.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_scheduler.py
+        role: scheduler-facade
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1569"]
+    supersedes: []
+    superseded_by: null

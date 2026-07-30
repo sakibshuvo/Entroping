@@ -201,7 +201,7 @@ def test_writer_does_not_recreate_ledger_removed_before_retention_lock(
         yield
 
     monkeypatch.setattr(
-        "scripts.factory_budget_ledger_storage._retention_guard",
+        "scripts.factory_budget_ledger_storage.retention_guard",
         remove_before_guard,
     )
     with pytest.raises(FactoryBudgetLedgerError):
