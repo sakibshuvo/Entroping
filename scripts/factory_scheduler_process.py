@@ -52,7 +52,8 @@ class _ProcPidInfo(Protocol):
         arg: int,
         buffer: object,
         buffer_size: int,
-    ) -> int: ...
+    ) -> int:
+        raise NotImplementedError
 
 
 class ProcessIdentityError(RuntimeError):

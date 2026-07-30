@@ -42,7 +42,7 @@ def test_secure_lock_open_retries_transient_creation_race(
     def racing_open(
         path: str,
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
         *,
         dir_fd: int | None = None,
     ) -> int:
