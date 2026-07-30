@@ -7,21 +7,23 @@ from typing import Literal
 
 from .factory_budget_ledger import FactoryBudgetLedger, FactoryBudgetLedgerError
 from .factory_budget_reservation_validation import canonical_digest
-from .factory_paid_dispatch_reservation import PaidDispatchError
+from .factory_paid_dispatch_models import PaidDispatchError
 
 
 @dataclass(frozen=True, slots=True)
 class PaidDispatchRecovery:
-    reservation_id: str
+    reservation_id: str | None
+    authorization_id: str | None
     queue_state: Literal["completed", "failed"]
     settlement_state: Literal["settled", "unresolved"]
     actual_microcents: int | None
 
     def job_projection(self) -> dict[str, object]:
-        projection: dict[str, object] = {
-            "reservation_id": self.reservation_id,
-            "settlement_state": self.settlement_state,
-        }
+        projection: dict[str, object] = {"settlement_state": self.settlement_state}
+        if self.reservation_id is not None:
+            projection["reservation_id"] = self.reservation_id
+        if self.authorization_id is not None:
+            projection["dispatch_authorization_id"] = self.authorization_id
         if self.actual_microcents is not None:
             projection["actual_microcents"] = self.actual_microcents
         return projection
@@ -46,10 +48,18 @@ def recover_paid_dispatch(
             return None
         raise PaidDispatchError("ledger", exc.detail) from exc
     if reservation is None:
-        return None
+        try:
+            return _recover_quota_only(
+                FactoryBudgetLedger.open_project(project_root),
+                job_id,
+                occurred_at=occurred_at,
+            )
+        except FactoryBudgetLedgerError as exc:
+            raise PaidDispatchError(exc.code, exc.detail) from exc
     if reservation.state in {"settled", "reconciled"}:
         return PaidDispatchRecovery(
             reservation_id=reservation.reservation_id,
+            authorization_id=None,
             queue_state="completed",
             settlement_state="settled",
             actual_microcents=reservation.actual_microcents,
@@ -63,9 +73,7 @@ def recover_paid_dispatch(
             }
         )
         try:
-            uncertain = FactoryBudgetLedger.open_project(
-                project_root
-            ).mark_reservation_uncertain(
+            uncertain = FactoryBudgetLedger.open_project(project_root).mark_reservation_uncertain(
                 reservation.reservation_id,
                 idempotency_key=f"recovery:{job_id}:{evidence[:16]}",
                 reason="worker_interrupted",
@@ -76,13 +84,47 @@ def recover_paid_dispatch(
             raise PaidDispatchError("ledger", exc.detail) from exc
         return PaidDispatchRecovery(
             reservation_id=uncertain.reservation_id,
+            authorization_id=None,
             queue_state="failed",
             settlement_state="unresolved",
             actual_microcents=uncertain.actual_microcents,
         )
     return PaidDispatchRecovery(
         reservation_id=reservation.reservation_id,
+        authorization_id=None,
         queue_state="failed",
         settlement_state="unresolved",
         actual_microcents=reservation.actual_microcents,
+    )
+
+
+def _recover_quota_only(
+    ledger: FactoryBudgetLedger,
+    job_id: str,
+    *,
+    occurred_at: datetime,
+) -> PaidDispatchRecovery | None:
+    authorization = ledger.authorization_for_job(job_id)
+    if authorization is None or authorization.reservation_id is not None:
+        return None
+    state = ledger.quota_authorization_state(authorization.authorization_id)
+    if state == "settled":
+        return PaidDispatchRecovery(
+            reservation_id=None,
+            authorization_id=authorization.authorization_id,
+            queue_state="completed",
+            settlement_state="settled",
+            actual_microcents=0,
+        )
+    if state in {"active", "launched"}:
+        _ = ledger.mark_quota_authorization_uncertain(
+            authorization.authorization_id,
+            occurred_at=occurred_at,
+        )
+    return PaidDispatchRecovery(
+        reservation_id=None,
+        authorization_id=authorization.authorization_id,
+        queue_state="failed",
+        settlement_state="unresolved",
+        actual_microcents=0,
     )

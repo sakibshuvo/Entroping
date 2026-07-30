@@ -50,6 +50,7 @@ def test_factoryctl_help_documents_safe_tick_modes(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert "--apply" in result.stdout
+    assert "--authorization-id" in result.stdout
     assert "plan-only" in result.stdout
     assert "does not dispatch providers" in result.stdout
 
@@ -62,6 +63,24 @@ def test_factoryctl_tick_defaults_to_plan_only_without_state(tmp_path: Path) -> 
     assert payload["decision"] == "would-assign"
     assert payload["authoritative"] is False
     assert payload["paid_work_authorized"] is False
+    assert not (tmp_path / ".entroping").exists()
+
+
+def test_factoryctl_accepts_quota_authorization_candidate_in_plan_mode(
+    tmp_path: Path,
+) -> None:
+    candidate = _candidate()
+    result = _run(
+        tmp_path,
+        "tick",
+        "--json",
+        *candidate[:-2],
+        "--authorization-id",
+        f"auth-{'a' * 32}",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["decision"] == "would-assign"
     assert not (tmp_path / ".entroping").exists()
 
 
@@ -100,6 +119,15 @@ def test_factoryctl_rejects_partial_candidate_without_state(tmp_path: Path) -> N
     assert result.returncode == 2
     assert "candidate fields must be supplied together" in result.stderr
     assert not (tmp_path / ".entroping").exists()
+
+    authorization_only = _run(
+        tmp_path,
+        "tick",
+        "--authorization-id",
+        f"auth-{'a' * 32}",
+    )
+    assert authorization_only.returncode == 2
+    assert "candidate fields must be supplied together" in authorization_only.stderr
 
 
 def test_factoryctl_idle_tick_is_value_free(tmp_path: Path) -> None:

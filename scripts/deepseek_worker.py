@@ -463,6 +463,9 @@ def _validate_env_name(raw_name: str) -> str:
     if not name or not name.replace("_", "A").isalnum() or name[0].isdigit():
         msg = "--api-key-env must be an environment variable name"
         raise DirectWorkerInputError(msg)
+    if name == "ENTROPING_FACTORY_PROVIDER_EVIDENCE_HMAC_KEY_V1":
+        msg = "--api-key-env must not use the provider evidence authentication key"
+        raise DirectWorkerInputError(msg)
     return name
 
 

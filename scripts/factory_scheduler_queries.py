@@ -144,7 +144,8 @@ def read_assignment(
     row = connection.execute(
         "SELECT request_id, request_digest, assignment_id, decision_id, job_id, "
         "issue_number, worktree_id, worker_class, access_mode, reservation_id, "
-        "lease_owner_id, lease_owner_pid, lease_owner_start_token, lease_epoch, "
+        "authorization_id, lease_owner_id, lease_owner_pid, "
+        "lease_owner_start_token, lease_epoch, "
         "created_at_utc, state, completed_at_utc "
         "FROM scheduler_assignments WHERE job_id = ?",
         (job_id,),
@@ -160,22 +161,23 @@ def read_assignment(
             "worker_class": text_value(row[7]),
             "access_mode": text_value(row[8]),
             "reservation_id": None if row[9] is None else text_value(row[9]),
+            "authorization_id": None if row[10] is None else text_value(row[10]),
         },
         strict=True,
     )
-    completed = None if row[16] is None else parse_utc(text_value(row[16]))
+    completed = None if row[17] is None else parse_utc(text_value(row[17]))
     return StoredAssignment.model_validate(
         {
             "request": request,
             "request_digest": text_value(row[1]),
             "assignment_id": text_value(row[2]),
             "decision_id": text_value(row[3]),
-            "lease_owner_id": text_value(row[10]),
-            "lease_owner_pid": integer_value(row[11]),
-            "lease_owner_start_token": text_value(row[12]),
-            "lease_epoch": integer_value(row[13]),
-            "created_at": parse_utc(text_value(row[14])),
-            "state": text_value(row[15]),
+            "lease_owner_id": text_value(row[11]),
+            "lease_owner_pid": integer_value(row[12]),
+            "lease_owner_start_token": text_value(row[13]),
+            "lease_epoch": integer_value(row[14]),
+            "created_at": parse_utc(text_value(row[15])),
+            "state": text_value(row[16]),
             "completed_at": completed,
         },
         strict=True,

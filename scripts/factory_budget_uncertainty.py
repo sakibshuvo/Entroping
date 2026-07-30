@@ -19,6 +19,7 @@ from .factory_budget_reservation_store import (
     settlement_outcome,
 )
 from .factory_budget_reservation_validation import require_identifier, require_sha256
+from .factory_quota_settlement import mark_quota_holds_uncertain
 
 UNCERTAINTY_REASONS = frozenset(
     {
@@ -89,6 +90,11 @@ def mark_reservation_uncertain(
             WHERE id = ?
             """,
             (reason, normalized_time, reservation[0]),
+        )
+        mark_quota_holds_uncertain(
+            connection,
+            cash_reservation_id=reservation[0],
+            occurred_at=normalized_time,
         )
         _ = connection.execute(
             """

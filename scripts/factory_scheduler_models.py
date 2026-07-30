@@ -38,6 +38,10 @@ ReservationId = Annotated[
     str,
     StringConstraints(pattern=r"^res-[a-f0-9]{32}$"),
 ]
+AuthorizationId = Annotated[
+    str,
+    StringConstraints(pattern=r"^auth-[a-f0-9]{32}$"),
+]
 AssignmentId = Annotated[
     str,
     StringConstraints(pattern=r"^assign_[a-f0-9]{64}$"),
@@ -87,13 +91,20 @@ class AssignmentRequest(StrictModel):
     worker_class: WorkerClass
     access_mode: AccessMode
     reservation_id: ReservationId | None = None
+    authorization_id: AuthorizationId | None = None
 
     @model_validator(mode="after")
     def require_paid_reservation(self) -> Self:
-        if self.worker_class == "paid" and self.reservation_id is None:
-            raise ValueError("paid assignments require a reservation id")
-        if self.worker_class == "free-local" and self.reservation_id is not None:
-            raise ValueError("free/local assignments must not carry a reservation id")
+        if (
+            self.worker_class == "paid"
+            and self.reservation_id is None
+            and self.authorization_id is None
+        ):
+            raise ValueError("paid assignments require a dispatch authorization")
+        if self.worker_class == "free-local" and (
+            self.reservation_id is not None or self.authorization_id is not None
+        ):
+            raise ValueError("free/local assignments must not carry dispatch authority")
         return self
 
     @property

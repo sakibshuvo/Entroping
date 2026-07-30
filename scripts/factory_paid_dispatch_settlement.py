@@ -14,12 +14,12 @@ from .factory_budget_ledger import (
     SettlementReceipt,
 )
 from .factory_budget_reservation_validation import canonical_digest
+from .factory_paid_dispatch_models import PaidDispatchError
 from .factory_paid_dispatch_receipt_models import (
     AccountedReceipt,
     NotDispatchedReceipt,
     receipt_payload,
 )
-from .factory_paid_dispatch_reservation import PaidDispatchError
 
 
 def settle_paid_dispatch(

@@ -59,9 +59,9 @@ def insert_assignment(
         "INSERT INTO scheduler_assignments("
         "request_id, request_digest, assignment_id, decision_id, job_id, "
         "issue_number, worktree_id, scope_key, worker_class, access_mode, "
-        "reservation_id, lease_owner_id, lease_owner_pid, "
+        "reservation_id, authorization_id, lease_owner_id, lease_owner_pid, "
         "lease_owner_start_token, lease_epoch, created_at_utc, state, "
-        "completed_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+        "completed_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
         "'active', NULL)",
         (
             request.request_id,
@@ -75,6 +75,7 @@ def insert_assignment(
             request.worker_class,
             request.access_mode,
             request.reservation_id,
+            request.authorization_id,
             owner.owner_id,
             owner.pid,
             owner.process_start_token,

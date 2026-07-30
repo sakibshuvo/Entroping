@@ -199,6 +199,26 @@ def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
     assert "secret" not in (artifact_dir / "metadata.json").read_text(encoding="utf-8")
 
 
+def test_deepseek_worker_rejects_provider_evidence_key_as_api_key(
+    tmp_path: Path,
+) -> None:
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(REPO_ROOT / "README.md"),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--api-key-env",
+        "ENTROPING_FACTORY_PROVIDER_EVIDENCE_HMAC_KEY_V1",
+        "--dry-run",
+        "--json",
+    )
+
+    assert result.returncode == 2
+    assert "must not use the provider evidence authentication key" in result.stderr
+
+
 def test_deepseek_worker_patch_dry_run_includes_capability_context(
     tmp_path: Path,
 ) -> None:

@@ -28,6 +28,7 @@ from scripts.factory_scheduler_reservation import (
 from scripts.factory_scheduler_root import SchedulerRootError, resolve_scheduler_root
 from scripts.factory_scheduler_storage import (
     database_exists,
+    migrate_existing_state,
     readonly_connection,
     writable_connection,
 )
@@ -78,6 +79,18 @@ class FactoryScheduler:
         health = owner_health or probe_owner
         receipt_time = datetime.now(UTC) if as_of is None else as_of
         if not plan_only and request is not None and request.worker_class == "paid":
+            try:
+                if database_exists(self.project_root):
+                    migrate_existing_state(
+                        self.project_root,
+                        initialized_at=scheduler_timestamp(receipt_time),
+                    )
+            except SchedulerStateError as exc:
+                return blocked_state_receipt(
+                    request=request,
+                    observed_at=receipt_time,
+                    reason=exc.code,
+                )
             stored_decision = immutable_request_decision(
                 self.project_root,
                 request,

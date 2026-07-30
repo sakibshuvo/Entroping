@@ -56,7 +56,7 @@ def _request(args: argparse.Namespace) -> AssignmentRequest | None:
     }
     present = [value is not None for value in raw.values()]
     if not any(present):
-        if args.reservation_id is not None:
+        if args.reservation_id is not None or args.authorization_id is not None:
             raise ValueError("candidate fields must be supplied together")
         return None
     if not all(present):
@@ -65,6 +65,7 @@ def _request(args: argparse.Namespace) -> AssignmentRequest | None:
         {
             **raw,
             "reservation_id": args.reservation_id,
+            "authorization_id": args.authorization_id,
         },
         strict=True,
     )
@@ -135,6 +136,7 @@ def _parser() -> argparse.ArgumentParser:
     _ = tick.add_argument("--worker-class", choices=("paid", "free-local"))
     _ = tick.add_argument("--access-mode", choices=("read-only", "write"))
     _ = tick.add_argument("--reservation-id")
+    _ = tick.add_argument("--authorization-id")
     return parser
 
 

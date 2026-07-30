@@ -9,6 +9,7 @@ from pathlib import Path
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_periods import period_summary
 from .factory_budget_ledger_reporting import balance_from_period
+from .factory_budget_ledger_schema import LEDGER_SCHEMA_ID
 from .factory_budget_ledger_storage import migrate_ledger, readonly_connection
 
 type JsonScalar = str | int | bool
@@ -40,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
             payload: dict[str, JsonScalar] = {
                 "schema_version": "entroping.factory-budget-migration.v1",
                 "migrated": migrated,
-                "ledger_schema_version": "entroping.factory-budget-ledger.v2",
+                "ledger_schema_version": LEDGER_SCHEMA_ID,
             }
         else:
             with readonly_connection(repo) as connection:

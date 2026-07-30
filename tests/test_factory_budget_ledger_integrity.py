@@ -82,7 +82,7 @@ def test_global_period_limit_rejects_additional_periods(
 def test_open_rejects_future_schema_without_mutating_database(tmp_path: Path) -> None:
     ledger = FactoryBudgetLedger.open_project(tmp_path)
     with sqlite3.connect(ledger.db_path) as connection:
-        connection.execute("PRAGMA user_version = 3")
+        connection.execute("PRAGMA user_version = 4")
     before = hashlib.sha256(ledger.db_path.read_bytes()).hexdigest()
 
     with pytest.raises(FactoryBudgetLedgerError, match="schema version is unsupported"):
@@ -139,7 +139,7 @@ def test_open_rejects_unexpected_schema_metadata_without_mutating_database(
     assert hashlib.sha256(ledger.db_path.read_bytes()).hexdigest() == before
 
 
-def test_open_rejects_partial_v2_schema_without_migrating_or_mutating(
+def test_open_rejects_partial_v3_schema_without_migrating_or_mutating(
     tmp_path: Path,
 ) -> None:
     state = tmp_path / ".entroping" / "factory-budget"
@@ -153,9 +153,9 @@ def test_open_rejects_partial_v2_schema_without_migrating_or_mutating(
         )
         connection.execute(
             "INSERT INTO ledger_metadata(key, value) VALUES (?, ?)",
-            ("schema_version", "entroping.factory-budget-ledger.v2"),
+            ("schema_version", "entroping.factory-budget-ledger.v3"),
         )
-        connection.execute("PRAGMA user_version = 2")
+        connection.execute("PRAGMA user_version = 3")
     os.chmod(db_path, 0o600)
     before = hashlib.sha256(db_path.read_bytes()).hexdigest()
 

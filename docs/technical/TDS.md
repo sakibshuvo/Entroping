@@ -2367,12 +2367,15 @@ totals; artifact contents are never rendered.
 ### 17.2 Factory Budget Ledger and Paid Dispatch
 
 Factory cash authority is isolated from the product traffic store in the
-ignored `.entroping/factory-budget/ledger.sqlite3` database. Version 2 of the
+ignored `.entroping/factory-budget/ledger.sqlite3` database. Version 3 of the
 versioned
 SQLite schema records UTC cash periods, their reviewed USD cap and positive
 reserve, immutable reserve allocations, fixed subscription and provider debits,
 charge-bound refunds, explicit manual debit or credit adjustments, immutable
-paid-work reservations and price terms, and append-only settlement events. Raw
+paid-work reservations and price terms, provider quota observations and holds,
+disabled-top-up attestations, immutable dispatch-authorization authority with
+durable lifecycle state, and
+append-only settlement events. Raw
 idempotency keys are never persisted: a globally unique SHA-256 digest is bound
 to the normalized entry payload, so exact retries are harmless and conflicting
 reuse fails closed.
@@ -2421,19 +2424,65 @@ malformed, conflicting, mismatched, or over-ceiling evidence preserves the
 hold as `uncertain`. Explicit no-charge evidence or a bounded manual debit is
 required for reconciliation.
 
+One dispatch-authorization transaction validates prospective 80/90/100 cash
+thresholds, every referenced quota as an independent AND constraint, and fresh
+disabled-top-up evidence before reserving optional cash and all quota holds.
+Provider evidence crosses only through the fixed owner-controlled
+`.entroping/factory-provider-evidence.json` path. A closed HMAC-SHA-256
+maintainer envelope uses one code-allowlisted v1 key id and a 32-byte
+supervisor-injected key that is absent from jobs, workers, artifacts, Git, and
+the ledger. Constant-time verification covers every authority-bearing field;
+the ledger binds a computed unsigned-envelope digest. Missing keys, invalid
+MACs, unsafe permissions, symlinks, or production path substitution fail before
+mutation.
+The coordinator starts both worker wrappers with a small explicit environment
+allowlist and only the selected provider credential. The evidence-key variable
+is a forbidden provider-credential alias, so wrapper descendants cannot regain
+that authority through inherited process state.
+
+Provider used units, every overlapping local settlement not named by the
+authenticated observation's canonical inclusion boundary, and overlapping
+active or uncertain holds scoped to provider lane and quota identity prevent
+observation refresh or shifted rolling bounds from minting capacity. The HMAC
+covers the sorted inclusion ids; their identity, settled lifecycle, window,
+count, digest, and unit total are validated transactionally. Timestamp ordering
+does not imply provider coverage, and an omitted boundary includes nothing.
+Non-overlapping expired-cycle holds do not cross a true reset, and older
+authenticated observations cannot roll authority backward. Rolling windows must match the
+policy duration; UTC-month and declared subscription-renewal windows must match
+their exact deterministic half-open boundaries. A persisted decision clock and
+exclusive observation, window, top-up, and authorization expiry reject
+rollback, stale, future, uncertain, or mismatched evidence.
+Settlement, release, and uncertainty also compare their event time with the
+current authorization lifecycle time inside the ledger writer transaction;
+backdated events cannot roll lifecycle authority backward.
+
+Verified settlement replaces quota holds with actual use and stores a complete
+usage digest for exact terminal replay, including authorizations with zero
+quota rows. Ambiguous evidence preserves holds, verified no-charge releases
+active or uncertain holds, and manual cash correction does not restore quota.
+Scheduler receipts remain non-dispatching and
+`paid_work_authorized: false`; scheduler handoff persists either cash-reservation
+or quota-authorization identity. Existing scheduler state migrates
+transactionally from schema v1 to v2. Provider launch atomically revalidates
+current 80/90/100 cash thresholds, quota, top-up, and expiry before consuming
+the generic authorization and starting network execution; consumed authority
+cannot launch twice.
+
 Queue JSON is a recoverable projection. Stale recovery queries the ledger by
 job id, including a crash after reservation commit but before queue rewrite;
 unresolved work is never redispatched and already settled work terminalizes
-without a second charge. Schema version 1 requires an explicit, transactional
-v1-to-v2 migration. Sanitized summary, balance, and migration commands are
-value-bounded; reservation and settlement remain Python control-plane APIs.
+without a second charge. Schema versions 1 and 2 require an explicit,
+transactional migration to version 3. Sanitized summary, balance, and migration
+commands are value-bounded; reservation and settlement remain Python
+control-plane APIs. Failure preserves the prior schema and authority.
 
 Paid queue coordination stays outside product runtime. Direct DeepSeek is the
 first supported metered route because its request and completion ceilings are
 enforceable and its provider receipt binds job, model, usage, and a hashed
 session. Metered OpenCode fails closed until it has the same guarantees.
-Provider calls, balance scraping, automatic top-up, and quota observation are
-not ledger responsibilities.
+Provider calls, account scraping, automatic top-up, recovery/backoff, and
+status aggregation are not ledger responsibilities.
 
 ## 18. Testing Strategy
 

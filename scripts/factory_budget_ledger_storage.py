@@ -31,7 +31,7 @@ from .factory_budget_ledger_fs import (
     validated_root,
 )
 from .factory_budget_ledger_locking import retention_guard
-from .factory_budget_ledger_migration import migrate_schema_v1_to_v2
+from .factory_budget_ledger_migration import migrate_schema_to_v3
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_parent_fs import open_private_relative_directory
 from .factory_budget_ledger_rows import integer_row
@@ -50,7 +50,7 @@ def migrate_ledger(repo_root: Path) -> bool:
         identity = validate_existing_entry(root, LEDGER_NAME)
         connection = _connect(db_path, readonly=False, expected_identity=identity)
         try:
-            return migrate_schema_v1_to_v2(connection)
+            return migrate_schema_to_v3(connection)
         finally:
             connection.close()
 

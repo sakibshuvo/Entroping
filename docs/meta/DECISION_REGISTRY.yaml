@@ -676,3 +676,28 @@ decisions:
     related_issues: ["#1569"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0030
+    title: Provider quotas and cash authorize dispatch in one ledger transaction
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Ledger schema v3 atomically validates cash thresholds, every referenced
+      provider quota, and HMAC-authenticated disabled-top-up evidence before
+      reserving all holds; timestamp order never implies provider coverage, so
+      only signed explicit included-authorization ids avoid adding overlapping
+      local settlements. Immutable authority fields, durable lifecycle state,
+      exact terminal usage replay, scheduler persistence, and threshold-aware
+      single-use provider launch close replay and check-to-use gaps.
+    tags: [factory, quota, budget, providers, sqlite, security, reliability]
+    source_links:
+      - path: decisions/ADR-0030-factory-provider-quota-authorization.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_quota_authorization.py
+        role: dispatch-authorization
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1570"]
+    supersedes: []
+    superseded_by: null
