@@ -2,6 +2,14 @@
 
 ## 2026-07-29
 
+- Added issue #1569's atomic scheduler authority. All sibling Git worktrees now
+  share one private scheduler database; serialized lease, concurrency, and
+  assignment decisions are fenced by process start identity and epoch. Paid
+  ticks hold the separate budget-ledger writer guard through scheduler commit,
+  without claiming a cross-store mutation. Plan-only ticks remain stateless,
+  unsafe or ambiguous takeover fails closed, and receipts never authorize
+  provider dispatch.
+
 - Added issue #1568's paid-work financial control. Ledger schema v2 atomically
   reserves enforceable worst-case direct-worker usage against fresh immutable
   prices, settles actual integer-microcent cost from strict identity-bound
@@ -30,7 +38,7 @@
   explicit file-overlap gates. Sanitized short-lived caching plus bounded local
   branch, worktree, queue, and PR inspection fail closed on ambiguity. Selection remains
   plan-only and always reports that paid work is not authorized; issue #1569
-  retains lease and dispatch authority.
+  retains lease and concurrency authority without authorizing dispatch.
 
 - Added issue #1561's canonical autonomous control-plane protection. Exactly
   one maintainer-owned GitHub label now grants an issue's autonomy tier; issue

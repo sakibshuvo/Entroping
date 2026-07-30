@@ -30,6 +30,7 @@ from .factory_budget_ledger_fs import (
     validate_regular,
     validated_root,
 )
+from .factory_budget_ledger_locking import retention_guard
 from .factory_budget_ledger_migration import migrate_schema_v1_to_v2
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_parent_fs import open_private_relative_directory
@@ -37,6 +38,7 @@ from .factory_budget_ledger_rows import integer_row
 from .factory_budget_ledger_schema import initialize_schema, validate_schema
 
 BUSY_TIMEOUT_MILLISECONDS = 5_000
+HANDOFF_BUSY_TIMEOUT_MILLISECONDS = 100
 
 
 def migrate_ledger(repo_root: Path) -> bool:
@@ -44,7 +46,7 @@ def migrate_ledger(repo_root: Path) -> bool:
     db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
     if not db_path.exists():
         raise FactoryBudgetLedgerError("missing", "ledger database not found")
-    with _retention_guard(root):
+    with retention_guard(root):
         identity = validate_existing_entry(root, LEDGER_NAME)
         connection = _connect(db_path, readonly=False, expected_identity=identity)
         try:
@@ -88,11 +90,41 @@ def writable_connection(repo_root: Path) -> Generator[sqlite3.Connection, None, 
     db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
     if not db_path.exists():
         db_path = prepare_ledger(root)
-    with _retention_guard(root):
+    with retention_guard(root):
         if not db_path.exists():
             raise FactoryBudgetLedgerError("missing", "ledger database not found")
         identity = validate_existing_entry(root, LEDGER_NAME)
         connection = _connect(db_path, readonly=False, expected_identity=identity)
+        try:
+            validate_schema(connection)
+            yield connection
+        finally:
+            connection.close()
+
+
+@contextmanager
+def existing_writable_connection(
+    repo_root: Path,
+    *,
+    busy_timeout_milliseconds: int = HANDOFF_BUSY_TIMEOUT_MILLISECONDS,
+) -> Generator[sqlite3.Connection, None, None]:
+    root = validated_root(repo_root)
+    db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
+    if not db_path.exists():
+        raise FactoryBudgetLedgerError("missing", "ledger database not found")
+    with retention_guard(
+        root,
+        busy_timeout_milliseconds=busy_timeout_milliseconds,
+    ):
+        if not db_path.exists():
+            raise FactoryBudgetLedgerError("missing", "ledger database not found")
+        identity = validate_existing_entry(root, LEDGER_NAME)
+        connection = _connect(
+            db_path,
+            readonly=False,
+            expected_identity=identity,
+            busy_timeout_milliseconds=busy_timeout_milliseconds,
+        )
         try:
             validate_schema(connection)
             yield connection
@@ -106,7 +138,7 @@ def readonly_connection(repo_root: Path) -> Generator[sqlite3.Connection, None, 
     db_path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
     if not db_path.exists():
         raise FactoryBudgetLedgerError("missing", "ledger database not found")
-    with _retention_guard(root):
+    with retention_guard(root):
         if not db_path.exists():
             raise FactoryBudgetLedgerError("missing", "ledger database not found")
         identity = validate_existing_entry(root, LEDGER_NAME)
@@ -174,6 +206,7 @@ def _connect(
     *,
     readonly: bool,
     expected_identity: FileIdentity,
+    busy_timeout_milliseconds: int = BUSY_TIMEOUT_MILLISECONDS,
 ) -> sqlite3.Connection:
     connection: sqlite3.Connection | None = None
     try:
@@ -183,12 +216,12 @@ def _connect(
         connection = sqlite3.connect(
             uri,
             uri=True,
-            timeout=BUSY_TIMEOUT_MILLISECONDS / 1_000,
+            timeout=busy_timeout_milliseconds / 1_000,
             autocommit=True,
         )
         if path_file_identity(path) != expected_identity:
             raise FactoryBudgetLedgerError("path", "ledger database changed during open")
-        _ = connection.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MILLISECONDS}")
+        _ = connection.execute(f"PRAGMA busy_timeout = {busy_timeout_milliseconds}")
         _ = connection.execute("PRAGMA trusted_schema = OFF")
         _ = connection.execute("PRAGMA foreign_keys = ON")
         if connection.execute("PRAGMA foreign_keys").fetchone() != (1,):
@@ -222,21 +255,3 @@ def _connect(
         if connection is not None:
             connection.close()
         raise FactoryBudgetLedgerError("database", "ledger database is malformed") from exc
-
-
-@contextmanager
-def _retention_guard(repo_root: Path) -> Generator[None, None, None]:
-    try:
-        with open_private_relative_directory(
-            repo_root,
-            (".entroping",),
-            create=False,
-        ) as state_fd:
-            descriptor = open_lock(state_fd, "retention.lock")
-            try:
-                fcntl.flock(descriptor, fcntl.LOCK_SH)
-                yield
-            finally:
-                os.close(descriptor)
-    except RetentionFsError as exc:
-        raise FactoryBudgetLedgerError("path", "ledger state path is unsafe") from exc
