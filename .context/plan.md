@@ -24,9 +24,11 @@ without changing the product `entroping` CLI. The strict
 maps to exits `2/1/0`. It is observation only: no providers, network,
 test/gate/worker subprocesses, mutation, migration, recovery, raw payload
 reads, or spending/dispatch authorization. One bounded read-only Git subprocess
-resolves shared-worktree authority. Existing SQLite stores use descriptor-pinned,
-no-follow immutable reads with sidecar rejection; queue and retention reads are
-bounded metadata-only walks. Each store is read in an explicit transaction and
+resolves shared-worktree authority. SQLite candidates are opened no-follow via
+validated descriptors; SQLite reads use immutable descriptor aliases with
+sidecar rejection, and alias or pathname instability fails unsafe without
+falling back to a replaced pathname. Queue and retention reads are bounded
+metadata-only walks. Each store is read in an explicit transaction and
 collected twice at one timestamp; fingerprint drift is unsafe and no global
 cross-store atomicity is claimed. Persisted 80%/90% cash thresholds are
 observable; 100% is a prospective authorization backstop because the positive

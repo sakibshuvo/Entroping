@@ -51,8 +51,10 @@ arguments, a minimal environment, a five-second timeout, and a 4 KiB output
 ceiling solely to resolve shared-worktree authority. Beyond that exception, it
 does not call providers or the network; invoke tests, gates, or workers; read
 raw queue or artifact payloads; create directories or locks; mutate state;
-migrate databases; recover work; or authorize spending/dispatch. SQLite reads are
-descriptor-pinned, no-follow, immutable, and reject hot sidecars. Queue and
+migrate databases; recover work; or authorize spending/dispatch. SQLite
+candidates are opened no-follow through validated descriptors; SQLite reads use
+immutable descriptor aliases, hot sidecars are rejected, and alias or pathname
+instability fails unsafe without falling back to a replaced pathname. Queue and
 retention walks are metadata-only and bounded; ambiguous paths or snapshots
 fail closed without reading or rendering raw artifact contents or untrusted
 identifiers.

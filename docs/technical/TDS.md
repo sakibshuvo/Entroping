@@ -161,10 +161,11 @@ the sole subprocess exception: a bounded read-only `/usr/bin/git rev-parse`
 call uses fixed arguments, a minimal environment, a five-second timeout, and a
 4 KiB output ceiling. It has no provider, network, test-runner, gate, worker,
 mutation, migration, recovery, raw-payload, or dispatch-authorization path.
-Existing SQLite databases are opened through no-follow descriptor-pinned
-immutable read-only connections, with hot sidecars rejected. Queue and
-retention reads inspect bounded metadata only and never consume raw artifact
-contents or untrusted identifiers. Each store uses its own explicit
+SQLite candidates are opened no-follow through validated descriptors; SQLite
+reads use immutable descriptor aliases, with hot sidecars rejected. Alias or
+pathname instability fails unsafe without falling back to a replaced pathname.
+Queue and retention reads inspect bounded metadata only and never consume raw
+artifact contents or untrusted identifiers. Each store uses its own explicit
 read transaction; the collector takes two passes at one observation timestamp
 and compares immutable metadata fingerprints. A changed fingerprint is unsafe,
 and this deliberately does not claim global transactional atomicity across

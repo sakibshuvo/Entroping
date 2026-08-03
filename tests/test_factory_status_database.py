@@ -27,10 +27,10 @@ def _database(path: Path, marker: str) -> None:
     path.chmod(0o600)
 
 
-def test_status_database_remains_bound_to_opened_descriptor_during_path_swap(
+def test_status_database_path_swap_is_original_or_fails_closed(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    """Replacing the pathname during open cannot change the observed database."""
+    """A path swap yields original content or unsafe with no connection."""
 
     path = tmp_path / "state.sqlite3"
     replacement = tmp_path / "replacement.sqlite3"
@@ -51,6 +51,10 @@ def test_status_database_remains_bound_to_opened_descriptor_during_path_swap(
 
     monkeypatch.setattr("scripts.factory_status_database.sqlite3.connect", swap_before_connect)
     connection, state = factory_status_database.open_status_database(tmp_path, path, [])
+
+    if state == "unsafe":
+        assert connection is None
+        return
 
     assert state == "available"
     assert connection is not None
