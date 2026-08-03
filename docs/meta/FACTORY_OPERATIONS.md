@@ -266,9 +266,91 @@ unknown owner blocks takeover. An expired dead owner with active work returns
 `recovery-required`; use the recovery workflow below instead of editing or
 deleting scheduler rows.
 
+### Tier A worktree orchestration
+
+Delivery authority is minted only by scheduler admission, never by a saved
+selector report or caller-supplied digest/scope fields. A complete free-local
+write candidate uses `factoryctl tick --select-live`; the scheduler fetches a
+fresh GitHub snapshot without selector-cache I/O, recomputes complete local and
+active-scheduler ownership, and derives the Tier A static-doc lane and scopes.
+Apply re-runs the same selection under the scheduler transaction before
+inserting the assignment and envelope; plan mode writes no scheduler or cache
+state. The selector digest binds the AST-derived transitive internal-import
+closure from fixed authority roots at canonical main for selection, GitHub
+freshness/decoding, active state, protected scope, and scheduler admission.
+Existing parent package initializers and their recursive imports participate;
+fixed path, module-load, source-byte, AST-node, and import-depth ceilings fail
+closed. The
+selection digest binds the full canonical
+selection result including snapshot metadata. Generic `tick` rejects injected
+delivery envelopes, and this lane never admits paid candidates.
+
+The live lane resolves `gh` once from fixed trusted system/Homebrew locations,
+uses absolute `/usr/bin/git` for canonical local queries, and supplies a minimal
+child environment; a PATH-shadowed tool cannot participate and missing trusted
+`gh` blocks selection. Minting also requires a clean canonical-main checkout
+and loaded policy-closure modules whose bytes match the pinned main commit.
+Inside the assignment transaction, occupied issue numbers and exact scopes are
+read from every active writer's persisted delivery envelope, not reconstructed
+from mutable issue text. Missing or malformed writer authority blocks as
+incomplete. `tick_selected_delivery` is the sole public admission entrypoint
+and fetches fresh state internally. Direct generic scheduler, state, and
+transaction APIs expose no admission parameter and reject free-local writes;
+paid writes retain their reservation or authorization authority path.
+
+```text
+uv run python scripts/factoryctl.py tick --select-live --request-id <id> \
+  --job-id <id> --issue <n> --worktree-id <wt_id> \
+  --worker-class free-local --access-mode write --json
+```
+
+`factoryctl orchestrate` is a maintainer-only bridge from an already completed
+worker proposal to deterministic local verification of static documentation.
+Until an OS/container isolation boundary exists, Tier A apply accepts only
+regular Markdown under `docs/product/` or `docs/user/` and only the
+`tiny-docs` or `docs-guardrail` lane. Source, tests, scripts, configuration,
+workflows, machine-consumed control documents, and every protected path require
+Tier B/C review or manual isolated execution. It plans by default:
+
+```text
+uv run python scripts/factoryctl.py orchestrate --request <owner-only-request.json> --json
+```
+
+Review the value-free plan before adding `--apply`. The request must name the
+current scheduler assignment, owner id/PID/process-start token/epoch, exact
+active lease, `completed-unsettled` execution, and proposal digest. The
+scheduler assignment must persist the matching delivery-authority envelope:
+selector and selection digests, tier, lane, scopes, and scope digest. The
+request also binds the canonical issue worktree path/id, common Git directory,
+non-main branch, base commit, sorted allowed scopes, and verification lane. Both request
+and proposal must be regular owner-only files; changed bytes fail closed.
+
+Apply creates a missing worktree only through the exact
+`scripts/start_issue.sh <issue> <branch> --base-commit <commit>` contract. An existing worktree is
+never repaired: it must be the sole matching registered checkout, clean, on
+the exact branch/base/common directory, and free of active Git operations.
+Protected or out-of-scope paths, binary/symlink/gitlink/mode/rename patch
+shapes, stale authority, and proposal drift are rejected before mutation. The
+exact bytes pass `git apply --check` and `git apply`; only the exact static-doc
+gate allowlist derived from the validated target worktree runs. There is no
+architecture-test or caller-supplied command fallback. Cancellation and normal
+leader exit both clean the bounded gate process group.
+
+Receipts contain public identities, hashes, path counts, gate command ids, raw-output
+digests, timestamps, and normalized exit/signal states, never proposal or gate
+output values, scheduler PID, or process-start token. The separate private journal supports exact terminal replay.
+If apply, gate, scheduler authority, worktree integrity, or main-checkout truth
+is ambiguous, lifecycle becomes `uncertain`; preserve the journal and worktree,
+disable further orchestration, and reconcile evidence manually. Do not delete
+or edit rows. Acceptance deliberately leaves the scheduler execution
+`completed-unsettled`; a later trusted settlement/completion step owns that
+transition and all PR/CI/merge authority. Git identity protects tracked and
+relevant untracked checkout state; ignored `.entroping/` control state is
+validated by its own scheduler/journal storage contracts, not claimed as Git bytes.
+
 ### Scheduler recovery
 
-Scheduler schema v3 keeps one mutable, versioned execution row beside each
+Scheduler schema v4 keeps one mutable, versioned execution row beside each
 immutable assignment. Its phases distinguish `never-dispatched`,
 `dispatch-intent`, `dispatched`, `completed-unsettled`, `retry-wait`,
 `uncertain`, `completed`, and `failed`. Worker heartbeat and recovery authority
@@ -317,9 +399,8 @@ Use this incident order:
 6. Treat `uncertain` as capacity-consuming until explicit financial
    reconciliation. `resumed` means only that the execution returned to
    `never-dispatched` for later reconsideration; it does not prove external
-   freshness or launch a provider. The future #1574 orchestrator must acquire
-   trusted observations and revalidate every authority before dispatch, and
-   #1575 must prove that integration end to end.
+   freshness or launch a provider. The #1574 static-document orchestrator does
+   not dispatch providers; #1575 must prove proposal-only integration end to end.
 
 Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
 deadlines use deterministic jitter, honor bounded provider hints, and never

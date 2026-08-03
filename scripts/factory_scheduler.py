@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from scripts.factory_scheduler_delivery import tick_selected_delivery
 from scripts.factory_scheduler_execution_models import ExecutionState
 from scripts.factory_scheduler_lifecycle import (
     FactorySchedulerLifecycle,
@@ -109,6 +110,24 @@ class FactoryScheduler(FactorySchedulerLifecycle):
         validate_lease_seconds(lease_seconds)
         health = owner_health or probe_owner
         receipt_time = datetime.now(UTC) if as_of is None else as_of
+        if (
+            request is not None
+            and request.worker_class == "free-local"
+            and request.access_mode == "write"
+        ):
+            return blocked_state_receipt(
+                request=request,
+                observed_at=receipt_time,
+                reason="selection-required",
+                authoritative=not plan_only,
+            )
+        if request is not None and request.delivery_authority is not None:
+            return blocked_state_receipt(
+                request=request,
+                observed_at=receipt_time,
+                reason="selection-required",
+                authoritative=not plan_only,
+            )
         if not plan_only and request is not None and request.worker_class == "paid":
             try:
                 if database_exists(self.project_root):
@@ -169,6 +188,29 @@ class FactoryScheduler(FactorySchedulerLifecycle):
             lease_seconds=lease_seconds,
             plan_only=plan_only,
             health=health,
+        )
+
+    def _tick_selected(
+        self,
+        *,
+        request: AssignmentRequest,
+        owner: LeaseOwner,
+        as_of: datetime | None,
+        lease_seconds: int,
+        plan_only: bool,
+        owner_health: HealthCheck | None = None,
+    ) -> DecisionReceipt:
+        """Select live Tier A work and mint authority only at admission."""
+
+        return tick_selected_delivery(
+            self.project_root,
+            self.limits,
+            request=request,
+            owner=owner,
+            as_of=as_of,
+            lease_seconds=lease_seconds,
+            plan_only=plan_only,
+            owner_health=owner_health,
         )
 
     def snapshot(self) -> SchedulerSnapshot:

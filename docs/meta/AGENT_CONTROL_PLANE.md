@@ -155,6 +155,30 @@ OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 Patch mode never applies changes; Codex validates and applies any useful diff
 inside the issue worktree, then runs the normal gates.
 
+The maintainer-only `factoryctl orchestrate` adapter is the narrow handoff from
+a scheduler-owned Tier A patch proposal to its issue worktree. It requires the
+live exact lease owner and a `completed-unsettled` execution whose evidence
+digest equals the proposal bytes. Planning is non-mutating; explicit apply may
+create only through `scripts/start_issue.sh`, then applies in the exact clean
+registered worktree. Until OS/container isolation exists, apply is limited to
+regular `docs/product/*.md` and `docs/user/*.md` changes in the static docs
+lanes; all executable or control-plane surfaces escalate. Gates come only from
+the validated target worktree's exact repository allowlist. A
+revision-bound accepted receipt is evidence, not scheduler settlement, merge
+authority, paid authority, or permission to bypass PR CI and finish cleanup.
+Uncertain journal state or any authority/worktree/main/gate drift stops the
+lane for maintainer reconciliation.
+The preceding write assignment must come from scheduler-owned
+`factoryctl tick --select-live`: saved selector output remains non-authorizing,
+generic APIs expose no admission input, and the specialized free-local lane
+revalidates the same full result and active state inside assignment commit.
+Active writer scopes come from persisted immutable envelopes, not later issue
+edits; incomplete legacy authority blocks. Its canonical-main policy digest is
+derived from the transitive internal-import closure of fixed authority roots
+and checked against a clean main checkout plus every loaded closure module,
+then checked again before orchestration. Live `gh` and Git commands use fixed trusted
+absolute execution contracts rather than ambient PATH.
+
 The worker requests OpenCode JSON events, consumes stdout incrementally under
 the existing byte and timeout ceilings, and never persists raw JSONL. It writes
 a minimal `usage-receipt.json` with schema

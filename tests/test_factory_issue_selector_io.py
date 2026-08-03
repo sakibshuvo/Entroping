@@ -30,6 +30,11 @@ from scripts.factory_issue_selector_parser import parse_issue  # noqa: E402
 AS_OF = datetime(2026, 7, 29, 12, 0, tzinfo=UTC)
 
 
+@pytest.fixture(autouse=True)
+def _trusted_gh(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(github, "trusted_executable", lambda _name: Path("/usr/bin/false"))
+
+
 def _issue(number: int, *, state: str = "open") -> JsonObject:
     return {
         "number": number,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Commit the lease and assignment; otherwise remain plan-only.",
     )
     _ = tick.add_argument("--json", action="store_true")
+    _ = tick.add_argument(
+        "--select-live",
+        action="store_true",
+        help="Freshly select and admit one Tier A write candidate without cache input.",
+    )
     _ = tick.add_argument("--lease-seconds", type=int, default=30)
     _ = tick.add_argument("--owner-id")
     _ = tick.add_argument("--request-id")
@@ -86,4 +92,19 @@ def build_parser() -> argparse.ArgumentParser:
     _ = recover.add_argument("--max-elapsed-seconds", type=int, default=86400)
     _ = recover.add_argument("--jitter-percent", type=int, default=20)
     _ = recover.add_argument("--retry-after-ceiling-seconds", type=int, default=86400)
+    orchestrate = subparsers.add_parser(
+        "orchestrate",
+        description=(
+            "Plan or apply one immutable Tier A proposal in its issue worktree. "
+            "The default is plan-only."
+        ),
+        help="Plan or apply a scheduler-owned Tier A proposal without PR or merge actions.",
+    )
+    _ = orchestrate.add_argument("--request", type=Path, required=True)
+    _ = orchestrate.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the exact proposal and run allowlisted gates; otherwise remain plan-only.",
+    )
+    _ = orchestrate.add_argument("--json", action="store_true")
     return parser

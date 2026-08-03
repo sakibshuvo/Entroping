@@ -26,6 +26,7 @@ class BoundedProcessResult:
     stderr: str
     timed_out: bool
     output_limit_exceeded: bool
+    cancelled: bool = False
 
 
 def run_bounded_process(
@@ -36,7 +37,10 @@ def run_bounded_process(
     max_output_bytes: int,
     env: Mapping[str, str] | None = None,
     stdout_consumer: Callable[[bytes], None] | None = None,
+    stderr_consumer: Callable[[bytes], None] | None = None,
     capture_stdout: bool = True,
+    input_bytes: bytes | None = None,
+    cancelled: Callable[[], bool] | None = None,
 ) -> BoundedProcessResult:
     args = tuple(str(item) for item in command)
     if not args:
@@ -48,6 +52,7 @@ def run_bounded_process(
             args,
             cwd=cwd,
             env=None if env is None else dict(env),
+            stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True,
@@ -55,19 +60,34 @@ def run_bounded_process(
     except OSError as exc:
         raise BoundedProcessError("could not start bounded subprocess") from exc
     if process.stdout is None or process.stderr is None:
-        _kill_process_group(process)
+        _cleanup_process(process, None)
         raise BoundedProcessError("bounded subprocess pipes are unavailable")
 
     selector = selectors.DefaultSelector()
-    _ = selector.register(process.stdout, selectors.EVENT_READ)
-    _ = selector.register(process.stderr, selectors.EVENT_READ)
+    try:
+        _ = selector.register(process.stdout, selectors.EVENT_READ)
+        _ = selector.register(process.stderr, selectors.EVENT_READ)
+        input_offset = 0
+        pending_input = b"" if input_bytes is None else input_bytes
+        if input_bytes is not None:
+            if process.stdin is None:
+                raise BoundedProcessError("bounded subprocess stdin is unavailable")
+            os.set_blocking(process.stdin.fileno(), False)
+            _ = selector.register(process.stdin, selectors.EVENT_WRITE)
+    except BaseException:
+        _cleanup_process(process, selector)
+        raise
     buffers = {"stdout": bytearray(), "stderr": bytearray()}
     consumed_bytes = {"stdout": 0, "stderr": 0}
     exceeded_streams: set[str] = set()
     timed_out = False
+    was_cancelled = False
     deadline = time.monotonic() + timeout_seconds
     try:
         while selector.get_map():
+            if cancelled is not None and cancelled() and process.poll() is None:
+                was_cancelled = True
+                _kill_process_group(process)
             remaining = deadline - time.monotonic()
             if remaining <= 0 and process.poll() is None:
                 timed_out = True
@@ -79,6 +99,21 @@ def run_bounded_process(
                     _kill_process_group(process)
                     break
             for key, _ in events:
+                if process.stdin is not None and key.fileobj is process.stdin:
+                    try:
+                        written = os.write(
+                            key.fd,
+                            pending_input[input_offset : input_offset + 65_536],
+                        )
+                    except BlockingIOError:
+                        continue
+                    except BrokenPipeError:
+                        written = 0
+                    input_offset += written
+                    if written == 0 or input_offset == len(pending_input):
+                        _ = selector.unregister(process.stdin)
+                        process.stdin.close()
+                    continue
                 stream_name = "stdout" if key.fileobj is process.stdout else "stderr"
                 chunk = os.read(key.fd, 65_536)
                 if not chunk:
@@ -95,9 +130,14 @@ def run_bounded_process(
                     except Exception as exc:
                         _kill_process_group(process)
                         _ = process.wait()
-                        raise BoundedProcessError(
-                            "bounded stdout consumer failed"
-                        ) from exc
+                        raise BoundedProcessError("bounded stdout consumer failed") from exc
+                if stream_name == "stderr" and stderr_consumer is not None and accepted:
+                    try:
+                        stderr_consumer(accepted)
+                    except Exception as exc:
+                        _kill_process_group(process)
+                        _ = process.wait()
+                        raise BoundedProcessError("bounded stderr consumer failed") from exc
                 buffer = buffers[stream_name]
                 should_capture = stream_name != "stdout" or capture_stdout
                 if available > 0 and should_capture:
@@ -111,10 +151,7 @@ def run_bounded_process(
         _ = process.wait()
         raise BoundedProcessError("bounded subprocess cleanup failed") from exc
     finally:
-        selector.close()
-        for stream in (process.stdout, process.stderr):
-            if not stream.closed:
-                stream.close()
+        _cleanup_process(process, selector)
 
     if capture_stdout:
         stdout, stdout_decode_exceeded = _decode_output(
@@ -139,6 +176,7 @@ def run_bounded_process(
         output_limit_exceeded=bool(
             exceeded_streams or stdout_decode_exceeded or stderr_decode_exceeded
         ),
+        cancelled=was_cancelled,
     )
 
 
@@ -149,10 +187,23 @@ def _decode_output(payload: bytes, limit: int, exceeded: bool) -> tuple[str, boo
     marker = OUTPUT_LIMIT_MARKER.encode("utf-8")
     if len(marker) >= limit:
         return marker[:limit].decode("utf-8", errors="ignore"), True
-    head = decoded.encode("utf-8")[: limit - len(marker)].decode(
-        "utf-8", errors="ignore"
-    )
+    head = decoded.encode("utf-8")[: limit - len(marker)].decode("utf-8", errors="ignore")
     return f"{head}{OUTPUT_LIMIT_MARKER}", True
+
+
+def _cleanup_process(
+    process: subprocess.Popen[bytes],
+    selector: selectors.BaseSelector | None,
+) -> None:
+    _kill_process_group(process)
+    if process.poll() is None:
+        with suppress(subprocess.TimeoutExpired):
+            _ = process.wait(timeout=5)
+    if selector is not None:
+        selector.close()
+    for stream in (process.stdin, process.stdout, process.stderr):
+        if stream is not None and not stream.closed:
+            stream.close()
 
 
 def _kill_process_group(process: subprocess.Popen[bytes]) -> None:

@@ -16,10 +16,13 @@ from .factory_scheduler_schema import (
 )
 from .factory_scheduler_validation import MAX_LEASE_SECONDS
 
-PREVIOUS_SCHEMA_ID = "entroping.factory-scheduler-state.v2"
-PREVIOUS_SCHEMA_VERSION = 2
+PREVIOUS_SCHEMA_ID = "entroping.factory-scheduler-state.v3"
+PREVIOUS_SCHEMA_VERSION = 3
+V2_SCHEMA_ID = "entroping.factory-scheduler-state.v2"
+V2_SCHEMA_VERSION = 2
 LEGACY_SCHEMA_ID = "entroping.factory-scheduler-state.v1"
 LEGACY_SCHEMA_VERSION = 1
+_SCHEMA_METADATA_QUERY = "SELECT key, value FROM scheduler_metadata ORDER BY key"
 
 
 def initialize_previous_schema(
@@ -29,7 +32,17 @@ def initialize_previous_schema(
 ) -> None:
     _initialize_schema(
         connection,
-        statements=_previous_schema_statements(),
+        statements=_v2_schema_statements(),
+        schema_id=V2_SCHEMA_ID,
+        schema_version=V2_SCHEMA_VERSION,
+        initialized_at=initialized_at,
+    )
+
+
+def initialize_v3_schema(connection: sqlite3.Connection, *, initialized_at: str) -> None:
+    _initialize_schema(
+        connection,
+        statements=_v3_schema_statements(),
         schema_id=PREVIOUS_SCHEMA_ID,
         schema_version=PREVIOUS_SCHEMA_VERSION,
         initialized_at=initialized_at,
@@ -61,6 +74,12 @@ def migrate_schema(connection: sqlite3.Connection) -> bool:
             schema_id=PREVIOUS_SCHEMA_ID,
             expected_objects=_expected_previous_schema_objects(),
         )
+    elif version == (V2_SCHEMA_VERSION,):
+        _validate_schema_version(
+            connection,
+            schema_id=V2_SCHEMA_ID,
+            expected_objects=_expected_v2_schema_objects(),
+        )
     elif version == (LEGACY_SCHEMA_VERSION,):
         _validate_schema_version(
             connection,
@@ -72,11 +91,14 @@ def migrate_schema(connection: sqlite3.Connection) -> bool:
 
     _ = connection.execute("BEGIN EXCLUSIVE")
     try:
-        if version == (LEGACY_SCHEMA_VERSION,):
+        if version == (PREVIOUS_SCHEMA_VERSION,) or version == (V2_SCHEMA_VERSION,):
+            _upgrade_v3_assignments(connection)
+        elif version == (LEGACY_SCHEMA_VERSION,):
             _upgrade_legacy_assignments(connection)
-        for statement in SCHEMA_STATEMENTS[V2_SCHEMA_STATEMENT_COUNT:]:
-            _ = connection.execute(statement)
-        _initialize_execution_rows(connection)
+        if version != (PREVIOUS_SCHEMA_VERSION,):
+            for statement in SCHEMA_STATEMENTS[V2_SCHEMA_STATEMENT_COUNT:]:
+                _ = connection.execute(statement)
+            _initialize_execution_rows(connection)
         _ = connection.execute(
             "UPDATE scheduler_metadata SET value = ? WHERE key = 'schema_version'",
             (SCHEMA_ID,),
@@ -110,17 +132,28 @@ def _upgrade_legacy_assignments(connection: sqlite3.Connection) -> None:
         "INSERT INTO scheduler_assignments("
         "id, request_id, request_digest, assignment_id, decision_id, job_id, "
         "issue_number, worktree_id, scope_key, worker_class, access_mode, "
-        "reservation_id, authorization_id, lease_owner_id, lease_owner_pid, "
+        "reservation_id, authorization_id, delivery_authority_json, lease_owner_id, "
+        "lease_owner_pid, "
         "lease_owner_start_token, lease_epoch, created_at_utc, state, completed_at_utc) "
         "SELECT id, request_id, request_digest, assignment_id, decision_id, job_id, "
         "issue_number, worktree_id, scope_key, worker_class, access_mode, "
-        "reservation_id, NULL, lease_owner_id, lease_owner_pid, "
+        "reservation_id, NULL, NULL, lease_owner_id, lease_owner_pid, "
         "lease_owner_start_token, lease_epoch, created_at_utc, state, completed_at_utc "
         "FROM scheduler_assignments_v1"
     )
     _ = connection.execute("DROP TABLE scheduler_assignments_v1")
     for statement in SCHEMA_STATEMENTS[4:V2_SCHEMA_STATEMENT_COUNT]:
         _ = connection.execute(statement)
+
+
+def _upgrade_v3_assignments(connection: sqlite3.Connection) -> None:
+    _ = connection.execute("DROP TRIGGER scheduler_assignment_identity_immutable")
+    _ = connection.execute(
+        "ALTER TABLE scheduler_assignments ADD COLUMN delivery_authority_json TEXT "
+        "CHECK (delivery_authority_json IS NULL OR "
+        "length(delivery_authority_json) BETWEEN 2 AND 4096)"
+    )
+    _ = connection.execute(SCHEMA_STATEMENTS[8])
 
 
 def _initialize_execution_rows(connection: sqlite3.Connection) -> None:
@@ -176,9 +209,7 @@ def _validate_schema_version(
     schema_id: str,
     expected_objects: frozenset[tuple[str, str, str]],
 ) -> None:
-    metadata = connection.execute(
-        "SELECT key, value FROM scheduler_metadata ORDER BY key"
-    ).fetchall()
+    metadata = connection.execute(_SCHEMA_METADATA_QUERY).fetchall()
     if metadata != [("schema_version", schema_id)]:
         raise sqlite3.DatabaseError("scheduler schema metadata is invalid")
     if _schema_objects(connection) != expected_objects:
@@ -191,7 +222,12 @@ def _validate_schema_version(
 
 @cache
 def _expected_previous_schema_objects() -> frozenset[tuple[str, str, str]]:
-    return _expected_objects(_previous_schema_statements())
+    return _expected_objects(_v3_schema_statements())
+
+
+@cache
+def _expected_v2_schema_objects() -> frozenset[tuple[str, str, str]]:
+    return _expected_objects(_v2_schema_statements())
 
 
 @cache
@@ -212,8 +248,20 @@ def _expected_objects(
 
 
 @cache
-def _previous_schema_statements() -> tuple[str, ...]:
-    return SCHEMA_STATEMENTS[:V2_SCHEMA_STATEMENT_COUNT]
+def _v3_schema_statements() -> tuple[str, ...]:
+    return tuple(
+        statement.replace(
+            "delivery_authority_json TEXT CHECK (delivery_authority_json IS NULL OR "
+            "length(delivery_authority_json) BETWEEN 2 AND 4096), ",
+            "",
+        ).replace("delivery_authority_json, ", "")
+        for statement in SCHEMA_STATEMENTS
+    )
+
+
+@cache
+def _v2_schema_statements() -> tuple[str, ...]:
+    return _v3_schema_statements()[:V2_SCHEMA_STATEMENT_COUNT]
 
 
 @cache
@@ -232,5 +280,5 @@ def _legacy_schema_statements() -> tuple[str, ...]:
         statement.replace("authorization_id TEXT, ", "")
         .replace(paid_check, legacy_check)
         .replace("reservation_id, authorization_id, ", "reservation_id, ")
-        for statement in _previous_schema_statements()
+        for statement in _v2_schema_statements()
     )

@@ -32,6 +32,7 @@ def blocked_receipt(
     request: AssignmentRequest,
     observed_at: datetime,
     reason: str,
+    authoritative: bool = True,
 ) -> DecisionReceipt:
     lease = lease_row(connection)
     return decision_receipt(
@@ -41,7 +42,7 @@ def blocked_receipt(
         observed_at=observed_at,
         decision="blocked",
         reason=reason,
-        authoritative=True,
+        authoritative=authoritative,
         counts=counts(connection, request.scope_key),
         lease_owner_id=None if lease is None else lease[0],
     )

@@ -8,6 +8,7 @@ from pydantic import TypeAdapter
 from scripts.factory_scheduler_execution_models import ExecutionState
 from scripts.factory_scheduler_models import (
     AssignmentRequest,
+    DeliveryAuthorityEnvelope,
     SchedulerSnapshot,
     StoredAssignment,
 )
@@ -145,7 +146,7 @@ def read_assignment(
     row = connection.execute(
         "SELECT request_id, request_digest, assignment_id, decision_id, job_id, "
         "issue_number, worktree_id, worker_class, access_mode, reservation_id, "
-        "authorization_id, lease_owner_id, lease_owner_pid, "
+        "authorization_id, delivery_authority_json, lease_owner_id, lease_owner_pid, "
         "lease_owner_start_token, lease_epoch, "
         "created_at_utc, state, completed_at_utc "
         "FROM scheduler_assignments WHERE job_id = ?",
@@ -163,22 +164,29 @@ def read_assignment(
             "access_mode": text_value(row[8]),
             "reservation_id": None if row[9] is None else text_value(row[9]),
             "authorization_id": None if row[10] is None else text_value(row[10]),
+            "delivery_authority": (
+                None
+                if row[11] is None
+                else DeliveryAuthorityEnvelope.model_validate_json(
+                    text_value(row[11]), strict=True
+                )
+            ),
         },
         strict=True,
     )
-    completed = None if row[17] is None else parse_utc(text_value(row[17]))
+    completed = None if row[18] is None else parse_utc(text_value(row[18]))
     return StoredAssignment.model_validate(
         {
             "request": request,
             "request_digest": text_value(row[1]),
             "assignment_id": text_value(row[2]),
             "decision_id": text_value(row[3]),
-            "lease_owner_id": text_value(row[11]),
-            "lease_owner_pid": integer_value(row[12]),
-            "lease_owner_start_token": text_value(row[13]),
-            "lease_epoch": integer_value(row[14]),
-            "created_at": parse_utc(text_value(row[15])),
-            "state": text_value(row[16]),
+            "lease_owner_id": text_value(row[12]),
+            "lease_owner_pid": integer_value(row[13]),
+            "lease_owner_start_token": text_value(row[14]),
+            "lease_epoch": integer_value(row[15]),
+            "created_at": parse_utc(text_value(row[16])),
+            "state": text_value(row[17]),
             "completed_at": completed,
         },
         strict=True,

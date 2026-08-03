@@ -152,6 +152,64 @@ restart/duplicate-tick end-to-end proof.
 Paid candidates must reference an authoritative `dispatching` budget
 reservation, and the eventual dispatch boundary must revalidate it.
 
+The Tier A worktree orchestrator is a separate maintainer adapter under
+`scripts/factory_orchestration_*.py`, exposed only through plan-first
+`scripts/factoryctl.py orchestrate`; it is not part of the product CLI. Its
+strict frozen request joins one live scheduler assignment and lease owner
+(logical id, PID, process-start token, and epoch) to the exact
+`completed-unsettled` execution whose evidence digest equals the proposal
+SHA-256. It also binds the issue/worktree identity, canonical registered path,
+common Git directory, non-main branch, base commit, sorted allowed scopes, and
+verification lane, and must match the scheduler-persisted selector/selection,
+tier, lane, scope, and scope-digest delivery envelope. Worktree creation is delegated only to
+`scripts/start_issue.sh`; reuse requires that exact clean checkout. Apply uses
+bounded stdin with `/usr/bin/git apply --check` followed by `git apply`, then
+hashes the exact full-index binary diff and status bytes without text
+round-tripping. Main checkout identity is checked before terminalization.
+
+Until OS/container isolation exists, Tier A apply is limited to regular
+Markdown under `docs/product/` and `docs/user/` in `tiny-docs` or
+`docs-guardrail`. Executable source, tests, scripts, configuration, workflows,
+and machine-consumed control documents require Tier B/C or manual isolation.
+Only the exact gate command identifiers derived from the validated target
+worktree may run; no architecture-test or caller-supplied command fallback exists.
+Bounded output, timeout, cancellation with process-group cleanup, and
+pre/post-gate scheduler plus worktree integrity checks prevent a gate from
+self-promoting drift. A separate owner-only orchestration SQLite journal binds
+request identity and lifecycle; parent/database identity checks, no-follow
+authorization, bounded file/page size, exact schema validation, and hot-sidecar
+rejection reduce same-UID pathname replacement risk within Python SQLite's
+pathname API. Active replay or ambiguous mutation becomes `uncertain`; exact
+terminal replay returns the stored value-free receipt. Acceptance does not
+settle or complete scheduler execution and grants no merge, provider, or paid
+authority.
+
+Delivery-envelope construction belongs only to the public specialized
+`tick_selected_delivery` entrypoint, exposed as `factoryctl tick --select-live`;
+selector JSON, orchestration requests, and generic `tick` cannot inject it. This
+free-local write lane directly fetches a fresh complete GitHub snapshot without
+selector-cache I/O, derives the full non-authorizing result, and on apply
+repeats local plus active-scheduler selection inside assignment commit before
+atomically persisting the derived envelope. Its selector digest binds the
+AST-derived transitive internal-import closure from fixed authority roots at
+canonical main. Existing parent package initializers are included in Python
+import order and their imports are closed recursively. Small fixed ceilings on
+indexed paths, closure loads, cumulative source bytes, AST nodes, and import
+depth fail closed before unbounded traversal. The closure includes selector parsing/core, GitHub decoding/freshness,
+active-state queries, protected-scope policy, and scheduler
+admission/transaction code. Its selection digest binds the full canonical
+result. Orchestration rechecks the policy digest against authorized main/base.
+The live adapter resolves `gh` only from fixed trusted system/Homebrew
+directories, invokes canonical Git as `/usr/bin/git`, and passes a minimal
+environment. Policy mint/revalidation requires clean canonical main plus
+byte-for-byte equality between each loaded closure module and its
+commit-pinned blob. The transaction derives occupied issue numbers and exact
+scopes from active persisted writer envelopes; missing or malformed authority
+makes active state incomplete. Admission snapshots and their mint/revalidation
+helpers remain private; public generic scheduler/state/transaction APIs expose
+no snapshot or admission parameter and reject free-local writes. Paid writes
+continue through their existing reservation or authorization authority model.
+
 The provider scorecard is a separate maintainer-only report adapter under
 `scripts/factory_metrics_modules/provider_scorecard*.py`, exposed only through
 `scripts/factory_metrics.py provider-scorecard validate|report`. Its strict

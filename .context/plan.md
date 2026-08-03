@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
 **Date:** 2026-08-03
-**Status:** Issue #1573 is in progress pre-merge; provider scorecard repair requires acceptance review before any next issue.
+**Status:** Issue #1574 is in progress pre-merge; Tier A orchestration requires acceptance review before activation.
 
 ## Objective
 
@@ -16,25 +16,33 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1573 Provider Scorecard Evidence
+## Current Issue Slice: #1574 Tier A Worktree Orchestration
 
-Add a maintainer-only `scripts/factory_metrics.py provider-scorecard` contract
-without changing legacy metrics or the product `entroping` CLI. The strict,
-value-free evidence/report schemas must validate exact provider registry tuples
-and receipt identity while retaining manual-only promotion. The existing
-`entroping.factory-status.v1` report orders `unsafe > paused > healthy` and
-maps to exits `2/1/0`. It is observation only: no providers, network,
-test/gate/worker subprocesses, mutation, migration, recovery, raw payload
-reads, or spending/dispatch authorization. One bounded read-only Git subprocess
-resolves shared-worktree authority. SQLite candidates are opened no-follow via
-validated descriptors; SQLite reads use immutable descriptor aliases with
-sidecar rejection, and alias or pathname instability fails unsafe without
-falling back to a replaced pathname. Queue and retention reads are bounded
-metadata-only walks. Each store is read in an explicit transaction and
-collected twice at one timestamp; fingerprint drift is unsafe and no global
-cross-store atomicity is claimed. Persisted 80%/90% cash thresholds are
-observable; 100% is a prospective authorization backstop because the positive
-reserve means no valid persisted authority can reach the raw cap.
+Add a maintainer-only, plan-first `factoryctl orchestrate` adapter without
+changing the product `entroping` CLI. It accepts strict owner-only request and
+proposal files, revalidates the live scheduler owner and the exact
+`completed-unsettled` proposal handoff plus scheduler-persisted delivery
+authority, and may create a missing canonical
+issue worktree only through `scripts/start_issue.sh`. Explicit `--apply`
+checks and applies only static Markdown under `docs/product/` or `docs/user/`
+in the two docs lanes. Source, tests, scripts, config, workflows, and
+machine-consumed control docs escalate until OS/container isolation exists.
+Gates come only from the validated target worktree's exact allowlist and emit a value-free
+revision-bound receipt. A separate private lifecycle journal makes exact
+terminal replay deterministic; ambiguous mutation, authority drift, gate
+drift, cancellation after mutation, main-checkout drift, or interrupted active
+replay becomes `uncertain` and requires recovery. Scheduler settlement and
+completion remain a later trusted control-plane action.
+
+Free-local write admission has one public entrypoint,
+`tick_selected_delivery`, which fetches fresh selection state internally and
+uses private admission helpers. Generic scheduler APIs expose no admission or
+snapshot seam and reject free-local writes; paid writes retain their existing
+reservation or authorization authority path. The policy digest follows an
+AST-derived transitive internal-import closure from fixed authority roots and
+includes executed parent package initializers recursively under fixed aggregate
+path/load/byte/AST/depth budgets, then verifies every loaded closure module
+against canonical-main commit bytes.
 
 ## Current Baseline
 
@@ -52,8 +60,8 @@ reserve means no valid persisted authority can reach the raw cap.
   wrong-schema, or secret-like sources must become invalid or unsafe.
 - AI worker lanes are advisory. OpenCode/DeepSeek outputs require Codex
   validation against local files, tests, and CI before commit or merge.
-- Issues #1571 and #1572 are done; #1573 adds separate provider-scorecard
-  evidence without changing the product runtime, legacy metrics, or authority.
+- Issues #1571 through #1573 are done; #1574 adds the separate Tier A worktree
+  orchestration adapter without changing product runtime or merge authority.
 - Context packs, issue-scoped worktrees, PR body checks, regression/security
   gates, quality audit, and `scripts/finish_issue.sh` are the durable marathon
   loop. Keep context files concise enough for `scripts/context_pack.sh --mode
