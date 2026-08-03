@@ -1,25 +1,18 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from pydantic import ValidationError
-
-from scripts.factory_cost_policy_io import read_policy_document
-from scripts.factory_cost_policy_models import FactoryCostPolicy
-from scripts.factory_cost_policy_validation import FactoryCostPolicyError, validate_policy_at
 from scripts.factory_scheduler_root import SchedulerRootError, resolve_scheduler_root
-from scripts.provider_capability_io import load_provider_registry
-from scripts.provider_capability_types import ProviderRegistryError
 
+from .factory_status_dispatch import collect_dispatch_lanes
 from .factory_status_filesystem import (
     FactoryStatusError,
     collect_queue,
     collect_retention,
-    exists_lstat,
-    fingerprint_file,
     unsafe_retention,
 )
 from .factory_status_models import (
@@ -28,7 +21,6 @@ from .factory_status_models import (
     FactoryStatusReport,
     QueueStatus,
     SchedulerStatus,
-    SourceState,
     StateCounts,
     StatusState,
 )
@@ -51,8 +43,11 @@ def collect_factory_status(project_root: Path) -> FactoryStatusReport:
         root = resolve_scheduler_root(project_root)
     except SchedulerRootError:
         return _unsafe_report(observed_at, "root-unsafe")
-    first = _collect_once(root, observed_at)
-    second = _collect_once(root, observed_at)
+    try:
+        first = _collect_once(root, observed_at)
+        second = _collect_once(root, observed_at)
+    except (FactoryStatusError, OSError, sqlite3.DatabaseError, ValueError):
+        return _unsafe_report(observed_at, "collection-unsafe")
     if first.fingerprint != second.fingerprint:
         return _with_snapshot_change(second.report)
     return first.report
@@ -72,9 +67,15 @@ def render_human(report: FactoryStatusReport) -> str:
             f"Consistency: {report.snapshot_consistency}",
             f"Reasons: {reasons}",
             "Budget: "
-            f"{report.budget.status}; available={report.budget.net_available_microcents}; "
-            f"reservations={report.budget.reservations.active}/"
-            f"{report.budget.reservations.uncertain}",
+            f"{report.budget.status}; cap={report.budget.cash_cap_microcents}; "
+            f"reserve={report.budget.reserve_microcents}; "
+            f"available={report.budget.net_available_microcents}; "
+            f"subscriptions={report.budget.subscription_charge_microcents}; "
+            f"reservations={report.budget.reservations.active}/{report.budget.reservations.uncertain}/"
+            f"{report.budget.reservations.settled}/{report.budget.reservations.released}; "
+            f"authorizations={report.budget.authorizations.active}/"
+            f"{report.budget.authorizations.uncertain}/{report.budget.authorizations.settled}/"
+            f"{report.budget.authorizations.released}",
             "Dispatch lanes: "
             f"{report.dispatch_lanes.status}; ready={report.dispatch_lanes.ready_routes}/"
             f"{report.dispatch_lanes.active_routes}; quota={report.dispatch_lanes.quota_status}",
@@ -113,7 +114,7 @@ def status_exit_code(report: FactoryStatusReport) -> int:
 def _collect_once(root: Path, observed_at: datetime) -> _Collected:
     fingerprints: list[tuple[str, int, int, int]] = []
     budget, budget_reasons = collect_budget(root, observed_at, fingerprints)
-    lanes, lane_reasons = _dispatch_lanes(root, observed_at, fingerprints)
+    lanes, lane_reasons = collect_dispatch_lanes(root, observed_at, fingerprints)
     scheduler, scheduler_reasons = collect_scheduler(root, observed_at, fingerprints)
     queue, queue_reasons = collect_queue(root, fingerprints)
     retention, retention_reasons = collect_retention(root, fingerprints)
@@ -140,6 +141,7 @@ def _collect_once(root: Path, observed_at: datetime) -> _Collected:
             if {
                 "scheduler-lease-expired",
                 "scheduler-retry-waiting",
+                "scheduler-retry-stale",
                 "retention-pressure",
             }.intersection(reasons)
             else "healthy"
@@ -160,48 +162,6 @@ def _collect_once(root: Path, observed_at: datetime) -> _Collected:
         ),
         fingerprint=tuple(sorted(fingerprints)),
     )
-
-
-def _dispatch_lanes(
-    root: Path,
-    observed_at: datetime,
-    fingerprints: list[tuple[str, int, int, int]],
-) -> tuple[DispatchLanesStatus, tuple[str, ...]]:
-    policy_path = root / ".entroping" / "factory-cost-policy.json"
-    if not exists_lstat(policy_path):
-        policy_path = root / "docs" / "meta" / "factory-cost-policy.example.json"
-    registry_path = root / "docs" / "meta" / "provider-capability-registry.json"
-    try:
-        fingerprint_file(root, policy_path, fingerprints)
-        fingerprint_file(root, registry_path, fingerprints)
-        policy = FactoryCostPolicy.model_validate_json(
-            read_policy_document(policy_path), strict=True
-        )
-        validate_policy_at(policy, observed_at)
-        registry = load_provider_registry(registry_path)
-    except FactoryStatusError:
-        return DispatchLanesStatus(
-            status="unsafe", active_routes=0, ready_routes=0, quota_status="unsafe"
-        ), ("dispatch-policy-unsafe",)
-    except (FactoryCostPolicyError, ProviderRegistryError, ValidationError, OSError, ValueError):
-        return DispatchLanesStatus(
-            status="unavailable", active_routes=0, ready_routes=0, quota_status="unavailable"
-        ), ("dispatch-policy-unavailable",)
-    active = tuple(lane for lane in registry.lanes if lane.lifecycle == "active")
-    policy_providers = {lane.provider_id for lane in policy.automation_lanes}
-    ready = tuple(
-        lane
-        for lane in active
-        if "queue_dispatch" in lane.capabilities and lane.policy_provider_id in policy_providers
-    )
-    status: SourceState = "available" if ready else "unavailable"
-    reasons = () if ready else ("dispatch-route-unavailable",)
-    return DispatchLanesStatus(
-        status=status,
-        active_routes=len(active),
-        ready_routes=len(ready),
-        quota_status=status,
-    ), reasons
 
 
 def _unsafe_report(observed_at: datetime, reason: str) -> FactoryStatusReport:

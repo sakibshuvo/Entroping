@@ -4,14 +4,14 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
-from urllib.parse import quote
 
 from scripts.factory_budget_ledger_fs import LEDGER_DIRECTORY, LEDGER_NAME
 from scripts.factory_budget_ledger_schema import validate_schema as validate_ledger_schema
 from scripts.factory_scheduler_schema import validate_schema as validate_scheduler_schema
 
-from .factory_status_filesystem import FactoryStatusError, fingerprint_file
-from .factory_status_models import BudgetStatus, SchedulerStatus, SourceState, StateCounts
+from .factory_status_database import open_status_database
+from .factory_status_models import BudgetStatus, SchedulerStatus, StateCounts
+from .factory_status_policy import cash_threshold_reason
 
 type LeaseState = Literal["uninitialized", "idle", "active", "expired", "unsafe"]
 type Fingerprints = list[tuple[str, int, int, int]]
@@ -25,7 +25,7 @@ def collect_budget(
     """Summarize existing ledger authority without opening a write-capable connection."""
 
     path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
-    connection, status = _readonly_database(path, root, fingerprints)
+    connection, status = open_status_database(root, path, fingerprints)
     empty = StateCounts(active=0, uncertain=0, settled=0, released=0)
     if connection is None:
         return BudgetStatus(status=status, reservations=empty, authorizations=empty), (
@@ -34,8 +34,9 @@ def collect_budget(
     try:
         validate_ledger_schema(connection)
         row = connection.execute(
-            "SELECT cash_cap_microcents, emergency_reserve_microcents, "
-            "net_spent_microcents, active_reserved_microcents FROM budget_periods "
+            "SELECT id, policy_id, policy_revision, cash_cap_microcents, "
+            "emergency_reserve_microcents, net_spent_microcents, active_reserved_microcents "
+            "FROM budget_periods "
             "WHERE period_start_utc <= ? AND period_end_utc > ? "
             "ORDER BY period_start_utc DESC LIMIT 1",
             (observed_at.isoformat(), observed_at.isoformat()),
@@ -53,10 +54,12 @@ def collect_budget(
         subscription = int(
             connection.execute(
                 "SELECT COALESCE(SUM(amount_microcents), 0) FROM ledger_entries "
-                "WHERE kind = 'fixed_subscription_charge' AND direction = 'debit'"
+                "WHERE period_id = ? AND kind = 'fixed_subscription_charge' "
+                "AND direction = 'debit'",
+                (int(row[0]),),
             ).fetchone()[0]
         )
-        cap, reserve, spent, held = (int(value) for value in row)
+        cap, reserve, spent, held = (int(value) for value in row[3:])
         net_available = cap - reserve - spent - held
         if reservations.uncertain > 0 or authorizations.uncertain > 0:
             return BudgetStatus(
@@ -68,6 +71,19 @@ def collect_budget(
                 reservations=reservations,
                 authorizations=authorizations,
             ), ("budget-authority-uncertain",)
+        threshold = cash_threshold_reason(
+            root, observed_at, str(row[1]), int(row[2]), cap, spent, held, fingerprints
+        )
+        if threshold is not None:
+            return BudgetStatus(
+                status="unsafe" if threshold == "budget-authority-uncertain" else "unavailable",
+                cash_cap_microcents=cap,
+                reserve_microcents=reserve,
+                net_available_microcents=net_available,
+                subscription_charge_microcents=subscription,
+                reservations=reservations,
+                authorizations=authorizations,
+            ), (threshold,)
         return BudgetStatus(
             status="available",
             cash_cap_microcents=cap,
@@ -93,7 +109,7 @@ def collect_scheduler(
     """Summarize existing scheduler state without exposing lease identity."""
 
     path = root / ".entroping" / "factory-scheduler" / "scheduler.sqlite3"
-    connection, status = _readonly_database(path, root, fingerprints)
+    connection, status = open_status_database(root, path, fingerprints)
     blank_lease: LeaseState = "uninitialized" if status == "uninitialized" else "unsafe"
     blank = SchedulerStatus(
         status=status,
@@ -127,8 +143,10 @@ def collect_scheduler(
         ).fetchone()
         phases = connection.execute(
             "SELECT COALESCE(SUM(phase NOT IN ('completed', 'failed')), 0), "
-            "COALESCE(SUM(phase = 'retry-wait'), 0), "
-            "COALESCE(SUM(phase = 'uncertain'), 0) FROM scheduler_execution_state"
+            "COALESCE(SUM(phase = 'retry-wait' AND retry_not_before_utc > ?), 0), "
+            "COALESCE(SUM(phase = 'retry-wait' AND retry_not_before_utc <= ?), 0), "
+            "COALESCE(SUM(phase = 'uncertain'), 0) FROM scheduler_execution_state",
+            (observed_at.isoformat(), observed_at.isoformat()),
         ).fetchone()
         reasons: tuple[str, ...] = ()
         if lease_state == "expired":
@@ -136,6 +154,8 @@ def collect_scheduler(
         if int(phases[1]) > 0:
             reasons = (*reasons, "scheduler-retry-waiting")
         if int(phases[2]) > 0:
+            reasons = (*reasons, "scheduler-retry-stale")
+        if int(phases[3]) > 0:
             return SchedulerStatus(
                 status="unsafe",
                 lease_state=lease_state,
@@ -144,7 +164,7 @@ def collect_scheduler(
                 active_writers=int(counts[2]),
                 executing=int(phases[0]),
                 retry_waiting=int(phases[1]),
-                uncertain=int(phases[2]),
+                uncertain=int(phases[3]),
             ), (*reasons, "scheduler-authority-uncertain")
         return SchedulerStatus(
             status="available",
@@ -154,9 +174,9 @@ def collect_scheduler(
             active_writers=int(counts[2]),
             executing=int(phases[0]),
             retry_waiting=int(phases[1]),
-            uncertain=int(phases[2]),
+            uncertain=int(phases[3]),
         ), reasons
-    except sqlite3.DatabaseError:
+    except (sqlite3.DatabaseError, ValueError):
         return SchedulerStatus(
             status="unsafe",
             lease_state="unsafe",
@@ -169,29 +189,6 @@ def collect_scheduler(
         ), ("scheduler-unsafe",)
     finally:
         connection.close()
-
-
-def _readonly_database(
-    path: Path, root: Path, fingerprints: Fingerprints
-) -> tuple[sqlite3.Connection | None, SourceState]:
-    try:
-        fingerprint_file(root, path, fingerprints)
-    except FileNotFoundError:
-        return None, "uninitialized"
-    except (FactoryStatusError, OSError):
-        return None, "unsafe"
-    try:
-        connection = sqlite3.connect(
-            f"file:{quote(path.as_posix(), safe='/')}?mode=ro&immutable=1",
-            uri=True,
-            autocommit=True,
-            timeout=0.1,
-        )
-        _ = connection.execute("PRAGMA query_only = ON")
-        _ = connection.execute("PRAGMA trusted_schema = OFF")
-        return connection, "available"
-    except sqlite3.DatabaseError:
-        return None, "unsafe"
 
 
 def _state_counts(

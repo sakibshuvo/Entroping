@@ -4,10 +4,16 @@ import json
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from factory_scheduler_test_support import dead, owner, request, scheduler
+
+from scripts.factory_budget_ledger import (  # noqa: E402
+    BudgetPeriodConfig,
+    FactoryBudgetLedger,
+    LedgerEntryInput,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
@@ -189,6 +195,233 @@ def test_factoryctl_status_reports_corrupt_scheduler_database_as_unsafe(
     assert payload["state"] == "unsafe"
     assert "scheduler-unsafe" in payload["reason_codes"]
     assert "not a sqlite database" not in result.stdout
+
+
+def test_factoryctl_status_requires_enabled_policy_lane_for_route_readiness(
+    tmp_path: Path,
+) -> None:
+    # Given: valid tracked policy and capability files with every lane disabled.
+    policy_dir = tmp_path / "docs" / "meta"
+    policy_dir.mkdir(parents=True)
+    now = datetime.now(UTC)
+    policy = {
+        "schema_version": "entroping.factory-cost-policy.v1",
+        "policy_id": "status-policy",
+        "policy_revision": 1,
+        "currency": "USD",
+        "monetary_unit": "microcent",
+        "valid_from": (now - timedelta(minutes=1)).isoformat(),
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "unknown_cost_behavior": "deny_paid_dispatch",
+        "unknown_quota_behavior": "deny_affected_paid_lane",
+        "cash": {
+            "calendar_month_timezone": "UTC",
+            "calendar_month_cap_microcents": 10_000,
+            "emergency_reserve_microcents": 1_000,
+            "thresholds": {
+                "stop_experiments_basis_points": 8000,
+                "subscription_only_basis_points": 9000,
+                "stop_paid_dispatch_basis_points": 10000,
+            },
+        },
+        "subscriptions": [],
+        "price_snapshots": [
+            {
+                "id": "deepseek-price",
+                "provider_id": "deepseek",
+                "model_id": "deepseek/deepseek-v4-pro",
+                "unit": "input_token",
+                "quantity": 1,
+                "price_microcents": 1,
+                "observed_at": (now - timedelta(minutes=1)).isoformat(),
+                "expires_at": (now + timedelta(hours=1)).isoformat(),
+            }
+        ],
+        "provider_quotas": [],
+        "automatic_top_up": {"mode": "disabled"},
+        "automation_lanes": [
+            {
+                "id": "deepseek-metered",
+                "provider_id": "deepseek",
+                "model_id": "deepseek/deepseek-v4-pro",
+                "billing_mode": "metered",
+                "enabled": False,
+                "price_snapshot_ids": ["deepseek-price"],
+                "quota_ids": [],
+            }
+        ],
+    }
+    (policy_dir / "factory-cost-policy.example.json").write_text(
+        json.dumps(policy), encoding="utf-8"
+    )
+    (policy_dir / "provider-capability-registry.json").write_bytes(
+        (REPO_ROOT / "docs" / "meta" / "provider-capability-registry.json").read_bytes()
+    )
+
+    # When: the status projection resolves route readiness.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: disabled authority cannot be represented as a ready dispatch route.
+    assert result.returncode == 1, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["dispatch_lanes"]["status"] == "unavailable"
+    assert payload["dispatch_lanes"]["ready_routes"] == 0
+
+
+def test_factoryctl_status_pauses_at_configured_cash_threshold(tmp_path: Path) -> None:
+    # Given: a current policy and a period whose spend is exactly the policy threshold.
+    policy_dir = tmp_path / "docs" / "meta"
+    policy_dir.mkdir(parents=True)
+    now = datetime.now(UTC)
+    policy = {
+        "schema_version": "entroping.factory-cost-policy.v1",
+        "policy_id": "status-policy",
+        "policy_revision": 1,
+        "currency": "USD",
+        "monetary_unit": "microcent",
+        "valid_from": (now - timedelta(minutes=1)).isoformat(),
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "unknown_cost_behavior": "deny_paid_dispatch",
+        "unknown_quota_behavior": "deny_affected_paid_lane",
+        "cash": {
+            "calendar_month_timezone": "UTC",
+            "calendar_month_cap_microcents": 10_000,
+            "emergency_reserve_microcents": 1_000,
+            "thresholds": {
+                "stop_experiments_basis_points": 8000,
+                "subscription_only_basis_points": 9000,
+                "stop_paid_dispatch_basis_points": 10000,
+            },
+        },
+        "subscriptions": [],
+        "price_snapshots": [
+            {
+                "id": "deepseek-price",
+                "provider_id": "deepseek",
+                "model_id": "deepseek/deepseek-v4-pro",
+                "unit": "input_token",
+                "quantity": 1,
+                "price_microcents": 1,
+                "observed_at": (now - timedelta(minutes=1)).isoformat(),
+                "expires_at": (now + timedelta(hours=1)).isoformat(),
+            }
+        ],
+        "provider_quotas": [],
+        "automatic_top_up": {"mode": "disabled"},
+        "automation_lanes": [
+            {
+                "id": "deepseek-metered",
+                "provider_id": "deepseek",
+                "model_id": "deepseek/deepseek-v4-pro",
+                "billing_mode": "metered",
+                "enabled": True,
+                "price_snapshot_ids": ["deepseek-price"],
+                "quota_ids": [],
+            }
+        ],
+    }
+    (policy_dir / "factory-cost-policy.example.json").write_text(
+        json.dumps(policy), encoding="utf-8"
+    )
+    (policy_dir / "provider-capability-registry.json").write_bytes(
+        (REPO_ROOT / "docs" / "meta" / "provider-capability-registry.json").read_bytes()
+    )
+    ledger = FactoryBudgetLedger.open_project(tmp_path)
+    ledger.initialize_period(
+        BudgetPeriodConfig(
+            starts_on=date(now.year, now.month, 1),
+            cash_cap_microcents=10_000,
+            emergency_reserve_microcents=1_000,
+            currency="USD",
+            policy_id="status-policy",
+            policy_revision=1,
+            reserve_idempotency_key="status-reserve",
+        )
+    )
+    ledger.record_entry(
+        LedgerEntryInput(
+            idempotency_key="status-threshold",
+            kind="manual_adjustment",
+            direction="debit",
+            amount_microcents=8_000,
+            occurred_at=now,
+            currency="USD",
+            source_id="status-test",
+        )
+    )
+
+    # When: the status projection reads exact stop-experiments spend.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: configured basis points pause the budget authority.
+    assert result.returncode == 1, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["budget"]["status"] == "unavailable"
+    assert "budget-threshold" in payload["reason_codes"]
+
+
+def test_factoryctl_status_blocks_route_with_missing_quota_authority(tmp_path: Path) -> None:
+    # Given: an enabled included-quota route without any recorded quota evidence.
+    policy_dir = tmp_path / "docs" / "meta"
+    policy_dir.mkdir(parents=True)
+    now = datetime.now(UTC)
+    policy = {
+        "schema_version": "entroping.factory-cost-policy.v1",
+        "policy_id": "status-policy",
+        "policy_revision": 1,
+        "currency": "USD",
+        "monetary_unit": "microcent",
+        "valid_from": (now - timedelta(minutes=1)).isoformat(),
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "unknown_cost_behavior": "deny_paid_dispatch",
+        "unknown_quota_behavior": "deny_affected_paid_lane",
+        "cash": {
+            "calendar_month_timezone": "UTC",
+            "calendar_month_cap_microcents": 10_000,
+            "emergency_reserve_microcents": 1_000,
+            "thresholds": {
+                "stop_experiments_basis_points": 8000,
+                "subscription_only_basis_points": 9000,
+                "stop_paid_dispatch_basis_points": 10000,
+            },
+        },
+        "subscriptions": [],
+        "price_snapshots": [],
+        "provider_quotas": [
+            {
+                "id": "deepseek-five-hour",
+                "provider_id": "deepseek",
+                "unit": "requests",
+                "limit": 100,
+                "window": {"kind": "rolling", "duration_seconds": 18_000},
+            }
+        ],
+        "automatic_top_up": {"mode": "disabled"},
+        "automation_lanes": [
+            {
+                "id": "deepseek-included",
+                "provider_id": "deepseek",
+                "billing_mode": "included_quota",
+                "enabled": True,
+                "quota_ids": ["deepseek-five-hour"],
+            }
+        ],
+    }
+    (policy_dir / "factory-cost-policy.example.json").write_text(
+        json.dumps(policy), encoding="utf-8"
+    )
+    (policy_dir / "provider-capability-registry.json").write_bytes(
+        (REPO_ROOT / "docs" / "meta" / "provider-capability-registry.json").read_bytes()
+    )
+
+    # When: status evaluates dispatch readiness.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: missing quota evidence denies the affected paid route.
+    assert result.returncode == 1, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["dispatch_lanes"]["status"] == "unavailable"
+    assert payload["dispatch_lanes"]["quota_status"] == "unavailable"
 
 
 def test_factoryctl_tick_defaults_to_plan_only_without_state(tmp_path: Path) -> None:

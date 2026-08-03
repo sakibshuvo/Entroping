@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import stat
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -42,6 +44,16 @@ _MAX_ENTRIES = 10_000
 _MAX_DEPTH = 64
 
 
+@dataclass(slots=True)
+class _TraversalBudget:
+    remaining: int = _MAX_ENTRIES
+
+    def consume(self) -> None:
+        if self.remaining <= 0:
+            raise FactoryStatusError("entry limit exceeded")
+        self.remaining -= 1
+
+
 class FactoryStatusError(RuntimeError):
     """Signals a sanitized unsafe filesystem condition in the status projection."""
 
@@ -56,8 +68,8 @@ def collect_queue(root: Path, fingerprints: Fingerprints) -> tuple[QueueStatus, 
         ), ("queue-uninitialized",)
     counts = {state: 0 for state in _QUEUE_STATES}
     try:
-        _scan_tree(root, queue_root, fingerprints, counts)
-    except FactoryStatusError:
+        _scan_tree(root, queue_root, fingerprints, counts, budget=_TraversalBudget())
+    except (FactoryStatusError, OSError):
         return QueueStatus(
             status="unsafe", queued=0, running=0, completed=0, failed=0, invalid=1
         ), ("queue-unsafe",)
@@ -87,12 +99,20 @@ def collect_retention(
     except (FactoryCostPolicyError, ValidationError, OSError, ValueError):
         return _retention_unavailable("unavailable"), ("retention-policy-unavailable",)
     totals: dict[ArtifactClass, list[int]] = {name: [0, 0] for name in _RETENTION_CLASSES}
+    budget = _TraversalBudget()
     try:
         for artifact_class, parts in _RETENTION_ROOTS:
             candidate = root.joinpath(*parts)
             if exists_lstat(candidate):
-                _scan_tree(root, candidate, fingerprints, None, totals[artifact_class])
-    except FactoryStatusError:
+                _scan_tree(
+                    root,
+                    candidate,
+                    fingerprints,
+                    None,
+                    totals[artifact_class],
+                    budget=budget,
+                )
+    except (FactoryStatusError, OSError):
         return _retention_unavailable("unsafe"), ("retention-unsafe",)
     ceilings = {item.artifact_class: item.byte_ceiling for item in policy.class_policies}
     classes = tuple(
@@ -120,11 +140,21 @@ def unsafe_retention() -> RetentionStatus:
     return _retention_unavailable("unsafe")
 
 
-def fingerprint_file(root: Path, path: Path, fingerprints: Fingerprints) -> None:
+def fingerprint_file(
+    root: Path,
+    path: Path,
+    fingerprints: Fingerprints,
+    *,
+    strict_state_file: bool = False,
+) -> None:
     """Capture non-content file identity after rejecting unsafe metadata."""
 
     metadata = path.lstat()
     if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+        raise FactoryStatusError("unsafe file")
+    if strict_state_file and (
+        metadata.st_uid != os.geteuid() or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
         raise FactoryStatusError("unsafe file")
     fingerprints.append(
         (path.relative_to(root).as_posix(), metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
@@ -148,42 +178,47 @@ def _scan_tree(
     queue_counts: dict[str, int] | None = None,
     totals: list[int] | None = None,
     depth: int = 0,
+    budget: _TraversalBudget | None = None,
 ) -> None:
     if depth > _MAX_DEPTH:
         raise FactoryStatusError("path depth exceeded")
     metadata = path.lstat()
     if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
         raise FactoryStatusError("unsafe directory")
-    for index, child in enumerate(sorted(path.iterdir(), key=lambda item: item.name)):
-        if index >= _MAX_ENTRIES:
-            raise FactoryStatusError("entry limit exceeded")
-        child_metadata = child.lstat()
-        relative = child.relative_to(root).as_posix()
-        if stat.S_ISREG(child_metadata.st_mode):
-            if child_metadata.st_nlink != 1:
-                raise FactoryStatusError("unsafe file")
-            fingerprints.append(
-                (
-                    relative,
-                    child_metadata.st_ino,
-                    child_metadata.st_size,
-                    child_metadata.st_mtime_ns,
+    active_budget = budget or _TraversalBudget()
+    with os.scandir(path) as entries:
+        for entry in entries:
+            active_budget.consume()
+            child = Path(entry.path)
+            child_metadata = child.lstat()
+            relative = child.relative_to(root).as_posix()
+            if stat.S_ISREG(child_metadata.st_mode):
+                if child_metadata.st_nlink != 1:
+                    raise FactoryStatusError("unsafe file")
+                fingerprints.append(
+                    (
+                        relative,
+                        child_metadata.st_ino,
+                        child_metadata.st_size,
+                        child_metadata.st_mtime_ns,
+                    )
                 )
-            )
-            if totals is not None:
-                totals[0] += 1
-                totals[1] += child_metadata.st_size
-            if (
-                queue_counts is not None
-                and child.suffix == ".json"
-                and child.parent.name in queue_counts
-            ):
-                queue_counts[child.parent.name] += 1
-            continue
-        if stat.S_ISDIR(child_metadata.st_mode):
-            _scan_tree(root, child, fingerprints, queue_counts, totals, depth + 1)
-            continue
-        raise FactoryStatusError("special file")
+                if totals is not None:
+                    totals[0] += 1
+                    totals[1] += child_metadata.st_size
+                if (
+                    queue_counts is not None
+                    and child.suffix == ".json"
+                    and child.parent.name in queue_counts
+                ):
+                    queue_counts[child.parent.name] += 1
+                continue
+            if stat.S_ISDIR(child_metadata.st_mode):
+                _scan_tree(
+                    root, child, fingerprints, queue_counts, totals, depth + 1, active_budget
+                )
+                continue
+            raise FactoryStatusError("special file")
 
 
 def _pressure(size: int, ceiling: int | None) -> Pressure:
