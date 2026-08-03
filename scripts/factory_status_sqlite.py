@@ -160,11 +160,12 @@ def collect_scheduler(
                 "SELECT COUNT(*) FROM scheduler_execution_state AS e "
                 "LEFT JOIN scheduler_lease AS l ON l.id = 1 "
                 "WHERE e.phase NOT IN ('completed', 'failed') AND (l.id IS NULL "
-                "OR e.lease_expires_at_utc <= ? OR e.lease_owner_id != l.owner_id "
+                "OR l.expires_at_utc <= ? OR e.lease_expires_at_utc <= ? "
+                "OR e.lease_owner_id != l.owner_id "
                 "OR e.lease_owner_pid != l.owner_pid "
                 "OR e.lease_owner_start_token != l.owner_start_token "
                 "OR e.lease_epoch != l.epoch)",
-                (observed_at.isoformat(),),
+                (observed_at.isoformat(), observed_at.isoformat()),
             ).fetchone()[0]
         )
         reasons: tuple[str, ...] = ()

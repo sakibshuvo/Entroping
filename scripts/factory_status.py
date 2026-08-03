@@ -5,6 +5,8 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from shutil import get_terminal_size
+from textwrap import wrap
 
 from scripts.factory_scheduler_root import SchedulerRootError, resolve_scheduler_root
 
@@ -64,34 +66,40 @@ def render_human(report: FactoryStatusReport) -> str:
     )
     lanes = "; ".join(_render_lane(lane) for lane in report.dispatch_lanes.lanes) or "none"
     return "\n".join(
-        (
-            f"Factory status: {report.state}",
-            f"Consistency: {report.snapshot_consistency}",
-            f"Reasons: {reasons}",
-            "Budget: "
-            f"{report.budget.status}; cap={report.budget.cash_cap_microcents}; "
-            f"reserve={report.budget.reserve_microcents}; "
-            f"available={report.budget.net_available_microcents}; "
-            f"subscriptions={report.budget.subscription_charge_microcents}; "
-            f"reservations={report.budget.reservations.active}/{report.budget.reservations.uncertain}/"
-            f"{report.budget.reservations.settled}/{report.budget.reservations.released}; "
-            f"authorizations={report.budget.authorizations.active}/"
-            f"{report.budget.authorizations.uncertain}/{report.budget.authorizations.settled}/"
-            f"{report.budget.authorizations.released}",
-            "Dispatch lanes: "
-            f"{report.dispatch_lanes.status}; ready={report.dispatch_lanes.ready_routes}/"
-            f"{report.dispatch_lanes.active_routes}; quota={report.dispatch_lanes.quota_status}; "
-            f"lanes={lanes}",
-            "Scheduler: "
-            f"{report.scheduler.status}; lease={report.scheduler.lease_state}; "
-            f"paid={report.scheduler.active_paid}; free={report.scheduler.active_free_reviews}; "
-            f"writers={report.scheduler.active_writers}; retry={report.scheduler.retry_waiting}; "
-            f"uncertain={report.scheduler.uncertain}",
-            "Queue: "
-            f"{report.queue.status}; queued={report.queue.queued}; running={report.queue.running}; "
-            f"completed={report.queue.completed}; failed={report.queue.failed}; "
-            f"invalid={report.queue.invalid}",
-            f"Retention: {report.retention.status}; {retention}",
+        _wrap_human_lines(
+            (
+                f"Factory status: {report.state}",
+                f"Consistency: {report.snapshot_consistency}",
+                f"Reasons: {reasons}",
+                "Budget: "
+                f"{report.budget.status}; cap={report.budget.cash_cap_microcents}; "
+                f"reserve={report.budget.reserve_microcents}; "
+                f"available={report.budget.net_available_microcents}; "
+                f"subscriptions={report.budget.subscription_charge_microcents}; "
+                f"reservations={report.budget.reservations.active}/{report.budget.reservations.uncertain}/"
+                f"{report.budget.reservations.settled}/{report.budget.reservations.released}; "
+                f"authorizations={report.budget.authorizations.active}/"
+                f"{report.budget.authorizations.uncertain}/{report.budget.authorizations.settled}/"
+                f"{report.budget.authorizations.released}",
+                "Dispatch lanes: "
+                f"{report.dispatch_lanes.status}; ready={report.dispatch_lanes.ready_routes}/"
+                f"{report.dispatch_lanes.active_routes}; "
+                f"quota={report.dispatch_lanes.quota_status}; "
+                f"lanes={lanes}",
+                "Scheduler: "
+                f"{report.scheduler.status}; lease={report.scheduler.lease_state}; "
+                f"paid={report.scheduler.active_paid}; "
+                f"free={report.scheduler.active_free_reviews}; "
+                f"writers={report.scheduler.active_writers}; "
+                f"retry={report.scheduler.retry_waiting}; "
+                f"uncertain={report.scheduler.uncertain}",
+                "Queue: "
+                f"{report.queue.status}; queued={report.queue.queued}; "
+                f"running={report.queue.running}; "
+                f"completed={report.queue.completed}; failed={report.queue.failed}; "
+                f"invalid={report.queue.invalid}",
+                f"Retention: {report.retention.status}; {retention}",
+            )
         )
     )
 
@@ -111,6 +119,17 @@ def _render_lane(lane: PolicyLaneStatus) -> str:
     )
     reasons = ",".join(lane.reason_codes) or "-"
     return f"{lane.policy_lane_id}:{lane.provider_lane_id or '-'}={lane.status}:{reasons}[{quotas}]"
+
+
+def _wrap_human_lines(lines: tuple[str, ...]) -> tuple[str, ...]:
+    """Wrap the typed public view to the current terminal width without truncation."""
+
+    width = max(20, get_terminal_size(fallback=(100, 20)).columns)
+    return tuple(
+        fragment
+        for line in lines
+        for fragment in (wrap(line, width=width, break_on_hyphens=False) or [""])
+    )
 
 
 def status_exit_code(report: FactoryStatusReport) -> int:
