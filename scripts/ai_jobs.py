@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Queue bounded OpenCode/DeepSeek worker jobs for later Codex review."""
-# noqa: SIZE_OK - standalone queue CLI; splitting its command surface is outside #1568.
 
 from __future__ import annotations
 
@@ -25,6 +24,12 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts import ai_job_fs  # noqa: E402
 from scripts.ai_job_runtime_fs import QueueStateHandles, open_queue_state  # noqa: E402
+from scripts.ai_job_worker_launch import (  # noqa: E402
+    WorkerLaunchError,
+    run_deepseek_worker,
+    run_opencode_worker,
+    validated_worker_artifact_dir,
+)
 from scripts.deepseek_worker_limits import MAX_TIMEOUT_SECONDS  # noqa: E402
 from scripts.factory_control_plane_policy import (  # noqa: E402
     autonomy_tier_from_labels,
@@ -33,13 +38,13 @@ from scripts.factory_control_plane_policy import (  # noqa: E402
 
 if TYPE_CHECKING:
     from scripts.bounded_process import BoundedProcessResult
+    from scripts.factory_paid_dispatch_recovery import PaidDispatchRecovery
     from scripts.provider_capability_types import ProviderCapabilityRegistry
 
 DEFAULT_JOB_ROOT = Path(".entroping") / "ai-jobs"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_FACTORY_COST_POLICY = Path(".entroping") / "factory-cost-policy.json"
 DEFAULT_TIMEOUT_SECONDS = 300.0
-MAX_WORKER_SUPERVISOR_OUTPUT_BYTES = 1_048_576
 STALE_RUNNING_GRACE_SECONDS = 60.0
 SCHEMA_VERSION = "entroping.ai-job.v1"
 CONTEXT_MANIFEST_COMMAND = "scripts/context_pack.sh --mode implementation --manifest"
@@ -205,6 +210,12 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     submit.add_argument(
+        "--work-purpose",
+        choices=("experiment", "essential"),
+        default="experiment",
+        help="Budget purpose for quota/cash thresholds. Default: experiment.",
+    )
+    submit.add_argument(
         "--file",
         dest="files",
         action="append",
@@ -286,6 +297,11 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_FACTORY_COST_POLICY,
         help=("Local paid-dispatch policy. Default: .entroping/factory-cost-policy.json"),
+    )
+    run_next.add_argument(
+        "--test-factory-provider-evidence",
+        type=Path,
+        help=argparse.SUPPRESS,
     )
     run_next.add_argument(
         "--test-factory-project-root",
@@ -437,6 +453,7 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         "file_sha256": file_sha256,
         "timeout_seconds": args.timeout_seconds,
         "attempts": 0,
+        "work_purpose": str(args.work_purpose),
         "created_at": _now(),
         "updated_at": _now(),
     }
@@ -819,6 +836,9 @@ def _job_structure_error(job: dict[str, object]) -> str | None:
     autonomy_tier = job.get("autonomy_tier")
     if autonomy_tier is not None and autonomy_tier not in ("tier_a", "tier_b", "tier_c"):
         return "job autonomy_tier is not supported"
+    work_purpose = job.get("work_purpose")
+    if work_purpose is not None and work_purpose not in ("experiment", "essential"):
+        return "job work_purpose is not supported"
     return None
 
 
@@ -914,6 +934,18 @@ def _run_next_pinned(
     job["updated_at"] = _now()
     queue.write_json("running", claimed_name, job)
 
+    if not bool(getattr(args, "worker_dry_run", False)) and not _paid_launch_authorized(
+        args,
+        repo_root,
+        job,
+    ):
+        return _fail_running_job(
+            queue,
+            claimed_name,
+            job,
+            worker_status="paid-authorization-invalid",
+        )
+
     worker_payload: dict[str, object]
     try:
         worker_payload, worker_process_returncode = _run_worker(args, repo_root, job)
@@ -961,6 +993,22 @@ def _run_next_pinned(
             artifact_dir=artifact_dir,
         )
         job["usage_receipt"] = usage_receipt
+        if isinstance(job.get("dispatch_authorization_id"), str) and not isinstance(
+            job.get("reservation_id"), str
+        ):
+            settlement_error = _settle_quota_dispatch(
+                args,
+                repo_root,
+                job,
+                worker_usage,
+            )
+            if (
+                settlement_error is not None
+                and artifact_validation_error is None
+                and worker_status in SUCCESSFUL_WORKER_STATUSES
+            ):
+                worker_status = settlement_error
+                job["worker_status"] = worker_status
     else:
         worker_usage = _usage_payload(worker_payload.get("usage"))
         usage_receipt = _deepseek_usage_receipt_payload(worker_payload.get("usage_receipt"))
@@ -1110,8 +1158,10 @@ def _dispatch_violation_payload(
     *,
     reason: str,
     suggested_action: str | None = None,
+    decision_code: str | None = None,
+    decision_detail: str | None = None,
 ) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "job_id": job.get("job_id", path.stem),
         "job_path": str(path),
         "queue_status": "queued",
@@ -1122,6 +1172,11 @@ def _dispatch_violation_payload(
             "the plan before --apply"
         ),
     }
+    if decision_code is not None:
+        payload["decision_code"] = decision_code
+    if decision_detail is not None:
+        payload["decision_detail"] = decision_detail
+    return payload
 
 
 def _prepare_paid_dispatch(
@@ -1130,34 +1185,91 @@ def _prepare_paid_dispatch(
     running_path: Path,
     job: dict[str, object],
 ) -> dict[str, object] | None:
-    from scripts.factory_paid_dispatch import PaidDispatchError, prepare_paid_dispatch
+    from scripts.factory_paid_dispatch_models import PaidDispatchError
+    from scripts.factory_paid_dispatch_queue import (
+        FactoryProviderEvidenceError,
+        prepare_queue_paid_dispatch,
+    )
 
     raw_policy = getattr(args, "factory_cost_policy", DEFAULT_FACTORY_COST_POLICY)
     policy_path = Path(raw_policy).expanduser()
     if not policy_path.is_absolute():
         policy_path = repo_root / policy_path
     try:
-        reservation = prepare_paid_dispatch(
+        worker_dry_run = bool(getattr(args, "worker_dry_run", False))
+        test_evidence_path = getattr(args, "test_factory_provider_evidence", None)
+        if test_evidence_path is not None and getattr(
+            args,
+            "test_factory_project_root",
+            None,
+        ) is None:
+            raise PaidDispatchError(
+                "test_root",
+                "test provider evidence requires the loopback test project contract",
+            )
+        reservation = prepare_queue_paid_dispatch(
             _factory_budget_project_root(args, repo_root),
             job,
             registry=_provider_registry(),
             policy_path=policy_path,
+            test_provider_evidence_path=test_evidence_path,
             occurred_at=datetime.now(UTC_TZ),
-            worker_dry_run=bool(getattr(args, "worker_dry_run", False)),
+            worker_dry_run=worker_dry_run,
         )
-    except PaidDispatchError as exc:
+    except (AiJobError, FactoryProviderEvidenceError, PaidDispatchError) as exc:
+        code = (
+            exc.code
+            if isinstance(exc, (FactoryProviderEvidenceError, PaidDispatchError))
+            else "path"
+        )
         return _dispatch_violation_payload(
             job,
             running_path,
             reason="paid-cost-preflight-blocked",
             suggested_action=(
-                "repair the local factory cost policy or choose a non-metered route; "
-                f"dispatch remained queued ({exc.code})"
+                "repair the local factory cost policy or provider evidence; "
+                f"dispatch remained queued ({code})"
+            ),
+            decision_code=code,
+            decision_detail=(
+                exc.detail
+                if isinstance(exc, (FactoryProviderEvidenceError, PaidDispatchError))
+                else str(exc)
             ),
         )
     if reservation is not None:
         job.update(reservation.job_projection())
     return None
+
+
+def _paid_launch_authorized(
+    args: argparse.Namespace,
+    repo_root: Path,
+    job: dict[str, object],
+) -> bool:
+    from scripts.factory_paid_dispatch_queue import paid_launch_authorized
+
+    return paid_launch_authorized(
+        _factory_budget_project_root(args, repo_root),
+        job,
+        occurred_at=datetime.now(UTC_TZ),
+    )
+
+
+def _settle_quota_dispatch(
+    args: argparse.Namespace,
+    repo_root: Path,
+    job: dict[str, object],
+    usage: dict[str, object] | None,
+) -> str | None:
+    from scripts.factory_paid_dispatch_queue import settle_quota_dispatch
+
+    return settle_quota_dispatch(
+        _factory_budget_project_root(args, repo_root),
+        job,
+        usage,
+        occurred_at=datetime.now(UTC_TZ),
+    )
 
 
 def _settle_paid_dispatch(
@@ -1276,7 +1388,7 @@ def _recover_paid_running_job(
     args: argparse.Namespace,
     repo_root: Path,
     job: dict[str, object],
-):
+) -> PaidDispatchRecovery | Literal["error"] | None:
     from scripts.factory_paid_dispatch import PaidDispatchError, recover_paid_dispatch
 
     try:
@@ -1422,25 +1534,10 @@ def _fail_corrupt_claimed_job(
 
 
 def _validated_worker_artifact_dir(artifact_root: Path, raw_value: object) -> str | None:
-    artifact_dir = _optional_string(raw_value)
-    if artifact_dir is None:
-        return None
-    path = Path(artifact_dir).expanduser()
-    if not path.is_absolute():
-        path = artifact_root / path
-    if _has_symlink_component(path):
-        msg = "worker artifact_dir must not use symlink components"
-        raise AiJobError(msg)
-    resolved = path.resolve()
     try:
-        resolved.relative_to(artifact_root)
-    except ValueError as exc:
-        msg = "worker artifact_dir must stay under artifact root"
-        raise AiJobError(msg) from exc
-    if not resolved.is_dir():
-        msg = "worker artifact_dir must be an existing directory"
-        raise AiJobError(msg)
-    return str(resolved)
+        return validated_worker_artifact_dir(artifact_root, raw_value)
+    except WorkerLaunchError as exc:
+        raise AiJobError(str(exc)) from exc
 
 
 def _run_worker(
@@ -1459,50 +1556,18 @@ def _run_worker(
         job.get("timeout_seconds"),
         default=DEFAULT_TIMEOUT_SECONDS,
     )
-    command = [
-        sys.executable,
-        str(repo_root / "scripts" / "opencode_worker.py"),
-        "--mode",
-        str(job["mode"]),
-        "--model",
-        str(job["model"]),
-        "--artifact-root",
-        str(artifact_root),
-        "--timeout-seconds",
-        str(job_timeout_seconds),
-        "--job-id",
-        str(job["job_id"]),
-        "--json",
-    ]
-    for scoped_file in _string_list(job.get("files")):
-        command.extend(["--file", scoped_file])
-    if job.get("issue") is not None:
-        command.extend(["--issue", str(job["issue"])])
-    worker_instruction = _effective_worker_instruction(job)
-    if worker_instruction is not None:
-        command.extend(["--instruction", worker_instruction])
-    if args.opencode_bin is not None:
-        command.extend(["--opencode-bin", str(args.opencode_bin)])
-    if args.worker_dry_run:
-        command.append("--dry-run")
-    _extend_factory_metrics_args(command, args)
-
-    timeout_seconds = job_timeout_seconds + 30.0
     try:
-        completed = run_bounded_process(
-            command,
-            cwd=repo_root,
-            timeout_seconds=timeout_seconds,
-            max_output_bytes=MAX_WORKER_SUPERVISOR_OUTPUT_BYTES,
+        return run_opencode_worker(
+            args,
+            repo_root,
+            job,
+            artifact_root=artifact_root,
+            timeout_seconds=job_timeout_seconds,
+            scoped_files=_string_list(job.get("files")),
+            run_process=run_bounded_process,
         )
     except BoundedProcessError:
         return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
-    if completed.timed_out:
-        return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
-    if completed.output_limit_exceeded:
-        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
-
-    return _parse_worker_payload(completed.stdout, completed.returncode), completed.returncode
 
 
 def _run_deepseek_worker(
@@ -1515,109 +1580,20 @@ def _run_deepseek_worker(
         job.get("timeout_seconds"),
         default=DEFAULT_TIMEOUT_SECONDS,
     )
-    command = [
-        sys.executable,
-        str(repo_root / "scripts" / "deepseek_worker.py"),
-        "--mode",
-        str(job["mode"]),
-        "--model",
-        str(job["model"]),
-        "--artifact-root",
-        str(artifact_root),
-        "--timeout-seconds",
-        str(job_timeout_seconds),
-        "--job-id",
-        str(job["job_id"]),
-        "--base-url",
-        str(args.deepseek_base_url),
-        "--api-key-env",
-        str(args.deepseek_api_key_env),
-        "--thinking",
-        str(args.deepseek_thinking),
-        "--max-request-bytes",
-        str(_direct_request_limit()),
-        "--max-tokens",
-        str(_direct_output_token_limit()),
-        "--json",
-    ]
-    if getattr(args, "allow_insecure_local_deepseek_base_url", False):
-        command.append("--allow-insecure-local-base-url")
-    if args.deepseek_thinking == "enabled":
-        command.extend(["--reasoning-effort", str(args.deepseek_reasoning_effort)])
-    for scoped_file in _string_list(job.get("files")):
-        command.extend(["--file", scoped_file])
-    if job.get("issue") is not None:
-        command.extend(["--issue", str(job["issue"])])
-    worker_instruction = _effective_worker_instruction(job)
-    if worker_instruction is not None:
-        command.extend(["--instruction", worker_instruction])
-    if args.worker_dry_run:
-        command.append("--dry-run")
-    _extend_factory_metrics_args(command, args)
-
-    timeout_seconds = job_timeout_seconds + 30.0
     try:
-        completed = run_bounded_process(
-            command,
-            cwd=repo_root,
-            timeout_seconds=timeout_seconds,
-            max_output_bytes=MAX_WORKER_SUPERVISOR_OUTPUT_BYTES,
+        return run_deepseek_worker(
+            args,
+            repo_root,
+            job,
+            artifact_root=artifact_root,
+            timeout_seconds=job_timeout_seconds,
+            scoped_files=_string_list(job.get("files")),
+            run_process=run_bounded_process,
         )
+    except WorkerLaunchError as exc:
+        raise AiJobError(str(exc)) from exc
     except BoundedProcessError:
         return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
-    if completed.timed_out:
-        return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
-    if completed.output_limit_exceeded:
-        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
-
-    return _parse_worker_payload(completed.stdout, completed.returncode), completed.returncode
-
-
-def _parse_worker_payload(stdout: str, returncode: int) -> dict[str, object]:
-    try:
-        raw_payload: object = json.loads(stdout)
-    except json.JSONDecodeError:
-        return {"status": "failed", "returncode": returncode, "artifact_dir": None}
-    if not isinstance(raw_payload, dict):
-        return {"status": "failed", "returncode": returncode, "artifact_dir": None}
-    payload: dict[str, object] = {}
-    for key, value in raw_payload.items():
-        if isinstance(key, str):
-            payload[key] = value
-    return payload
-
-
-def _direct_request_limit() -> int:
-    from scripts.deepseek_worker_limits import DEFAULT_MAX_REQUEST_BYTES
-
-    return DEFAULT_MAX_REQUEST_BYTES
-
-
-def _direct_output_token_limit() -> int:
-    from scripts.deepseek_worker_limits import DEFAULT_MAX_TOKENS
-
-    return DEFAULT_MAX_TOKENS
-
-
-def _effective_worker_instruction(job: dict[str, object]) -> str | None:
-    for key in ("worker_instruction", "instruction"):
-        value = job.get(key)
-        if isinstance(value, str) and value.strip():
-            return value
-    return None
-
-
-def _extend_factory_metrics_args(command: list[str], args: argparse.Namespace) -> None:
-    if not getattr(args, "record_factory_metrics", False):
-        return
-
-    command.append("--record-factory-metrics")
-    factory_role = getattr(args, "factory_role", None)
-    if factory_role is not None:
-        command.extend(["--factory-role", str(factory_role)])
-    factory_metrics_ledger = getattr(args, "factory_metrics_ledger", None)
-    if factory_metrics_ledger is not None:
-        command.extend(["--factory-metrics-ledger", str(factory_metrics_ledger)])
 
 
 def _status(job_root: Path) -> dict[str, object]:

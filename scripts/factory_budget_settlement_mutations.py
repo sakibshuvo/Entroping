@@ -14,6 +14,7 @@ from .factory_budget_reservation_store import (
     find_reservation_by_public_id,
     settlement_outcome,
 )
+from .factory_quota_settlement import mark_quota_holds_uncertain, settle_quota_holds
 
 
 def post_settlement(
@@ -87,6 +88,12 @@ def post_settlement(
         reason="complete",
         evidence_digest=receipt.provider_session_digest,
     )
+    settle_quota_holds(
+        connection,
+        cash_reservation_id=reservation[0],
+        usage=receipt.usage,
+        occurred_at=occurred_at,
+    )
     return entry_id
 
 
@@ -106,6 +113,11 @@ def record_rejection(
         WHERE id = ?
         """,
         (reason, occurred_at, reservation[0]),
+    )
+    mark_quota_holds_uncertain(
+        connection,
+        cash_reservation_id=reservation[0],
+        occurred_at=occurred_at,
     )
     insert_receipt_event(
         connection,

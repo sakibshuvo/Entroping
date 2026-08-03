@@ -149,6 +149,13 @@ instructions.
 - [[decisions/ADR-0021-core-flat-module-taxonomy|ADR-0021]]
 - [[decisions/ADR-0022-factory-cost-policy-contract|ADR-0022]]
 - [[decisions/ADR-0023-factory-artifact-retention|ADR-0023]]
+- [[decisions/ADR-0024-provider-capability-registry|ADR-0024]]
+- [[decisions/ADR-0025-factory-control-plane-protection|ADR-0025]]
+- [[decisions/ADR-0026-factory-budget-ledger|ADR-0026]]
+- [[decisions/ADR-0027-opencode-unattended-isolation|ADR-0027]]
+- [[decisions/ADR-0028-paid-cost-reservation-settlement|ADR-0028]]
+- [[decisions/ADR-0029-factory-scheduler-authority|ADR-0029]]
+- [[decisions/ADR-0030-factory-provider-quota-authorization|ADR-0030]]
 
 ## Working Loop
 

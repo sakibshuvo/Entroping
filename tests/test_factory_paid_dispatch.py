@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import sqlite3
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -13,12 +14,39 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.factory_budget_ledger import FactoryBudgetLedger  # noqa: E402
+from scripts.factory_cost_policy_models import FactoryCostPolicy  # noqa: E402
 from scripts.factory_paid_dispatch import (  # noqa: E402
     PaidDispatchError,
     prepare_paid_dispatch,
     recover_paid_dispatch,
+    revalidate_or_release_paid_dispatch,
+    revalidate_paid_dispatch,
     settle_paid_dispatch,
 )
+from scripts.factory_paid_dispatch_policy import require_policy_quota_window  # noqa: E402
+from scripts.factory_quota_models import (  # noqa: E402
+    QuotaObservation,
+    QuotaWindow,
+    TopUpAttestation,
+    subscription_cycle_window,
+    utc_month_window,
+)
+
+
+def _top_up(now: datetime) -> TopUpAttestation:
+    return TopUpAttestation(
+        attestation_id="deepseek-topup-disabled",
+        provider_id="deepseek",
+        provider_lane_id="deepseek-api/direct",
+        policy_id="paid-worker-policy",
+        policy_revision=3,
+        mode="disabled",
+        source_kind="provider-policy-export",
+        source_id="deepseek-account-policy",
+        evidence_digest="f" * 64,
+        observed_at=now - timedelta(minutes=1),
+        expires_at=now + timedelta(minutes=10),
+    )
 
 
 def _write_policy(path: Path, *, now: datetime, model_id: str) -> Path:
@@ -95,6 +123,299 @@ def _direct_job() -> dict[str, object]:
     }
 
 
+def _policy_with_quota(
+    tmp_path: Path,
+    *,
+    now: datetime,
+    window: dict[str, object],
+    subscriptions: list[dict[str, object]] | None = None,
+) -> FactoryCostPolicy:
+    path = _write_policy(
+        tmp_path / "policy-with-quota.json",
+        now=now,
+        model_id="deepseek/deepseek-v4-pro",
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["subscriptions"] = subscriptions or []
+    payload["provider_quotas"] = [
+        {
+            "id": "deepseek-quota",
+            "provider_id": "deepseek",
+            "unit": "requests",
+            "limit": 100,
+            "window": window,
+        }
+    ]
+    payload["automation_lanes"][0]["quota_ids"] = ["deepseek-quota"]
+    return FactoryCostPolicy.model_validate_json(json.dumps(payload), strict=True)
+
+
+def _quota_observation(now: datetime, window: QuotaWindow) -> QuotaObservation:
+    return QuotaObservation(
+        observation_id="deepseek-quota-observation",
+        quota_id="deepseek-quota",
+        provider_id="deepseek",
+        provider_lane_id="deepseek-api/direct",
+        policy_id="paid-worker-policy",
+        policy_revision=3,
+        unit="requests",
+        source_kind="provider-usage-export",
+        source_id="deepseek-usage",
+        observed_at=now - timedelta(minutes=1),
+        recorded_at=now - timedelta(seconds=30),
+        expires_at=now + timedelta(minutes=10),
+        window=window,
+        used_units=0,
+        known=True,
+        evidence_digest="a" * 64,
+    )
+
+
+def test_policy_rejects_provider_rolling_window_with_wrong_duration(tmp_path: Path) -> None:
+    now = datetime(2026, 7, 29, 20, 0, tzinfo=UTC)
+    policy = _policy_with_quota(
+        tmp_path,
+        now=now,
+        window={"kind": "rolling", "duration_seconds": 18_000},
+    )
+    observation = _quota_observation(
+        now,
+        QuotaWindow("rolling", now - timedelta(hours=1), now + timedelta(hours=1), None),
+    )
+
+    with pytest.raises(PaidDispatchError, match="policy duration"):
+        require_policy_quota_window(
+            policy,
+            policy.provider_quotas[0],
+            observation,
+            decision_at=now,
+        )
+
+
+def test_policy_requires_exact_utc_calendar_month_window(tmp_path: Path) -> None:
+    now = datetime(2026, 7, 29, 20, 0, tzinfo=UTC)
+    policy = _policy_with_quota(
+        tmp_path,
+        now=now,
+        window={"kind": "calendar_month", "timezone": "UTC"},
+    )
+    exact = _quota_observation(now, utc_month_window(now))
+    require_policy_quota_window(
+        policy,
+        policy.provider_quotas[0],
+        exact,
+        decision_at=now,
+    )
+    shifted = _quota_observation(
+        now,
+        QuotaWindow(
+            "calendar_month",
+            datetime(2026, 7, 2, tzinfo=UTC),
+            datetime(2026, 8, 2, tzinfo=UTC),
+            None,
+        ),
+    )
+    with pytest.raises(PaidDispatchError, match="policy boundary"):
+        require_policy_quota_window(
+            policy,
+            policy.provider_quotas[0],
+            shifted,
+            decision_at=now,
+        )
+
+
+def test_policy_requires_exact_annual_subscription_cycle_and_id(tmp_path: Path) -> None:
+    now = datetime(2028, 2, 29, tzinfo=UTC)
+    subscription_id = "deepseek-annual-plan"
+    policy = _policy_with_quota(
+        tmp_path,
+        now=now,
+        window={"kind": "subscription_cycle", "subscription_id": subscription_id},
+        subscriptions=[
+            {
+                "id": subscription_id,
+                "provider_id": "deepseek",
+                "charge_microcents": 1,
+                "renewal": {
+                    "kind": "annual",
+                    "timezone": "UTC",
+                    "month": 2,
+                    "day": 29,
+                    "invalid_date_behavior": "last_day",
+                },
+            }
+        ],
+    )
+    cycle_id = "deepseek-annual-plan-2028-02-29"
+    exact_window = subscription_cycle_window(
+        now,
+        renewal_month=2,
+        renewal_day=29,
+        cycle_id=cycle_id,
+    )
+    exact = _quota_observation(now, exact_window)
+    require_policy_quota_window(
+        policy,
+        policy.provider_quotas[0],
+        exact,
+        decision_at=now,
+    )
+    with pytest.raises(PaidDispatchError, match="cycle id"):
+        require_policy_quota_window(
+            policy,
+            policy.provider_quotas[0],
+            _quota_observation(
+                now,
+                QuotaWindow(
+                    "subscription_cycle",
+                    exact_window.starts_at,
+                    exact_window.ends_at,
+                    "wrong-cycle",
+                ),
+            ),
+            decision_at=now,
+        )
+
+
+def test_included_quota_launch_revalidation_releases_expired_hold(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 7, 29, 20, 0, tzinfo=UTC)
+    policy_path = _write_policy(
+        tmp_path / "included-policy.json",
+        now=now,
+        model_id="deepseek/deepseek-v4-pro",
+    )
+    payload = json.loads(policy_path.read_text(encoding="utf-8"))
+    payload["provider_quotas"] = [
+        {
+            "id": "deepseek-five-hour-requests",
+            "provider_id": "deepseek",
+            "unit": "requests",
+            "limit": 100,
+            "window": {"kind": "rolling", "duration_seconds": 18_000},
+        }
+    ]
+    payload["automation_lanes"] = [
+        {
+            "id": "deepseek-included",
+            "provider_id": "deepseek",
+            "billing_mode": "included_quota",
+            "enabled": True,
+            "quota_ids": ["deepseek-five-hour-requests"],
+        }
+    ]
+    policy_path.write_text(json.dumps(payload), encoding="utf-8")
+    job: dict[str, object] = {
+        "job_id": "job-included",
+        "engine": "opencode",
+        "model": "opencode/deepseek-v4-flash-free",
+        "timeout_seconds": 300,
+    }
+    top_up = TopUpAttestation(
+        attestation_id="included-topup-disabled",
+        provider_id="deepseek",
+        provider_lane_id="opencode/native-deepseek",
+        policy_id="paid-worker-policy",
+        policy_revision=3,
+        mode="disabled",
+        source_kind="provider-policy-export",
+        source_id="deepseek-account-policy",
+        evidence_digest="f" * 64,
+        observed_at=now - timedelta(minutes=1),
+        expires_at=now + timedelta(minutes=10),
+    )
+    observation = QuotaObservation(
+        observation_id="included-quota-observation",
+        quota_id="deepseek-five-hour-requests",
+        provider_id="deepseek",
+        provider_lane_id="opencode/native-deepseek",
+        policy_id="paid-worker-policy",
+        policy_revision=3,
+        unit="requests",
+        source_kind="provider-usage-export",
+        source_id="deepseek-usage",
+        observed_at=now - timedelta(minutes=1),
+        recorded_at=now - timedelta(seconds=30),
+        expires_at=now + timedelta(seconds=1),
+        window=QuotaWindow(
+            "rolling",
+            now - timedelta(hours=1),
+            now + timedelta(hours=4),
+            None,
+        ),
+        used_units=0,
+        known=True,
+        evidence_digest="a" * 64,
+    )
+
+    authorization = prepare_paid_dispatch(
+        tmp_path,
+        job,
+        policy_path=policy_path,
+        occurred_at=now,
+        worker_dry_run=False,
+        top_up_attestation=top_up,
+        quota_observations=(observation,),
+    )
+    assert authorization is not None
+    job.update(authorization.job_projection())
+
+    assert revalidate_or_release_paid_dispatch(
+        tmp_path,
+        job,
+        occurred_at=now + timedelta(seconds=1),
+    ) is False
+    with sqlite3.connect(FactoryBudgetLedger.open_project(tmp_path).db_path) as connection:
+        assert connection.execute(
+            "SELECT state, actual_units FROM quota_holds"
+        ).fetchone() == ("released", 0)
+
+
+def test_consumed_paid_authorization_cannot_launch_or_release_twice(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 7, 29, 20, 0, tzinfo=UTC)
+    policy = _write_policy(
+        tmp_path / "policy.json",
+        now=now,
+        model_id="deepseek/deepseek-v4-pro",
+    )
+    job = _direct_job()
+    reservation = prepare_paid_dispatch(
+        tmp_path,
+        job,
+        policy_path=policy,
+        occurred_at=now,
+        worker_dry_run=False,
+        top_up_attestation=_top_up(now),
+    )
+    assert reservation is not None
+    job.update(reservation.job_projection())
+
+    assert revalidate_or_release_paid_dispatch(
+        tmp_path,
+        job,
+        occurred_at=now + timedelta(seconds=1),
+    ) is True
+    assert revalidate_or_release_paid_dispatch(
+        tmp_path,
+        job,
+        occurred_at=now + timedelta(seconds=2),
+    ) is False
+
+    cash = FactoryBudgetLedger.reservation_for_job_readonly(
+        tmp_path,
+        "job-paid-direct",
+    )
+    assert cash is not None
+    assert cash.state == "dispatching"
+    with sqlite3.connect(FactoryBudgetLedger.open_project(tmp_path).db_path) as connection:
+        assert connection.execute(
+            "SELECT state FROM dispatch_authorizations WHERE job_id = 'job-paid-direct'"
+        ).fetchone() == ("launched",)
+
+
 def test_paid_dispatch_reserves_worst_case_and_settles_provider_usage(
     tmp_path: Path,
 ) -> None:
@@ -112,11 +433,23 @@ def test_paid_dispatch_reserves_worst_case_and_settles_provider_usage(
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
 
     assert reservation is not None
     assert reservation.held_microcents == 40_328
     job.update(reservation.job_projection())
+    assert revalidate_paid_dispatch(
+        tmp_path,
+        job,
+        occurred_at=now + timedelta(minutes=1),
+    ).authorization_id == reservation.authorization_id
+    with pytest.raises(PaidDispatchError, match="invalid or expired"):
+        revalidate_paid_dispatch(
+            tmp_path,
+            job,
+            occurred_at=now + timedelta(minutes=5),
+        )
     outcome = settle_paid_dispatch(
         tmp_path,
         job,
@@ -181,6 +514,7 @@ def test_paid_dispatch_rejects_non_finite_or_excessive_timeout(
             policy_path=policy,
             occurred_at=now,
             worker_dry_run=False,
+            top_up_attestation=_top_up(now),
         )
 
     assert not (tmp_path / ".entroping" / "factory-budget").exists()
@@ -236,6 +570,7 @@ def test_paid_dispatch_recovery_finds_crash_window_hold_by_job_id(
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
 
@@ -274,6 +609,7 @@ def test_paid_dispatch_recovery_terminalizes_already_settled_job(
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
     job.update(reservation.job_projection())
@@ -328,6 +664,7 @@ def test_paid_dispatch_verified_pre_network_block_releases_hold(
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
     job.update(reservation.job_projection())
@@ -372,6 +709,7 @@ def test_paid_dispatch_missing_worker_receipt_preserves_hold_as_uncertain(
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
     job.update(reservation.job_projection())
@@ -407,6 +745,7 @@ def test_paid_dispatch_zero_usage_receipt_preserves_hold_as_uncertain(
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
     job.update(reservation.job_projection())
@@ -454,6 +793,7 @@ def test_paid_dispatch_receipt_must_match_validated_artifact_run(tmp_path: Path)
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
     job.update(reservation.job_projection())
@@ -501,6 +841,7 @@ def test_paid_dispatch_no_charge_receipt_requires_bound_identity(tmp_path: Path)
         policy_path=policy,
         occurred_at=now,
         worker_dry_run=False,
+        top_up_attestation=_top_up(now),
     )
     assert reservation is not None
     job.update(reservation.job_projection())

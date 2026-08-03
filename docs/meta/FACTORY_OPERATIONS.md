@@ -311,6 +311,9 @@ Version 1 has these fixed semantics:
 - Provider quotas are independent of cash. Rolling five-hour (18,000-second),
   rolling weekly (604,800-second), UTC calendar-month, and subscription-cycle
   windows do not add cash or reset the cash ledger.
+- Every paid or quota-backed provider-registry lane declares a
+  `policy_provider_id` that joins the route to policy and quota evidence.
+  Unknown or unmapped provider identities fail closed.
 - Automatic top-up is always `disabled`. Unknown cost blocks paid dispatch;
   unknown quota blocks only the affected paid lane. Safe offline work remains
   outside this policy surface.
@@ -334,12 +337,12 @@ observation remains downstream.
 The ignored `.entroping/factory-budget/ledger.sqlite3` database is the
 authoritative local record of factory cash activity. Dashboard metrics and
 worker receipts may summarize it, but they are not spending authority. Version
-2 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
+3 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
 calendar months. A period records the reviewed cash cap and an emergency
 reserve allocation; that allocation is a non-spendable reserve inside the cap,
 not a cash charge.
 
-Ledger schema version 2 uses a global idempotency key whose SHA-256 digest is stored and
+Ledger schema version 3 uses a global idempotency key whose SHA-256 digest is stored and
 bound to the complete normalized payload. An exact replay is a no-op; reuse
 with different evidence fails closed. Fixed subscription and provider charges
 are debits. A refund is a credit linked to its original charge, must match its
@@ -394,13 +397,71 @@ uv run python -m scripts.factory_budget_ledger balance \
   --repo /absolute/path/to/Entroping --period 2026-07-01
 ```
 
-Before a metered queue worker launches, `scripts/ai_jobs.py run-next` loads the
+Before remote queue work launches, the coordinator loads the
 reviewed local cost policy, requires an enabled lane with fresh price terms,
-initializes the matching UTC period, and atomically reserves the route's
-worst-case enforceable usage. The durable ledger hold is authoritative; the
-job's `reservation_id` and `settlement_state` are recoverable projections.
-Included-quota and fixed-subscription routes do not create cash holds. Worker
-dry runs remain value-free.
+initializes the matching UTC period, and uses one `BEGIN IMMEDIATE` transaction
+to validate cash thresholds, every referenced quota observation, and fresh
+provider/lane/policy disabled-top-up evidence before reserving all holds. The
+durable `dispatch_authorization_id` is authoritative; `reservation_id` exists
+only for metered cash. Included-quota and fixed-subscription routes do not
+create cash holds, and quota never grants cash authority. For metered routes,
+this transaction reserves the route's worst-case enforceable usage. Worker dry
+runs remain value-free.
+
+The maintainer-only queue adapter reads provider evidence only from
+`.entroping/factory-provider-evidence.json`; production has no path override.
+The parent directory and file must be owned by the current user and must not be
+group- or world-writable. The bounded UTF-8 JSON document is strict and closed,
+rejects symlinks and secret-like content, and carries only identity-bound
+top-up attestations and quota observations.
+
+The document is an HMAC-SHA-256 maintainer attestation with key id
+`maintainer-local-v1`. Provision exactly 32 random key bytes as lowercase hex
+through `ENTROPING_FACTORY_PROVIDER_EVIDENCE_HMAC_KEY_V1` in the trusted
+coordinator environment. Keep that variable out of worker environments,
+repository files, queue state, logs, and artifacts. A trusted provider adapter
+may use `provider_evidence_signature()` to produce the envelope; raw unsigned,
+modified, or differently keyed JSON is non-authoritative and blocks dispatch.
+Rotation requires a reviewed new key id and supervisor secret. Raw evidence and
+the key are never copied into queue jobs, worker artifacts, or the ledger; the
+ledger stores only a computed envelope digest and bounded authority fields.
+The queue supervisor enforces this boundary with an explicit worker-environment
+allowlist and passes only the configured provider API-key variable. It rejects
+the evidence HMAC variable when named as a worker provider credential.
+
+Every new queue job records `work_purpose` explicitly. The conservative default
+is `experiment`; maintainers must opt into `essential` at submission. A blocked
+`ai_jobs run-next` result includes a stable `decision_code` and sanitized
+`decision_detail`, so the 80%, 90%, 100%, quota, policy, and evidence boundary
+remains observable without copying provider artifacts. Full read-only budget
+and quota status aggregation remains owned by issue #1572.
+
+Observation and authorization expiry are exclusive. Unknown, stale, future,
+regressing, or identity-mismatched quota evidence blocks only the affected
+remote lane; offline/read-only work is unaffected. Scheduler receipts remain
+`paid_work_authorized: false`. Provider launch atomically revalidates and
+consumes the authorization immediately before execution, so expiry, release,
+or uncertainty cannot make the same authority launchable twice. Rolling
+evidence must match the declared duration exactly,
+UTC-month evidence must use the exact calendar boundary, and subscription
+evidence must match the declared renewal boundary. Authenticated observation
+timestamps do not imply that provider usage includes a local settlement.
+Every overlapping settlement remains charged unless the signed observation
+explicitly lists its authorization id in a canonical inclusion boundary.
+Missing or empty inclusion evidence therefore fails conservatively without
+double counting confirmed inclusions. Overlapping active or uncertain holds
+remain charged, while non-overlapping expired-cycle holds do not leak across a
+real reset. Older authenticated observations cannot roll a lane backward.
+Subscription cycle ids use
+`<subscription-id>-YYYY-MM-DD` for the UTC cycle start.
+Settlement, release, and uncertainty timestamps must not precede the current
+authorization lifecycle timestamp. A backdated transition fails atomically and
+preserves both the existing authorization state and its quota holds.
+
+The provider launch transaction rechecks the current experiment, metered, and
+all-in cash thresholds immediately before consuming authority. Terminal
+quota-only settlement binds the complete usage envelope even when no quota
+dimension created a hold.
 
 Direct DeepSeek is currently the only supported metered queue lane. Its request
 bytes and completion tokens are bounded before the network call, and a strict
@@ -408,11 +469,12 @@ receipt binds job id, requested and reported model, token counts, local run, and
 the SHA-256 digest of the provider session. The raw provider session is not
 stored in queue metadata or persisted response JSON. Metered OpenCode remains
 blocked because its current host contract cannot enforce a worst-case usage
-ceiling; choose an included-quota route or use direct DeepSeek with a reviewed
-policy instead.
+ceiling. The registered OpenCode flash-free route uses the included-quota
+authorization, single-use launch, and quota-settlement boundary; choose that
+route or direct DeepSeek with a reviewed policy instead.
 
-Version 1 ledgers do not migrate implicitly. Run the explicit migration once,
-then inspect the sanitized balance:
+Version 1 and version 2 ledgers do not migrate implicitly. Run the explicit
+transactional migration to version 3 once, then inspect the sanitized balance:
 
 ```text
 uv run python -m scripts.factory_budget_ledger migrate \
@@ -420,6 +482,10 @@ uv run python -m scripts.factory_budget_ledger migrate \
 uv run python -m scripts.factory_budget_ledger balance \
   --repo /absolute/path/to/Entroping --period 2026-07-01
 ```
+
+For included-quota work, verified OpenCode usage settles quota holds without a
+cash reservation. A verified pre-network authorization failure releases the
+quota hold; ambiguous post-launch usage leaves it uncertain.
 
 If a provider call is interrupted or its receipt is missing, malformed,
 partial, conflicting, mismatched, or above the reserved ceiling, the hold stays

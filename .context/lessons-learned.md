@@ -2,6 +2,44 @@
 
 ## 2026-07-29
 
+- Cash and provider quota cannot be safely admitted through separate
+  authorizing stores. Keep quota dimensions independent but commit cash, every
+  quota hold, top-up evidence, and job authorization in one ledger transaction.
+- Provider observation is not available capacity by itself, and timestamp
+  ordering cannot prove whether its usage total includes a local settlement.
+  Keep every overlapping settlement additive unless authenticated evidence
+  explicitly names its authorization id; an empty inclusion boundary is the
+  safe default. Continue adding active and uncertain holds even when a rolling
+  window shifts.
+- Schema validation and a caller-supplied digest do not make provider evidence
+  authoritative. Authenticate every authority-bearing field with a key outside
+  the worker and artifact boundary, accept only the protected default path, and
+  persist a computed envelope digest.
+- Scope active and uncertain quota holds to overlapping windows. This preserves
+  shifted rolling protection without falsely carrying an expired hold across a
+  real reset, while monotonic authenticated observation time prevents rollback.
+- Evidence-local window bounds are not a policy contract. Validate rolling
+  duration and exact calendar/subscription boundaries before those bounds can
+  key capacity accounting, and settle quota-only work independently from cash.
+- Provider launch validation must consume durable authority in the same writer
+  transaction. A read-only check followed by process start leaves an expiry,
+  release, or uncertainty race and allows the same authority to be reused.
+- Launch revalidation must include current cash thresholds, not only the
+  original reservation state. Terminal settlement also needs its own full usage
+  digest because a zero-hold authorization has no quota rows to prove replay.
+- Authorization event time is security state, not descriptive metadata. Check
+  every settlement, release, and uncertainty timestamp against the current
+  lifecycle high-water mark before changing quota holds, including cash-backed
+  paths that mutate both reservation and authorization state.
+- Keeping a coordinator-only key out of artifacts is insufficient when worker
+  wrappers inherit the coordinator environment. Build worker environments from
+  a small allowlist, pass only the selected provider credential, and reject the
+  authority key name as a configurable provider-key alias.
+- A positive emergency reserve makes the nominal 100 percent cash-cap state
+  unreachable through valid ledger writes. Test that earlier reserve boundary
+  explicitly, while testing reachable 80 and 90 percent transitions again at
+  launch rather than constructing an invalid zero-reserve period.
+
 - Validation across two SQLite authorities needs an explicit linearization
   point, not an implied distributed transaction. Acquire the budget ledger
   writer guard before the scheduler writer transaction, hold it through

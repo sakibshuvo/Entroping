@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 from scripts.factory_budget_ledger import (
@@ -23,6 +24,17 @@ def budget_reservation_handoff(
     request: AssignmentRequest,
 ) -> Generator[bool | None, None, None]:
     try:
+        if request.authorization_id is not None:
+            with FactoryBudgetLedger.authorization_for_scheduler_handoff(
+                project_root,
+                request.job_id,
+                as_of=datetime.now(UTC),
+            ) as authorization:
+                yield (
+                    authorization is not None
+                    and authorization.authorization_id == request.authorization_id
+                )
+            return
         with FactoryBudgetLedger.reservation_for_scheduler_handoff(
             project_root,
             request.job_id,

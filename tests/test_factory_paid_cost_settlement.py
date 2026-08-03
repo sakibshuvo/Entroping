@@ -515,15 +515,15 @@ def test_reservation_state_is_recoverable_by_job_identity(tmp_path: Path) -> Non
     assert recovered.state == "dispatching"
 
 
-def test_schema_v2_preserves_exact_hold_projection(tmp_path: Path) -> None:
+def test_schema_v3_preserves_exact_hold_projection(tmp_path: Path) -> None:
     ledger = _open_ledger(tmp_path)
     reservation = ledger.reserve_for_dispatch(_reservation())
 
     with sqlite3.connect(ledger.db_path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (2,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (3,)
         assert connection.execute(
             "SELECT value FROM ledger_metadata WHERE key = 'schema_version'"
-        ).fetchone() == ("entroping.factory-budget-ledger.v2",)
+        ).fetchone() == ("entroping.factory-budget-ledger.v3",)
         assert connection.execute(
             "SELECT active_reserved_microcents FROM budget_periods"
         ).fetchone() == (60,)

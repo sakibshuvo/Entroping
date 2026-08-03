@@ -104,6 +104,7 @@ class ProviderLane(StrictRegistryModel):
     capabilities: Annotated[tuple[Capability, ...], Field(min_length=1, max_length=16)]
     autonomy_ceiling: AutonomyTier
     usage_accounting: UsageAccounting
+    policy_provider_id: CostProviderIdentifier | None = None
     cost_provider_id: CostProviderIdentifier | None = None
     lifecycle: Lifecycle
     unlisted_model_policy: UnlistedModelPolicy
@@ -156,6 +157,25 @@ class ProviderLane(StrictRegistryModel):
             raise PydanticCustomError(
                 "unused_cost_provider",
                 "a lane without metered models must not declare cost_provider_id",
+            )
+        if (
+            self.cost_provider_id is not None
+            and self.policy_provider_id is not None
+            and self.cost_provider_id != self.policy_provider_id
+        ):
+            raise PydanticCustomError(
+                "policy_cost_provider",
+                "metered cost and policy provider identities must match",
+            )
+        if self.billing_kind != "offline" and self.policy_provider_id is None:
+            raise PydanticCustomError(
+                "missing_policy_provider",
+                "paid and quota-backed lanes require a policy provider identity",
+            )
+        if self.billing_kind == "offline" and self.policy_provider_id is not None:
+            raise PydanticCustomError(
+                "offline_policy_provider",
+                "offline lanes must not declare a policy provider identity",
             )
         return self
 

@@ -25,6 +25,7 @@ from .factory_budget_reservation_store import (
     settlement_outcome,
 )
 from .factory_budget_reservation_validation import require_identifier, require_sha256
+from .factory_quota_settlement import mark_quota_holds_uncertain, release_quota_holds
 
 
 def reconcile_no_charge(
@@ -140,13 +141,23 @@ def _reconcile(
             connection,
             reservation=reservation,
             event_digest=event_digest,
-            event_type=(
-                "reconciled_manual_debit" if amount > 0 else "reconciled_no_charge"
-            ),
+            event_type=("reconciled_manual_debit" if amount > 0 else "reconciled_no_charge"),
             occurred_at=occurred_at,
             reason=reason,
             evidence_digest=evidence_digest,
         )
+        if amount == 0:
+            release_quota_holds(
+                connection,
+                cash_reservation_id=reservation[0],
+                occurred_at=occurred_at,
+            )
+        else:
+            mark_quota_holds_uncertain(
+                connection,
+                cash_reservation_id=reservation[0],
+                occurred_at=occurred_at,
+            )
         updated = _required_reservation(connection, reservation_id)
         outcome = settlement_outcome(updated, created=True)
         _ = connection.execute("COMMIT")

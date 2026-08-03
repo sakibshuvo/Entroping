@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager
 from datetime import date, datetime
 from pathlib import Path
 
@@ -18,9 +16,9 @@ from .factory_budget_ledger_models import (
     canonical_utc_month,
 )
 from .factory_budget_ledger_periods import initialize_period, period_summary
+from .factory_budget_ledger_quota_facade import FactoryQuotaLedgerFacade
 from .factory_budget_ledger_reporting import balance_from_period
 from .factory_budget_ledger_storage import (
-    existing_writable_connection,
     migrate_ledger,
     prepare_ledger,
     readonly_connection,
@@ -48,14 +46,17 @@ from .factory_budget_reservations import (
 )
 from .factory_budget_settlement import settle_reservation
 from .factory_budget_uncertainty import mark_reservation_uncertain
+from .factory_scheduler_ledger_handoff import (
+    reservation_handoff,
+)
 
 
-class FactoryBudgetLedger:
+class FactoryBudgetLedger(FactoryQuotaLedgerFacade):
     project_root: Path
     db_path: Path
 
     def __init__(self, project_root: Path, db_path: Path) -> None:
-        self.project_root = project_root
+        super().__init__(project_root)
         self.db_path = db_path
 
     @classmethod
@@ -112,34 +113,12 @@ class FactoryBudgetLedger:
             return reservation_for_job(connection, job_id)
 
     @classmethod
-    @contextmanager
     def reservation_for_scheduler_handoff(
         cls,
         project_root: Path,
         job_id: str,
-    ) -> Generator[CostReservationReceipt | None, None, None]:
-        with existing_writable_connection(project_root) as connection:
-            try:
-                _ = connection.execute("BEGIN IMMEDIATE")
-                yield reservation_for_job(connection, job_id)
-                _ = connection.execute("ROLLBACK")
-            except sqlite3.OperationalError as exc:
-                if connection.in_transaction:
-                    _ = connection.execute("ROLLBACK")
-                detail = str(exc).casefold()
-                if "locked" in detail or "busy" in detail:
-                    raise FactoryBudgetLedgerError(
-                        "busy",
-                        "ledger database is busy",
-                    ) from exc
-                raise FactoryBudgetLedgerError(
-                    "database",
-                    "ledger reservation handoff failed",
-                ) from exc
-            except BaseException:
-                if connection.in_transaction:
-                    _ = connection.execute("ROLLBACK")
-                raise
+    ) -> AbstractContextManager[CostReservationReceipt | None]:
+        return reservation_handoff(project_root, job_id)
 
     def settle_reservation(self, receipt: SettlementReceipt) -> SettlementOutcome:
         with writable_connection(self.project_root) as connection:

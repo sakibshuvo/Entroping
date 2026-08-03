@@ -8,9 +8,13 @@ from .factory_budget_ledger_integrity import validate_ledger_integrity
 from .factory_budget_ledger_models import FactoryBudgetLedgerError
 from .factory_budget_ledger_rows import integer_row, metadata_rows, schema_objects
 from .factory_budget_reservation_schema import RESERVATION_SCHEMA_STATEMENTS
+from .factory_quota_integrity import validate_quota_integrity
+from .factory_quota_schema import QUOTA_SCHEMA_STATEMENTS
 
-LEDGER_SCHEMA_VERSION = 2
-LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v2"
+LEDGER_SCHEMA_VERSION = 3
+LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v3"
+PREVIOUS_LEDGER_SCHEMA_VERSION = 2
+PREVIOUS_LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v2"
 LEGACY_LEDGER_SCHEMA_VERSION = 1
 LEGACY_LEDGER_SCHEMA_ID = "entroping.factory-budget-ledger.v1"
 
@@ -110,7 +114,9 @@ BASE_SCHEMA_STATEMENTS = (
     """,
 )
 
-SCHEMA_STATEMENTS = BASE_SCHEMA_STATEMENTS + RESERVATION_SCHEMA_STATEMENTS
+SCHEMA_STATEMENTS = (
+    BASE_SCHEMA_STATEMENTS + RESERVATION_SCHEMA_STATEMENTS + QUOTA_SCHEMA_STATEMENTS
+)
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
@@ -161,6 +167,7 @@ def validate_schema(connection: sqlite3.Connection) -> None:
         if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
             raise FactoryBudgetLedgerError("integrity", "ledger foreign keys are invalid")
         validate_ledger_integrity(connection)
+        validate_quota_integrity(connection)
     except FactoryBudgetLedgerError:
         raise
     except sqlite3.DatabaseError as exc:

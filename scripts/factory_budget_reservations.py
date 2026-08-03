@@ -30,63 +30,9 @@ def reserve_for_dispatch(
     connection: sqlite3.Connection,
     request: CostReservationRequest,
 ) -> CostReservationReceipt:
-    request.validate()
-    digest = idempotency_digest(request.idempotency_key)
-    public_id = public_reservation_id(request.idempotency_key)
     try:
         _ = connection.execute("BEGIN IMMEDIATE")
-        existing = find_reservation_by_digest(connection, digest)
-        if existing is not None:
-            require_exact_reservation_replay(connection, existing, request, public_id)
-            receipt = reservation_receipt(existing, created=False)
-            _ = connection.execute("COMMIT")
-            return receipt
-        if find_reservation_by_job(connection, request.job_id) is not None:
-            raise FactoryBudgetLedgerError("job", "job already has a cost reservation")
-        require_reservation_capacity(connection, price_count=len(request.price_terms))
-        require_reservation_event_capacity(connection)
-        period = _period_authority(connection, request)
-        if period_reservation_limit_reached(connection, period[0]):
-            raise FactoryBudgetLedgerError("limit", "budget period reservation limit reached")
-        available = (period[1] - period[2]) - max(period[3], 0) - period[4]
-        held = request.worst_case_microcents
-        if held > available:
-            raise FactoryBudgetLedgerError("budget", "reservation exceeds available budget")
-        reservation_id = _insert_reservation(
-            connection,
-            request=request,
-            digest=digest,
-            public_id=public_id,
-            period_id=period[0],
-            held=held,
-        )
-        _insert_prices(connection, reservation_id, request.price_terms)
-        _ = connection.execute(
-            """
-            INSERT INTO cost_reservation_events(
-                reservation_id, idempotency_digest, event_type,
-                resulting_state, occurred_at_utc, reason,
-                evidence_digest, receipt_digest
-            ) VALUES (?, ?, 'dispatch_reserved', 'dispatching', ?, NULL, NULL, NULL)
-            """,
-            (
-                reservation_id,
-                idempotency_digest(f"dispatch-event:{request.idempotency_key}"),
-                request.occurred_at_utc,
-            ),
-        )
-        _ = connection.execute(
-            """
-            UPDATE budget_periods
-            SET active_reserved_microcents = active_reserved_microcents + ?
-            WHERE id = ?
-            """,
-            (held, period[0]),
-        )
-        created = find_reservation_by_public_id(connection, public_id)
-        if created is None:
-            raise FactoryBudgetLedgerError("database", "reservation insert was not observable")
-        receipt = reservation_receipt(created, created=True)
+        receipt = reserve_for_dispatch_locked(connection, request)
         _ = connection.execute("COMMIT")
         return receipt
     except FactoryBudgetLedgerError:
@@ -105,6 +51,63 @@ def reserve_for_dispatch(
         raise FactoryBudgetLedgerError("database", "reservation write failed") from exc
 
 
+def reserve_for_dispatch_locked(
+    connection: sqlite3.Connection,
+    request: CostReservationRequest,
+) -> CostReservationReceipt:
+    request.validate()
+    digest = idempotency_digest(request.idempotency_key)
+    public_id = public_reservation_id(request.idempotency_key)
+    existing = find_reservation_by_digest(connection, digest)
+    if existing is not None:
+        require_exact_reservation_replay(connection, existing, request, public_id)
+        return reservation_receipt(existing, created=False)
+    if find_reservation_by_job(connection, request.job_id) is not None:
+        raise FactoryBudgetLedgerError("job", "job already has a cost reservation")
+    require_reservation_capacity(connection, price_count=len(request.price_terms))
+    require_reservation_event_capacity(connection)
+    period = _period_authority(connection, request)
+    if period_reservation_limit_reached(connection, period[0]):
+        raise FactoryBudgetLedgerError("limit", "budget period reservation limit reached")
+    available = (period[1] - period[2]) - max(period[3], 0) - period[4]
+    held = request.worst_case_microcents
+    if held > available:
+        raise FactoryBudgetLedgerError("budget", "reservation exceeds available budget")
+    reservation_id = _insert_reservation(
+        connection,
+        request=request,
+        digest=digest,
+        public_id=public_id,
+        period_id=period[0],
+        held=held,
+    )
+    _insert_prices(connection, reservation_id, request.price_terms)
+    _ = connection.execute(
+        """
+        INSERT INTO cost_reservation_events(
+            reservation_id, idempotency_digest, event_type,
+            resulting_state, occurred_at_utc, reason,
+            evidence_digest, receipt_digest
+        ) VALUES (?, ?, 'dispatch_reserved', 'dispatching', ?, NULL, NULL, NULL)
+        """,
+        (
+            reservation_id,
+            idempotency_digest(f"dispatch-event:{request.idempotency_key}"),
+            request.occurred_at_utc,
+        ),
+    )
+    _ = connection.execute(
+        """
+        UPDATE budget_periods
+        SET active_reserved_microcents = active_reserved_microcents + ?
+        WHERE id = ?
+        """,
+        (held, period[0]),
+    )
+    created = find_reservation_by_public_id(connection, public_id)
+    if created is None:
+        raise FactoryBudgetLedgerError("database", "reservation insert was not observable")
+    return reservation_receipt(created, created=True)
 def reservation_for_job(
     connection: sqlite3.Connection,
     job_id: str,

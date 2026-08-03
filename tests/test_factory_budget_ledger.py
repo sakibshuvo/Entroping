@@ -45,11 +45,11 @@ def test_open_project_creates_a_separate_versioned_factory_ledger(tmp_path: Path
 
     assert ledger.db_path == (tmp_path / ".entroping" / "factory-budget" / "ledger.sqlite3")
     with sqlite3.connect(ledger.db_path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (2,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (3,)
         assert connection.execute("PRAGMA journal_mode").fetchone() == ("delete",)
         assert connection.execute(
             "SELECT value FROM ledger_metadata WHERE key = 'schema_version'"
-        ).fetchone() == ("entroping.factory-budget-ledger.v2",)
+        ).fetchone() == ("entroping.factory-budget-ledger.v3",)
 
 
 def test_initialize_period_records_the_non_spendable_reserve_once(tmp_path: Path) -> None:

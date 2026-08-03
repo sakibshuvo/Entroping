@@ -2,6 +2,29 @@
 
 ## 2026-07-29
 
+- Added issue #1570's provider-quota admission contract. Ledger schema v3
+  atomically validates cash thresholds, every referenced quota, and fresh
+  disabled-top-up evidence before reserving optional cash and all quota holds.
+  Generic authorization supports all paid billing modes, complete-evidence
+  replay binding, monotonic clocks, durable lifecycle state, conservative
+  settlement, and single-use launch consumption. Scheduler schema v2 preserves
+  quota-only authorization identity and transactionally migrates v1 state.
+  Provider evidence is bound to declared rolling, UTC-month, and subscription
+  windows through a protected fixed path and HMAC-authenticated maintainer
+  envelope. Overlapping holds cannot be shifted away, real non-overlapping
+  resets do not inherit expired holds, older evidence cannot roll authority
+  backward, launch rechecks current cash thresholds, and terminal usage replay
+  remains exact even with zero quota rows. Included-quota OpenCode work now
+  authorizes and settles without a cash hold, and queued work defaults
+  conservatively to `experiment`. The coordinator now launches OpenCode and
+  DeepSeek wrappers with a strict environment allowlist that excludes the
+  provider-evidence HMAC key, and the worker, ledger, and scheduler facades are
+  split into bounded launch, quota, migration, and connection modules.
+  Settlement, release, and uncertainty now reject lifecycle-clock rollback
+  transactionally. Authenticated observations use an explicit signed inclusion
+  boundary instead of timestamp inference, so unconfirmed local settlements
+  remain charged while provider-confirmed inclusions are not double counted.
+
 - Added issue #1569's atomic scheduler authority. All sibling Git worktrees now
   share one private scheduler database; serialized lease, concurrency, and
   assignment decisions are fenced by process start identity and epoch. Paid

@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 from functools import cache
 
-SCHEMA_ID = "entroping.factory-scheduler-state.v1"
-SCHEMA_VERSION = 1
+SCHEMA_ID = "entroping.factory-scheduler-state.v2"
+SCHEMA_VERSION = 2
 
 SCHEMA_STATEMENTS = (
     ("CREATE TABLE scheduler_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT"),
@@ -43,6 +43,7 @@ SCHEMA_STATEMENTS = (
         "worker_class TEXT NOT NULL CHECK (worker_class IN ('paid', 'free-local')), "
         "access_mode TEXT NOT NULL CHECK (access_mode IN ('read-only', 'write')), "
         "reservation_id TEXT, "
+        "authorization_id TEXT, "
         "lease_owner_id TEXT NOT NULL, "
         "lease_owner_pid INTEGER NOT NULL CHECK (lease_owner_pid > 0), "
         "lease_owner_start_token TEXT NOT NULL, "
@@ -50,8 +51,10 @@ SCHEMA_STATEMENTS = (
         "created_at_utc TEXT NOT NULL, "
         "state TEXT NOT NULL CHECK (state IN ('active', 'completed')), "
         "completed_at_utc TEXT, "
-        "CHECK ((worker_class = 'paid' AND reservation_id IS NOT NULL) "
-        "OR (worker_class = 'free-local' AND reservation_id IS NULL)), "
+        "CHECK ((worker_class = 'paid' AND "
+        "(reservation_id IS NOT NULL OR authorization_id IS NOT NULL)) "
+        "OR (worker_class = 'free-local' AND reservation_id IS NULL "
+        "AND authorization_id IS NULL)), "
         "CHECK ((state = 'active' AND completed_at_utc IS NULL) "
         "OR (state = 'completed' AND completed_at_utc IS NOT NULL))"
         ") STRICT"
@@ -77,7 +80,7 @@ SCHEMA_STATEMENTS = (
         "CREATE TRIGGER scheduler_assignment_identity_immutable "
         "BEFORE UPDATE OF request_id, request_digest, assignment_id, decision_id, "
         "job_id, issue_number, worktree_id, scope_key, worker_class, access_mode, "
-        "reservation_id, lease_owner_id, lease_owner_pid, "
+        "reservation_id, authorization_id, lease_owner_id, lease_owner_pid, "
         "lease_owner_start_token, lease_epoch, created_at_utc "
         "ON scheduler_assignments BEGIN "
         "SELECT RAISE(ABORT, 'scheduler assignment identity is immutable'); END"
@@ -91,19 +94,36 @@ SCHEMA_STATEMENTS = (
 
 
 def initialize_schema(connection: sqlite3.Connection, *, initialized_at: str) -> None:
+    _initialize_schema(
+        connection,
+        statements=SCHEMA_STATEMENTS,
+        schema_id=SCHEMA_ID,
+        schema_version=SCHEMA_VERSION,
+        initialized_at=initialized_at,
+    )
+
+
+def _initialize_schema(
+    connection: sqlite3.Connection,
+    *,
+    statements: tuple[str, ...],
+    schema_id: str,
+    schema_version: int,
+    initialized_at: str,
+) -> None:
     _ = connection.execute("BEGIN EXCLUSIVE")
     try:
-        for statement in SCHEMA_STATEMENTS:
+        for statement in statements:
             _ = connection.execute(statement)
         _ = connection.execute(
             "INSERT INTO scheduler_metadata(key, value) VALUES ('schema_version', ?)",
-            (SCHEMA_ID,),
+            (schema_id,),
         )
         _ = connection.execute(
             "INSERT INTO scheduler_clock(id, last_observed_at_utc, last_epoch) VALUES (1, ?, 0)",
             (initialized_at,),
         )
-        _ = connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        _ = connection.execute(f"PRAGMA user_version = {schema_version}")
         _ = connection.execute("COMMIT")
     except BaseException:
         if connection.in_transaction:
