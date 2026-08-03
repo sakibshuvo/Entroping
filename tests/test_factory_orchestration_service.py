@@ -352,6 +352,8 @@ def test_public_apply_uses_production_start_issue_and_tiny_docs_gate(
     gh.chmod(0o700)
     uv.chmod(0o700)
     monkeypatch.setenv("PATH", f"{tool_dir}:/usr/bin:/bin")
+    # Keep real validation while making the controlled fixtures authoritative on CI.
+    monkeypatch.setattr(tools, "_SYSTEM_DIRS", (tool_dir, *tools._SYSTEM_DIRS))
     monkeypatch.setattr(tools, "_HOMEBREW_DIRS", ())
 
     receipt = service.orchestrate(main, request, proposal, apply=True)
