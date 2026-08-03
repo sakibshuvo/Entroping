@@ -168,8 +168,8 @@ and this deliberately does not claim global transactional atomicity across
 stores. The strict `entroping.factory-status.v1` projection orders overall
 state as `unsafe > paused > healthy` and maps those states to exits `2/1/0`.
 Persisted 80% and 90% cash thresholds remain observable stop boundaries; 100%
-is a prospective paid-authorization backstop because the positive reserve makes
-valid persisted authority stop below the raw cap. Status is observation only:
+is a prospective paid-authorization backstop because the positive reserve means
+no valid persisted authority can reach the raw cap. Status is observation only:
 it never grants spending or dispatch authority.
 
 The maintainer-only OpenCode worker consumes `opencode run --format json`

@@ -28,8 +28,8 @@ no-follow immutable reads with sidecar rejection; queue and retention reads are
 bounded metadata-only walks. Each store is read in an explicit transaction and
 collected twice at one timestamp; fingerprint drift is unsafe and no global
 cross-store atomicity is claimed. Persisted 80%/90% cash thresholds are
-observable; 100% is a prospective authorization backstop because positive
-reserve bounds valid persisted authority below the raw cap.
+observable; 100% is a prospective authorization backstop because the positive
+reserve means no valid persisted authority can reach the raw cap.
 
 ## Current Baseline
 

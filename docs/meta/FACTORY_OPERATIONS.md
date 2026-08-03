@@ -15,8 +15,9 @@ tags:
 
 This runbook defines the current maintainer-local macOS scheduler contract. The
 tracked template is inactive by default and must not be bootstrapped yet. Issue
-#1569 supplies the `factoryctl tick` lease and duplicate-tick guard, issue #1562
-supplies bounded artifact and stream-log retention, and issue #1571 is merged
+#1569 supplies the
+`uv run python scripts/factoryctl.py tick` lease and duplicate-tick guard, issue
+#1562 supplies bounded artifact and stream-log retention, and issue #1571 is merged
 via PR #1597 at commit `b78c551a`. On this branch, issue #1572's status
 projection is implementation-complete locally but pending merge. Activation
 therefore remains blocked pending that merge, Tier A orchestration (#1574), and
@@ -63,8 +64,8 @@ projection, and neither is sufficient alone.
 Interpret `paused` as a stop or incomplete-authority signal, not permission to
 work. Threshold reasons expose persisted 80% (stop experiments) and 90%
 (subscription/included-quota only) boundaries; 100% is a prospective paid
-dispatch backstop. Because the policy requires a positive reserve, valid
-persisted authority normally stops below the raw cap. `unsafe` or an
+dispatch backstop. Because the policy requires a positive reserve, no valid
+persisted authority can reach the raw cap. `unsafe` or an
 `*_authority-uncertain`, stale, changed, or malformed reason requires stopping
 operator changes and preserving evidence; use the recovery procedure rather
 than editing state by hand. Reason codes are value-free diagnostics, never
@@ -733,8 +734,9 @@ contract's acceptance gate passes.
 2. Copy the reviewed rendered plist to
    `~/Library/LaunchAgents/com.entroping.factory-tick.plist` with mode `0600`.
 3. Validate the installed file again with `plutil -lint`.
-4. Inspect both launchd state and `factoryctl status`. If an old service is
-   loaded, disable it, wait for a terminal tick and settled budget evidence,
+4. Inspect both launchd state and
+   `uv run python scripts/factoryctl.py status`. If an old service is loaded,
+   disable it, wait for a terminal tick and settled budget evidence,
    then boot it out. Do not terminate an active or uncertain tick.
 5. Enable the label, bootstrap it into the current GUI domain, and inspect its
    state before requesting the first tick.
@@ -742,14 +744,14 @@ contract's acceptance gate passes.
 ```text
 launchctl print-disabled gui/$UID
 launchctl print gui/$UID/com.entroping.factory-tick
-factoryctl status
+uv run python scripts/factoryctl.py status
 ```
 
 If the old label is loaded, disable future ticks and inspect status again:
 
 ```text
 launchctl disable gui/$UID/com.entroping.factory-tick
-factoryctl status
+uv run python scripts/factoryctl.py status
 ```
 
 Stop here until the tick is terminal and reservation/cost settlement is
@@ -784,7 +786,7 @@ Neither is sufficient alone. Until then, this section is not executable.
 ```text
 launchctl print-disabled gui/$UID
 launchctl print gui/$UID/com.entroping.factory-tick
-factoryctl status
+uv run python scripts/factoryctl.py status
 tail -n 100 "/absolute/path/to/logs/factory-tick.out.log"
 tail -n 100 "/absolute/path/to/logs/factory-tick.err.log"
 ```
@@ -801,7 +803,7 @@ Disable future scheduling, then inspect the current tick:
 ```text
 launchctl disable gui/$UID/com.entroping.factory-tick
 launchctl print-disabled gui/$UID
-factoryctl status
+uv run python scripts/factoryctl.py status
 ```
 
 Wait until the tick is terminal and its reservation/cost settlement is
@@ -835,8 +837,8 @@ are satisfied; uninstall must not erase evidence automatically.
   during sleep are not replayed on wake.
 - If a tick is still running when an interval fires, that firing is skipped.
 - A user LaunchAgent becomes available only after its user session is active;
-  once #1572 is merged, inspect `launchctl print` and `factoryctl status`
-  following reboot or login.
+  once #1572 is merged, inspect `launchctl print` and
+  `uv run python scripts/factoryctl.py status` following reboot or login.
 - Treat large clock changes as an operator event. Confirm the last settled tick
   and budget window before manually requesting another tick.
 
@@ -863,11 +865,12 @@ are satisfied; uninstall must not erase evidence automatically.
 
 ### Stale lease or duplicate tick
 
-- Once #1572 is merged, inspect `factoryctl status` before changing launchd
-  state.
+- Once #1572 is merged, inspect
+  `uv run python scripts/factoryctl.py status` before changing launchd state.
 - Do not delete a lease by hand. Disable future scheduling, verify whether the
-  recorded process is still healthy, and use `factoryctl recover` through the
-  plan-first procedure above. Boot out only after that process is terminal or
-  the recovery procedure records uncertain settlement.
+  recorded process is still healthy, and use
+  `uv run python scripts/factoryctl.py recover` through the plan-first
+  procedure above. Boot out only after that process is terminal or the
+  recovery procedure records uncertain settlement.
 - Re-enable only when the prior tick is terminal and budget settlement is
   reconciled.
