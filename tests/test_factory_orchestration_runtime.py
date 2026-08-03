@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -44,6 +45,11 @@ def test_start_issue_uses_only_canonical_script_contract(
         )
 
     monkeypatch.setattr(runtime, "run_bounded_process", fake_run)
+    monkeypatch.setattr(
+        runtime,
+        "trusted_tool_path",
+        lambda _required: "/test/trusted/bin",
+    )
 
     # When: production worktree creation is invoked.
     runtime.start_issue(main, request, cancelled=callback)
@@ -59,6 +65,11 @@ def test_start_issue_uses_only_canonical_script_contract(
     )
     assert observed["cwd"] == main
     assert observed["cancelled"] is callback
+    assert observed["env"] == {
+        "PATH": "/test/trusted/bin",
+        "LC_ALL": "C",
+        "LANG": "C",
+    }
 
 
 def test_start_issue_rejects_noncanonical_target_before_subprocess(
@@ -105,6 +116,59 @@ def test_trusted_tool_path_includes_valid_resolved_non_system_binary(
     assert path[-1] == str(executable.parent.resolve())
 
 
+def test_trusted_tool_path_rejects_uv_in_world_writable_parent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parent = tmp_path / "unsafe-tools"
+    parent.mkdir(mode=0o700)
+    executable = parent / "uv"
+    executable.write_bytes(b"#!/bin/sh\nexit 0\n")
+    executable.chmod(0o700)
+    parent.chmod(0o777)
+    real_which = shutil.which
+
+    def resolve_uv(
+        name: str,
+        mode: int = os.F_OK | os.X_OK,
+        path: str | None = None,
+    ) -> str | None:
+        if name == "uv" and path is None:
+            return str(executable)
+        return real_which(name, mode=mode, path=path)
+
+    monkeypatch.setattr(tools.shutil, "which", resolve_uv)
+
+    with pytest.raises(tools.OrchestrationServiceError) as rejected:
+        tools.trusted_tool_path(("uv",))
+    assert rejected.value.code == "tool-unavailable"
+
+
+def test_trusted_tool_path_rejects_world_writable_uv_executable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parent = tmp_path / "private-tools"
+    parent.mkdir(mode=0o700)
+    executable = parent / "uv"
+    executable.write_bytes(b"#!/bin/sh\nexit 0\n")
+    executable.chmod(0o777)
+    real_which = shutil.which
+
+    def resolve_uv(
+        name: str,
+        mode: int = os.F_OK | os.X_OK,
+        path: str | None = None,
+    ) -> str | None:
+        if name == "uv" and path is None:
+            return str(executable)
+        return real_which(name, mode=mode, path=path)
+
+    monkeypatch.setattr(tools.shutil, "which", resolve_uv)
+
+    with pytest.raises(tools.OrchestrationServiceError) as rejected:
+        tools.trusted_tool_path(("uv",))
+    assert rejected.value.code == "tool-unavailable"
+
+
 def test_private_uv_directory_cannot_shadow_system_bash_or_git(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -126,6 +190,8 @@ def test_private_uv_directory_cannot_shadow_system_bash_or_git(
 
     trusted = tools.trusted_tool_path(("uv",))
 
-    assert real_which("bash", path=trusted) == "/bin/bash"
+    selected_bash = real_which("bash", path=trusted)
+    assert selected_bash is not None
+    assert Path(selected_bash).resolve(strict=True) == tools.trusted_executable("bash")
     assert real_which("git", path=trusted) == "/usr/bin/git"
     assert trusted.split(os.pathsep)[-1] == str(private)

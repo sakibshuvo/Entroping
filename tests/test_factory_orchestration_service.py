@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import importlib
 import inspect
+import os
+import shutil
 import sqlite3
 import sys
 import time
@@ -45,6 +47,30 @@ gates = importlib.import_module("scripts.factory_orchestration_gates")
 journal = importlib.import_module("scripts.factory_orchestration_journal")
 models = importlib.import_module("scripts.factory_orchestration_models")
 tools = importlib.import_module("scripts.factory_orchestration_tools")
+
+
+@pytest.fixture
+def _trusted_uv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    source = shutil.which("uv")
+    assert source is not None
+    tool_dir = tmp_path / "private-tools"
+    tool_dir.mkdir(mode=0o700)
+    executable = tool_dir / "uv"
+    shutil.copy2(source, executable)
+    executable.chmod(0o700)
+    real_which = shutil.which
+
+    def resolve_uv(
+        name: str,
+        mode: int = os.F_OK | os.X_OK,
+        path: str | None = None,
+    ) -> str | None:
+        if name == "uv" and path is None:
+            return str(executable)
+        return real_which(name, mode=mode, path=path)
+
+    monkeypatch.setattr(tools.shutil, "which", resolve_uv)
+    return executable
 
 
 def test_public_orchestration_has_no_authoritative_execution_injection_seam() -> None:
@@ -196,7 +222,9 @@ def _request(main: Path, worktree: Path, base: str) -> tuple[OrchestrationReques
     return models.OrchestrationRequest.model_validate(payload, strict=True), proposal
 
 
-def test_orchestrates_reused_worktree_and_replays_exact_receipt(tmp_path: Path) -> None:
+def test_orchestrates_reused_worktree_and_replays_exact_receipt(
+    tmp_path: Path, _trusted_uv: Path
+) -> None:
     # Given: scheduler-owned work and one exact reusable issue worktree.
     main, worktree, base = repository(tmp_path)
     request, proposal = _request(main, worktree, base)
@@ -247,7 +275,9 @@ def test_orchestrates_reused_worktree_and_replays_exact_receipt(tmp_path: Path) 
     assert conflict.value.code == "request-conflict"
 
 
-def test_orchestration_creates_fresh_worktree_only_through_starter(tmp_path: Path) -> None:
+def test_orchestration_creates_fresh_worktree_only_through_starter(
+    tmp_path: Path, _trusted_uv: Path
+) -> None:
     # Given: main with no issue worktree and a scheduler-owned request.
     main = admission_repository(tmp_path)
     base = git(main, "rev-parse", "HEAD")
@@ -495,7 +525,9 @@ def test_plan_rejects_untracked_main_checkout_state(tmp_path: Path) -> None:
     assert stale.value.code == "stale-base"
 
 
-def test_gate_drift_and_mid_gate_cancellation_never_accept(tmp_path: Path) -> None:
+def test_gate_drift_and_mid_gate_cancellation_never_accept(
+    tmp_path: Path, _trusted_uv: Path
+) -> None:
     # Given: a gate that creates untracked worktree drift.
     main, worktree, base = repository(tmp_path / "drift")
     request, proposal = _request(main, worktree, base)
@@ -579,7 +611,9 @@ def test_authority_loss_after_apply_is_journaled_uncertain(
     assert replay.value.code == "uncertain-recovery-required"
 
 
-def test_first_gate_main_drift_prevents_second_gate(tmp_path: Path) -> None:
+def test_first_gate_main_drift_prevents_second_gate(
+    tmp_path: Path, _trusted_uv: Path
+) -> None:
     # Given: two gates where the first writes into the protected main checkout.
     main, worktree, base = repository(tmp_path)
     request, proposal = _request(main, worktree, base)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib
+import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -13,7 +15,32 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 gates = importlib.import_module("scripts.factory_orchestration_gates")
+tools = importlib.import_module("scripts.factory_orchestration_tools")
 from scripts.factory_orchestration_gates import GateCommand  # noqa: E402
+
+
+@pytest.fixture
+def _trusted_uv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    source = shutil.which("uv")
+    assert source is not None
+    tool_dir = tmp_path / "private-tools"
+    tool_dir.mkdir(mode=0o700)
+    executable = tool_dir / "uv"
+    shutil.copy2(source, executable)
+    executable.chmod(0o700)
+    real_which = shutil.which
+
+    def resolve_uv(
+        name: str,
+        mode: int = os.F_OK | os.X_OK,
+        path: str | None = None,
+    ) -> str | None:
+        if name == "uv" and path is None:
+            return str(executable)
+        return real_which(name, mode=mode, path=path)
+
+    monkeypatch.setattr(tools.shutil, "which", resolve_uv)
+    return executable
 
 
 def _command(code: str, *, timeout: float = 2, limit: int = 1024) -> GateCommand:
@@ -26,7 +53,9 @@ def _command(code: str, *, timeout: float = 2, limit: int = 1024) -> GateCommand
     )
 
 
-def test_gate_runner_records_value_free_output_digests(tmp_path: Path) -> None:
+def test_gate_runner_records_value_free_output_digests(
+    tmp_path: Path, _trusted_uv: Path
+) -> None:
     # Given: one successful bounded gate with raw output.
     commands = (_command("print('secret-like-output-not-receipted')"),)
 
@@ -55,6 +84,7 @@ def test_gate_runner_records_value_free_output_digests(tmp_path: Path) -> None:
 )
 def test_gate_runner_fails_closed_on_exit_timeout_and_output(
     tmp_path: Path,
+    _trusted_uv: Path,
     command: GateCommand,
     reason: str,
     state: str,
@@ -73,7 +103,9 @@ def test_gate_runner_fails_closed_on_exit_timeout_and_output(
     assert exc_info.value.results[0].state == state
 
 
-def test_gate_runner_rejects_cancellation_and_gate_created_drift(tmp_path: Path) -> None:
+def test_gate_runner_rejects_cancellation_and_gate_created_drift(
+    tmp_path: Path, _trusted_uv: Path
+) -> None:
     # Given: cancellation before a gate.
     with pytest.raises(gates.GateRunError) as cancelled:
         gates.run_gate_commands(
@@ -96,7 +128,7 @@ def test_gate_runner_rejects_cancellation_and_gate_created_drift(tmp_path: Path)
     assert drift.value.code == "gate-drift"
 
 
-def test_gate_runner_cancels_running_process(tmp_path: Path) -> None:
+def test_gate_runner_cancels_running_process(tmp_path: Path, _trusted_uv: Path) -> None:
     # Given: cancellation becomes true while a gate process is still running.
     started = time.monotonic()
 
@@ -144,6 +176,7 @@ def test_non_documentation_lane_has_no_executable_fallback(tmp_path: Path) -> No
 
 def test_fixture_gate_executes_target_worktree_script_and_isolates_main(
     tmp_path: Path,
+    _trusted_uv: Path,
 ) -> None:
     main, target, _base = repository(tmp_path)
     script = main / "scripts" / "doc_governance_check.sh"
@@ -186,7 +219,9 @@ def test_fixture_gate_executes_target_worktree_script_and_isolates_main(
     assert control.read_bytes() == b"scheduler-state"
 
 
-def test_production_tiny_docs_command_runs_real_governance_chain() -> None:
+def test_production_tiny_docs_command_runs_real_governance_chain(
+    _trusted_uv: Path,
+) -> None:
     command = gates.commands_for_lane("tiny-docs", repo_root=REPO_ROOT)
 
     results = gates.run_gate_commands(
