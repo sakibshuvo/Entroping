@@ -19,6 +19,76 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
 
 
+def _status_policy(
+    now: datetime, *, enabled: bool, quota_backed: bool = False
+) -> dict[str, object]:
+    return {
+        "schema_version": "entroping.factory-cost-policy.v1",
+        "policy_id": "status-policy",
+        "policy_revision": 1,
+        "currency": "USD",
+        "monetary_unit": "microcent",
+        "valid_from": (now - timedelta(minutes=1)).isoformat(),
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "unknown_cost_behavior": "deny_paid_dispatch",
+        "unknown_quota_behavior": "deny_affected_paid_lane",
+        "cash": {
+            "calendar_month_timezone": "UTC",
+            "calendar_month_cap_microcents": 10_000,
+            "emergency_reserve_microcents": 1_000,
+            "thresholds": {
+                "stop_experiments_basis_points": 8000,
+                "subscription_only_basis_points": 9000,
+                "stop_paid_dispatch_basis_points": 10000,
+            },
+        },
+        "subscriptions": [],
+        "price_snapshots": []
+        if quota_backed
+        else [
+            {
+                "id": "deepseek-price",
+                "provider_id": "deepseek",
+                "model_id": "deepseek/deepseek-v4-pro",
+                "unit": "input_token",
+                "quantity": 1,
+                "price_microcents": 1,
+                "observed_at": (now - timedelta(minutes=1)).isoformat(),
+                "expires_at": (now + timedelta(hours=1)).isoformat(),
+            }
+        ],
+        "provider_quotas": [
+            {
+                "id": "deepseek-five-hour",
+                "provider_id": "deepseek",
+                "unit": "requests",
+                "limit": 100,
+                "window": {"kind": "rolling", "duration_seconds": 18_000},
+            }
+        ]
+        if quota_backed
+        else [],
+        "automatic_top_up": {"mode": "disabled"},
+        "automation_lanes": [
+            {
+                "id": "deepseek-included" if quota_backed else "deepseek-metered",
+                "provider_id": "deepseek",
+                "billing_mode": "included_quota" if quota_backed else "metered",
+                "enabled": enabled,
+                **(
+                    {"quota_ids": ["deepseek-five-hour"]}
+                    if quota_backed
+                    else {
+                        "model_id": "deepseek/deepseek-v4-pro",
+                        "price_snapshot_ids": ["deepseek-price"],
+                        "quota_ids": [],
+                    }
+                ),
+            }
+        ],
+    }
+
+
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(FACTORYCTL), *args],
@@ -204,53 +274,7 @@ def test_factoryctl_status_requires_enabled_policy_lane_for_route_readiness(
     policy_dir = tmp_path / "docs" / "meta"
     policy_dir.mkdir(parents=True)
     now = datetime.now(UTC)
-    policy = {
-        "schema_version": "entroping.factory-cost-policy.v1",
-        "policy_id": "status-policy",
-        "policy_revision": 1,
-        "currency": "USD",
-        "monetary_unit": "microcent",
-        "valid_from": (now - timedelta(minutes=1)).isoformat(),
-        "expires_at": (now + timedelta(days=1)).isoformat(),
-        "unknown_cost_behavior": "deny_paid_dispatch",
-        "unknown_quota_behavior": "deny_affected_paid_lane",
-        "cash": {
-            "calendar_month_timezone": "UTC",
-            "calendar_month_cap_microcents": 10_000,
-            "emergency_reserve_microcents": 1_000,
-            "thresholds": {
-                "stop_experiments_basis_points": 8000,
-                "subscription_only_basis_points": 9000,
-                "stop_paid_dispatch_basis_points": 10000,
-            },
-        },
-        "subscriptions": [],
-        "price_snapshots": [
-            {
-                "id": "deepseek-price",
-                "provider_id": "deepseek",
-                "model_id": "deepseek/deepseek-v4-pro",
-                "unit": "input_token",
-                "quantity": 1,
-                "price_microcents": 1,
-                "observed_at": (now - timedelta(minutes=1)).isoformat(),
-                "expires_at": (now + timedelta(hours=1)).isoformat(),
-            }
-        ],
-        "provider_quotas": [],
-        "automatic_top_up": {"mode": "disabled"},
-        "automation_lanes": [
-            {
-                "id": "deepseek-metered",
-                "provider_id": "deepseek",
-                "model_id": "deepseek/deepseek-v4-pro",
-                "billing_mode": "metered",
-                "enabled": False,
-                "price_snapshot_ids": ["deepseek-price"],
-                "quota_ids": [],
-            }
-        ],
-    }
+    policy = _status_policy(now, enabled=False)
     (policy_dir / "factory-cost-policy.example.json").write_text(
         json.dumps(policy), encoding="utf-8"
     )
@@ -273,53 +297,7 @@ def test_factoryctl_status_pauses_at_configured_cash_threshold(tmp_path: Path) -
     policy_dir = tmp_path / "docs" / "meta"
     policy_dir.mkdir(parents=True)
     now = datetime.now(UTC)
-    policy = {
-        "schema_version": "entroping.factory-cost-policy.v1",
-        "policy_id": "status-policy",
-        "policy_revision": 1,
-        "currency": "USD",
-        "monetary_unit": "microcent",
-        "valid_from": (now - timedelta(minutes=1)).isoformat(),
-        "expires_at": (now + timedelta(days=1)).isoformat(),
-        "unknown_cost_behavior": "deny_paid_dispatch",
-        "unknown_quota_behavior": "deny_affected_paid_lane",
-        "cash": {
-            "calendar_month_timezone": "UTC",
-            "calendar_month_cap_microcents": 10_000,
-            "emergency_reserve_microcents": 1_000,
-            "thresholds": {
-                "stop_experiments_basis_points": 8000,
-                "subscription_only_basis_points": 9000,
-                "stop_paid_dispatch_basis_points": 10000,
-            },
-        },
-        "subscriptions": [],
-        "price_snapshots": [
-            {
-                "id": "deepseek-price",
-                "provider_id": "deepseek",
-                "model_id": "deepseek/deepseek-v4-pro",
-                "unit": "input_token",
-                "quantity": 1,
-                "price_microcents": 1,
-                "observed_at": (now - timedelta(minutes=1)).isoformat(),
-                "expires_at": (now + timedelta(hours=1)).isoformat(),
-            }
-        ],
-        "provider_quotas": [],
-        "automatic_top_up": {"mode": "disabled"},
-        "automation_lanes": [
-            {
-                "id": "deepseek-metered",
-                "provider_id": "deepseek",
-                "model_id": "deepseek/deepseek-v4-pro",
-                "billing_mode": "metered",
-                "enabled": True,
-                "price_snapshot_ids": ["deepseek-price"],
-                "quota_ids": [],
-            }
-        ],
-    }
+    policy = _status_policy(now, enabled=True)
     (policy_dir / "factory-cost-policy.example.json").write_text(
         json.dumps(policy), encoding="utf-8"
     )
@@ -365,48 +343,7 @@ def test_factoryctl_status_blocks_route_with_missing_quota_authority(tmp_path: P
     policy_dir = tmp_path / "docs" / "meta"
     policy_dir.mkdir(parents=True)
     now = datetime.now(UTC)
-    policy = {
-        "schema_version": "entroping.factory-cost-policy.v1",
-        "policy_id": "status-policy",
-        "policy_revision": 1,
-        "currency": "USD",
-        "monetary_unit": "microcent",
-        "valid_from": (now - timedelta(minutes=1)).isoformat(),
-        "expires_at": (now + timedelta(days=1)).isoformat(),
-        "unknown_cost_behavior": "deny_paid_dispatch",
-        "unknown_quota_behavior": "deny_affected_paid_lane",
-        "cash": {
-            "calendar_month_timezone": "UTC",
-            "calendar_month_cap_microcents": 10_000,
-            "emergency_reserve_microcents": 1_000,
-            "thresholds": {
-                "stop_experiments_basis_points": 8000,
-                "subscription_only_basis_points": 9000,
-                "stop_paid_dispatch_basis_points": 10000,
-            },
-        },
-        "subscriptions": [],
-        "price_snapshots": [],
-        "provider_quotas": [
-            {
-                "id": "deepseek-five-hour",
-                "provider_id": "deepseek",
-                "unit": "requests",
-                "limit": 100,
-                "window": {"kind": "rolling", "duration_seconds": 18_000},
-            }
-        ],
-        "automatic_top_up": {"mode": "disabled"},
-        "automation_lanes": [
-            {
-                "id": "deepseek-included",
-                "provider_id": "deepseek",
-                "billing_mode": "included_quota",
-                "enabled": True,
-                "quota_ids": ["deepseek-five-hour"],
-            }
-        ],
-    }
+    policy = _status_policy(now, enabled=True, quota_backed=True)
     (policy_dir / "factory-cost-policy.example.json").write_text(
         json.dumps(policy), encoding="utf-8"
     )

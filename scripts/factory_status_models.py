@@ -34,11 +34,26 @@ class BudgetStatus(StatusModel):
     authorizations: StateCounts
 
 
+class QuotaReadinessStatus(StatusModel):
+    quota_id: str
+    status: SourceState
+    reason_code: str | None = None
+
+
+class PolicyLaneStatus(StatusModel):
+    policy_lane_id: str
+    provider_lane_id: str | None = None
+    status: SourceState
+    reason_codes: tuple[str, ...]
+    quotas: tuple[QuotaReadinessStatus, ...]
+
+
 class DispatchLanesStatus(StatusModel):
     status: SourceState
     active_routes: int = Field(ge=0)
     ready_routes: int = Field(ge=0)
     quota_status: SourceState
+    lanes: tuple[PolicyLaneStatus, ...]
 
 
 class SchedulerStatus(StatusModel):

@@ -11,7 +11,7 @@ from scripts.factory_scheduler_schema import validate_schema as validate_schedul
 
 from .factory_status_database import open_status_database
 from .factory_status_models import BudgetStatus, SchedulerStatus, StateCounts
-from .factory_status_policy import cash_threshold_reason
+from .factory_status_policy import cash_threshold_reason, policy_safety_reason
 
 type LeaseState = Literal["uninitialized", "idle", "active", "expired", "unsafe"]
 type Fingerprints = list[tuple[str, int, int, int]]
@@ -28,6 +28,11 @@ def collect_budget(
     connection, status = open_status_database(root, path, fingerprints)
     empty = StateCounts(active=0, uncertain=0, settled=0, released=0)
     if connection is None:
+        policy_reason = policy_safety_reason(root, observed_at, fingerprints)
+        if policy_reason == "budget-policy-unsafe":
+            return BudgetStatus(status="unsafe", reservations=empty, authorizations=empty), (
+                policy_reason,
+            )
         return BudgetStatus(status=status, reservations=empty, authorizations=empty), (
             f"budget-{status}",
         )
@@ -76,7 +81,9 @@ def collect_budget(
         )
         if threshold is not None:
             return BudgetStatus(
-                status="unsafe" if threshold == "budget-authority-uncertain" else "unavailable",
+                status="unsafe"
+                if threshold in {"budget-authority-uncertain", "budget-policy-unsafe"}
+                else "unavailable",
                 cash_cap_microcents=cap,
                 reserve_microcents=reserve,
                 net_available_microcents=net_available,
@@ -148,6 +155,18 @@ def collect_scheduler(
             "COALESCE(SUM(phase = 'uncertain'), 0) FROM scheduler_execution_state",
             (observed_at.isoformat(), observed_at.isoformat()),
         ).fetchone()
+        concurrency = int(
+            connection.execute(
+                "SELECT COUNT(*) FROM scheduler_execution_state AS e "
+                "LEFT JOIN scheduler_lease AS l ON l.id = 1 "
+                "WHERE e.phase NOT IN ('completed', 'failed') AND (l.id IS NULL "
+                "OR e.lease_expires_at_utc <= ? OR e.lease_owner_id != l.owner_id "
+                "OR e.lease_owner_pid != l.owner_pid "
+                "OR e.lease_owner_start_token != l.owner_start_token "
+                "OR e.lease_epoch != l.epoch)",
+                (observed_at.isoformat(),),
+            ).fetchone()[0]
+        )
         reasons: tuple[str, ...] = ()
         if lease_state == "expired":
             reasons = ("scheduler-lease-expired",)
@@ -155,6 +174,17 @@ def collect_scheduler(
             reasons = (*reasons, "scheduler-retry-waiting")
         if int(phases[2]) > 0:
             reasons = (*reasons, "scheduler-retry-stale")
+        if concurrency:
+            return SchedulerStatus(
+                status="unsafe",
+                lease_state=lease_state,
+                active_paid=int(counts[0]),
+                active_free_reviews=int(counts[1]),
+                active_writers=int(counts[2]),
+                executing=int(phases[0]),
+                retry_waiting=int(phases[1]),
+                uncertain=int(phases[3]),
+            ), (*reasons, "scheduler-concurrency-unsafe")
         if int(phases[3]) > 0:
             return SchedulerStatus(
                 status="unsafe",

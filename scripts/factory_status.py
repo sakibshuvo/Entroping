@@ -19,6 +19,7 @@ from .factory_status_models import (
     BudgetStatus,
     DispatchLanesStatus,
     FactoryStatusReport,
+    PolicyLaneStatus,
     QueueStatus,
     SchedulerStatus,
     StateCounts,
@@ -61,6 +62,7 @@ def render_human(report: FactoryStatusReport) -> str:
         f"{item.artifact_class}={item.count}/{item.byte_ceiling or 0}:{item.pressure}"
         for item in report.retention.classes
     )
+    lanes = "; ".join(_render_lane(lane) for lane in report.dispatch_lanes.lanes) or "none"
     return "\n".join(
         (
             f"Factory status: {report.state}",
@@ -78,7 +80,8 @@ def render_human(report: FactoryStatusReport) -> str:
             f"{report.budget.authorizations.released}",
             "Dispatch lanes: "
             f"{report.dispatch_lanes.status}; ready={report.dispatch_lanes.ready_routes}/"
-            f"{report.dispatch_lanes.active_routes}; quota={report.dispatch_lanes.quota_status}",
+            f"{report.dispatch_lanes.active_routes}; quota={report.dispatch_lanes.quota_status}; "
+            f"lanes={lanes}",
             "Scheduler: "
             f"{report.scheduler.status}; lease={report.scheduler.lease_state}; "
             f"paid={report.scheduler.active_paid}; free={report.scheduler.active_free_reviews}; "
@@ -97,6 +100,17 @@ def render_json(report: FactoryStatusReport) -> str:
     """Serialize the strict public report deterministically."""
 
     return json.dumps(report.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+
+
+def _render_lane(lane: PolicyLaneStatus) -> str:
+    quotas = (
+        ",".join(
+            f"{quota.quota_id}:{quota.status}:{quota.reason_code or '-'}" for quota in lane.quotas
+        )
+        or "none"
+    )
+    reasons = ",".join(lane.reason_codes) or "-"
+    return f"{lane.policy_lane_id}:{lane.provider_lane_id or '-'}={lane.status}:{reasons}[{quotas}]"
 
 
 def status_exit_code(report: FactoryStatusReport) -> int:
@@ -173,7 +187,7 @@ def _unsafe_report(observed_at: datetime, reason: str) -> FactoryStatusReport:
         reason_codes=(reason,),
         budget=BudgetStatus(status="unsafe", reservations=empty, authorizations=empty),
         dispatch_lanes=DispatchLanesStatus(
-            status="unsafe", active_routes=0, ready_routes=0, quota_status="unsafe"
+            status="unsafe", active_routes=0, ready_routes=0, quota_status="unsafe", lanes=()
         ),
         scheduler=SchedulerStatus(
             status="unsafe",

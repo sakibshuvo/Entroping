@@ -1,24 +1,29 @@
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
 from pydantic import ValidationError
 
-from scripts.factory_budget_ledger_fs import LEDGER_DIRECTORY, LEDGER_NAME
-from scripts.factory_budget_ledger_schema import validate_schema as validate_ledger_schema
 from scripts.factory_cost_policy_io import read_policy_document
 from scripts.factory_cost_policy_models import FactoryCostPolicy
-from scripts.factory_cost_policy_types import AutomationLane, ProviderQuota
+from scripts.factory_cost_policy_types import AutomationLane
 from scripts.factory_cost_policy_validation import FactoryCostPolicyError, validate_policy_at
 from scripts.provider_capability_io import load_provider_registry
-from scripts.provider_capability_types import ProviderCapabilityRegistry, ProviderRegistryError
+from scripts.provider_capability_types import (
+    ProviderCapabilityRegistry,
+    ProviderLane,
+    ProviderRegistryError,
+)
 
-from .factory_status_database import open_status_database
 from .factory_status_filesystem import FactoryStatusError, exists_lstat, fingerprint_file
-from .factory_status_models import DispatchLanesStatus, SourceState
+from .factory_status_models import (
+    DispatchLanesStatus,
+    PolicyLaneStatus,
+    QuotaReadinessStatus,
+    SourceState,
+)
+from .factory_status_quota import collect_quota_readiness
 
 type Fingerprints = list[tuple[str, int, int, int]]
 
@@ -26,49 +31,106 @@ type Fingerprints = list[tuple[str, int, int, int]]
 def collect_dispatch_lanes(
     root: Path, observed_at: datetime, fingerprints: Fingerprints
 ) -> tuple[DispatchLanesStatus, tuple[str, ...]]:
-    """Project enabled, configured routes and their current quota capacity."""
+    """Project trusted policy lanes, matching routes, and quota readiness."""
 
     try:
         policy = _load_policy(root, observed_at, fingerprints)
         registry = _load_registry(root, fingerprints)
     except FactoryStatusError:
         return _blank("unsafe"), ("dispatch-policy-unsafe",)
-    except (FactoryCostPolicyError, ProviderRegistryError, ValidationError, OSError, ValueError):
+    except FileNotFoundError:
         return _blank("unavailable"), ("dispatch-policy-unavailable",)
-    active = tuple(
-        lane
-        for lane in registry.lanes
-        if lane.lifecycle == "active" and "queue_dispatch" in lane.capabilities
+    except (FactoryCostPolicyError, ProviderRegistryError, ValidationError, OSError, ValueError):
+        return _blank("unsafe"), ("dispatch-policy-unsafe",)
+    routes = tuple(
+        route
+        for route in registry.lanes
+        if route.lifecycle == "active" and "queue_dispatch" in route.capabilities
     )
     enabled = tuple(lane for lane in policy.automation_lanes if lane.enabled)
-    applicable = tuple(
-        lane
+    pairs = tuple(
+        (lane, route)
         for lane in enabled
-        if any(route.policy_provider_id == lane.provider_id for route in active)
+        for route in routes
+        if route.policy_provider_id == lane.provider_id
     )
-    quota_states = _quota_states(root, policy, applicable, observed_at, fingerprints)
-    route_states = tuple(
-        _route_state(
-            tuple(lane for lane in applicable if lane.provider_id == route.policy_provider_id),
-            quota_states,
-        )
-        for route in active
+    quota_rows = collect_quota_readiness(root, policy, pairs, observed_at, fingerprints)
+    lanes = _lane_rows(policy.automation_lanes, routes, quota_rows)
+    ready = sum(
+        any(row.status == "available" for row in lanes if row.provider_lane_id == route.id)
+        for route in routes
     )
-    ready = sum(state == "available" for state in route_states)
+    statuses = tuple(row.status for row in lanes)
     status: SourceState = (
-        "unsafe" if "unsafe" in route_states else "available" if ready else "unavailable"
+        "unsafe" if "unsafe" in statuses else "available" if ready else "unavailable"
     )
     quota_status: SourceState = (
-        "unsafe" if "unsafe" in quota_states.values() else "available" if ready else "unavailable"
+        "unsafe"
+        if any(quota.status == "unsafe" for row in lanes for quota in row.quotas)
+        else "available"
+        if ready
+        else "unavailable"
     )
-    reasons: tuple[str, ...] = ()
-    if status == "unsafe":
-        reasons = ("dispatch-quota-unsafe",)
-    elif not ready:
-        reasons = ("dispatch-quota-unavailable",) if applicable else ("dispatch-route-unavailable",)
+    reason = "dispatch-quota-unsafe" if status == "unsafe" else "dispatch-route-unavailable"
+    if status == "unavailable" and any(row.quotas for row in lanes):
+        reason = "dispatch-quota-unavailable"
     return DispatchLanesStatus(
-        status=status, active_routes=len(active), ready_routes=ready, quota_status=quota_status
-    ), reasons
+        status=status,
+        active_routes=len(routes),
+        ready_routes=ready,
+        quota_status=quota_status,
+        lanes=lanes,
+    ), (() if status == "available" else (reason,))
+
+
+def _lane_rows(
+    policy_lanes: tuple[AutomationLane, ...],
+    routes: tuple[ProviderLane, ...],
+    quota_rows: dict[tuple[str, str], tuple[QuotaReadinessStatus, ...]],
+) -> tuple[PolicyLaneStatus, ...]:
+    rows: list[PolicyLaneStatus] = []
+    for lane in sorted(policy_lanes, key=lambda item: item.id):
+        matching = tuple(route for route in routes if route.policy_provider_id == lane.provider_id)
+        if not lane.enabled:
+            rows.append(_policy_row(lane, None, "unavailable", ("policy-lane-disabled",), ()))
+        elif not matching:
+            rows.append(_policy_row(lane, None, "unavailable", ("dispatch-route-unavailable",), ()))
+        else:
+            rows.extend(
+                _route_row(lane, route, quota_rows.get((lane.id, route.id), ()))
+                for route in sorted(matching, key=lambda item: item.id)
+            )
+    return tuple(rows)
+
+
+def _route_row(
+    lane: AutomationLane, route: ProviderLane, quotas: tuple[QuotaReadinessStatus, ...]
+) -> PolicyLaneStatus:
+    status: SourceState = (
+        "unsafe"
+        if any(item.status == "unsafe" for item in quotas)
+        else "unavailable"
+        if any(item.status == "unavailable" for item in quotas)
+        else "available"
+    )
+    reasons = tuple(sorted(item.reason_code for item in quotas if item.reason_code is not None))
+    return _policy_row(lane, route, status, reasons, quotas)
+
+
+def _policy_row(
+    lane: AutomationLane,
+    route: ProviderLane | None,
+    status: SourceState,
+    reasons: tuple[str, ...],
+    quotas: tuple[QuotaReadinessStatus, ...],
+) -> PolicyLaneStatus:
+    return PolicyLaneStatus(
+        policy_lane_id=lane.id,
+        provider_lane_id=None if route is None else route.id,
+        status=status,
+        reason_codes=reasons,
+        quotas=quotas,
+    )
 
 
 def _load_policy(
@@ -89,111 +151,7 @@ def _load_registry(root: Path, fingerprints: Fingerprints) -> ProviderCapability
     return load_provider_registry(path)
 
 
-def _quota_states(
-    root: Path,
-    policy: FactoryCostPolicy,
-    lanes: tuple[AutomationLane, ...],
-    observed_at: datetime,
-    fingerprints: Fingerprints,
-) -> dict[str, SourceState]:
-    quota_ids = {quota_id for lane in lanes for quota_id in lane.quota_ids}
-    if not quota_ids:
-        return {lane.id: "available" for lane in lanes}
-    path = root.joinpath(*LEDGER_DIRECTORY, LEDGER_NAME)
-    connection, state = open_status_database(root, path, fingerprints)
-    if connection is None:
-        return {lane.id: "unsafe" if state == "unsafe" else "unavailable" for lane in lanes}
-    try:
-        validate_ledger_schema(connection)
-        quotas = {quota.id: quota for quota in policy.provider_quotas}
-        values = {
-            lane.id: _lane_quota_state(connection, policy, lane, quotas, observed_at)
-            for lane in lanes
-        }
-    except (sqlite3.DatabaseError, ValueError):
-        values = {lane.id: "unsafe" for lane in lanes}
-    finally:
-        connection.close()
-    return values
-
-
-def _lane_quota_state(
-    connection: sqlite3.Connection,
-    policy: FactoryCostPolicy,
-    lane: AutomationLane,
-    quotas: Mapping[str, ProviderQuota],
-    observed_at: datetime,
-) -> SourceState:
-    for quota_id in lane.quota_ids:
-        quota = quotas[quota_id]
-        observation = connection.execute(
-            "SELECT id, used_units, known, expires_at_utc, window_start_utc, window_end_utc "
-            "FROM quota_observations WHERE quota_id = ? AND provider_id = ? "
-            "AND policy_id = ? AND policy_revision = ? AND unit = ? "
-            "AND observed_at_utc <= ? AND recorded_at_utc <= ? "
-            "ORDER BY observed_at_utc DESC, id DESC LIMIT 1",
-            (
-                quota.id,
-                lane.provider_id,
-                policy.policy_id,
-                policy.policy_revision,
-                quota.unit,
-                observed_at.isoformat(),
-                observed_at.isoformat(),
-            ),
-        ).fetchone()
-        if observation is None:
-            return "unavailable"
-        observation_id, used, known, expires, starts, ends = observation
-        if not int(known):
-            return "unsafe"
-        if (
-            str(expires) <= observed_at.isoformat()
-            or str(starts) > observed_at.isoformat()
-            or str(ends) <= observed_at.isoformat()
-        ):
-            return "unavailable"
-        active, uncertain, settled = connection.execute(
-            "SELECT COALESCE(SUM(CASE WHEN h.state = 'active' THEN h.held_units ELSE 0 END), 0), "
-            "COALESCE(SUM(CASE WHEN h.state = 'uncertain' THEN h.held_units ELSE 0 END), 0), "
-            "COALESCE(SUM(CASE WHEN h.state = 'settled' AND a.state = 'settled' "
-            "AND NOT EXISTS (SELECT 1 FROM quota_observation_inclusions AS i "
-            "WHERE i.observation_id = ? AND i.authorization_id = a.id) "
-            "THEN h.actual_units ELSE 0 END), 0) FROM quota_holds AS h "
-            "JOIN dispatch_authorizations AS a ON a.id = h.authorization_id "
-            "JOIN quota_observations AS source ON source.id = h.observation_id "
-            "WHERE h.quota_id = ? AND h.unit = ? AND a.provider_id = ? "
-            "AND a.policy_id = ? AND a.policy_revision = ? "
-            "AND source.window_start_utc < ? AND source.window_end_utc > ?",
-            (
-                observation_id,
-                quota.id,
-                quota.unit,
-                lane.provider_id,
-                policy.policy_id,
-                policy.policy_revision,
-                ends,
-                starts,
-            ),
-        ).fetchone()
-        if int(uncertain):
-            return "unsafe"
-        consumed = int(used) + int(active) + int(settled)
-        if consumed > quota.limit:
-            return "unsafe"
-        if consumed >= quota.limit:
-            return "unavailable"
-    return "available"
-
-
-def _route_state(lanes: tuple[AutomationLane, ...], states: dict[str, SourceState]) -> SourceState:
-    if not lanes:
-        return "unavailable"
-    values = tuple(states[lane.id] for lane in lanes)
-    if "available" in values:
-        return "available"
-    return "unsafe" if "unsafe" in values else "unavailable"
-
-
 def _blank(status: SourceState) -> DispatchLanesStatus:
-    return DispatchLanesStatus(status=status, active_routes=0, ready_routes=0, quota_status=status)
+    return DispatchLanesStatus(
+        status=status, active_routes=0, ready_routes=0, quota_status=status, lanes=()
+    )
