@@ -2,6 +2,16 @@
 
 ## 2026-08-03
 
+- Provider scorecards need a separate strict evidence identity rather than a
+  legacy metrics-label join. Keep receipts value-free and exact, preserve an
+  accepted case when a later regression/revert appears, and use that later
+  outcome to lower confidence and manual-promotion eligibility instead of
+  rewriting history.
+- Permission checks for authority-bearing evidence must run on the same
+  no-follow descriptor that supplies the bytes, with parent-tree traversal and
+  post-read identity/mode revalidation. A path-level check followed by a separate
+  open leaves a permission and inode substitution window.
+
 - A helper named `readonly` may still create SQLite locks, journals, or
   directories. Status/observability paths need physically noncreating seams:
   candidates opened no-follow through validated descriptors, immutable
