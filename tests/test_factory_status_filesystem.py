@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.bounded_process import BoundedProcessResult  # noqa: E402
 from scripts.factory_status import collect_factory_status  # noqa: E402
 from scripts.factory_status_filesystem import collect_queue as status_collect_queue  # noqa: E402
 from scripts.factory_status_models import QueueStatus  # noqa: E402
@@ -126,22 +127,39 @@ def test_queue_payload_file_is_never_read_through_any_content_seam(
     assert report.queue.queued == 1
 
 
-def test_status_never_invokes_provider_or_test_execution(
+def test_status_allows_only_bounded_git_probe_and_rejects_other_execution(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Status is a local projection and cannot trigger network or subprocess work."""
+    """Status permits its bounded Git probe but no network or other process execution."""
+
+    git_probe_calls = 0
+
+    def bounded_git_probe(command: list[object], **kwargs: object) -> BoundedProcessResult:
+        nonlocal git_probe_calls
+        git_probe_calls += 1
+        return BoundedProcessResult(
+            args=tuple(str(item) for item in command),
+            returncode=1,
+            stdout="",
+            stderr="not a Git worktree",
+            timed_out=False,
+            output_limit_exceeded=False,
+        )
 
     def reject_network(*args: object, **kwargs: object) -> None:
         raise AssertionError("status attempted network access")
 
     def reject_process(*args: object, **kwargs: object) -> None:
-        raise AssertionError("status attempted subprocess execution")
+        raise AssertionError("status attempted non-root-discovery process execution")
 
     monkeypatch.setattr(socket, "create_connection", reject_network)
+    monkeypatch.setattr("scripts.factory_scheduler_root.run_bounded_process", bounded_git_probe)
+    monkeypatch.setattr(subprocess, "Popen", reject_process)
     monkeypatch.setattr(subprocess, "run", reject_process)
 
     report = collect_factory_status(tmp_path)
 
+    assert git_probe_calls == 1
     assert report.state == "paused"
 
 
@@ -187,6 +205,45 @@ def test_retention_pressure_pauses_status(tmp_path: Path) -> None:
 
     assert report.state == "paused"
     assert "retention-pressure" in report.reason_codes
+
+
+def test_present_malformed_retention_policy_is_unsafe(tmp_path: Path) -> None:
+    """A present malformed retention authority cannot be treated as unconfigured."""
+
+    policy_dir = tmp_path / "docs" / "meta"
+    policy_dir.mkdir(parents=True)
+    (policy_dir / "factory-retention-policy.example.json").write_text("{", encoding="utf-8")
+
+    report = collect_factory_status(tmp_path)
+
+    assert report.state == "unsafe"
+    assert report.retention.status == "unsafe"
+    assert "retention-unsafe" in report.reason_codes
+
+
+def test_absent_retention_policy_remains_unavailable(tmp_path: Path) -> None:
+    """A genuinely absent optional retention policy remains a paused setup gap."""
+
+    report = collect_factory_status(tmp_path)
+
+    assert report.retention.status == "unavailable"
+    assert "retention-policy-unavailable" in report.reason_codes
+
+
+def test_queue_counts_unexpected_ordinary_layout_entries_as_invalid(tmp_path: Path) -> None:
+    """Unexpected ordinary queue entries are visible without becoming path attacks."""
+
+    queue_root = tmp_path / ".entroping" / "ai-jobs"
+    queue_root.mkdir(parents=True)
+    (queue_root / "unexpected.txt").write_text("metadata", encoding="utf-8")
+    (queue_root / "unexpected-directory").mkdir()
+
+    report = collect_factory_status(tmp_path)
+
+    assert report.state == "paused"
+    assert report.queue.status == "unavailable"
+    assert report.queue.invalid == 2
+    assert "queue-invalid" in report.reason_codes
 
 
 def test_changed_metadata_between_collections_is_unsafe(

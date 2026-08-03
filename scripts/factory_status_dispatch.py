@@ -5,18 +5,18 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from scripts.factory_cost_policy_io import read_policy_document
 from scripts.factory_cost_policy_models import FactoryCostPolicy
 from scripts.factory_cost_policy_types import AutomationLane
 from scripts.factory_cost_policy_validation import FactoryCostPolicyError, validate_policy_at
-from scripts.provider_capability_io import load_provider_registry
 from scripts.provider_capability_types import (
     ProviderCapabilityRegistry,
     ProviderLane,
     ProviderRegistryError,
 )
 
-from .factory_status_filesystem import FactoryStatusError, exists_lstat, fingerprint_file
+from .factory_status_authority import load_cost_policy, load_registry
+from .factory_status_errors import FactoryStatusError
+from .factory_status_filesystem import exists_lstat
 from .factory_status_models import (
     DispatchLanesStatus,
     PolicyLaneStatus,
@@ -26,6 +26,8 @@ from .factory_status_models import (
 from .factory_status_quota import collect_quota_readiness
 
 type Fingerprints = list[tuple[str, int, int, int]]
+
+MAX_LANE_PAIRS = 4_096
 
 
 def collect_dispatch_lanes(
@@ -42,20 +44,17 @@ def collect_dispatch_lanes(
         return _blank("unavailable"), ("dispatch-policy-unavailable",)
     except (FactoryCostPolicyError, ProviderRegistryError, ValidationError, OSError, ValueError):
         return _blank("unsafe"), ("dispatch-policy-unsafe",)
-    routes = tuple(
-        route
-        for route in registry.lanes
-        if route.lifecycle == "active" and "queue_dispatch" in route.capabilities
-    )
-    enabled = tuple(lane for lane in policy.automation_lanes if lane.enabled)
-    pairs = tuple(
-        (lane, route)
-        for lane in enabled
-        for route in routes
-        if route.policy_provider_id == lane.provider_id
-    )
-    quota_rows = collect_quota_readiness(root, policy, pairs, observed_at, fingerprints)
-    lanes = _lane_rows(policy.automation_lanes, routes, quota_rows)
+    try:
+        routes = tuple(
+            route
+            for route in registry.lanes
+            if route.lifecycle == "active" and "queue_dispatch" in route.capabilities
+        )
+        pairs = _bounded_pairs(policy.automation_lanes, routes)
+        quota_rows = collect_quota_readiness(root, policy, pairs, observed_at, fingerprints)
+        lanes = _lane_rows(policy.automation_lanes, routes, quota_rows)
+    except FactoryStatusError:
+        return _blank("unsafe"), ("dispatch-amplification-unsafe",)
     ready = sum(
         any(row.status == "available" for row in lanes if row.provider_lane_id == route.id)
         for route in routes
@@ -139,16 +138,35 @@ def _load_policy(
     path = root / ".entroping" / "factory-cost-policy.json"
     if not exists_lstat(path):
         path = root / "docs" / "meta" / "factory-cost-policy.example.json"
-    fingerprint_file(root, path, fingerprints)
-    policy = FactoryCostPolicy.model_validate_json(read_policy_document(path), strict=True)
+    if not exists_lstat(path):
+        raise FileNotFoundError(path)
+    policy = load_cost_policy(root, path, fingerprints)
     validate_policy_at(policy, observed_at)
     return policy
 
 
 def _load_registry(root: Path, fingerprints: Fingerprints) -> ProviderCapabilityRegistry:
     path = root / "docs" / "meta" / "provider-capability-registry.json"
-    fingerprint_file(root, path, fingerprints)
-    return load_provider_registry(path)
+    if not exists_lstat(path):
+        raise FileNotFoundError(path)
+    return load_registry(root, path, fingerprints)
+
+
+def _bounded_pairs(
+    policy_lanes: tuple[AutomationLane, ...],
+    routes: tuple[ProviderLane, ...],
+) -> tuple[tuple[AutomationLane, ProviderLane], ...]:
+    pairs: list[tuple[AutomationLane, ProviderLane]] = []
+    for lane in policy_lanes:
+        if not lane.enabled:
+            continue
+        for route in routes:
+            if route.policy_provider_id != lane.provider_id:
+                continue
+            if len(pairs) >= MAX_LANE_PAIRS:
+                raise FactoryStatusError("lane-pair limit exceeded")
+            pairs.append((lane, route))
+    return tuple(pairs)
 
 
 def _blank(status: SourceState) -> DispatchLanesStatus:

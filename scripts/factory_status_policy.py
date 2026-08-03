@@ -3,13 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import ValidationError
-
-from scripts.factory_cost_policy_io import read_policy_document
-from scripts.factory_cost_policy_models import FactoryCostPolicy
 from scripts.factory_cost_policy_validation import FactoryCostPolicyError, validate_policy_at
 
-from .factory_status_filesystem import FactoryStatusError, exists_lstat, fingerprint_file
+from .factory_status_authority import load_cost_policy
+from .factory_status_errors import FactoryStatusError
+from .factory_status_filesystem import exists_lstat
 
 type Fingerprints = list[tuple[str, int, int, int]]
 
@@ -22,13 +20,14 @@ def policy_safety_reason(
     path = root / ".entroping" / "factory-cost-policy.json"
     if not exists_lstat(path):
         path = root / "docs" / "meta" / "factory-cost-policy.example.json"
+    if not exists_lstat(path):
+        return "budget-policy-unavailable"
     try:
-        fingerprint_file(root, path, fingerprints)
-        policy = FactoryCostPolicy.model_validate_json(read_policy_document(path), strict=True)
+        policy = load_cost_policy(root, path, fingerprints)
         validate_policy_at(policy, observed_at)
     except FileNotFoundError:
         return "budget-policy-unavailable"
-    except (FactoryCostPolicyError, FactoryStatusError, ValidationError, OSError, ValueError):
+    except (FactoryCostPolicyError, FactoryStatusError, OSError, ValueError):
         return "budget-policy-unsafe"
     return None
 
@@ -51,11 +50,12 @@ def cash_threshold_reason(
     path = root / ".entroping" / "factory-cost-policy.json"
     if not exists_lstat(path):
         path = root / "docs" / "meta" / "factory-cost-policy.example.json"
+    if not exists_lstat(path):
+        return "budget-policy-unavailable"
     try:
-        fingerprint_file(root, path, fingerprints)
-        policy = FactoryCostPolicy.model_validate_json(read_policy_document(path), strict=True)
+        policy = load_cost_policy(root, path, fingerprints)
         validate_policy_at(policy, observed_at)
-    except (FactoryCostPolicyError, FactoryStatusError, ValidationError, OSError, ValueError):
+    except (FactoryCostPolicyError, FactoryStatusError, OSError, ValueError):
         return "budget-policy-unsafe"
     if (
         policy.policy_id != policy_id

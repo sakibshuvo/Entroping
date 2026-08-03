@@ -11,8 +11,8 @@ from textwrap import wrap
 from scripts.factory_scheduler_root import SchedulerRootError, resolve_scheduler_root
 
 from .factory_status_dispatch import collect_dispatch_lanes
+from .factory_status_errors import FactoryStatusError
 from .factory_status_filesystem import (
-    FactoryStatusError,
     collect_queue,
     collect_retention,
     unsafe_retention,
@@ -28,6 +28,8 @@ from .factory_status_models import (
     StatusState,
 )
 from .factory_status_sqlite import collect_budget, collect_scheduler
+
+MAX_STATUS_OUTPUT_BYTES = 256 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,8 +49,8 @@ def collect_factory_status(project_root: Path) -> FactoryStatusReport:
     except SchedulerRootError:
         return _unsafe_report(observed_at, "root-unsafe")
     try:
-        first = _collect_once(root, observed_at)
-        second = _collect_once(root, observed_at)
+        first = _bound_output(_collect_once(root, observed_at), observed_at)
+        second = _bound_output(_collect_once(root, observed_at), observed_at)
     except (FactoryStatusError, OSError, sqlite3.DatabaseError, ValueError):
         return _unsafe_report(observed_at, "collection-unsafe")
     if first.fingerprint != second.fingerprint:
@@ -230,4 +232,13 @@ def _with_snapshot_change(report: FactoryStatusReport) -> FactoryStatusReport:
             "snapshot_consistency": "changed",
             "reason_codes": tuple(sorted(set((*report.reason_codes, "snapshot-changed")))),
         }
+    )
+
+
+def _bound_output(collected: _Collected, observed_at: datetime) -> _Collected:
+    if len(collected.report.model_dump_json().encode("utf-8")) <= MAX_STATUS_OUTPUT_BYTES:
+        return collected
+    return _Collected(
+        report=_unsafe_report(observed_at, "output-limit-unsafe"),
+        fingerprint=collected.fingerprint,
     )

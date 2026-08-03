@@ -9,7 +9,7 @@ from scripts.factory_budget_ledger_models import FactoryBudgetLedgerError
 from scripts.factory_budget_ledger_parent_fs import open_private_relative_directory
 from scripts.factory_retention_fs import RetentionFsError
 
-from .factory_status_filesystem import FactoryStatusError
+from .factory_status_errors import FactoryStatusError
 from .factory_status_models import SourceState
 
 type Fingerprints = list[tuple[str, int, int, int]]
@@ -50,24 +50,25 @@ def open_status_database(
                 relative.name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=parent
             )
             _reject_sidecars(parent, relative.name)
-        expected = file_identity_from_metadata(os.fstat(descriptor))
-        _fingerprint_descriptor(root, path, descriptor, fingerprints)
-        connection = sqlite3.connect(
-            f"file:/dev/fd/{descriptor}?mode=ro&immutable=1",
-            uri=True,
-            autocommit=True,
-            timeout=0.1,
-            factory=_StatusConnection,
-        )
-        assert isinstance(connection, _StatusConnection)
-        connection.bind_descriptor(descriptor)
-        descriptor = None
-        _ = connection.execute("PRAGMA query_only = ON")
-        _ = connection.execute("PRAGMA trusted_schema = OFF")
-        _ = connection.execute("BEGIN")
-        if not _descriptor_matches_expected(connection, expected):
-            connection.close()
-            return None, "unsafe"
+            expected = file_identity_from_metadata(os.fstat(descriptor))
+            _fingerprint_descriptor(root, path, descriptor, fingerprints)
+            connection = sqlite3.connect(
+                f"file:/dev/fd/{descriptor}?mode=ro&immutable=1",
+                uri=True,
+                autocommit=True,
+                timeout=0.1,
+                factory=_StatusConnection,
+            )
+            assert isinstance(connection, _StatusConnection)
+            connection.bind_descriptor(descriptor)
+            descriptor = None
+            _ = connection.execute("PRAGMA query_only = ON")
+            _ = connection.execute("PRAGMA trusted_schema = OFF")
+            _ = connection.execute("BEGIN")
+            if not _descriptor_matches_expected(connection, expected):
+                connection.close()
+                return None, "unsafe"
+            _reject_sidecars(parent, relative.name)
         return connection, "available"
     except FileNotFoundError:
         return None, "unsafe"

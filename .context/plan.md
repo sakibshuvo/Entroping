@@ -22,8 +22,9 @@ Document the maintainer-only `scripts/factoryctl.py status [--json]` projection
 without changing the product `entroping` CLI. The strict
 `entroping.factory-status.v1` report orders `unsafe > paused > healthy` and
 maps to exits `2/1/0`. It is observation only: no providers, network,
-subprocesses, mutation, migration, recovery, raw payload reads, or spending/
-dispatch authorization. Existing SQLite stores use descriptor-pinned,
+test/gate/worker subprocesses, mutation, migration, recovery, raw payload
+reads, or spending/dispatch authorization. One bounded read-only Git subprocess
+resolves shared-worktree authority. Existing SQLite stores use descriptor-pinned,
 no-follow immutable reads with sidecar rejection; queue and retention reads are
 bounded metadata-only walks. Each store is read in an explicit transaction and
 collected twice at one timestamp; fingerprint drift is unsafe and no global

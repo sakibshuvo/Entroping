@@ -11,10 +11,13 @@ from scripts.factory_cost_policy_types import AutomationLane, ProviderQuota
 from scripts.provider_capability_types import ProviderLane
 
 from .factory_status_database import open_status_database
+from .factory_status_errors import FactoryStatusError
 from .factory_status_models import QuotaReadinessStatus
 
 type Fingerprints = list[tuple[str, int, int, int]]
 type RouteKey = tuple[str, str]
+
+MAX_QUOTA_EVALUATIONS = 4_096
 
 
 def collect_quota_readiness(
@@ -27,6 +30,9 @@ def collect_quota_readiness(
     """Read quota capacity using the policy lane and registered provider-lane identity."""
 
     quota_routes = tuple(pair for pair in routes if pair[0].quota_ids)
+    evaluation_count = sum(len(lane.quota_ids) for lane, _route in quota_routes)
+    if evaluation_count > MAX_QUOTA_EVALUATIONS:
+        raise FactoryStatusError("quota evaluation limit exceeded")
     ready: dict[RouteKey, tuple[QuotaReadinessStatus, ...]] = {
         key: () for key in (_route_key(*pair) for pair in routes)
     }

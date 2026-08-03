@@ -7,11 +7,13 @@ from typing import Literal
 
 from scripts.factory_budget_ledger_fs import LEDGER_DIRECTORY, LEDGER_NAME
 from scripts.factory_budget_ledger_schema import validate_schema as validate_ledger_schema
+from scripts.factory_scheduler_receipts import iso_utc
 from scripts.factory_scheduler_schema import validate_schema as validate_scheduler_schema
 
 from .factory_status_database import open_status_database
 from .factory_status_models import BudgetStatus, SchedulerStatus, StateCounts
 from .factory_status_policy import cash_threshold_reason, policy_safety_reason
+from .factory_status_scheduler_authority import validate_scheduler_authority
 
 type LeaseState = Literal["uninitialized", "idle", "active", "expired", "unsafe"]
 type Fingerprints = list[tuple[str, int, int, int]]
@@ -132,13 +134,12 @@ def collect_scheduler(
         return blank, (f"scheduler-{status}",)
     try:
         validate_scheduler_schema(connection)
-        lease = connection.execute(
-            "SELECT expires_at_utc FROM scheduler_lease WHERE id = 1"
-        ).fetchone()
+        lease_expiry = validate_scheduler_authority(connection, observed_at)
+        observed_at_text = iso_utc(observed_at)
         lease_state: LeaseState
-        if lease is None:
+        if lease_expiry is None:
             lease_state = "idle"
-        elif str(lease[0]) > observed_at.isoformat():
+        elif lease_expiry > observed_at:
             lease_state = "active"
         else:
             lease_state = "expired"
@@ -153,7 +154,7 @@ def collect_scheduler(
             "COALESCE(SUM(phase = 'retry-wait' AND retry_not_before_utc > ?), 0), "
             "COALESCE(SUM(phase = 'retry-wait' AND retry_not_before_utc <= ?), 0), "
             "COALESCE(SUM(phase = 'uncertain'), 0) FROM scheduler_execution_state",
-            (observed_at.isoformat(), observed_at.isoformat()),
+            (observed_at_text, observed_at_text),
         ).fetchone()
         concurrency = int(
             connection.execute(
@@ -165,7 +166,7 @@ def collect_scheduler(
                 "OR e.lease_owner_pid != l.owner_pid "
                 "OR e.lease_owner_start_token != l.owner_start_token "
                 "OR e.lease_epoch != l.epoch)",
-                (observed_at.isoformat(), observed_at.isoformat()),
+                (observed_at_text, observed_at_text),
             ).fetchone()[0]
         )
         reasons: tuple[str, ...] = ()

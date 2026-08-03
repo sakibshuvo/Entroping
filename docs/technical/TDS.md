@@ -156,9 +156,12 @@ The maintainer-only status projection is a separate read adapter under
 `scripts/factory_status*.py`, exposed by `scripts/factoryctl.py status`; the
 product `entroping` CLI remains unchanged. It projects only trusted local
 policy and provider-registry files, existing budget and scheduler SQLite
-state, and bounded queue/retention metadata. It has no provider, network,
-subprocess, mutation, migration, recovery, raw-payload, or dispatch-authorization
-path. Existing SQLite databases are opened through no-follow descriptor-pinned
+state, and bounded queue/retention metadata. Shared-worktree root discovery is
+the sole subprocess exception: a bounded read-only `/usr/bin/git rev-parse`
+call uses fixed arguments, a minimal environment, a five-second timeout, and a
+4 KiB output ceiling. It has no provider, network, test-runner, gate, worker,
+mutation, migration, recovery, raw-payload, or dispatch-authorization path.
+Existing SQLite databases are opened through no-follow descriptor-pinned
 immutable read-only connections, with hot sidecars rejected. Queue and
 retention reads inspect bounded metadata only and never consume raw artifact
 contents or untrusted identifiers. Each store uses its own explicit

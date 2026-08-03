@@ -32,7 +32,7 @@ def test_factory_runbook_is_inactive_until_owned_safety_surfaces_exist() -> None
         " ".join(safety_state.split())
     )
     assert "crash/outage recovery" in safety_state
-    assert "read-only `factoryctl status`" in safety_state
+    assert "uv run python scripts/factoryctl.py status" in runbook
     assert "proposal-only end-to-end proof" in safety_state
     assert "`scripts/factoryctl.py tick`" in scheduler
     assert ".entroping/factory-scheduler/scheduler.sqlite3" in scheduler
@@ -48,9 +48,10 @@ def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
     install = _section(runbook, "## Future Install", "## Status and Logs")
     lifecycle = _section(runbook, "## Disable, Restart", "## Recovery Boundaries")
 
-    assert install.index("factoryctl status") < install.index("launchctl bootout")
+    command = "uv run python scripts/factoryctl.py status"
+    assert install.index(command) < install.index("launchctl bootout")
     assert install.index("terminal tick and settled budget") < install.index("launchctl bootout")
-    assert lifecycle.index("factoryctl status") < lifecycle.index("launchctl bootout")
+    assert lifecycle.index(command) < lifecycle.index("launchctl bootout")
     assert lifecycle.index("terminal and its reservation/cost settlement") < (
         lifecycle.index("launchctl bootout")
     )
@@ -71,7 +72,7 @@ def test_factory_runbook_commands_avoid_destructive_restart_and_shell_placeholde
     commands = "\n".join(command_blocks)
 
     for block in command_blocks:
-        if "factoryctl status" in block:
+        if "scripts/factoryctl.py status" in block:
             assert "launchctl bootout" not in block
     assert "launchctl kickstart -k" not in commands
     assert "launchctl load" not in commands

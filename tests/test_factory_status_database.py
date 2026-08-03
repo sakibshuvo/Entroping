@@ -75,6 +75,36 @@ def test_status_database_rejects_hot_journal_before_immutable_read(tmp_path: Pat
     assert state == "unsafe"
 
 
+def test_status_database_rechecks_sidecars_after_transaction_start(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """A sidecar appearing while the immutable transaction starts fails closed."""
+
+    path = tmp_path / "state.sqlite3"
+    _database(path, "original")
+    journal = path.with_name(f"{path.name}-journal")
+    descriptor_matches = factory_status_database._descriptor_matches_expected
+
+    def create_sidecar_after_begin(
+        connection: sqlite3.Connection,
+        expected: tuple[int, int, int, int, int],
+    ) -> bool:
+        journal.write_bytes(b"late journal")
+        journal.chmod(0o600)
+        return descriptor_matches(connection, expected)
+
+    monkeypatch.setattr(
+        factory_status_database,
+        "_descriptor_matches_expected",
+        create_sidecar_after_begin,
+    )
+
+    connection, state = factory_status_database.open_status_database(tmp_path, path, [])
+
+    assert connection is None
+    assert state == "unsafe"
+
+
 def test_malformed_policy_is_unsafe_not_an_unconfigured_pause(tmp_path: Path) -> None:
     """A present but invalid authority file is a security failure."""
 

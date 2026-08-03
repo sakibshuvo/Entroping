@@ -22,8 +22,9 @@ via PR #1597 at commit `b78c551a`. On this branch, issue #1572's status
 projection is implementation-complete locally but pending merge. Activation
 therefore remains blocked pending that merge, Tier A orchestration (#1574), and
 the proposal-only end-to-end proof (#1575). Issue #1571 supplies recovery
-authority and the plan/apply command; it does not wire `ai_jobs`, select queue
-work, or perform automatic restart orchestration.
+authority, including crash/outage recovery, and the plan/apply command; it does
+not wire `ai_jobs`, select queue work, or perform automatic restart
+orchestration.
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
@@ -45,9 +46,12 @@ not treat a nonzero result as a dispatch decision.
 
 The projection observes only trusted local policy and registry files, existing
 budget and scheduler SQLite state, and bounded queue/retention metadata. It
-does not call providers or the network, invoke tests or subprocesses, read raw
-queue or artifact payloads, create directories or locks, mutate state, migrate
-databases, recover work, or authorize spending/dispatch. SQLite reads are
+uses one bounded read-only `/usr/bin/git rev-parse` subprocess with fixed
+arguments, a minimal environment, a five-second timeout, and a 4 KiB output
+ceiling solely to resolve shared-worktree authority. Beyond that exception, it
+does not call providers or the network; invoke tests, gates, or workers; read
+raw queue or artifact payloads; create directories or locks; mutate state;
+migrate databases; recover work; or authorize spending/dispatch. SQLite reads are
 descriptor-pinned, no-follow, immutable, and reject hot sidecars. Queue and
 retention walks are metadata-only and bounded; ambiguous paths or snapshots
 fail closed without reading or rendering raw artifact contents or untrusted

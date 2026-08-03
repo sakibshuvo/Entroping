@@ -29,7 +29,7 @@ FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
 def _healthy_root(root: Path) -> None:
     """Create the minimal fully available local status fixture."""
 
-    now = datetime.now(UTC)
+    now = datetime.now(UTC) - timedelta(seconds=2)
     write_status_policy(root, now)
     (root / ".entroping" / "ai-jobs").mkdir(parents=True)
     policy_dir = root / "docs" / "meta"
