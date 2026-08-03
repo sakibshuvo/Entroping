@@ -121,7 +121,11 @@ def run_cli_safety_sequence(root: Path) -> tuple[PendingReceipt, ...]:
         "capacity-full",
         "lease-held",
     }
-    compose_counted_worker(blocked, CompositionOutcome.denied(str(decision["reason"])))
+    compose_counted_worker(
+        blocked,
+        CompositionOutcome.denied(str(decision["reason"])),
+        blocked.provider,
+    )
     receipts.append(blocked.receipt(return_class="blocked"))
 
     recovery_root = root / "recovery"

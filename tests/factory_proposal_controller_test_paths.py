@@ -5,11 +5,8 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from factory_proposal_controller_test_receipts import (
-    PendingReceipt,
-    ScenarioObservation,
-    _receipt_path,
-)
+from factory_proposal_controller_test_receipt_state import receipt_path as _receipt_path
+from factory_proposal_controller_test_receipts import PendingReceipt, ScenarioObservation
 from factory_proposal_controller_test_support import offline_scenario
 from factory_scheduler_test_support import NOW, dead, owner, request
 

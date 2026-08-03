@@ -81,6 +81,10 @@ def test_cli_receipts_are_observed_and_value_free(tmp_path: Path) -> None:
         _assert_receipt(receipt.path, expected_provider_call_count=0)
     blocked = next(item for item in receipts if item.scenario == "blocked-dispatch-cli")
     assert blocked.fake_call_count == 0 and "no-worker" in blocked.invariants
+    for scenario in ("idle-cli", "plan-only-cli", "invalid-cli"):
+        receipt = next(item for item in receipts if item.scenario == scenario)
+        assert receipt.changed_paths == ()
+        assert receipt.file_total == receipt.byte_total == 0
 
 
 def test_free_assignment_invokes_the_counted_fake_worker(tmp_path: Path) -> None:
@@ -170,6 +174,11 @@ def test_parent_and_child_offline_guards_deny_network_process_and_git(tmp_path: 
             with pytest.raises(AssertionError):
                 os.posix_spawnp("/usr/bin/git", ("git", "--version"), os.environ)
     for code in (
+        "from socket import getaddrinfo; getaddrinfo('localhost', 80)",
+        "from socket import socket; connect = socket.connect; connect(socket(), ('127.0.0.1', 9))",
+        "from subprocess import Popen; Popen(['/usr/bin/git', '--version'])",
+        "from os import posix_spawn; import os; "
+        "posix_spawn('/usr/bin/git', ('git', '--version'), os.environ)",
         "import socket; socket.socket().connect_ex(('127.0.0.1', 9))",
         "import subprocess; subprocess.Popen(['/usr/bin/git', '--version'])",
         "import os; os.system('/usr/bin/git --version')",

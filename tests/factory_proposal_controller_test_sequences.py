@@ -37,7 +37,11 @@ def free_local_assignment(root: Path) -> PendingReceipt:
         owner_health=dead,
     )
     assert assigned.decision == "assigned" and assigned.assignment_id is not None
-    compose_counted_worker(observed, CompositionOutcome.accepted(assigned.assignment_id))
+    compose_counted_worker(
+        observed,
+        CompositionOutcome.accepted(assigned.assignment_id),
+        observed.provider,
+    )
     assert FactoryScheduler(root).snapshot().active_assignment_count == 1
     return observed.receipt(return_class="assigned")
 

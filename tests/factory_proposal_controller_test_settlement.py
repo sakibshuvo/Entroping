@@ -65,7 +65,11 @@ def paid_exact_settlement(root: Path) -> PendingReceipt:
         owner_health=dead,
     )
     assert assigned.decision == "assigned" and assigned.assignment_id is not None
-    compose_counted_worker(observed, CompositionOutcome.accepted(assigned.assignment_id))
+    compose_counted_worker(
+        observed,
+        CompositionOutcome.accepted(assigned.assignment_id),
+        observed.provider,
+    )
     first = FactoryBudgetLedger.open_project(root).settle_reservation(
         _usage(paid.reservation_id, paid.job_id)
     )
@@ -99,7 +103,11 @@ def restart_boundaries(root: Path) -> PendingReceipt:
         owner_health=dead,
     )
     assert assigned.assignment_id is not None and assigned.lease_epoch is not None
-    compose_counted_worker(observed, CompositionOutcome.accepted(assigned.assignment_id))
+    compose_counted_worker(
+        observed,
+        CompositionOutcome.accepted(assigned.assignment_id),
+        observed.provider,
+    )
     _assert_state(
         child_state(root, paid.job_id), "never-dispatched", 1, "dispatching", 60, 0, None, "active"
     )

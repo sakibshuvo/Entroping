@@ -104,7 +104,7 @@ def cash_and_quota_exhaustion(root: Path) -> PendingReceipt:
         cash_denial = CompositionOutcome.denied(exc.code)
     else:
         raise AssertionError("cash exhaustion admitted a fake worker")
-    compose_counted_worker(observed, cash_denial)
+    compose_counted_worker(observed, cash_denial, observed.provider)
     quota_root = root / "quota"
     quota_root.mkdir()
     quota_ledger = FactoryBudgetLedger.open_project(quota_root)
@@ -118,7 +118,7 @@ def cash_and_quota_exhaustion(root: Path) -> PendingReceipt:
         quota_denial = CompositionOutcome.denied(exc.code)
     else:
         raise AssertionError("quota exhaustion admitted a fake worker")
-    compose_counted_worker(observed, quota_denial)
+    compose_counted_worker(observed, quota_denial, observed.provider)
     assert observed.worker.call_count == 0 and observed.provider.call_count == 0
     return observed.receipt(return_class="blocked")
 
@@ -126,7 +126,12 @@ def cash_and_quota_exhaustion(root: Path) -> PendingReceipt:
 @offline_scenario
 def simulated_provider_boundary(root: Path) -> PendingReceipt:
     observed = ScenarioObservation.begin(root, "simulated-provider-boundary")
-    observed.provider.invoke("local-simulated-provider-call")
+    compose_counted_worker(
+        observed,
+        CompositionOutcome.denied("quota"),
+        observed.provider,
+        provider_call_id="local-simulated-provider-call",
+    )
     return observed.receipt(return_class="fail-closed")
 
 

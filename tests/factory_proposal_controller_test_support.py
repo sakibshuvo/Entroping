@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import importlib
+import json
 import os
 import subprocess
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
+from functools import wraps
 from pathlib import Path
 from typing import overload
 from unittest.mock import patch
@@ -20,22 +23,37 @@ from factory_proposal_controller_test_receipts import (
     ScenarioObservation,
     compose_counted_worker,
     finalize_receipt,
+    scenario_receipt_from_path,
 )
 from factory_proposal_controller_test_source_manifest import SourceManifest, source_manifest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
-_TRUSTED_POPEN = subprocess.Popen
+try:
+    _TRUSTED_POPEN = importlib.import_module("entroping_offline_capability").TRUSTED_POPEN
+except ImportError:
+    _TRUSTED_POPEN = subprocess.Popen
+
+_SCENARIO_CHILD = """import json, sys
+from pathlib import Path
+module = __import__(sys.argv[1], fromlist=[sys.argv[2]])
+result = getattr(module, sys.argv[2])(Path.cwd())
+receipts = (result,) if hasattr(result, 'path') else result
+print(json.dumps([str(item.path) for item in receipts], separators=(',', ':')))
+"""
 
 
 def offline_child_environment(root: Path) -> dict[str, str]:
     """Create a child environment that rejects network and process launches."""
 
     site_root = root / "offline-site"
-    site_root.mkdir(exist_ok=True)
-    code = """import os, socket, subprocess
+    site_root.mkdir(parents=True, exist_ok=True)
+    code = """import os, socket, subprocess, sys, types
+_capability = types.ModuleType('entroping_offline_capability')
+_capability.TRUSTED_POPEN = subprocess.Popen
+sys.modules['entroping_offline_capability'] = _capability
 def _blocked(*_args, **_kwargs): raise RuntimeError('offline test boundary reached')
-for _name in ('create_connection',): setattr(socket, _name, _blocked)
+for _name in ('create_connection', 'getaddrinfo'): setattr(socket, _name, _blocked)
 for _name in (
     'connect', 'connect_ex', 'send', 'sendall', 'sendto', 'sendmsg',
     'bind', 'listen', 'accept',
@@ -52,15 +70,26 @@ import scripts.factory_scheduler as _factory_scheduler
 _factory_scheduler.resolve_scheduler_root = lambda value: value
 """
     (site_root / "sitecustomize.py").write_text(code, encoding="utf-8")
-    return {
+    environment = {
         "PATH": "",
         "PYTHONPATH": os.pathsep.join((str(site_root), str(REPO_ROOT / "tests"), str(REPO_ROOT))),
     }
+    receipt_root = os.environ.get("ENTROPING_PROPOSAL_RECEIPTS_DIR")
+    if receipt_root is not None:
+        environment["ENTROPING_PROPOSAL_RECEIPTS_DIR"] = str(Path(receipt_root).absolute())
+    return environment
 
 
-def _trusted_child(root: Path, arguments: list[str]) -> subprocess.CompletedProcess[str]:
+def _trusted_child(
+    root: Path,
+    arguments: list[str],
+    environment_updates: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     if arguments[0] != sys.executable:
         raise AssertionError("offline child executable is not allowlisted")
+    environment = offline_child_environment(root)
+    if environment_updates is not None:
+        environment.update(environment_updates)
     process = _TRUSTED_POPEN(
         arguments,
         cwd=root,
@@ -68,7 +97,7 @@ def _trusted_child(root: Path, arguments: list[str]) -> subprocess.CompletedProc
         stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
-        env=offline_child_environment(root),
+        env=environment,
     )
     try:
         stdout, stderr = process.communicate(timeout=10)
@@ -155,16 +184,43 @@ def offline_scenario(
 def offline_scenario(
     function: Callable[[Path], PendingReceipt | tuple[PendingReceipt, ...]],
 ) -> Callable[[Path], ScenarioReceipt | tuple[ScenarioReceipt, ...]]:
+    @wraps(function)
     def wrapped(root: Path) -> ScenarioReceipt | tuple[ScenarioReceipt, ...]:
-        before = source_manifest()
+        child_mode = os.environ.get("ENTROPING_PROPOSAL_SCENARIO_CHILD") == "1"
+        if not child_mode:
+            before = source_manifest()
+            child_process = _trusted_child(
+                root,
+                [sys.executable, "-c", _SCENARIO_CHILD, function.__module__, function.__name__],
+                {
+                    "ENTROPING_PROPOSAL_SCENARIO_CHILD": "1",
+                    "ENTROPING_PROPOSAL_SOURCE_DIGEST": before.digest,
+                },
+            )
+            assert child_process.returncode == 0, child_process.stderr
+            after = source_manifest()
+            if after != before:
+                raise AssertionError("scenario mutated tracked or untracked source or Git state")
+            paths = json.loads(child_process.stdout)
+            if (
+                not isinstance(paths, list)
+                or not paths
+                or not all(isinstance(path, str) for path in paths)
+            ):
+                raise AssertionError("scenario child returned a malformed receipt list")
+            receipts = tuple(scenario_receipt_from_path(Path(path)) for path in paths)
+            return receipts[0] if len(receipts) == 1 else receipts
+        expected = os.environ.get("ENTROPING_PROPOSAL_SOURCE_DIGEST")
+        if expected is None:
+            raise AssertionError("scenario child source manifest is missing")
+        before = SourceManifest(expected)
         with (
-            offline_direct_boundary(),
             patch(
                 "scripts.factory_scheduler.resolve_scheduler_root", side_effect=lambda value: value
             ),
         ):
             result = function(root)
-        after = source_manifest()
+        after = before
         if isinstance(result, PendingReceipt):
             return finalize_receipt(result, before, after)
         return tuple(finalize_receipt(item, before, after) for item in result)

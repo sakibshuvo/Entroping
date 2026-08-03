@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Literal, TypeGuard, get_args
+from typing import Annotated, Final, Literal, Self, TypeGuard, get_args
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RECEIPT_SCHEMA_VERSION: Final[int] = 1
 MAX_RECEIPT_BYTES: Final[int] = 4_096
@@ -13,6 +15,7 @@ MAX_SUMMARIZED_FILES: Final[int] = 512
 MAX_SUMMARIZED_FILE_BYTES: Final[int] = 1_000_000
 MAX_SUMMARIZED_BYTES: Final[int] = 2_000_000
 MAX_PROVIDER_CALLS: Final[int] = 16
+MAX_DURATION_MS: Final[int] = 60_000
 type CrashPoint = Literal["none", "purge"]
 type InvariantClass = Literal[
     "no-provider",
@@ -50,6 +53,47 @@ FORBIDDEN_TEXT: Final[tuple[str, ...]] = (
     "provider-output",
 )
 DENIAL_REASONS: Final[frozenset[str]] = frozenset(get_args(DenialReason.__value__))
+type BoundedCount = Annotated[int, Field(strict=True, ge=0, le=MAX_SUMMARIZED_FILES)]
+type BoundedBytes = Annotated[int, Field(strict=True, ge=0, le=MAX_SUMMARIZED_BYTES)]
+type ProviderCount = Annotated[int, Field(strict=True, ge=0, le=MAX_PROVIDER_CALLS)]
+type Duration = Annotated[int, Field(strict=True, ge=0, le=MAX_DURATION_MS)]
+
+
+class ReceiptDurations(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    compose: Duration
+    verify: Duration
+
+
+class ReceiptPayload(BaseModel):
+    """Strict, versioned serialized evidence boundary."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1]
+    scenario: Annotated[str, Field(pattern=r"^[a-z0-9-]{1,80}$", strict=True)]
+    crash_point: CrashPoint
+    return_class: ReturnClass
+    state_digest: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$", strict=True)]
+    fake_call_count: ProviderCount
+    provider_call_count: ProviderCount
+    changed_paths: Annotated[
+        tuple[Literal[".entroping", "fake-worker", "provider-model"], ...],
+        Field(max_length=MAX_LIST_ITEMS),
+    ]
+    file_total: BoundedCount
+    byte_total: BoundedBytes
+    durations_ms: ReceiptDurations
+    invariants: Annotated[tuple[InvariantClass, ...], Field(max_length=MAX_LIST_ITEMS)]
+
+    @model_validator(mode="after")
+    def unique_categories(self) -> Self:
+        if len(set(self.changed_paths)) != len(self.changed_paths):
+            raise ValueError("changed path categories must be unique")
+        if len(set(self.invariants)) != len(self.invariants):
+            raise ValueError("invariants must be unique")
+        return self
 
 
 @dataclass(frozen=True, slots=True)
