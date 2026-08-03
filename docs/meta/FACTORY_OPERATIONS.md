@@ -361,15 +361,20 @@ work, read provider configuration, invoke a provider, or apply orchestration.
 Repeat this bounded local soak with a fresh ignored receipt directory:
 
 ```text
-run_dir="$(mktemp -d "$PWD/.omo/evidence/issue-1575-offline-soak.XXXXXX")" &&
-ENTROPING_PROPOSAL_RECEIPTS_DIR="$run_dir/receipts" uv run pytest -o addopts='' tests/test_factory_proposal_controller_e2e.py tests/test_factory_proposal_controller_round3.py -q
+evidence_parent="$PWD/.omo/evidence" && test ! -L "$PWD/.omo" && test ! -L "$evidence_parent" &&
+mkdir -p "$evidence_parent" && test ! -L "$PWD/.omo" && test ! -L "$evidence_parent" &&
+run_dir="$(mktemp -d "$evidence_parent/issue-1575-offline-soak.XXXXXX")" &&
+ENTROPING_PROPOSAL_RECEIPTS_DIR="$run_dir/receipts" uv run --offline pytest -o addopts='' tests/test_factory_proposal_controller_e2e.py tests/test_factory_proposal_controller_round3.py -q
 ```
 
 Do not add `--select-live` or `--apply` to this command. The included
 `offline-soak` scenario requests exactly three iterations and rejects every
 request above its accepted maximum of four. Its direct and child boundaries
 reject network and process/provider execution; separately, each scenario
-compares a read-only source/Git manifest before and after execution.
+compares a read-only source/Git manifest before and after execution. The
+setup rejects symlinked `.omo` or `.omo/evidence` parents before creating the
+ignored evidence root, and `uv run --offline` prevents dependency resolution
+over the network before those test boundaries activate.
 
 The 2026-08-03 pilot produced 27 schema-version-1 receipts across 27 scenarios
 in the 15-test suite: CLI status/plan/recovery, free and paid assignment,
