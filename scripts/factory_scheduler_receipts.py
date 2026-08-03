@@ -114,7 +114,7 @@ def make_decision_id(
 
 
 def iso_utc(value: datetime) -> str:
-    return aware_utc(value).isoformat().replace("+00:00", "Z")
+    return aware_utc(value).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def parse_utc(value: str) -> datetime:

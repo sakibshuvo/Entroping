@@ -3,8 +3,9 @@ from __future__ import annotations
 import sqlite3
 from functools import cache
 
-SCHEMA_ID = "entroping.factory-scheduler-state.v2"
-SCHEMA_VERSION = 2
+SCHEMA_ID = "entroping.factory-scheduler-state.v3"
+SCHEMA_VERSION = 3
+V2_SCHEMA_STATEMENT_COUNT = 10
 
 SCHEMA_STATEMENTS = (
     ("CREATE TABLE scheduler_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT"),
@@ -90,6 +91,69 @@ SCHEMA_STATEMENTS = (
         "BEFORE DELETE ON scheduler_assignments BEGIN "
         "SELECT RAISE(ABORT, 'scheduler assignments are durable'); END"
     ),
+    (
+        "CREATE TABLE scheduler_execution_state ("
+        "assignment_id TEXT PRIMARY KEY REFERENCES scheduler_assignments(assignment_id), "
+        "phase TEXT NOT NULL CHECK (phase IN ('never-dispatched', 'dispatch-intent', "
+        "'dispatched', 'completed-unsettled', 'retry-wait', 'uncertain', "
+        "'completed', 'failed')), "
+        "phase_version INTEGER NOT NULL CHECK (phase_version > 0), "
+        "attempt_count INTEGER NOT NULL CHECK (attempt_count BETWEEN 1 AND 20), "
+        "lease_owner_id TEXT NOT NULL, "
+        "lease_owner_pid INTEGER NOT NULL CHECK (lease_owner_pid > 0), "
+        "lease_owner_start_token TEXT NOT NULL, "
+        "lease_epoch INTEGER NOT NULL CHECK (lease_epoch > 0), "
+        "lease_expires_at_utc TEXT NOT NULL, "
+        "phase_changed_at_utc TEXT NOT NULL, "
+        "worker_heartbeat_at_utc TEXT NOT NULL, "
+        "retry_not_before_utc TEXT, "
+        "failure_code TEXT, "
+        "terminal_outcome TEXT CHECK (terminal_outcome IS NULL OR terminal_outcome IN "
+        "('completed', 'failed', 'retry-exhausted')), "
+        "evidence_digest TEXT CHECK (evidence_digest IS NULL OR length(evidence_digest) = 64), "
+        "CHECK (worker_heartbeat_at_utc < lease_expires_at_utc), "
+        "CHECK ((phase = 'retry-wait' AND retry_not_before_utc IS NOT NULL) OR "
+        "(phase <> 'retry-wait' AND retry_not_before_utc IS NULL)), "
+        "CHECK ((phase = 'completed' AND terminal_outcome = 'completed') OR "
+        "(phase = 'failed' AND terminal_outcome IN ('failed', 'retry-exhausted')) OR "
+        "(phase NOT IN ('completed', 'failed') AND terminal_outcome IS NULL))"
+        ") STRICT"
+    ),
+    (
+        "CREATE TABLE scheduler_recovery_receipts ("
+        "id INTEGER PRIMARY KEY, "
+        "request_id TEXT NOT NULL UNIQUE, "
+        "request_digest TEXT NOT NULL CHECK (length(request_digest) = 64), "
+        "receipt_id TEXT NOT NULL UNIQUE, "
+        "assignment_id TEXT NOT NULL REFERENCES scheduler_assignments(assignment_id), "
+        "created_at_utc TEXT NOT NULL, "
+        "receipt_json TEXT NOT NULL CHECK (length(receipt_json) BETWEEN 2 AND 4096)"
+        ") STRICT"
+    ),
+    (
+        "CREATE INDEX scheduler_execution_retry_idx "
+        "ON scheduler_execution_state(phase, retry_not_before_utc)"
+    ),
+    (
+        "CREATE TRIGGER scheduler_execution_identity_immutable "
+        "BEFORE UPDATE OF assignment_id ON scheduler_execution_state BEGIN "
+        "SELECT RAISE(ABORT, 'scheduler execution identity is immutable'); END"
+    ),
+    (
+        "CREATE TRIGGER scheduler_execution_no_delete "
+        "BEFORE DELETE ON scheduler_execution_state BEGIN "
+        "SELECT RAISE(ABORT, 'scheduler execution state is durable'); END"
+    ),
+    (
+        "CREATE TRIGGER scheduler_recovery_receipts_immutable "
+        "BEFORE UPDATE ON scheduler_recovery_receipts BEGIN "
+        "SELECT RAISE(ABORT, 'scheduler recovery receipts are immutable'); END"
+    ),
+    (
+        "CREATE TRIGGER scheduler_recovery_receipts_no_delete "
+        "BEFORE DELETE ON scheduler_recovery_receipts BEGIN "
+        "SELECT RAISE(ABORT, 'scheduler recovery receipts are durable'); END"
+    ),
 )
 
 
@@ -146,8 +210,29 @@ def validate_schema(connection: sqlite3.Connection) -> None:
         raise sqlite3.DatabaseError("scheduler integrity check failed")
     if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
         raise sqlite3.DatabaseError("scheduler foreign keys are invalid")
+    inconsistent = connection.execute(
+        "SELECT 1 FROM scheduler_assignments AS a "
+        "LEFT JOIN scheduler_execution_state AS e "
+        "ON e.assignment_id = a.assignment_id WHERE e.assignment_id IS NULL OR "
+        "(a.state = 'active' AND e.phase IN ('completed', 'failed')) OR "
+        "(a.state = 'completed' AND e.phase NOT IN ('completed', 'failed')) LIMIT 1"
+    ).fetchone()
+    orphan_execution = connection.execute(
+        "SELECT 1 FROM scheduler_execution_state AS e "
+        "LEFT JOIN scheduler_assignments AS a ON a.assignment_id = e.assignment_id "
+        "WHERE a.assignment_id IS NULL LIMIT 1"
+    ).fetchone()
+    if inconsistent is not None or orphan_execution is not None:
+        raise sqlite3.DatabaseError("scheduler assignment execution state is inconsistent")
     if connection.execute("SELECT COUNT(*) FROM scheduler_assignments").fetchone()[0] > 10_000:
         raise sqlite3.DatabaseError("scheduler assignment limit exceeded")
+    if connection.execute("SELECT COUNT(*) FROM scheduler_execution_state").fetchone()[0] > 10_000:
+        raise sqlite3.DatabaseError("scheduler execution-state limit exceeded")
+    recovery_count = connection.execute(
+        "SELECT COUNT(*) FROM scheduler_recovery_receipts"
+    ).fetchone()[0]
+    if recovery_count > 10_000:
+        raise sqlite3.DatabaseError("scheduler recovery-receipt limit exceeded")
 
 
 def _schema_objects(connection: sqlite3.Connection) -> frozenset[tuple[str, str, str]]:

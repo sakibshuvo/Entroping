@@ -4,7 +4,14 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from factory_scheduler_test_support import NOW, dead, owner, request, scheduler
+from factory_scheduler_test_support import (
+    NOW,
+    complete_free_assignment,
+    dead,
+    owner,
+    request,
+    scheduler,
+)
 
 
 def test_limits_paid_free_review_and_writer_scope_independently(tmp_path: Path) -> None:
@@ -49,9 +56,10 @@ def test_limits_paid_free_review_and_writer_scope_independently(tmp_path: Path) 
     )
     assert free_blocked.reason == "free-review-capacity"
 
-    subject.complete_assignment(
+    complete_free_assignment(
+        subject,
         assignment_id=free_review.assignment_id,
-        owner=owner(1),
+        lease_owner=owner(1),
         epoch=free_review.lease_epoch,
         completed_at=NOW + timedelta(milliseconds=400),
     )

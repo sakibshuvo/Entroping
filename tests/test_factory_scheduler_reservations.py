@@ -12,6 +12,7 @@ from threading import Event
 import pytest
 from factory_scheduler_test_support import (
     NOW,
+    complete_free_assignment,
     dead,
     owner,
     paid_request_with_reservation,
@@ -24,7 +25,9 @@ from scripts.factory_budget_ledger import (
     UsageEnvelope,
 )
 from scripts.factory_quota_models import DispatchAuthorizationRequest, TopUpAttestation
+from scripts.factory_retry_policy import RetryPolicy
 from scripts.factory_scheduler import FactoryScheduler
+from scripts.factory_scheduler_execution_models import RecoveryRequest
 from scripts.factory_scheduler_models import AssignmentRequest, LeaseOwner
 from scripts.factory_scheduler_reservation import budget_reservation_handoff
 from scripts.factory_scheduler_schema import SCHEMA_ID, SCHEMA_VERSION
@@ -205,9 +208,10 @@ def test_paid_reservation_handoff_holds_ledger_until_assignment_commit(
         owner_health=dead,
     )
     assert first.lease_epoch is not None
-    subject.complete_assignment(
+    complete_free_assignment(
+        subject,
         assignment_id=first.assignment_id,
-        owner=owner(1),
+        lease_owner=owner(1),
         epoch=first.lease_epoch,
         completed_at=NOW + timedelta(milliseconds=100),
     )
@@ -319,7 +323,7 @@ def test_quota_authorization_assignment_is_durable_and_replayable(
     assert evidence.request.reservation_id is None
 
 
-def test_existing_v1_scheduler_state_migrates_before_quota_assignment(
+def test_existing_v2_scheduler_state_migrates_before_quota_assignment(
     tmp_path: Path,
 ) -> None:
     _ledger, candidate = _paid_request_with_authorization(tmp_path)
@@ -399,3 +403,54 @@ def test_paid_replay_and_conflict_precede_current_reservation_validation(
     assert replay.assignment_id == first.assignment_id
     assert conflict.decision == "blocked"
     assert conflict.reason == "request-id-conflict"
+
+
+def test_launched_quota_authority_cannot_be_recovered_as_never_dispatched(
+    tmp_path: Path,
+) -> None:
+    ledger, candidate = _paid_request_with_authorization(tmp_path)
+    now = datetime.now(UTC)
+    subject = FactoryScheduler(tmp_path)
+    assigned = subject.tick(
+        request=candidate,
+        owner=owner(1),
+        as_of=now,
+        lease_seconds=1,
+        plan_only=False,
+        owner_health=dead,
+    )
+    assert assigned.assignment_id is not None
+    assert assigned.lease_epoch is not None
+    assert candidate.authorization_id is not None
+    assert ledger.consume_dispatch_authorization_for_launch(
+        candidate.job_id,
+        as_of=now + timedelta(milliseconds=100),
+    )
+    assert ledger.quota_authorization_state(candidate.authorization_id) == "launched"
+    recovery = RecoveryRequest.model_validate(
+        {
+            "request_id": "recover-launched-authorization",
+            "assignment_id": assigned.assignment_id,
+            "expected_epoch": assigned.lease_epoch,
+            "dispatch_state": "not-dispatched",
+            "settlement_state": "not-required",
+            "failure_class": "transient",
+            "failure_code": "provider-unavailable",
+            "snapshots": (),
+        },
+        strict=True,
+    )
+
+    receipt = subject.recover(
+        recovery,
+        owner=owner(2),
+        as_of=now + timedelta(seconds=2),
+        lease_seconds=30,
+        retry_policy=RetryPolicy(),
+        plan_only=False,
+        owner_health=dead,
+    )
+
+    assert receipt.decision == "blocked"
+    assert receipt.reason == "settlement-authority-conflict"
+    assert subject.snapshot().active_assignment_count == 1

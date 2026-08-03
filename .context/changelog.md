@@ -1,5 +1,28 @@
 # Entroping Changelog
 
+## 2026-08-02
+
+- Added issue #1571's scheduler crash and outage recovery contract. Scheduler
+  schema v3 keeps a versioned execution state for every immutable assignment
+  and append-only request-bound recovery receipts. Phase, process-start, and
+  epoch fencing prevent a replaced worker from heartbeating or completing;
+  legacy active assignments migrate to `uncertain` rather than reopening
+  capacity. Only durably never-dispatched scheduler state can enter
+  deterministic capped backoff, explicit provider retry hints remain bounded,
+  and stale caller-declared GitHub, provider, price, or quota metadata defers
+  reconsideration without being treated as authenticated dispatch authority.
+  Paid ambiguous or completed recovery holds and verifies the budget/quota
+  ledger state through scheduler commit and never releases uncertain holds.
+  Paid completion requires the exact completed-unsettled phase plus settled
+  ledger authority. The plan-first `factoryctl recover` command emits
+  value-free non-dispatching receipts, and focused crash-boundary, migration,
+  tamper, capacity, symlink, concurrency, heartbeat, ledger-race, and CLI replay
+  tests cover the new boundary. Consecutive sibling recoveries by one live
+  owner reuse the current epoch and renew every sibling execution lease, so a
+  later recovery cannot strand earlier work outside heartbeat renewal.
+  Scheduler UTC strings now always include
+  microseconds so sub-second heartbeats preserve lexical SQLite ordering.
+
 ## 2026-07-29
 
 - Added issue #1570's provider-quota admission contract. Ledger schema v3

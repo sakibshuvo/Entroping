@@ -7,7 +7,14 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from factory_scheduler_test_support import NOW, dead, owner, request, scheduler
+from factory_scheduler_test_support import (
+    NOW,
+    complete_free_assignment,
+    dead,
+    owner,
+    request,
+    scheduler,
+)
 
 from scripts.factory_scheduler import FactorySchedulerError
 
@@ -122,6 +129,7 @@ def test_completion_bounds_utc_normalization_overflow(
             assignment_id=assigned.assignment_id,
             owner=owner(1),
             epoch=assigned.lease_epoch,
+            expected_phase_version=1,
             completed_at=completed_at,
         )
 
@@ -198,6 +206,7 @@ def test_mutation_boundaries_reject_non_strict_epochs(
             assignment_id=assigned.assignment_id,
             owner=owner(1),
             epoch=unsafe_epoch,
+            expected_phase_version=1,
             completed_at=NOW + timedelta(seconds=1),
         )
 
@@ -232,9 +241,10 @@ def test_tick_bounds_epoch_overflow(tmp_path: Path) -> None:
         plan_only=False,
         owner_health=dead,
     )
-    subject.complete_assignment(
+    complete_free_assignment(
+        subject,
         assignment_id=assigned.assignment_id,
-        owner=owner(1),
+        lease_owner=owner(1),
         epoch=assigned.lease_epoch,
         completed_at=NOW + timedelta(milliseconds=100),
     )
@@ -257,3 +267,37 @@ def test_tick_bounds_epoch_overflow(tmp_path: Path) -> None:
 
     assert receipt.decision == "blocked"
     assert receipt.reason == "state-invalid"
+
+
+@pytest.mark.parametrize("invalid_version", [True, 0, 9_223_372_036_854_775_808])
+def test_execution_mutations_require_a_strict_bounded_phase_version(
+    tmp_path: Path,
+    invalid_version: object,
+) -> None:
+    subject = scheduler(tmp_path)
+    assigned = subject.tick(
+        request=request(1, worker_class="free-local"),
+        owner=owner(1),
+        as_of=NOW,
+        lease_seconds=30,
+        plan_only=False,
+        owner_health=dead,
+    )
+    with pytest.raises(FactorySchedulerError, match="phase version"):
+        subject.transition_execution(
+            assignment_id=cast(str, assigned.assignment_id),
+            owner=owner(1),
+            epoch=cast(int, assigned.lease_epoch),
+            expected_phase_version=cast(int, invalid_version),
+            target_phase="dispatch-intent",
+            observed_at=NOW + timedelta(seconds=1),
+            evidence_digest="a" * 64,
+        )
+    with pytest.raises(FactorySchedulerError, match="phase version"):
+        subject.complete_assignment(
+            assignment_id=assigned.assignment_id,
+            owner=owner(1),
+            epoch=assigned.lease_epoch,
+            expected_phase_version=cast(int, invalid_version),
+            completed_at=NOW + timedelta(seconds=1),
+        )

@@ -130,9 +130,25 @@ scheduler decision, so the lock-coupled validation is not represented as a
 cross-database mutation or reservation claim.
 The initial limits are one paid assignment, one free/local read-only review,
 and one writer per issue/worktree scope. Expiry permits takeover only when the
-recorded process is dead and no active assignment requires recovery. Receipts
-are value-free and always keep `paid_work_authorized: false`; the scheduler has
-no provider, GitHub-selection, queue-mutation, or product-runtime call path.
+recorded process is dead. Schema v3 adds a one-to-one execution state beside
+each immutable assignment plus append-only recovery receipts. Phase-version
+compare-and-swap, per-execution lease expiry, mutable owner/epoch fencing, and
+heartbeat propagation make
+crash recovery explicit across never-dispatched, dispatch-intent, dispatched,
+completed-unsettled, retry-wait, uncertain, completed, and failed work. Only
+scheduler state that durably remains never-dispatched can return to
+reconsideration through bounded deterministic backoff.
+Ambiguous work retains concurrency and financial holds; paid uncertain or
+settled transitions require the separate ledger to prove that state first.
+Caller-declared snapshot metadata is bounded and time-checked but is not fetched
+or authenticated by the scheduler; it can defer reconsideration but cannot
+authorize provider work. Plan-only recovery is read-only, and recovery never
+performs provider dispatch.
+Receipts are value-free and always keep `paid_work_authorized: false`; the
+scheduler has no provider, GitHub-selection, queue-mutation, or product-runtime
+call path. Issue #1571 therefore supplies recovery authority and operator/API
+primitives only; #1574 owns orchestration integration and #1575 owns the
+restart/duplicate-tick end-to-end proof.
 Paid candidates must reference an authoritative `dispatching` budget
 reservation, and the eventual dispatch boundary must revalidate it.
 
@@ -2464,7 +2480,9 @@ active or uncertain holds, and manual cash correction does not restore quota.
 Scheduler receipts remain non-dispatching and
 `paid_work_authorized: false`; scheduler handoff persists either cash-reservation
 or quota-authorization identity. Existing scheduler state migrates
-transactionally from schema v1 to v2. Provider launch atomically revalidates
+transactionally from schema v1 or v2 to v3; prior active assignments become
+`uncertain` instead of being guessed never-dispatched. Provider launch
+atomically revalidates
 current 80/90/100 cash thresholds, quota, top-up, and expiry before consuming
 the generic authorization and starting network execution; consumed authority
 cannot launch twice.

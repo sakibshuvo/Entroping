@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import ValidationError
 
-from scripts.factory_scheduler_completion_transaction import complete_assignment
-from scripts.factory_scheduler_lease_transaction import heartbeat_lease
+from scripts.factory_scheduler_execution_models import ExecutionState
+from scripts.factory_scheduler_lifecycle import (
+    FactorySchedulerLifecycle,
+    SettlementAuthorityCheck,
+    SettlementAuthorityGuard,
+)
 from scripts.factory_scheduler_models import (
     AssignmentRequest,
     DecisionReceipt,
@@ -19,27 +23,33 @@ from scripts.factory_scheduler_models import (
     StoredAssignment,
 )
 from scripts.factory_scheduler_process import probe_owner
-from scripts.factory_scheduler_queries import read_assignment, read_snapshot
+from scripts.factory_scheduler_queries import (
+    read_assignment,
+    read_execution_for_job,
+    read_snapshot,
+)
 from scripts.factory_scheduler_receipts import blocked_state_receipt
 from scripts.factory_scheduler_reservation import (
     ReservationHandoffError,
     budget_reservation_handoff,
 )
 from scripts.factory_scheduler_root import SchedulerRootError, resolve_scheduler_root
+from scripts.factory_scheduler_settlement_authority import (
+    read_settlement_authority,
+    settlement_authority_handoff,
+)
 from scripts.factory_scheduler_storage import (
     database_exists,
     migrate_existing_state,
     readonly_connection,
-    writable_connection,
 )
-from scripts.factory_scheduler_storage_fs import SchedulerStateError, is_busy
+from scripts.factory_scheduler_storage_fs import SchedulerStateError
 from scripts.factory_scheduler_tick import immutable_request_decision, tick_state
 from scripts.factory_scheduler_validation import (
     FactorySchedulerError as FactorySchedulerError,
 )
 from scripts.factory_scheduler_validation import (
     scheduler_timestamp,
-    validate_lease_epoch,
     validate_lease_seconds,
 )
 
@@ -50,18 +60,39 @@ type ReservationGuard = Callable[
 ]
 
 
-class FactoryScheduler:
+class FactoryScheduler(FactorySchedulerLifecycle):
+    limits: SchedulerLimits
+    reservation_guard: ReservationGuard
+
     def __init__(
         self,
         project_root: Path,
         *,
         limits: SchedulerLimits | None = None,
         reservation_guard: ReservationGuard | None = None,
+        settlement_authority: SettlementAuthorityCheck | None = None,
+        settlement_guard: SettlementAuthorityGuard | None = None,
     ) -> None:
         try:
-            self.project_root = resolve_scheduler_root(project_root)
+            scheduler_root = resolve_scheduler_root(project_root)
         except SchedulerRootError as exc:
             raise FactorySchedulerError("scheduler root is unavailable") from exc
+        authority: SettlementAuthorityCheck = settlement_authority or (
+            lambda assignment: read_settlement_authority(scheduler_root, assignment)
+        )
+        guard: SettlementAuthorityGuard = settlement_guard or (
+            (lambda assignment: nullcontext(authority(assignment)))
+            if settlement_authority is not None
+            else lambda assignment: settlement_authority_handoff(
+                scheduler_root,
+                assignment,
+            )
+        )
+        super().__init__(
+            project_root=scheduler_root,
+            settlement_authority=authority,
+            settlement_guard=guard,
+        )
         self.limits = limits or SchedulerLimits()
         self.reservation_guard = reservation_guard or self._budget_reservation_guard
 
@@ -140,76 +171,6 @@ class FactoryScheduler:
             health=health,
         )
 
-    def heartbeat(
-        self,
-        *,
-        owner: LeaseOwner,
-        epoch: int,
-        as_of: datetime,
-        lease_seconds: int,
-    ) -> DecisionReceipt:
-        validate_lease_seconds(lease_seconds)
-        validated_epoch = validate_lease_epoch(epoch)
-        try:
-            with writable_connection(
-                self.project_root,
-                initialized_at=scheduler_timestamp(as_of),
-            ) as connection:
-                return heartbeat_lease(
-                    connection,
-                    owner=owner,
-                    epoch=validated_epoch,
-                    as_of=as_of,
-                    lease_seconds=lease_seconds,
-                )
-        except SchedulerStateError as exc:
-            return blocked_state_receipt(
-                request=None,
-                observed_at=as_of,
-                reason=exc.code,
-            )
-        except sqlite3.OperationalError as exc:
-            reason = "state-busy" if is_busy(exc) else "state-invalid"
-            return blocked_state_receipt(
-                request=None,
-                observed_at=as_of,
-                reason=reason,
-            )
-        except (sqlite3.DatabaseError, ValidationError, ValueError, TypeError):
-            return blocked_state_receipt(
-                request=None,
-                observed_at=as_of,
-                reason="state-invalid",
-            )
-
-    def complete_assignment(
-        self,
-        *,
-        assignment_id: str | None,
-        owner: LeaseOwner,
-        epoch: int | None,
-        completed_at: datetime,
-    ) -> None:
-        if assignment_id is None:
-            raise FactorySchedulerError("assignment id is required")
-        if epoch is None:
-            raise FactorySchedulerError("assignment epoch is required")
-        validated_epoch = validate_lease_epoch(epoch)
-        try:
-            with writable_connection(
-                self.project_root,
-                initialized_at=scheduler_timestamp(completed_at),
-            ) as connection:
-                complete_assignment(
-                    connection,
-                    assignment_id=assignment_id,
-                    owner=owner,
-                    epoch=validated_epoch,
-                    completed_at=completed_at,
-                )
-        except (SchedulerStateError, sqlite3.DatabaseError, ValueError) as exc:
-            raise FactorySchedulerError("assignment completion failed") from exc
-
     def snapshot(self) -> SchedulerSnapshot:
         try:
             if not database_exists(self.project_root):
@@ -233,6 +194,15 @@ class FactoryScheduler:
                 return read_assignment(connection, job_id=job_id)
         except (SchedulerStateError, sqlite3.DatabaseError, ValidationError) as exc:
             raise FactorySchedulerError("scheduler assignment is unavailable") from exc
+
+    def execution_for_job_readonly(self, job_id: str) -> ExecutionState | None:
+        try:
+            if not database_exists(self.project_root):
+                return None
+            with readonly_connection(self.project_root) as connection:
+                return read_execution_for_job(connection, job_id=job_id)
+        except (SchedulerStateError, sqlite3.DatabaseError, ValidationError) as exc:
+            raise FactorySchedulerError("scheduler execution state is unavailable") from exc
 
     def _budget_reservation_guard(
         self,

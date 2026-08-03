@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-07-29
-**Status:** Issue #1570 implementation and release gates in progress
+**Date:** 2026-08-02
+**Status:** Issue #1571 implementation and release-ci-architecture gates in progress
 
 ## Objective
 
@@ -16,17 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1570 Provider Quota And Dispatch Authorization
+## Current Issue Slice: #1571 Scheduler Crash And Outage Recovery
 
-Extend the existing private cash ledger to schema v3 so one serialized
-transaction validates cash thresholds, all referenced quota dimensions, and
-fresh HMAC-authenticated disabled-top-up and quota evidence before atomically
-holding every authority. Bind immutable generic authorizations across metered,
-included-quota, and fixed-subscription lanes; settle conservatively and
-revalidate current thresholds at scheduler and provider launch boundaries.
-Sanitize the coordinator-to-worker environment so the evidence-authentication
-key cannot cross into OpenCode or DeepSeek wrappers, and keep the new quota,
-scheduler, and launch responsibilities in bounded modules. Keep product runtime
+Extend the Git-common-root scheduler to schema v3 with one durable execution
+state per immutable assignment and append-only recovery receipts. Fence worker
+heartbeats, completion, phase changes, and recovery by process identity, phase
+version, and lease epoch. Retry reconsideration is limited to scheduler state
+that durably remains never-dispatched and uses bounded, caller-declared
+GitHub/provider/price/quota observation metadata only to defer stale work. The
+scheduler does not authenticate that external metadata or authorize dispatch.
+Keep ambiguous work capacity-consuming, require ledger-first authority for paid
+uncertain or settled transitions, and expose a plan-first `factoryctl recover`
+surface that never dispatches providers or releases holds. Keep product runtime
 unchanged.
 
 ## Current Baseline
@@ -76,10 +77,11 @@ Guarded anchors retained for docs-link tests:
 ## Current Validation Queue
 
 Keep each marathon issue narrow, tested, merged through GitHub, and cleaned up
-before starting the next branch. Near-term validation targets remain package
-index proof (#303-#305), downstream feedback (#306), stable-core compatibility
-(#308), and non-GitHub CI proof (#309-#310); package issue #268 stays gated on
-package-index evidence.
+before starting the next branch. The current factory dependency chain is #1571
+recovery, #1572 status, #1573 quality correlation, #1574 Tier A orchestration,
+#1575 end-to-end restart proof, and #1576 PR/CI/merge cleanup. External stable
+core targets remain package-index proof (#303-#305), downstream feedback
+(#306), and non-GitHub CI proof (#309-#310).
 
 ## Explicitly Deferred
 

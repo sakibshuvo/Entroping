@@ -25,6 +25,12 @@ def validate_lease_epoch(value: object) -> int:
     return value
 
 
+def validate_phase_version(value: object) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_LEASE_EPOCH:
+        raise FactorySchedulerError("phase version must be a positive bounded integer")
+    return value
+
+
 def aware_utc(value: datetime) -> datetime:
     try:
         if value.tzinfo is None or value.utcoffset() is None:

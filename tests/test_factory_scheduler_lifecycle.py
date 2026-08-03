@@ -5,7 +5,14 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from factory_scheduler_test_support import NOW, dead, owner, request, scheduler
+from factory_scheduler_test_support import (
+    NOW,
+    dead,
+    owner,
+    prepare_completion,
+    request,
+    scheduler,
+)
 
 
 def test_dead_expired_owner_with_active_assignment_requires_recovery(
@@ -46,6 +53,13 @@ def test_completion_is_fenced_by_assignment_owner_and_epoch(tmp_path: Path) -> N
         owner_health=dead,
     )
     assert assigned.lease_epoch is not None
+    phase_version = prepare_completion(
+        subject,
+        assignment_id=assigned.assignment_id,
+        lease_owner=owner(1),
+        epoch=assigned.lease_epoch,
+        completed_at=NOW + timedelta(seconds=1),
+    )
 
     for stale_owner, stale_epoch in (
         (owner(2), assigned.lease_epoch),
@@ -61,6 +75,7 @@ def test_completion_is_fenced_by_assignment_owner_and_epoch(tmp_path: Path) -> N
                 assignment_id=assigned.assignment_id,
                 owner=stale_owner,
                 epoch=stale_epoch,
+                expected_phase_version=phase_version,
                 completed_at=NOW + timedelta(seconds=1),
             )
     assert subject.snapshot().active_assignment_count == 1
