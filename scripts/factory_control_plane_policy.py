@@ -206,6 +206,18 @@ def protected_paths(
     return list(dict.fromkeys(violations))
 
 
+def static_tier_a_doc_scope(raw_path: str, *, repo_root: Path | None = None) -> bool:
+    """Return whether one canonical Markdown scope is safe for Tier A delivery."""
+
+    normalized = normalize_repo_path(raw_path)
+    return (
+        normalized == raw_path
+        and normalized.endswith(".md")
+        and normalized.startswith(("docs/product/", "docs/user/"))
+        and protected_surface_reason(normalized, repo_root=repo_root) is None
+    )
+
+
 def autonomy_tier_from_labels(labels: object) -> str:
     if not isinstance(labels, list):
         raise ValueError("trusted issue metadata must include exactly one autonomy label")

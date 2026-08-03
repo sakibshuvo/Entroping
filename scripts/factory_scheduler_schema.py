@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 from functools import cache
 
-SCHEMA_ID = "entroping.factory-scheduler-state.v3"
-SCHEMA_VERSION = 3
+SCHEMA_ID = "entroping.factory-scheduler-state.v4"
+SCHEMA_VERSION = 4
 V2_SCHEMA_STATEMENT_COUNT = 10
 
 SCHEMA_STATEMENTS = (
@@ -52,6 +52,8 @@ SCHEMA_STATEMENTS = (
         "created_at_utc TEXT NOT NULL, "
         "state TEXT NOT NULL CHECK (state IN ('active', 'completed')), "
         "completed_at_utc TEXT, "
+        "delivery_authority_json TEXT CHECK (delivery_authority_json IS NULL OR "
+        "length(delivery_authority_json) BETWEEN 2 AND 4096), "
         "CHECK ((worker_class = 'paid' AND "
         "(reservation_id IS NOT NULL OR authorization_id IS NOT NULL)) "
         "OR (worker_class = 'free-local' AND reservation_id IS NULL "
@@ -81,7 +83,8 @@ SCHEMA_STATEMENTS = (
         "CREATE TRIGGER scheduler_assignment_identity_immutable "
         "BEFORE UPDATE OF request_id, request_digest, assignment_id, decision_id, "
         "job_id, issue_number, worktree_id, scope_key, worker_class, access_mode, "
-        "reservation_id, authorization_id, lease_owner_id, lease_owner_pid, "
+        "reservation_id, authorization_id, delivery_authority_json, lease_owner_id, "
+        "lease_owner_pid, "
         "lease_owner_start_token, lease_epoch, created_at_utc "
         "ON scheduler_assignments BEGIN "
         "SELECT RAISE(ABORT, 'scheduler assignment identity is immutable'); END"

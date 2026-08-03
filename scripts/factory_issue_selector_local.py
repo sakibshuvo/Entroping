@@ -4,6 +4,7 @@ import fnmatch
 import os
 import re
 from pathlib import Path, PurePosixPath
+from typing import Final
 
 from scripts.bounded_process import BoundedProcessError, run_bounded_process
 from scripts.factory_issue_selector_json import JsonBoundaryError, decode_json
@@ -27,6 +28,12 @@ _BRANCH_ISSUE_RE = re.compile(
 _QUEUE_PARTS = ((".entroping", "ai-jobs", "queued"), (".entroping", "ai-jobs", "running"))
 _MAX_JOB_BYTES = 1_048_576
 _MAX_SCOPE_ENTRIES = 10_000
+_GIT: Final = Path("/usr/bin/git")
+_GIT_ENV: Final = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "LANG": "C"}
+
+
+class QueueStateError(ValueError):
+    pass
 
 
 def collect_active_state(
@@ -54,17 +61,15 @@ def collect_active_state(
     occupied.update(scope for scope in normalized_leases if scope is not None)
     if any(scope_has_symlink(repo_root, scope) for scope in occupied):
         complete = False
-    owned = set(snapshot.open_pr_issue_numbers)
-    owned.update(worktree_numbers)
-    owned.update(branch_numbers)
-    owned.update(queue_numbers)
+    externally_owned = set(snapshot.open_pr_issue_numbers)
+    externally_owned.update(worktree_numbers)
+    externally_owned.update(branch_numbers)
+    externally_owned.update(queue_numbers)
     if any(isinstance(number, bool) or number <= 0 for number in lease_issue_numbers):
         complete = False
-    else:
-        owned.update(lease_issue_numbers)
 
     issues_by_number = {issue.number: issue for issue in snapshot.issues}
-    for issue_number in owned:
+    for issue_number in externally_owned:
         issue = issues_by_number.get(issue_number)
         if issue is None or not issue.allowed_scopes:
             complete = False
@@ -73,6 +78,7 @@ def collect_active_state(
             complete = False
             continue
         occupied.update(issue.allowed_scopes)
+    owned = externally_owned | set(lease_issue_numbers)
     return ActiveState(
         complete=complete,
         owned_issue_numbers=frozenset(owned),
@@ -157,7 +163,7 @@ def _queue_state(repo_root: Path) -> tuple[frozenset[int], tuple[str, ...], bool
                     issue, files = _job_state(raw)
                     issue_numbers.add(issue)
                     scopes.update(files)
-        except (OSError, RetentionFsError, ValueError):
+        except (OSError, RetentionFsError, QueueStateError):
             complete = False
     return frozenset(issue_numbers), tuple(sorted(scopes)), complete
 
@@ -166,24 +172,24 @@ def _job_state(raw: bytes) -> tuple[int, tuple[str, ...]]:
     try:
         value = decode_json(raw)
     except JsonBoundaryError as exc:
-        raise ValueError("queue job JSON is invalid") from exc
+        raise QueueStateError("queue job JSON is invalid") from exc
     if not isinstance(value, dict):
-        raise ValueError("queue job must be an object")
+        raise QueueStateError("queue job must be an object")
     issue = value.get("issue")
     if isinstance(issue, bool):
-        raise ValueError("queue issue must be numeric")
+        raise QueueStateError("queue issue must be numeric")
     text = str(issue).strip() if issue is not None else ""
     if not text.isdigit() or int(text) <= 0:
-        raise ValueError("queue issue must be numeric")
+        raise QueueStateError("queue issue must be numeric")
     raw_files = value.get("files")
     if not isinstance(raw_files, list):
-        raise ValueError("queue files must be a list")
+        raise QueueStateError("queue files must be a list")
     normalized = tuple(
         normalize_scope(item) if isinstance(item, str) else None
         for item in raw_files
     )
     if not normalized or any(item is None for item in normalized):
-        raise ValueError("queue files must contain safe scopes")
+        raise QueueStateError("queue files must contain safe scopes")
     return int(text), tuple(sorted(set(item for item in normalized if item is not None)))
 
 
@@ -245,10 +251,11 @@ def _tree_has_symlink(root: Path) -> bool:
 def _run_git(repo_root: Path, *arguments: str) -> tuple[str, bool]:
     try:
         completed = run_bounded_process(
-            ["git", "-C", repo_root, *arguments],
+            [_GIT, "-C", repo_root, *arguments],
             cwd=repo_root,
             timeout_seconds=15,
             max_output_bytes=1_048_576,
+            env=_GIT_ENV,
         )
     except BoundedProcessError:
         return "", False

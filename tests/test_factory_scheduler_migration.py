@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# pyright: reportImplicitRelativeImport=false
 import sqlite3
 from pathlib import Path
 
@@ -12,8 +11,24 @@ from scripts.factory_scheduler_schema import SCHEMA_ID, SCHEMA_VERSION
 from scripts.factory_scheduler_schema_migration import (
     initialize_legacy_schema,
     initialize_previous_schema,
+    initialize_v3_schema,
     migrate_schema,
 )
+
+
+def test_v3_migrates_to_v4_delivery_authority_schema(tmp_path: Path) -> None:
+    connection = sqlite3.connect(_database(tmp_path), autocommit=True)
+    try:
+        initialize_v3_schema(connection, initialized_at=iso_utc(NOW))
+
+        assert migrate_schema(connection) is True
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(scheduler_assignments)")
+        }
+        assert "delivery_authority_json" in columns
+        assert connection.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
+    finally:
+        connection.close()
 
 
 def _database(tmp_path: Path) -> Path:

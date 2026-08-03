@@ -703,3 +703,29 @@ decisions:
     related_issues: ["#1570"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0031
+    title: Tier A proposals integrate through exact worktree orchestration
+    status: accepted
+    date: "2026-08-03"
+    summary: >
+      A maintainer-only plan-first adapter binds live scheduler ownership and
+      scheduler-persisted delivery authority plus completed-unsettled evidence
+      to exact proposal bytes, canonical local-main and issue-worktree identity,
+      a static Markdown-only scope, target-worktree allowlisted gates, raw Git
+      revision hashes, and a separate private fail-closed lifecycle journal.
+      Exact terminal receipts replay after lease expiry, while ambiguous active
+      work becomes uncertain; acceptance grants no scheduler settlement, paid,
+      PR, CI, merge, or cleanup authority.
+    tags: [factory, orchestration, worktree, scheduler, sqlite, security, reliability]
+    source_links:
+      - path: decisions/ADR-0031-factory-tier-a-worktree-orchestration.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_orchestration_service.py
+        role: orchestration-adapter
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md, docs/meta/AGENT_CONTROL_PLANE.md]
+    related_issues: ["#1574"]
+    supersedes: []
+    superseded_by: null

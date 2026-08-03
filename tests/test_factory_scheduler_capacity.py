@@ -14,7 +14,7 @@ from factory_scheduler_test_support import (
 )
 
 
-def test_limits_paid_free_review_and_writer_scope_independently(tmp_path: Path) -> None:
+def test_limits_paid_free_review_and_generic_writer_authority(tmp_path: Path) -> None:
     subject = scheduler(tmp_path)
     paid = subject.tick(
         request=request(1),
@@ -76,22 +76,9 @@ def test_limits_paid_free_review_and_writer_scope_independently(tmp_path: Path) 
         plan_only=False,
         owner_health=dead,
     )
-    assert first_writer.decision == "assigned"
-
-    second_writer = subject.tick(
-        request=request(
-            6,
-            worker_class="free-local",
-            access_mode="write",
-            worktree_id=f"wt_{'5' * 64}",
-        ),
-        owner=owner(1),
-        as_of=NOW + timedelta(milliseconds=600),
-        lease_seconds=1,
-        plan_only=False,
-        owner_health=dead,
-    )
-    assert second_writer.reason == "writer-scope-capacity"
+    assert first_writer.decision == "blocked"
+    assert first_writer.reason == "selection-required"
+    assert first_writer.authoritative is True
 
 
 def test_exact_replay_is_idempotent_and_changed_request_fails_closed(

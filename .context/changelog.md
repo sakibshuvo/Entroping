@@ -2,7 +2,27 @@
 
 ## 2026-08-03
 
-- In-progress #1573 repair: added maintainer-attested scorecard evidence, replay protection, fresh-sample policy reporting, and split focused tests; not merged or release evidence.
+- In-progress #1574 adds plan-first maintainer Tier A worktree orchestration.
+  Strict request/proposal bytes bind live scheduler ownership, exact
+  `completed-unsettled` evidence, worktree/base/branch identity, allowed paths,
+  and verification lane. Explicit apply delegates creation only to
+  `scripts/start_issue.sh`, applies exact bytes, runs allowlisted bounded gates,
+  preserves main, and journals deterministic value-free terminal receipts;
+  interruption or authority/integrity drift fails uncertain. Scheduler
+  settlement and completion remain separate and this is not release evidence.
+  Delivery authority is minted only by scheduler-owned live selection for
+  free-local writes: fresh no-cache GitHub state and complete active ownership
+  are revalidated inside assignment commit, while saved selector output and
+  caller-created envelopes remain non-authorizing. Live selection now rejects
+  ambient PATH shadows, binds the AST-derived transitive import closure and
+  executed package initializers to small aggregate traversal budgets, compares
+  every loaded closure module with clean canonical main, preserves occupied
+  scopes from immutable active writer envelopes, and keeps admission minting
+  private. Generic scheduler/state/transaction APIs reject free-local writes
+  without exposing admission inputs, while paid reservation/authorization and
+  specialized writer-scope capacity behavior remain intact.
+
+- Completed #1573: added maintainer-attested scorecard evidence, replay protection, fresh-sample policy reporting, and split focused tests.
   Strict bounded JSON input authorizes and reads one stable no-follow descriptor,
   validates exact registry tuples, and rejects immutable identity or cross-kind
   digest replay; reports are value-free, preserve historical

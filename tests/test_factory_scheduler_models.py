@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# pyright: reportImplicitRelativeImport=false
+import hashlib
 import json
 from pathlib import Path
 
@@ -13,7 +13,13 @@ from factory_scheduler_test_support import (
     scheduler,
 )
 
-from scripts.factory_scheduler_models import AssignmentRequest, LeaseOwner, SchedulerLimits
+from scripts.factory_scheduler_models import (
+    AssignmentRequest,
+    DeliveryAuthorityEnvelope,
+    LeaseOwner,
+    SchedulerLimits,
+)
+from scripts.factory_scheduler_receipts import request_digest
 
 
 def test_worktree_identity_rejects_paths_and_unverified_labels() -> None:
@@ -109,3 +115,29 @@ def test_limits_reject_values_above_the_initial_safety_ceiling() -> None:
         payload[field] = 2
         with pytest.raises(ValueError):
             SchedulerLimits.model_validate(payload, strict=True)
+
+
+def test_assignment_digest_binds_optional_delivery_authority_envelope() -> None:
+    scopes = ("docs/user/guide.md",)
+    scope_digest = hashlib.sha256(b'["docs/user/guide.md"]').hexdigest()
+    envelope = DeliveryAuthorityEnvelope(
+        selector_digest="1" * 64,
+        selection_digest="2" * 64,
+        autonomy_tier="tier-a",
+        verification_lane="tiny-docs",
+        allowed_scopes=scopes,
+        allowed_scope_digest=scope_digest,
+    )
+    legacy = request(worker_class="free-local", access_mode="write")
+    authorized = legacy.model_copy(update={"delivery_authority": envelope})
+
+    assert request_digest(legacy) != request_digest(authorized)
+    with pytest.raises(ValueError):
+        DeliveryAuthorityEnvelope(
+            selector_digest="1" * 64,
+            selection_digest="2" * 64,
+            autonomy_tier="tier-a",
+            verification_lane="tiny-docs",
+            allowed_scopes=scopes,
+            allowed_scope_digest="f" * 64,
+        )

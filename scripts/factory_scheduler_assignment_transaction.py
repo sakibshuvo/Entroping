@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime
 
@@ -61,8 +62,8 @@ def insert_assignment(
         "request_id, request_digest, assignment_id, decision_id, job_id, "
         "issue_number, worktree_id, scope_key, worker_class, access_mode, "
         "reservation_id, authorization_id, lease_owner_id, lease_owner_pid, "
-        "lease_owner_start_token, lease_epoch, created_at_utc, state, "
-        "completed_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+        "delivery_authority_json, lease_owner_start_token, lease_epoch, created_at_utc, state, "
+        "completed_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
         "'active', NULL)",
         (
             request.request_id,
@@ -79,6 +80,15 @@ def insert_assignment(
             request.authorization_id,
             owner.owner_id,
             owner.pid,
+            (
+                None
+                if request.delivery_authority is None
+                else json.dumps(
+                    request.delivery_authority.model_dump(mode="json"),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            ),
             owner.process_start_token,
             epoch,
             iso_utc(created_at),

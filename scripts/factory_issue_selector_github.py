@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+import pwd
 import re
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -24,6 +27,8 @@ from scripts.factory_issue_selector_parser import (
     parse_issue,
 )
 from scripts.factory_issue_selector_snapshot import MAX_TTL_SECONDS
+from scripts.factory_orchestration_errors import OrchestrationServiceError
+from scripts.factory_orchestration_tools import trusted_executable
 
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _MAX_GITHUB_BYTES = 5_000_000
@@ -43,11 +48,14 @@ def refresh_snapshot(
     *, repo: str, as_of: datetime, ttl_seconds: int
 ) -> GitHubSnapshot:
     _validate_request(repo=repo, as_of=as_of, ttl_seconds=ttl_seconds)
+    gh, environment = _trusted_gh_contract()
     issue_items = _request_items(
         f"repos/{repo}/issues?state=all&per_page=100",
         projection=_ISSUE_PROJECTION,
+        gh=gh,
+        environment=environment,
     )
-    pull_items = _request_pull_items(repo)
+    pull_items = _request_pull_items(repo, gh=gh, environment=environment)
 
     issues_by_number: dict[int, ParsedIssue] = {}
     try:
@@ -102,13 +110,20 @@ def refresh_snapshot(
     )
 
 
-def _request_items(endpoint: str, *, projection: str) -> tuple[JsonObject, ...]:
+def _request_items(
+    endpoint: str,
+    *,
+    projection: str,
+    gh: Path,
+    environment: Mapping[str, str],
+) -> tuple[JsonObject, ...]:
     try:
         completed = run_subprocess(
-            ["gh", "api", "--paginate", endpoint, "--jq", projection],
+            [gh, "api", "--paginate", endpoint, "--jq", projection],
             cwd=Path.cwd(),
             timeout_seconds=20,
             max_output_bytes=_MAX_GITHUB_BYTES,
+            env=environment,
         )
     except BoundedProcessError as exc:
         raise GitHubStateError("github-refresh-failed") from exc
@@ -135,11 +150,16 @@ def _request_items(endpoint: str, *, projection: str) -> tuple[JsonObject, ...]:
     return tuple(_flatten_values(values))
 
 
-def _request_pull_items(repo: str) -> tuple[JsonObject, ...]:
+def _request_pull_items(
+    repo: str,
+    *,
+    gh: Path,
+    environment: Mapping[str, str],
+) -> tuple[JsonObject, ...]:
     try:
         completed = run_subprocess(
             [
-                "gh",
+                gh,
                 "pr",
                 "list",
                 "--repo",
@@ -154,6 +174,7 @@ def _request_pull_items(repo: str) -> tuple[JsonObject, ...]:
             cwd=Path.cwd(),
             timeout_seconds=20,
             max_output_bytes=_MAX_GITHUB_BYTES,
+            env=environment,
         )
     except BoundedProcessError as exc:
         raise GitHubStateError("github-refresh-failed") from exc
@@ -237,3 +258,17 @@ def _validate_request(*, repo: str, as_of: datetime, ttl_seconds: int) -> None:
         raise GitHubStateError("as-of-naive")
     if isinstance(ttl_seconds, bool) or not 1 <= ttl_seconds <= MAX_TTL_SECONDS:
         raise GitHubStateError("snapshot-ttl-invalid")
+
+
+def _trusted_gh_contract() -> tuple[Path, Mapping[str, str]]:
+    try:
+        executable = trusted_executable("gh")
+        home = Path(pwd.getpwuid(os.geteuid()).pw_dir).resolve(strict=True)
+    except (KeyError, OSError, OrchestrationServiceError) as exc:
+        raise GitHubStateError("github-refresh-failed") from exc
+    return executable, {
+        "HOME": str(home),
+        "PATH": "/usr/bin:/bin",
+        "LC_ALL": "C",
+        "LANG": "C",
+    }

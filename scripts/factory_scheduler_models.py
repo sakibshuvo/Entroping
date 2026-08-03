@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime
 from typing import Annotated, ClassVar, Literal, Self
 
@@ -56,6 +58,7 @@ ProcessToken = Annotated[
 ]
 PositiveEpoch = Annotated[int, Field(ge=1, le=9_223_372_036_854_775_807)]
 Count = Annotated[int, Field(ge=0, le=100_000)]
+Digest = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
 
 type WorkerClass = Literal["paid", "free-local"]
 type AccessMode = Literal["read-only", "write"]
@@ -83,6 +86,27 @@ class SchedulerLimits(StrictModel):
     max_writers_per_scope: Annotated[int, Field(ge=0, le=1)] = 1
 
 
+class DeliveryAuthorityEnvelope(StrictModel):
+    schema_version: Literal["entroping.factory-delivery-authority.v1"] = (
+        "entroping.factory-delivery-authority.v1"
+    )
+    selector_digest: Digest
+    selection_digest: Digest
+    autonomy_tier: Literal["tier-a"]
+    verification_lane: Literal["tiny-docs", "docs-guardrail"]
+    allowed_scopes: Annotated[tuple[str, ...], Field(min_length=1, max_length=128)]
+    allowed_scope_digest: Digest
+
+    @model_validator(mode="after")
+    def validate_scopes(self) -> Self:
+        if tuple(sorted(set(self.allowed_scopes))) != self.allowed_scopes:
+            raise ValueError("delivery scopes must be unique and sorted")
+        encoded = json.dumps(list(self.allowed_scopes), separators=(",", ":")).encode()
+        if hashlib.sha256(encoded).hexdigest() != self.allowed_scope_digest:
+            raise ValueError("delivery scope digest does not match its scopes")
+        return self
+
+
 class AssignmentRequest(StrictModel):
     request_id: Identifier
     job_id: Identifier
@@ -92,6 +116,7 @@ class AssignmentRequest(StrictModel):
     access_mode: AccessMode
     reservation_id: ReservationId | None = None
     authorization_id: AuthorizationId | None = None
+    delivery_authority: DeliveryAuthorityEnvelope | None = None
 
     @model_validator(mode="after")
     def require_paid_reservation(self) -> Self:

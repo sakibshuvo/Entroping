@@ -2,6 +2,13 @@
 
 ## 2026-08-03
 
+- Generated source execution is not Tier A-safe without OS/container isolation.
+  Fail closed to a static Markdown envelope, persist selection and delivery
+  authority in the scheduler assignment, and derive every gate from the
+  validated target worktree rather than caller input or the primary checkout.
+- Bounded subprocess cleanup must kill the process group on normal leader exit
+  and every `BaseException`, not only timeout or ordinary callback failure;
+  descendants with closed output streams otherwise outlive the runner.
 - Provider scorecards need a separate strict evidence identity rather than a
   legacy metrics-label join. Keep receipts value-free and exact, preserve an
   accepted case when a later regression/revert appears, and use that later
@@ -861,3 +868,19 @@
   only paid or writer slot. Lease expiry is also insufficient recovery proof:
   combine PID/start identity and epoch fencing, and require explicit recovery
   whenever an expired dead owner still has active assignment evidence.
+- Proposal-to-worktree orchestration must bind the live scheduler owner and
+  completed-unsettled evidence digest to exact proposal bytes before mutation.
+  Hash Git diff bytes directly, delegate worktree creation only to the canonical
+  launcher, and terminalize any post-intent authority or checkout drift as
+  uncertain rather than manufacturing a failed or accepted receipt.
+- A selector report is candidate evidence, not delivery authority. Mint the
+  envelope only in scheduler admission from fresh independently computed state,
+  recheck it under the write transaction, bind the policy implementation at
+  canonical main, and verify that binding again at orchestration.
+- A commit hash does not bind the Python code actually executing. Derive the
+  transitive internal-import closure from fixed authority roots, require a
+  clean canonical-main checkout, compare every loaded closure module with its
+  commit-pinned blob, avoid ambient executable lookup, and carry occupied
+  writer scopes from persisted envelopes instead of mutable issue metadata.
+  Keep admission construction private and expose no admission input on generic
+  scheduler APIs; paid writer authority remains a separate existing path.

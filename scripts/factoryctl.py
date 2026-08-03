@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,10 +12,23 @@ if __package__ in {None, ""}:
 
 from pydantic import ValidationError
 
+from scripts.factory_orchestration_errors import (
+    OrchestrationGitError,
+    OrchestrationJournalError,
+    OrchestrationServiceError,
+)
+from scripts.factory_orchestration_io import (
+    OrchestrationInputError,
+    load_exact_proposal,
+    load_request,
+)
+from scripts.factory_orchestration_service import orchestrate
+from scripts.factory_patch_inspection import PatchInspectionError
 from scripts.factory_retry_policy import RecoverySnapshot, RetryPolicy
 from scripts.factory_scheduler import FactoryScheduler, FactorySchedulerError
-from scripts.factory_scheduler_execution_models import RecoveryReceipt, RecoveryRequest
-from scripts.factory_scheduler_models import AssignmentRequest, DecisionReceipt, LeaseOwner
+from scripts.factory_scheduler_delivery import tick_selected_delivery
+from scripts.factory_scheduler_execution_models import RecoveryRequest
+from scripts.factory_scheduler_models import AssignmentRequest, LeaseOwner
 from scripts.factory_scheduler_process import current_lease_owner
 from scripts.factory_status import (
     collect_factory_status,
@@ -24,7 +36,12 @@ from scripts.factory_status import (
     render_json,
     status_exit_code,
 )
+from scripts.factoryctl_output import print_decision, print_orchestration, print_recovery
 from scripts.factoryctl_parser import build_parser
+
+
+class FactoryCtlInputError(ValueError):
+    pass
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,7 +54,18 @@ def main(argv: list[str] | None = None) -> int:
             return _tick(args)
         if args.command == "recover":
             return _recover(args)
-    except (FactorySchedulerError, ValidationError, ValueError) as exc:
+        if args.command == "orchestrate":
+            return _orchestrate(args)
+    except (
+        FactorySchedulerError,
+        OrchestrationGitError,
+        OrchestrationInputError,
+        OrchestrationJournalError,
+        OrchestrationServiceError,
+        PatchInspectionError,
+        ValidationError,
+        ValueError,
+    ) as exc:
         print(f"factoryctl: {_safe_error(exc)}", file=sys.stderr)
         return 2
     print("factoryctl: unsupported command", file=sys.stderr)
@@ -54,14 +82,43 @@ def _tick(args: argparse.Namespace) -> int:
     request = _request(args)
     apply = bool(args.apply)
     owner = _owner(args, apply=apply)
-    receipt = FactoryScheduler(Path.cwd()).tick(
-        request=request,
-        owner=owner,
-        as_of=None,
-        lease_seconds=cast(int, args.lease_seconds),
-        plan_only=not apply,
-    )
-    _print_receipt(receipt, json_output=bool(args.json))
+    subject = FactoryScheduler(Path.cwd())
+    if bool(args.select_live):
+        if (
+            request is None
+            or request.worker_class != "free-local"
+            or request.access_mode != "write"
+        ):
+            raise FactoryCtlInputError(
+                "--select-live requires one complete free-local write candidate"
+            )
+        receipt = tick_selected_delivery(
+            subject.project_root,
+            subject.limits,
+            request=request,
+            owner=owner,
+            as_of=None,
+            lease_seconds=cast(int, args.lease_seconds),
+            plan_only=not apply,
+            owner_health=None,
+        )
+    else:
+        if (
+            request is not None
+            and request.worker_class == "free-local"
+            and request.access_mode == "write"
+        ):
+            raise FactoryCtlInputError(
+                "free-local write candidates require --select-live"
+            )
+        receipt = subject.tick(
+            request=request,
+            owner=owner,
+            as_of=None,
+            lease_seconds=cast(int, args.lease_seconds),
+            plan_only=not apply,
+        )
+    print_decision(receipt, json_output=bool(args.json))
     return 1 if receipt.decision == "blocked" else 0
 
 
@@ -85,8 +142,20 @@ def _recover(args: argparse.Namespace) -> int:
         ),
         plan_only=not apply,
     )
-    _print_recovery_receipt(receipt, json_output=bool(args.json))
+    print_recovery(receipt, json_output=bool(args.json))
     return 1 if receipt.decision == "blocked" else 0
+
+
+def _orchestrate(args: argparse.Namespace) -> int:
+    request = load_request(cast(Path, args.request))
+    receipt = orchestrate(
+        Path.cwd(),
+        request,
+        load_exact_proposal(request),
+        apply=bool(args.apply),
+    )
+    print_orchestration(receipt, json_output=bool(args.json))
+    return 0 if receipt.lifecycle in {"prepared", "accepted"} else 1
 
 
 def _request(args: argparse.Namespace) -> AssignmentRequest | None:
@@ -101,10 +170,14 @@ def _request(args: argparse.Namespace) -> AssignmentRequest | None:
     present = [value is not None for value in raw.values()]
     if not any(present):
         if args.reservation_id is not None or args.authorization_id is not None:
-            raise ValueError("candidate fields must be supplied together")
+            raise FactoryCtlInputError(
+                "candidate fields must be supplied together"
+            )
         return None
     if not all(present):
-        raise ValueError("candidate fields must be supplied together")
+        raise FactoryCtlInputError(
+            "candidate fields must be supplied together"
+        )
     return AssignmentRequest.model_validate(
         {
             **raw,
@@ -134,16 +207,22 @@ def _recovery_request(args: argparse.Namespace) -> RecoveryRequest:
 
 def _snapshot(value: str) -> RecoverySnapshot:
     if len(value.encode("utf-8")) > 512:
-        raise ValueError("recovery snapshot exceeds input bound")
+        raise FactoryCtlInputError(
+            "recovery snapshot exceeds input bound"
+        )
     parts = value.split(",")
     if len(parts) != 4:
-        raise ValueError("recovery snapshot must be SOURCE,OBSERVED,EXPIRES,DIGEST")
+        raise FactoryCtlInputError(
+            "recovery snapshot must be SOURCE,OBSERVED,EXPIRES,DIGEST"
+        )
     source, observed, expires, digest = parts
     try:
         observed_at = datetime.fromisoformat(observed.replace("Z", "+00:00"))
         expires_at = datetime.fromisoformat(expires.replace("Z", "+00:00"))
     except ValueError as exc:
-        raise ValueError("recovery snapshot timestamp is invalid") from exc
+        raise FactoryCtlInputError(
+            "recovery snapshot timestamp is invalid"
+        ) from exc
     return RecoverySnapshot.model_validate(
         {
             "source": source,
@@ -157,7 +236,7 @@ def _snapshot(value: str) -> RecoverySnapshot:
 
 def _owner(args: argparse.Namespace, *, apply: bool) -> LeaseOwner:
     if apply and args.owner_id is None:
-        raise ValueError("--apply requires --owner-id")
+        raise FactoryCtlInputError("--apply requires --owner-id")
     if apply:
         return current_lease_owner(cast(str, args.owner_id))
     return LeaseOwner.model_validate(
@@ -168,39 +247,6 @@ def _owner(args: argparse.Namespace, *, apply: bool) -> LeaseOwner:
         },
         strict=True,
     )
-
-
-def _print_receipt(receipt: DecisionReceipt, *, json_output: bool) -> None:
-    if json_output:
-        payload = receipt.model_dump(mode="json")
-        print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-        return
-    mode = "authoritative" if receipt.authoritative else "plan-only"
-    print(f"Factory tick: {receipt.decision} ({receipt.reason})")
-    print(f"Mode: {mode}")
-    if receipt.assignment_id is not None:
-        print(f"Assignment: {receipt.assignment_id}")
-
-
-def _print_recovery_receipt(
-    receipt: RecoveryReceipt,
-    *,
-    json_output: bool,
-) -> None:
-    if json_output:
-        print(
-            json.dumps(
-                receipt.model_dump(mode="json"),
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-        )
-        return
-    mode = "authoritative" if receipt.authoritative else "plan-only"
-    print(f"Factory recovery: {receipt.decision} ({receipt.reason})")
-    print(f"Mode: {mode}")
-    print(f"Assignment: {receipt.assignment_id}")
-    print(f"Phase: {receipt.phase}")
 
 
 def _safe_error(exc: Exception) -> str:

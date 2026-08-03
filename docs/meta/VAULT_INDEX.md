@@ -36,6 +36,7 @@ Use these first. They are the control panel for current work:
 
 ## Technical Contract
 
+- [[decisions/ADR-0031-factory-tier-a-worktree-orchestration|ADR-0031]] - static-document-only Tier A worktree orchestration boundary.
 - [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
 - [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]] - Eye freeze/map boundaries, tests, and implementation issue set.
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.

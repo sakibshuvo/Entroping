@@ -17,6 +17,7 @@ def blocked_state_receipt(
     request: AssignmentRequest | None,
     observed_at: datetime,
     reason: str,
+    authoritative: bool = True,
 ) -> DecisionReceipt:
     return decision_receipt(
         request=request,
@@ -25,7 +26,7 @@ def blocked_state_receipt(
         observed_at=_bounded_receipt_time(observed_at),
         decision="blocked",
         reason=reason,
-        authoritative=True,
+        authoritative=authoritative,
         counts=(0, 0, 0),
     )
 
