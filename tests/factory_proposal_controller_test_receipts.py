@@ -7,7 +7,7 @@ import re
 import stat
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeGuard
+from typing import TypeGuard, assert_never
 
 from factory_proposal_controller_test_receipt_contracts import (
     ALLOWED_INVARIANTS,
@@ -119,12 +119,16 @@ class ScenarioObservation:
 
 
 def compose_counted_worker(observation: ScenarioObservation, outcome: CompositionOutcome) -> None:
-    if outcome.decision == "assigned":
-        if outcome.assignment_id is None or outcome.denial_reason is not None:
-            raise AssertionError("assigned composition outcome is inconsistent")
-        observation.worker.dispatch(outcome.assignment_id)
-    elif outcome.assignment_id is not None or outcome.denial_reason is None:
-        raise AssertionError("blocked composition outcome is inconsistent")
+    match outcome.decision:
+        case "assigned":
+            if outcome.assignment_id is None or outcome.denial_reason is not None:
+                raise AssertionError("assigned composition outcome is inconsistent")
+            observation.worker.dispatch(outcome.assignment_id)
+        case "blocked":
+            if outcome.assignment_id is not None or outcome.denial_reason is None:
+                raise AssertionError("blocked composition outcome is inconsistent")
+        case unreachable:
+            assert_never(unreachable)
 
 
 def finalize_receipt(

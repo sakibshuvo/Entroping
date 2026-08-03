@@ -45,7 +45,7 @@ from factory_proposal_controller_test_support import (
 )
 
 
-def _assert_receipt(receipt_path: Path) -> None:
+def _assert_receipt(receipt_path: Path, *, expected_provider_call_count: int) -> None:
     raw = receipt_path.read_bytes()
     payload = json.loads(raw)
     assert len(raw) <= MAX_RECEIPT_BYTES
@@ -67,6 +67,8 @@ def _assert_receipt(receipt_path: Path) -> None:
     assert len(payload["state_digest"]) == 64
     assert len(payload["changed_paths"]) <= MAX_LIST_ITEMS
     assert len(payload["invariants"]) <= MAX_LIST_ITEMS
+    assert payload["provider_call_count"] == expected_provider_call_count
+    assert ("no-provider" in payload["invariants"]) is (expected_provider_call_count == 0)
     assert not any(
         marker in raw.decode("utf-8").lower()
         for marker in ("secret", "token", "credential", "password", "api-key", "provider-output")
@@ -76,27 +78,30 @@ def _assert_receipt(receipt_path: Path) -> None:
 def test_cli_receipts_are_observed_and_value_free(tmp_path: Path) -> None:
     receipts = run_cli_safety_sequence(tmp_path)
     for receipt in receipts:
-        _assert_receipt(receipt.path)
+        _assert_receipt(receipt.path, expected_provider_call_count=0)
     blocked = next(item for item in receipts if item.scenario == "blocked-dispatch-cli")
     assert blocked.fake_call_count == 0 and "no-worker" in blocked.invariants
 
 
 def test_free_assignment_invokes_the_counted_fake_worker(tmp_path: Path) -> None:
     receipt = free_local_assignment(tmp_path)
-    _assert_receipt(receipt.path)
+    _assert_receipt(receipt.path, expected_provider_call_count=0)
     assert receipt.fake_call_count == 1
+    assert receipt.provider_call_count == 0 and "no-provider" in receipt.invariants
 
 
 def test_paid_settlement_reopens_and_charges_once(tmp_path: Path) -> None:
     receipt = paid_exact_settlement(tmp_path)
-    _assert_receipt(receipt.path)
+    _assert_receipt(receipt.path, expected_provider_call_count=0)
     assert receipt.fake_call_count == 1
+    assert receipt.provider_call_count == 0 and "no-provider" in receipt.invariants
 
 
 def test_restart_boundaries_use_fresh_children(tmp_path: Path) -> None:
     receipt = restart_boundaries(tmp_path)
-    _assert_receipt(receipt.path)
+    _assert_receipt(receipt.path, expected_provider_call_count=0)
     assert receipt.fake_call_count == 1
+    assert receipt.provider_call_count == 0 and "no-provider" in receipt.invariants
 
 
 def test_replay_conflict_and_overlapping_ticks_fail_closed(tmp_path: Path) -> None:
@@ -104,25 +109,28 @@ def test_replay_conflict_and_overlapping_ticks_fail_closed(tmp_path: Path) -> No
         replay_and_conflict(tmp_path / "replay"),
         overlapping_ticks(tmp_path / "overlap"),
     ):
-        _assert_receipt(receipt.path)
+        _assert_receipt(receipt.path, expected_provider_call_count=0)
 
 
 def test_overlapping_settlement_replay_charges_once(tmp_path: Path) -> None:
-    _assert_receipt(overlapping_settlement_replay(tmp_path).path)
+    _assert_receipt(
+        overlapping_settlement_replay(tmp_path).path,
+        expected_provider_call_count=0,
+    )
 
 
 def test_authority_observations_have_exact_safe_outcomes(tmp_path: Path) -> None:
     for receipt in authority_observations(tmp_path):
-        _assert_receipt(receipt.path)
+        _assert_receipt(receipt.path, expected_provider_call_count=0)
 
 
 def test_cash_quota_and_uncertain_holds_are_isolated(tmp_path: Path) -> None:
     blocked = cash_and_quota_exhaustion(tmp_path / "cash")
-    _assert_receipt(blocked.path)
+    _assert_receipt(blocked.path, expected_provider_call_count=0)
     assert blocked.fake_call_count == blocked.provider_call_count == 0
     assert "no-worker" in blocked.invariants and "no-provider" in blocked.invariants
     for receipt in uncertain_settlement_cases(tmp_path / "uncertain"):
-        _assert_receipt(receipt.path)
+        _assert_receipt(receipt.path, expected_provider_call_count=0)
 
 
 def test_retention_escape_and_soak_scenarios_are_bounded(tmp_path: Path) -> None:
@@ -131,7 +139,7 @@ def test_retention_escape_and_soak_scenarios_are_bounded(tmp_path: Path) -> None
         ignored_state_escapes(tmp_path / "escapes"),
         offline_soak(tmp_path / "soak"),
     ):
-        _assert_receipt(receipt.path)
+        _assert_receipt(receipt.path, expected_provider_call_count=0)
 
 
 def test_parent_and_child_offline_guards_deny_network_process_and_git(tmp_path: Path) -> None:
