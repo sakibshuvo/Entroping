@@ -137,21 +137,34 @@ def test_receipt_write_survives_ancestor_swap_without_escape(tmp_path: Path) -> 
     real_open = os.open
     swapped = False
 
+    def strict_open(
+        path: str, flags: int, mode: int | None = None, *, dir_fd: int | None = None
+    ) -> int:
+        if flags & os.O_CREAT:
+            assert mode is not None and mode & 0o077 == 0
+            return real_open(path, flags, mode, dir_fd=dir_fd)
+        assert mode is None
+        return real_open(path, flags, dir_fd=dir_fd)
+
     def swap_then_open(
-        path: str, flags: int, mode: int = 0o777, *, dir_fd: int | None = None
+        path: str, flags: int, mode: int | None = None, *, dir_fd: int | None = None
     ) -> int:
         nonlocal swapped
         if path == "receipts" and not swapped:
             safe.rename(original)
             safe.symlink_to(external, target_is_directory=True)
             swapped = True
-        return real_open(path, flags, mode, dir_fd=dir_fd)
+        if flags & os.O_CREAT:
+            assert mode is not None
+            return strict_open(path, flags, mode & 0o700, dir_fd=dir_fd)
+        return strict_open(path, flags, dir_fd=dir_fd)
 
     with patch(
         "factory_proposal_controller_test_receipt_state.os.open", side_effect=swap_then_open
     ):
         write_new_receipt(target, "bounded")
     assert (original / "receipts" / "race.json").read_text() == "bounded"
+    assert (original / "receipts" / "race.json").stat().st_mode & 0o077 == 0
     assert not (external / "race.json").exists()
 
 

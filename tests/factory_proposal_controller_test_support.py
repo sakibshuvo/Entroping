@@ -172,13 +172,15 @@ def offline_direct_boundary() -> Iterator[None]:
 @overload
 def offline_scenario(
     function: Callable[[Path], PendingReceipt],
-) -> Callable[[Path], ScenarioReceipt]: ...
+) -> Callable[[Path], ScenarioReceipt]:
+    raise NotImplementedError
 
 
 @overload
 def offline_scenario(
     function: Callable[[Path], tuple[PendingReceipt, ...]],
-) -> Callable[[Path], tuple[ScenarioReceipt, ...]]: ...
+) -> Callable[[Path], tuple[ScenarioReceipt, ...]]:
+    raise NotImplementedError
 
 
 def offline_scenario(

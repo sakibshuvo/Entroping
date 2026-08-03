@@ -85,7 +85,8 @@ class CountedProviderBoundary:
 
 
 class ProviderDispatchPort(Protocol):
-    def invoke(self, call_id: str) -> None: ...
+    def invoke(self, call_id: str) -> None:
+        raise NotImplementedError
 
 
 @dataclass(frozen=True, slots=True)
