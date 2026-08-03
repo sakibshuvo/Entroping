@@ -892,3 +892,9 @@
   writer scopes from persisted envelopes instead of mutable issue metadata.
   Keep admission construction private and expose no admission input on generic
   scheduler APIs; paid writer authority remains a separate existing path.
+- Offline evidence must install deny controls before production imports; an
+  in-process patch cannot revoke aliases cached earlier. Treat provider dispatch
+  as an injected port, snapshot receipts at the labeled observation boundary,
+  validate one strict serialized model, open every output ancestor
+  descriptor-relative with no-follow, and include bounded relevant untracked
+  bytes before claiming source stability.

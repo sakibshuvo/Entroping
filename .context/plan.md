@@ -64,8 +64,11 @@ against canonical-main commit bytes.
   validation against local files, tests, and CI before commit or merge.
 - Issues #1571 through #1574 are done; #1574 adds the separate Tier A worktree
   orchestration adapter without changing product runtime or merge authority.
-- Issue #1575 has accepted offline harness evidence only: 27 schema-version-1
-  receipts across 15 tests, including a three-iteration soak capped at four.
+- Issue #1575 has accepted offline harness evidence only: 32 strict
+  schema-version-1 receipts across 20 tests, including a three-iteration soak
+  capped at four. Fresh startup-guarded children, descriptor-relative receipt
+  writes, bounded untracked-source manifests, and repeated/concurrent outcome
+  comparison close the final semantic review gaps.
   The intentional scheduler/provider separation means this is not one live
   provider-running controller. Live GitHub selection, orchestration apply,
   provider dispatch, and launchd remain outside the soak; #1576 owns the

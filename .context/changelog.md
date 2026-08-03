@@ -2,6 +2,15 @@
 
 ## 2026-08-03
 
+- Hardened #1575's final offline acceptance proof: each labeled receipt now
+  snapshots its own scenario boundary; provider absence is observed through an
+  injected dispatch port; fresh children install network/process denial before
+  production imports; strict v1 receipts reject coercion and encoding drift;
+  descriptor-relative no-follow writes survive ancestor swaps; and source
+  manifests include bounded relevant untracked bytes. The final 20-test offline
+  pilot emitted 32 receipts in 9.37s and matched deterministic outcomes across
+  repeated/concurrent runs.
+
 - Recorded #1575's offline proposal-controller validation: the 15-test harness
   emitted 27 schema-version-1 value-free receipts, including a requested
   three-iteration soak that rejects requests above four. Source/Git state

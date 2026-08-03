@@ -353,9 +353,10 @@ validated by its own scheduler/journal storage contracts, not claimed as Git byt
 
 The #1575 proof is an offline validation harness, not one live
 provider-running controller. It intentionally keeps the scheduler and provider
-boundaries separate: accepted paths use a counted fake worker, while one
-negative-control scenario records a simulated provider-boundary count to prove
-that `no-provider` is derived from observation. It does not select live GitHub
+boundaries separate through an injected provider-dispatch port: accepted paths
+use a counted fake worker without invoking that port, while one negative-control
+scenario traverses it once to prove that `no-provider` is derived from
+observation. It does not select live GitHub
 work, read provider configuration, invoke a provider, or apply orchestration.
 
 Repeat this bounded local soak with a fresh ignored receipt directory:
@@ -369,29 +370,37 @@ ENTROPING_PROPOSAL_RECEIPTS_DIR="$run_dir/receipts" uv run --offline pytest -o a
 
 Do not add `--select-live` or `--apply` to this command. The included
 `offline-soak` scenario requests exactly three iterations and rejects every
-request above its accepted maximum of four. Its direct and child boundaries
-reject network and process/provider execution; separately, each scenario
-compares a read-only source/Git manifest before and after execution. The
+request above its accepted maximum of four. Each composed scenario runs in a
+fresh child whose deny boundary installs before production imports and rejects
+cached network, subprocess, and OS-spawn aliases. Separately, each scenario
+compares a bounded read-only source/Git manifest, including relevant untracked
+bytes and metadata, before and after execution. The
 setup rejects symlinked `.omo` or `.omo/evidence` parents before creating the
 ignored evidence root, and `uv run --offline` prevents dependency resolution
 over the network before those test boundaries activate.
 
-The 2026-08-03 pilot produced 27 schema-version-1 receipts across 27 scenarios
-in the 15-test suite: CLI status/plan/recovery, free and paid assignment,
+The final 2026-08-03 pilot produced 32 strict schema-version-1 receipts in the
+20-test suite: CLI status/plan/recovery, free and paid assignment,
 replay and overlapping ticks/settlement, restart boundaries, authority,
 cash/quota and uncertain settlement, retention/path escapes, and the bounded
-soak. The receipt contract passed: all scenarios carried `offline` and
+soak, plus startup-boundary and repeated/concurrent determinism probes. Each
+labeled receipt snapshots its own observation boundary. Receipt output uses
+descriptor-relative, no-follow ancestor traversal, and the strict contract
+forbids extras, coercion, malformed digests, unbounded counts/durations, and
+payload/encoding drift. The receipt contract passed: all scenarios carried `offline` and
 `no-source-mutation`; `no-worker` and `no-provider` matched their observed
-counts. Twenty-six receipts recorded zero provider-boundary calls and one
-simulated negative control recorded one; 24 recorded zero fake-worker calls
-and three accepted paths recorded one. This is harness evidence, never a live
+counts. Thirty-one receipts recorded zero provider-boundary calls and one
+simulated negative control recorded one; 25 recorded zero fake-worker calls
+and seven accepted-path receipts recorded one. Repeated and concurrent runs
+matched scenario outcomes, counts, changed categories, totals, and invariants;
+artifact paths and generated-identifier-derived state digests are allowed to
+vary. This is harness evidence, never a live
 provider call claim.
 
-On the local pilot host, the baseline was 5.89 seconds. Three repeated
-measurements averaged 6.134 seconds (standard deviation 0.034 seconds; range
-6.096--6.162 seconds). These are local telemetry, not pass/fail thresholds or
-a production performance promise. The source HEAD and both staged and
-unstaged diffs remained unchanged after the final run.
+On the local pilot host, the final stronger 20-test pilot completed in 9.37
+seconds. This is local telemetry, not a pass/fail threshold or a production
+performance promise. The source manifest remained unchanged during every
+scenario.
 
 Remaining enablement blockers are explicit: the offline soak excludes live
 GitHub selection, and #1576 still owns PR, CI, merge-control, and cleanup
