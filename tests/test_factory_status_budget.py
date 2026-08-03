@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -12,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from factory_status_test_support import initialize_status_period, write_status_policy  # noqa: E402
 
+from scripts.factory_budget_ledger import LedgerEntryInput  # noqa: E402
 from scripts.factory_budget_reservation_models import (  # noqa: E402
     CostReservationRequest,
     PriceTerm,
@@ -20,35 +23,71 @@ from scripts.factory_budget_reservation_models import (  # noqa: E402
 from scripts.factory_status import collect_factory_status  # noqa: E402
 from scripts.factory_status_policy import cash_threshold_reason  # noqa: E402
 
+FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
+
 
 @pytest.mark.parametrize(
     ("amount", "reason"),
     (
         (8_000, "budget-threshold"),
         (9_000, "budget-subscription-only"),
-        (10_000, "budget-stop-paid-dispatch"),
     ),
 )
-def test_each_configured_cash_threshold_pauses_budget(
+def test_persistable_cash_thresholds_pause_public_status(
     tmp_path: Path, amount: int, reason: str
 ) -> None:
-    """Every policy threshold is evaluated at its exact basis-point boundary."""
+    """Valid persisted 80% and 90% spend pause the CLI with stable policy reasons."""
 
     now = datetime.now(UTC)
     write_status_policy(tmp_path, now)
+    ledger = initialize_status_period(tmp_path, now)
+    ledger.record_entry(
+        LedgerEntryInput(
+            idempotency_key=f"status-threshold-{amount}",
+            kind="manual_adjustment",
+            direction="debit",
+            amount_microcents=amount,
+            occurred_at=now,
+            currency="USD",
+            source_id="status-threshold-test",
+        )
+    )
 
+    result = subprocess.run(
+        [sys.executable, str(FACTORYCTL), "status", "--json"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=10,
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 1, result.stderr
+    assert payload["state"] == "paused"
+    assert payload["budget"]["status"] == "unavailable"
+    assert reason in payload["reason_codes"]
+
+
+def test_stop_paid_dispatch_threshold_remains_a_raw_cap_backstop(tmp_path: Path) -> None:
+    """The 100% tier remains stable for prospective checks, not persisted status state."""
+
+    now = datetime.now(UTC)
+    write_status_policy(tmp_path, now)
     threshold = cash_threshold_reason(
         tmp_path,
         now,
         "status-policy",
         1,
         10_000,
-        amount,
+        10_000,
         0,
         [],
     )
 
-    assert threshold == reason
+    # A valid ledger preserves its positive reserve and cannot persist raw-cap spend.
+    assert threshold == "budget-stop-paid-dispatch"
 
 
 def test_uncertain_cash_reservation_is_unsafe_budget_authority(tmp_path: Path) -> None:

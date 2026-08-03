@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import io
 import json
 import os
 import socket
@@ -26,17 +27,20 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
     """Instrument every public content-read seam while preserving metadata access."""
 
     original_open = builtins.open
+    original_io_open = io.open
     original_path_open = Path.open
     original_read_text = Path.read_text
     original_read_bytes = Path.read_bytes
     original_os_open = os.open
 
-    def is_payload(value: str | bytes | os.PathLike[str] | os.PathLike[bytes]) -> bool:
+    def is_payload(value: int | str | bytes | os.PathLike[str] | os.PathLike[bytes]) -> bool:
+        if isinstance(value, int):
+            return False
         decoded = os.fsdecode(value)
         return decoded in {str(payload), payload.name}
 
     def reject_open(
-        file: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        file: int | str | bytes | os.PathLike[str] | os.PathLike[bytes],
         mode: str = "r",
         buffering: int = -1,
         encoding: str | None = None,
@@ -60,6 +64,20 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
         if self == payload:
             raise AssertionError("status attempted to read queue payload")
         return original_path_open(self, mode, buffering, encoding, errors, newline)
+
+    def reject_io_open(
+        file: int | str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+        closefd: bool = True,
+        opener: Callable[[str, int], int] | None = None,
+    ) -> IO[str] | IO[bytes]:
+        if is_payload(file):
+            raise AssertionError("status attempted to read queue payload")
+        return original_io_open(file, mode, buffering, encoding, errors, newline, closefd, opener)
 
     def reject_read_text(self: Path, encoding: str | None = None, errors: str | None = None) -> str:
         if self == payload:
@@ -85,6 +103,7 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
         return original_os_open(file, flags, mode, dir_fd=dir_fd)
 
     monkeypatch.setattr(builtins, "open", reject_open)
+    monkeypatch.setattr(io, "open", reject_io_open)
     monkeypatch.setattr(Path, "open", reject_path_open)
     monkeypatch.setattr(Path, "read_text", reject_read_text)
     monkeypatch.setattr(Path, "read_bytes", reject_read_bytes)
