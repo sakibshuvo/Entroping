@@ -156,7 +156,7 @@ def test_receipt_write_survives_ancestor_swap_without_escape(tmp_path: Path) -> 
             swapped = True
         if flags & os.O_CREAT:
             assert mode is not None
-            return strict_open(path, flags, mode & 0o700, dir_fd=dir_fd)
+            return strict_open(path, flags, mode, dir_fd=dir_fd)
         return strict_open(path, flags, dir_fd=dir_fd)
 
     with patch(
