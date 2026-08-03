@@ -18,6 +18,12 @@ from scripts.factory_scheduler import FactoryScheduler, FactorySchedulerError
 from scripts.factory_scheduler_execution_models import RecoveryReceipt, RecoveryRequest
 from scripts.factory_scheduler_models import AssignmentRequest, DecisionReceipt, LeaseOwner
 from scripts.factory_scheduler_process import current_lease_owner
+from scripts.factory_status import (
+    collect_factory_status,
+    render_human,
+    render_json,
+    status_exit_code,
+)
 from scripts.factoryctl_parser import build_parser
 
 
@@ -25,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.command == "status":
+            return _status(args)
         if args.command == "tick":
             return _tick(args)
         if args.command == "recover":
@@ -34,6 +42,12 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print("factoryctl: unsupported command", file=sys.stderr)
     return 2
+
+
+def _status(args: argparse.Namespace) -> int:
+    report = collect_factory_status(Path.cwd())
+    print(render_json(report) if bool(args.json) else render_human(report))
+    return status_exit_code(report)
 
 
 def _tick(args: argparse.Namespace) -> int:

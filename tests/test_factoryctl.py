@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
@@ -56,6 +57,138 @@ def test_factoryctl_help_documents_safe_tick_modes(tmp_path: Path) -> None:
     assert "--authorization-id" in result.stdout
     assert "plan-only" in result.stdout
     assert "does not dispatch providers" in result.stdout
+
+
+def test_factoryctl_status_empty_state_is_paused_and_creates_nothing(
+    tmp_path: Path,
+) -> None:
+    # Given: an otherwise empty project root and its recursive pre-command manifest.
+    before = tuple(sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*")))
+
+    # When: the maintainer requests the factory status projection.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: it reports a stable paused status without creating factory state.
+    after = tuple(sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*")))
+    assert result.returncode == 1, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == "entroping.factory-status.v1"
+    assert payload["state"] == "paused"
+    assert payload["snapshot_consistency"] == "stable"
+    assert before == after
+    assert not (tmp_path / ".entroping").exists()
+
+
+def test_factoryctl_status_counts_metadata_without_reading_queue_payload(
+    tmp_path: Path,
+) -> None:
+    # Given: one queue metadata entry whose payload contains a disclosure canary.
+    queued = tmp_path / ".entroping" / "ai-jobs" / "queued"
+    queued.mkdir(parents=True)
+    canary = "sk-status-secret-canary-must-not-render"
+    (queued / "job.json").write_text(canary, encoding="utf-8")
+
+    # When: both public status views are requested.
+    json_result = _run(tmp_path, "status", "--json")
+    human_result = _run(tmp_path, "status")
+
+    # Then: metadata counts agree and neither view exposes the payload.
+    assert json_result.returncode == 1, json_result.stderr
+    assert human_result.returncode == 1, human_result.stderr
+    payload = json.loads(json_result.stdout)
+    assert payload["queue"]["queued"] == 1
+    assert payload["state"] == "paused"
+    assert "Factory status: paused" in human_result.stdout
+    assert canary not in json_result.stdout
+    assert canary not in human_result.stdout
+    assert "\x1b" not in human_result.stdout
+
+
+def test_factoryctl_status_rejects_symlinked_queue_entry_without_disclosure(
+    tmp_path: Path,
+) -> None:
+    # Given: a queue root containing a symlink named with a disclosure canary.
+    queued = tmp_path / ".entroping" / "ai-jobs" / "queued"
+    queued.mkdir(parents=True)
+    secret_name = "token-secret-canary"
+    os.symlink(tmp_path / "missing", queued / secret_name)
+
+    # When: the status projection scans the queue metadata boundary.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: the unsafe state is sanitized and carries no untrusted filename.
+    assert result.returncode == 2, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["state"] == "unsafe"
+    assert payload["queue"]["invalid"] == 1
+    assert secret_name not in result.stdout
+
+
+def test_factoryctl_status_preserves_existing_database_bytes_mtime_and_manifest(
+    tmp_path: Path,
+) -> None:
+    # Given: initialized scheduler state and a complete pre-command read-only manifest.
+    subject = scheduler(tmp_path)
+    _ = subject.tick(
+        request=request(worker_class="free-local"),
+        owner=owner(1),
+        as_of=datetime.now(UTC),
+        lease_seconds=30,
+        plan_only=False,
+        owner_health=dead,
+    )
+    database = tmp_path / ".entroping" / "factory-scheduler" / "scheduler.sqlite3"
+    before_manifest = tuple(
+        sorted(
+            (
+                path.relative_to(tmp_path).as_posix(),
+                path.stat(follow_symlinks=False).st_size,
+                path.stat(follow_symlinks=False).st_mtime_ns,
+            )
+            for path in tmp_path.rglob("*")
+        )
+    )
+    before_bytes = database.read_bytes()
+    before_mtime_ns = database.stat().st_mtime_ns
+
+    # When: status reads the initialized state through its no-create path.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: the projection is paused for unrelated missing authority, not mutated.
+    after_manifest = tuple(
+        sorted(
+            (
+                path.relative_to(tmp_path).as_posix(),
+                path.stat(follow_symlinks=False).st_size,
+                path.stat(follow_symlinks=False).st_mtime_ns,
+            )
+            for path in tmp_path.rglob("*")
+        )
+    )
+    assert result.returncode == 1, result.stderr
+    assert json.loads(result.stdout)["scheduler"]["status"] == "available"
+    assert database.read_bytes() == before_bytes
+    assert database.stat().st_mtime_ns == before_mtime_ns
+    assert after_manifest == before_manifest
+
+
+def test_factoryctl_status_reports_corrupt_scheduler_database_as_unsafe(
+    tmp_path: Path,
+) -> None:
+    # Given: a scheduler database path that cannot be a safe SQLite state store.
+    database = tmp_path / ".entroping" / "factory-scheduler" / "scheduler.sqlite3"
+    database.parent.mkdir(parents=True)
+    database.write_text("not a sqlite database", encoding="utf-8")
+
+    # When: status opens the existing state through the no-create read path.
+    result = _run(tmp_path, "status", "--json")
+
+    # Then: the unsafe state is sanitized and carries no database contents.
+    assert result.returncode == 2, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["state"] == "unsafe"
+    assert "scheduler-unsafe" in payload["reason_codes"]
+    assert "not a sqlite database" not in result.stdout
 
 
 def test_factoryctl_tick_defaults_to_plan_only_without_state(tmp_path: Path) -> None:
