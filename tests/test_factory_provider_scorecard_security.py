@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def test_permission_swap_between_authorization_and_read_fails_closed(
     def change_mode_then_read(descriptor: int, *, max_bytes: int) -> tuple[bytes | None, str]:
         nonlocal changed
         if not changed:
-            os.chmod(path, 0o644)
+            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
             changed = True
         return original_read(descriptor, max_bytes=max_bytes)
 

@@ -5,11 +5,13 @@ from __future__ import annotations
 import errno
 import os
 import stat
+from contextlib import ExitStack
 from pathlib import Path
 
 from entroping.core.evidence_common import (
     local_evidence_read_error_summary,
     read_bounded_local_evidence_bytes_from_descriptor,
+    register_local_evidence_descriptor,
     supports_no_follow_tree_open,
 )
 
@@ -28,28 +30,53 @@ def read_owner_only_local_evidence_artifact_bytes(
 
     if not supports_no_follow_tree_open():
         return None, "authorization unsupported"
-    directory_descriptors: list[int] = []
-    file_descriptor: int | None = None
     try:
-        directory_descriptor = _open_parent_tree(path, directory_descriptors)
-        file_descriptor = os.open(
-            path.name,
-            os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0),
-            dir_fd=directory_descriptor,
-        )
-        return _read_authorized_descriptor(
-            directory_descriptor,
-            file_descriptor,
-            path.name,
-            max_bytes=max_bytes,
-        )
+        with ExitStack() as descriptor_stack:
+            root, parts = _parent_descriptor_parts(path)
+            directory_descriptor = register_local_evidence_descriptor(
+                descriptor_stack,
+                os.open(root, os.O_RDONLY | os.O_DIRECTORY),
+            )
+            for part in parts:
+                directory_descriptor = register_local_evidence_descriptor(
+                    descriptor_stack,
+                    os.open(
+                        part,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=directory_descriptor,
+                    ),
+                )
+            file_descriptor = register_local_evidence_descriptor(
+                descriptor_stack,
+                os.open(
+                    path.name,
+                    os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0),
+                    dir_fd=directory_descriptor,
+                ),
+            )
+            return _read_authorized_descriptor(
+                directory_descriptor,
+                file_descriptor,
+                path.name,
+                max_bytes=max_bytes,
+            )
     except OSError as exc:
         return None, local_evidence_read_error_summary(exc)
-    finally:
-        if file_descriptor is not None:
-            os.close(file_descriptor)
-        for directory_descriptor in reversed(directory_descriptors):
-            os.close(directory_descriptor)
+
+
+def _parent_descriptor_parts(path: Path) -> tuple[str, tuple[str, ...]]:
+    """Split a parent path into its descriptor-open root and components."""
+
+    parent = path.parent
+    if parent.is_absolute():
+        parts = parent.parts[1:]
+        root = parent.anchor
+    else:
+        parts = parent.parts
+        root = "."
+    if any(part == ".." for part in parts):
+        raise OSError(errno.EINVAL, "parent traversal is not allowed")
+    return root, parts
 
 
 def _read_authorized_descriptor(
@@ -84,28 +111,6 @@ def _authorization_snapshot(
         os.fstat(file_descriptor),
         os.stat(name, dir_fd=directory_descriptor, follow_symlinks=False),
     )
-
-
-def _open_parent_tree(path: Path, descriptors: list[int]) -> int:
-    directory_descriptor, parts = _open_tree_root(path)
-    descriptors.append(directory_descriptor)
-    for part in parts:
-        if part == "..":
-            raise OSError(errno.EINVAL, "parent traversal is not allowed")
-        directory_descriptor = os.open(
-            part,
-            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-            dir_fd=directory_descriptor,
-        )
-        descriptors.append(directory_descriptor)
-    return directory_descriptor
-
-
-def _open_tree_root(path: Path) -> tuple[int, tuple[str, ...]]:
-    parent = path.parent
-    if parent.is_absolute():
-        return os.open(parent.anchor, os.O_RDONLY | os.O_DIRECTORY), parent.parts[1:]
-    return os.open(".", os.O_RDONLY | os.O_DIRECTORY), parent.parts
 
 
 def _authorized(

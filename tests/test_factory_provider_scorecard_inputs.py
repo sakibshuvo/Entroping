@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -141,7 +142,7 @@ def test_symlink_directory_oversize_and_permissions_are_rejected(tmp_path: Path)
     directory.mkdir()
     oversized = write_scorecard_bytes(tmp_path, b" " * (1024 * 1024 + 1), name="large.json")
     permissive = write_scorecard(tmp_path, document(case(2)), name="mode.json")
-    os.chmod(permissive, 0o644)
+    os.chmod(permissive, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     results = (
         validate(tmp_path, link),
         validate(tmp_path, directory),

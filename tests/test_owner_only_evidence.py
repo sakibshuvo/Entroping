@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import os
+import stat
+from collections.abc import Callable
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
@@ -47,7 +50,7 @@ def test_owner_only_reader_rejects_unsupported_runtime(
 
 def test_owner_only_reader_rejects_permissive_mode_and_oversize(tmp_path: Path) -> None:
     permissive = _owner_only_file(tmp_path)
-    os.chmod(permissive, 0o644)
+    os.chmod(permissive, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     unauthorized = owner_only_evidence.read_owner_only_local_evidence_artifact_bytes(
         permissive, max_bytes=32
     )
@@ -58,6 +61,36 @@ def test_owner_only_reader_rejects_permissive_mode_and_oversize(tmp_path: Path) 
 
     assert unauthorized == (None, "authorization failed")
     assert oversized == (None, "artifact exceeds 1 bytes")
+
+
+def test_owner_only_reader_closes_descriptor_when_registration_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = _owner_only_file(tmp_path)
+    original_close = os.close
+    closed: list[int] = []
+
+    def track_close(descriptor: int) -> None:
+        closed.append(descriptor)
+        original_close(descriptor)
+
+    def fail_callback(
+        self: ExitStack,
+        callback: Callable[..., object],
+        /,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        del self, callback, args, kwargs
+        raise MemoryError("registration failed")
+
+    monkeypatch.setattr(os, "close", track_close)
+    monkeypatch.setattr(ExitStack, "callback", fail_callback)
+
+    with pytest.raises(MemoryError, match="registration failed"):
+        _ = owner_only_evidence.read_owner_only_local_evidence_artifact_bytes(path, max_bytes=32)
+
+    assert len(closed) == 1
 
 
 def test_owner_only_reader_supports_relative_paths(
