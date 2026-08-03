@@ -2,6 +2,14 @@
 
 ## 2026-08-03
 
+- An offline scheduler/proposal harness is not a live provider-running
+  controller. Keep scheduler and provider boundary observations separate;
+  record a simulated provider negative control without calling a provider, and
+  state that live GitHub selection, orchestration apply, and launchd are
+  excluded. For repeatable soak evidence, use fresh ignored receipt roots,
+  enforce a requested-versus-accepted iteration ceiling, and treat local
+  latency as telemetry rather than an admission threshold.
+
 - Generated source execution is not Tier A-safe without OS/container isolation.
   Fail closed to a static Markdown envelope, persist selection and delivery
   authority in the scheduler assignment, and derive every gate from the

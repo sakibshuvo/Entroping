@@ -1,7 +1,9 @@
 # Entroping Implementation Plan
 
 **Date:** 2026-08-03
-**Status:** Issue #1574 is in progress pre-merge; Tier A orchestration requires acceptance review before activation.
+**Status:** Issue #1574 merged via PR #1600 at `ac5878a`; #1575 has offline
+proposal-controller evidence, while #1576 retains PR/CI/merge-control and
+cleanup work before any activation decision.
 
 ## Objective
 
@@ -16,10 +18,10 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1574 Tier A Worktree Orchestration
+## Merged Dependency: #1574 Tier A Worktree Orchestration
 
-Add a maintainer-only, plan-first `factoryctl orchestrate` adapter without
-changing the product `entroping` CLI. It accepts strict owner-only request and
+The merged maintainer-only, plan-first `factoryctl orchestrate` adapter does
+not change the product `entroping` CLI. It accepts strict owner-only request and
 proposal files, revalidates the live scheduler owner and the exact
 `completed-unsettled` proposal handoff plus scheduler-persisted delivery
 authority, and may create a missing canonical
@@ -60,8 +62,14 @@ against canonical-main commit bytes.
   wrong-schema, or secret-like sources must become invalid or unsafe.
 - AI worker lanes are advisory. OpenCode/DeepSeek outputs require Codex
   validation against local files, tests, and CI before commit or merge.
-- Issues #1571 through #1573 are done; #1574 adds the separate Tier A worktree
+- Issues #1571 through #1574 are done; #1574 adds the separate Tier A worktree
   orchestration adapter without changing product runtime or merge authority.
+- Issue #1575 has accepted offline harness evidence only: 27 schema-version-1
+  receipts across 15 tests, including a three-iteration soak capped at four.
+  The intentional scheduler/provider separation means this is not one live
+  provider-running controller. Live GitHub selection, orchestration apply,
+  provider dispatch, and launchd remain outside the soak; #1576 owns the
+  remaining PR/CI/merge-control and cleanup evidence.
 - Context packs, issue-scoped worktrees, PR body checks, regression/security
   gates, quality audit, and `scripts/finish_issue.sh` are the durable marathon
   loop. Keep context files concise enough for `scripts/context_pack.sh --mode
