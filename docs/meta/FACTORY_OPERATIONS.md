@@ -17,8 +17,11 @@ This runbook defines the future local macOS scheduler contract. The tracked
 template is inactive by default and must not be bootstrapped yet. Issue #1569
 implements the `factoryctl tick` lease and duplicate-tick guard, and issue #1562
 implements bounded artifact and stream-log retention. Activation remains
-blocked on crash/outage recovery (#1571), read-only `factoryctl status`
-diagnostics (#1572), and the proposal-only end-to-end proof (#1575).
+blocked even though crash/outage recovery is implemented by issue #1571:
+read-only `factoryctl status` diagnostics (#1572), Tier A orchestration (#1574),
+and the proposal-only end-to-end proof (#1575) are still required.
+Issue #1571 supplies the recovery authority and plan/apply command; it does not
+wire `ai_jobs`, select queue work, or perform automatic restart orchestration.
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
@@ -183,10 +186,73 @@ receipt still reports
 later dispatch adapter must revalidate budget and provider authority.
 
 Lease expiry alone never transfers authority. A different owner can advance
-the epoch only after the previous process identity is dead and no active
-assignment remains. A healthy or unknown owner blocks takeover; an expired dead
-owner with active work returns `recovery-required` for issue #1571. Do not edit
-or delete scheduler rows to clear this condition.
+the epoch only after the previous process identity is proven dead. A healthy or
+unknown owner blocks takeover. An expired dead owner with active work returns
+`recovery-required`; use the recovery workflow below instead of editing or
+deleting scheduler rows.
+
+### Scheduler recovery
+
+Scheduler schema v3 keeps one mutable, versioned execution row beside each
+immutable assignment. Its phases distinguish `never-dispatched`,
+`dispatch-intent`, `dispatched`, `completed-unsettled`, `retry-wait`,
+`uncertain`, `completed`, and `failed`. Worker heartbeat and recovery authority
+move with the current PID/start-token and epoch, so an old process cannot
+heartbeat, complete, or change execution state after recovery fences it.
+Each execution also retains its own expiry, allowing sibling assignments from
+one crashed coordinator to be recovered separately without granting ambiguous
+work to the replacement process.
+
+Inspect the complete recovery contract before an incident:
+
+```text
+uv run python scripts/factoryctl.py recover --help
+```
+
+Recovery is plan-only unless `--apply` and a new `--owner-id` are present. The
+command requires the immutable assignment id, expected epoch, dispatch and
+settlement observations, a bounded failure classification, and caller-declared
+snapshot metadata. Repeat `--snapshot` as
+`SOURCE,OBSERVED,EXPIRES,DIGEST`; free/local retry reconsideration requires
+GitHub and provider-capability entries, while paid reconsideration also
+requires price and quota entries. The scheduler validates only their closed
+shape, time window, source uniqueness, and bounds. It does not fetch,
+authenticate, or resolve these digests against GitHub, provider, price, or
+quota authorities. Snapshot bodies, provider output, prices, balances, and
+credentials never enter the scheduler receipt.
+
+Use this incident order:
+
+1. Disable future scheduling and preserve the assignment, queue, worker, and
+   ledger evidence. Do not delete a lease or reservation.
+2. Confirm lease expiry and prove the recorded process identity is dead. A
+   healthy or unknown process must remain blocked.
+3. For paid work that may have crossed the provider boundary, make the budget
+   or quota ledger authoritative first. Missing, active, or conflicting ledger
+   state blocks an `uncertain` or `settled` scheduler transition; never infer
+   zero cost or release a hold from scheduler evidence.
+4. Run the exact recovery command without `--apply`. Review its value-free
+   projected phase, reason, attempt count, retry deadline, and epoch.
+5. Re-run that exact request with `--apply --owner-id <logical-owner>`. Reusing
+   the same request id, logical owner, metadata, and retry policy replays the
+   immutable receipt even from a replacement CLI process. Replay returns only
+   the prior value-free decision: it does not transfer the stored PID/start
+   execution authority to that replacement process. Changed metadata or intent
+   requires a new request id.
+6. Treat `uncertain` as capacity-consuming until explicit financial
+   reconciliation. `resumed` means only that the execution returned to
+   `never-dispatched` for later reconsideration; it does not prove external
+   freshness or launch a provider. The future #1574 orchestrator must acquire
+   trusted observations and revalidate every authority before dispatch, and
+   #1575 must prove that integration end to end.
+
+Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
+deadlines use deterministic jitter, honor bounded provider hints, and never
+sleep inside the command. Stale GitHub, provider, price, or quota evidence
+keeps work in `retry-wait`; retry-count or elapsed-time exhaustion durably
+terminalizes it as `failed`. These timestamps and digests are caller-declared
+metadata, not external authority. Ambiguous dispatch never reopens capacity, never
+releases financial holds, and always emits `paid_work_authorized: false`.
 
 ## OpenCode Usage Receipts
 
@@ -622,7 +688,7 @@ contract's acceptance gate passes.
 2. Copy the reviewed rendered plist to
    `~/Library/LaunchAgents/com.entroping.factory-tick.plist` with mode `0600`.
 3. Validate the installed file again with `plutil -lint`.
-4. Inspect both launchd state and `factoryctl status`. If an old service is
+4. After #1572 provides it, inspect both launchd state and `factoryctl status`. If an old service is
    loaded, disable it, wait for a terminal tick and settled budget evidence,
    then boot it out. Do not terminate an active or uncertain tick.
 5. Enable the label, bootstrap it into the current GUI domain, and inspect its
@@ -667,8 +733,8 @@ enable` stores an external override that can persist across boots. Always use
 
 ## Status and Logs
 
-Use both launchd state and the future factory status CLI. Neither is sufficient
-alone.
+After #1572 is merged, use both launchd state and the future factory status
+CLI. Neither is sufficient alone. Until then, this section is not executable.
 
 ```text
 launchctl print-disabled gui/$UID
@@ -724,7 +790,8 @@ are satisfied; uninstall must not erase evidence automatically.
   during sleep are not replayed on wake.
 - If a tick is still running when an interval fires, that firing is skipped.
 - A user LaunchAgent becomes available only after its user session is active;
-  after reboot or login, inspect `launchctl print` and `factoryctl status`.
+  after #1572, inspect `launchctl print` and `factoryctl status` following
+  reboot or login.
 - Treat large clock changes as an operator event. Confirm the last settled tick
   and budget window before manually requesting another tick.
 
@@ -751,10 +818,10 @@ are satisfied; uninstall must not erase evidence automatically.
 
 ### Stale lease or duplicate tick
 
-- Inspect `factoryctl status` before changing launchd state.
+- After #1572, inspect `factoryctl status` before changing launchd state.
 - Do not delete a lease by hand. Disable future scheduling, verify whether the
-  recorded process is still healthy, and use the scheduler's documented
-  recovery command after issue #1571 is implemented. Boot out only after that
-  process is terminal or the recovery procedure records uncertain settlement.
+  recorded process is still healthy, and use `factoryctl recover` through the
+  plan-first procedure above. Boot out only after that process is terminal or
+  the recovery procedure records uncertain settlement.
 - Re-enable only when the prior tick is terminal and budget settlement is
   reconciled.

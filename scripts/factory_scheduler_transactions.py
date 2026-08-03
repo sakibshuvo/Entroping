@@ -23,6 +23,7 @@ from scripts.factory_scheduler_queries import clock, counts
 from scripts.factory_scheduler_receipts import (
     assignment_id,
     decision_receipt,
+    iso_utc,
     make_decision_id,
     request_digest,
 )
@@ -162,6 +163,20 @@ def plan_or_assign(
                 ),
             )
         store_lease(connection, owner, epoch, observed_at, expires_at)
+        _ = connection.execute(
+            "UPDATE scheduler_execution_state SET worker_heartbeat_at_utc = ?, "
+            "lease_expires_at_utc = ? WHERE lease_owner_id = ? "
+            "AND lease_owner_pid = ? AND lease_owner_start_token = ? "
+            "AND lease_epoch = ? AND phase NOT IN ('completed', 'failed')",
+            (
+                iso_utc(observed_at),
+                iso_utc(expires_at),
+                owner.owner_id,
+                owner.pid,
+                owner.process_start_token,
+                epoch,
+            ),
+        )
         update_clock(connection, observed_at, epoch=epoch)
         public_assignment_id = assignment_id(request_digest_value)
         decision_id = make_decision_id(
@@ -180,6 +195,7 @@ def plan_or_assign(
             owner=owner,
             epoch=epoch,
             created_at=observed_at,
+            lease_expires_at=expires_at,
         )
         receipt = decision_receipt(
             request=request,

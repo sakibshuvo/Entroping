@@ -5,7 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 
-from factory_scheduler_test_support import NOW, dead, owner, request, scheduler
+from factory_scheduler_test_support import (
+    NOW,
+    complete_free_assignment,
+    dead,
+    owner,
+    request,
+    scheduler,
+)
 
 
 def test_plan_only_is_deterministic_and_creates_no_state(tmp_path: Path) -> None:
@@ -97,9 +104,10 @@ def test_dead_expired_owner_is_fenced_by_a_new_epoch(tmp_path: Path) -> None:
         owner_health=dead,
     )
     assert first.lease_epoch is not None
-    subject.complete_assignment(
+    complete_free_assignment(
+        subject,
         assignment_id=first.assignment_id,
-        owner=owner(1),
+        lease_owner=owner(1),
         epoch=first.lease_epoch,
         completed_at=NOW + timedelta(seconds=1),
     )

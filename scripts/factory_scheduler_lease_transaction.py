@@ -76,6 +76,13 @@ def heartbeat_lease(
             "WHERE id = 1 AND owner_id = ? AND epoch = ?",
             (iso_utc(observed_at), iso_utc(expires_at), owner.owner_id, epoch),
         )
+        renew_execution_leases(
+            connection,
+            owner=owner,
+            epoch=epoch,
+            observed_at=observed_at,
+            expires_at=expires_at,
+        )
         update_clock(connection, observed_at)
         receipt = decision_receipt(
             request=None,
@@ -121,6 +128,47 @@ def lease_epoch(
     if active_count(connection) > 0:
         return "recovery-required"
     return next_epoch(last_epoch)
+
+
+def recovery_epoch(
+    connection: sqlite3.Connection,
+    *,
+    owner: LeaseOwner,
+    last_epoch: int,
+) -> int | str:
+    lease = lease_row(connection)
+    if lease is not None and lease[:3] == (
+        owner.owner_id,
+        owner.pid,
+        owner.process_start_token,
+    ):
+        return lease[3]
+    return next_epoch(last_epoch)
+
+
+def renew_execution_leases(
+    connection: sqlite3.Connection,
+    *,
+    owner: LeaseOwner,
+    epoch: int,
+    observed_at: datetime,
+    expires_at: datetime,
+) -> None:
+    _ = connection.execute(
+        "UPDATE scheduler_execution_state SET worker_heartbeat_at_utc = ?, "
+        "lease_expires_at_utc = ? "
+        "WHERE lease_owner_id = ? AND lease_owner_pid = ? "
+        "AND lease_owner_start_token = ? AND lease_epoch = ? "
+        "AND phase NOT IN ('completed', 'failed')",
+        (
+            iso_utc(observed_at),
+            iso_utc(expires_at),
+            owner.owner_id,
+            owner.pid,
+            owner.process_start_token,
+            epoch,
+        ),
+    )
 
 
 def next_epoch(last_epoch: int) -> int | str:

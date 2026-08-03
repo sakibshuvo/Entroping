@@ -1,5 +1,39 @@
 # Entroping Lessons Learned
 
+## 2026-08-02
+
+- Recovery evidence must distinguish a durable assignment identity from its
+  current execution authority. Keep assignment rows immutable, move the active
+  worker PID/start-token and epoch through a phase-version compare-and-swap,
+  and fence stale heartbeat and completion paths against that current row.
+- An operator assertion is not financial settlement authority. For paid
+  ambiguous or completed work, make the budget or quota ledger uncertain or
+  settled first, then let scheduler recovery verify that state without
+  releasing a hold or claiming a distributed transaction.
+- Idempotency must survive a replacement command process. Bind recovery request
+  replay to the logical owner id, evidence, and retry policy, not the transient
+  PID, process-start token, or wall-clock observation of a retried CLI process.
+  The replayed receipt conveys no heartbeat, phase-change, or completion
+  authority; those paths remain fenced by the stored PID/start token and epoch.
+- Caller-declared snapshot timestamps and digests are scheduling metadata, not
+  authenticated external authority. They may keep reconsideration waiting, but
+  only a future trusted orchestrator may acquire and revalidate GitHub,
+  provider, price, and quota truth before dispatch.
+- Paid terminalization is another cross-store authority boundary. Hold the
+  ledger writer guard through the scheduler commit, require the exact
+  completed-unsettled phase/version, and distinguish unused from launched quota
+  authority before reopening capacity.
+- Text timestamps used by SQLite ordering constraints need one canonical
+  precision. Mixing whole-second and fractional ISO strings can invert lexical
+  order inside the same second even though both values parse as valid UTC.
+- A global scheduler lease and per-execution lease metadata must advance as one
+  authority domain. Consecutive sibling recovery by the same process should
+  reuse its current epoch and renew every nonterminal sibling on that epoch;
+  otherwise only the last recovered execution remains heartbeat-renewable.
+- A read-only recovery plan should evaluate the real scheduler fence, bounded
+  metadata window, retry, and terminal decision while projecting the next phase
+  without migrating or mutating scheduler state.
+
 ## 2026-07-29
 
 - Cash and provider quota cannot be safely admitted through separate

@@ -54,6 +54,7 @@ def insert_assignment(
     owner: LeaseOwner,
     epoch: int,
     created_at: datetime,
+    lease_expires_at: datetime,
 ) -> None:
     _ = connection.execute(
         "INSERT INTO scheduler_assignments("
@@ -80,6 +81,25 @@ def insert_assignment(
             owner.pid,
             owner.process_start_token,
             epoch,
+            iso_utc(created_at),
+        ),
+    )
+    _ = connection.execute(
+        "INSERT INTO scheduler_execution_state("
+        "assignment_id, phase, phase_version, attempt_count, lease_owner_id, "
+        "lease_owner_pid, lease_owner_start_token, lease_epoch, phase_changed_at_utc, "
+        "lease_expires_at_utc, worker_heartbeat_at_utc, retry_not_before_utc, "
+        "failure_code, terminal_outcome, "
+        "evidence_digest) VALUES (?, 'never-dispatched', 1, 1, ?, ?, ?, ?, ?, ?, "
+        "?, NULL, NULL, NULL, NULL)",
+        (
+            assignment_id,
+            owner.owner_id,
+            owner.pid,
+            owner.process_start_token,
+            epoch,
+            iso_utc(created_at),
+            iso_utc(lease_expires_at),
             iso_utc(created_at),
         ),
     )

@@ -661,9 +661,11 @@ decisions:
     date: "2026-07-29"
     summary: >
       One Git-common-root SQLite scheduler authority serializes lease, capacity,
-      and assignment decisions. Paid ticks hold the separate budget ledger
-      writer guard through scheduler commit, while process identity and epoch
-      fencing prevent unsafe takeover; receipts never authorize provider dispatch.
+      assignment, execution-phase, and recovery decisions. Paid ticks hold the
+      separate budget ledger writer guard through scheduler commit; paid
+      recovery trusts ledger-first settlement state. Process identity, phase
+      version, and epoch fencing prevent unsafe takeover, and receipts never
+      authorize provider dispatch.
     tags: [factory, scheduler, sqlite, concurrency, security, reliability]
     source_links:
       - path: decisions/ADR-0029-factory-scheduler-authority.md
@@ -673,7 +675,7 @@ decisions:
       - path: scripts/factory_scheduler.py
         role: scheduler-facade
     related_docs: [docs/meta/FACTORY_OPERATIONS.md]
-    related_issues: ["#1569"]
+    related_issues: ["#1569", "#1571"]
     supersedes: []
     superseded_by: null
 

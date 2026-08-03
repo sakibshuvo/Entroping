@@ -17,6 +17,7 @@ from scripts.factory_budget_ledger import (  # noqa: E402
     UsageEnvelope,
 )
 from scripts.factory_scheduler import FactoryScheduler  # noqa: E402
+from scripts.factory_scheduler_execution_models import ExecutionPhase  # noqa: E402
 from scripts.factory_scheduler_models import (  # noqa: E402
     AssignmentRequest,
     LeaseOwner,
@@ -63,10 +64,69 @@ def dead(_owner: LeaseOwner) -> bool:
     return False
 
 
+def prepare_completion(
+    subject: FactoryScheduler,
+    *,
+    assignment_id: str | None,
+    lease_owner: LeaseOwner,
+    epoch: int | None,
+    completed_at: datetime,
+) -> int:
+    if assignment_id is None or epoch is None:
+        raise AssertionError("assignment evidence is incomplete")
+    interval = timedelta(microseconds=1)
+    phases: tuple[ExecutionPhase, ...] = (
+        "dispatch-intent",
+        "dispatched",
+        "completed-unsettled",
+    )
+    for version, phase in enumerate(
+        phases,
+        start=1,
+    ):
+        subject.transition_execution(
+            assignment_id=assignment_id,
+            owner=lease_owner,
+            epoch=epoch,
+            expected_phase_version=version,
+            target_phase=phase,
+            observed_at=completed_at - (interval * (4 - version)),
+            evidence_digest=f"{version:x}" * 64,
+        )
+    return 4
+
+
+def complete_free_assignment(
+    subject: FactoryScheduler,
+    *,
+    assignment_id: str | None,
+    lease_owner: LeaseOwner,
+    epoch: int | None,
+    completed_at: datetime,
+) -> None:
+    phase_version = prepare_completion(
+        subject,
+        assignment_id=assignment_id,
+        lease_owner=lease_owner,
+        epoch=epoch,
+        completed_at=completed_at,
+    )
+    subject.complete_assignment(
+        assignment_id=assignment_id,
+        owner=lease_owner,
+        epoch=epoch,
+        expected_phase_version=phase_version,
+        completed_at=completed_at,
+    )
+
+
 def scheduler(tmp_path: Path) -> FactoryScheduler:
     return FactoryScheduler(
         tmp_path,
         reservation_guard=lambda _request: nullcontext(True),
+        settlement_authority=lambda assignment: (
+            "not-required" if assignment.request.worker_class == "free-local" else "dispatching"
+        ),
     )
 
 

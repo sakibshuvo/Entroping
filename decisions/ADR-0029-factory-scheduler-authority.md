@@ -42,6 +42,27 @@ process must be dead and no active assignment may remain. Healthy or unknown
 process state blocks; dead expired ownership with active work requires the
 separate recovery workflow.
 
+Recovery extends the same authority instead of creating a second scheduler.
+One versioned execution row records the current phase, attempt count,
+heartbeat, per-execution lease expiry, retry deadline, failure code, evidence
+digest, and mutable fenced owner/epoch for each immutable assignment.
+Append-only request-bound receipts
+make recovery idempotent across replacement CLI processes. Exact replay does
+not transfer PID/start-token execution authority to the replacement process.
+Only scheduler state that durably remains never-dispatched may return to retry
+reconsideration; ambiguous dispatch remains active and cannot
+release capacity or financial holds. A paid uncertain or settled transition
+requires the separate ledger to prove that state before the scheduler changes.
+Paid completion and paid recovery acquire the ledger writer guard first, read
+the exact current settlement state, and hold that guard through scheduler
+commit. Completion additionally requires the `completed-unsettled` phase and
+its expected phase version; launched quota authority is never treated as unused
+dispatch authority.
+Per-execution expiry lets a new coordinator recover sibling assignments one at
+a time after a shared owner dies; replacing the global lease for one assignment
+does not make the remaining execution rows unrecoverable or grant them to the
+new process.
+
 ## Boundaries
 
 The scheduler consumes an already validated candidate. It does not select
@@ -52,10 +73,14 @@ spending. Paid candidates must bind the authoritative budget ledger's matching
 budget and provider authority.
 
 Plan-only ticks are read-only and create no state when none exists. Scheduler
-state uses owner-only, no-follow filesystem handling, exact schema validation,
-bounded locking, monotonic UTC evidence, and value-free receipts. This is a
-same-user maintainer control plane, not a defense against malicious code
-already running with the maintainer's OS identity.
+recovery is also plan-first and read-only. Neither plan nor apply dispatches a
+provider. State uses owner-only, no-follow filesystem handling, exact schema
+validation, bounded locking, monotonic UTC evidence, and value-free receipts.
+Caller-declared external snapshot metadata is bounded and time-checked only; it
+is not authenticated authority and must be revalidated by the future dispatch
+orchestrator.
+This is a same-user maintainer control plane, not a defense against malicious
+code already running with the maintainer's OS identity.
 
 ## Consequences
 
@@ -64,18 +89,26 @@ already running with the maintainer's OS identity.
 - Sibling worktrees cannot evade global factory limits.
 - PID reuse and stale owner actions are fenced by process-start identity and
   epoch.
-- Ambiguous recovery stops new work instead of guessing that capacity is free.
-- Crash-phase recovery, status aggregation, and end-to-end controller proof
-  remain separate downstream issues.
+- Deterministic capped backoff avoids outage hot loops, while stale authority
+  snapshots and retry exhaustion remain durable actionable state.
+- Ambiguous recovery stops new work instead of guessing that capacity or
+  financial authority is free.
+- Status aggregation and end-to-end controller proof remain separate downstream
+  issues.
 
 ## Evidence
 
-- GitHub issue #1569 owns the Tier C implementation and acceptance lane.
+- GitHub issues #1569 and #1571 own the Tier C implementation and recovery
+  acceptance lanes.
 - `scripts/factory_scheduler.py` owns the scheduler facade.
 - `scripts/factory_scheduler_reservation.py` owns the lock-coupled budget
   reservation handoff.
 - `scripts/factory_scheduler_transactions.py` owns atomic lease and assignment
   transitions.
+- `scripts/factory_scheduler_execution_transaction.py` owns phase-version and
+  execution-authority transitions.
+- `scripts/factory_scheduler_recovery.py` owns recovery decisions without
+  provider dispatch.
 - `scripts/factoryctl.py` owns the plan-first maintainer command.
 - `docs/meta/FACTORY_OPERATIONS.md` owns operator behavior and recovery limits.
 - `docs/technical/TDS.md` owns the component and trust boundaries.

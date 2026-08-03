@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from factory_scheduler_test_support import (
     NOW,
+    complete_free_assignment,
     dead,
     owner,
     request,
@@ -205,9 +206,10 @@ def test_cancelled_takeover_rolls_back_without_partial_assignment(tmp_path: Path
         plan_only=False,
         owner_health=dead,
     )
-    subject.complete_assignment(
+    complete_free_assignment(
+        subject,
         assignment_id=first.assignment_id,
-        owner=owner(1),
+        lease_owner=owner(1),
         epoch=first.lease_epoch,
         completed_at=NOW + timedelta(milliseconds=100),
     )
