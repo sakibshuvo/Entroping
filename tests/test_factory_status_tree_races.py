@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from pathlib import Path
-from typing import cast
 
 import pytest
 from pytest import MonkeyPatch
@@ -35,20 +34,21 @@ def test_tree_walk_remains_bound_to_validated_directory_descriptor(
     (walked / "original.json").write_text("metadata", encoding="utf-8")
     original_inode = walked.stat().st_ino
     moved = walked.with_name(f"{walked.name}-opened")
-    original_scandir = cast(
-        Callable[[int | str | bytes | os.PathLike[str]], Iterator[os.DirEntry[str]]],
-        os.scandir,
-    )
+    original_scandir = os.scandir
+
+    def scan_descriptor(path: int) -> Iterator[os.DirEntry[str]]:
+        return original_scandir(path)
+
     swapped = False
 
-    def swap_before_scan(path: int | str | bytes | os.PathLike[str]) -> Iterator[os.DirEntry[str]]:
+    def swap_before_scan(path: int) -> Iterator[os.DirEntry[str]]:
         nonlocal swapped
-        if isinstance(path, int) and not swapped and os.fstat(path).st_ino == original_inode:
+        if not swapped and os.fstat(path).st_ino == original_inode:
             os.replace(walked, moved)
             walked.mkdir()
             os.symlink(tmp_path / "outside", walked / "replacement.json")
             swapped = True
-        return original_scandir(path)
+        return scan_descriptor(path)
 
     monkeypatch.setattr(os, "scandir", swap_before_scan)
 
@@ -62,3 +62,43 @@ def test_tree_walk_remains_bound_to_validated_directory_descriptor(
         )
         assert factory_log.count == 1
     assert swapped is True
+
+
+def test_queue_rejects_hardlink_swapped_after_path_stat(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """A regular queue entry swapped after path stat is rejected from its bound descriptor."""
+
+    queued = tmp_path / ".entroping" / "ai-jobs" / "queued"
+    queued.mkdir(parents=True)
+    job = queued / "job.json"
+    job.write_text("original", encoding="utf-8")
+    replacement = tmp_path / "replacement.json"
+    replacement.write_text("replacement", encoding="utf-8")
+    os.link(replacement, tmp_path / "replacement-alias.json")
+    original_open = os.open
+    swapped = False
+
+    def swap_before_open(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal swapped
+        if not swapped and os.fsdecode(path) == job.name and dir_fd is not None:
+            job.unlink()
+            os.link(replacement, job)
+            swapped = True
+        if dir_fd is None:
+            return original_open(path, flags, mode)
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", swap_before_open)
+
+    queue, reasons = collect_queue(tmp_path, [])
+
+    assert swapped is True
+    assert queue.status == "unsafe"
+    assert reasons == ("queue-unsafe",)

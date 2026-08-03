@@ -24,7 +24,7 @@ from scripts.factory_status_filesystem import collect_queue as status_collect_qu
 from scripts.factory_status_models import QueueStatus  # noqa: E402
 
 
-def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
+def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> list[int]:
     """Instrument every public content-read seam while preserving metadata access."""
 
     original_open = builtins.open
@@ -33,6 +33,11 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
     original_read_text = Path.read_text
     original_read_bytes = Path.read_bytes
     original_os_open = os.open
+    original_os_read = os.read
+    original_os_pread = os.pread
+    original_os_close = os.close
+    payload_descriptors: set[int] = set()
+    payload_open_count = [0]
 
     def is_payload(value: int | str | bytes | os.PathLike[str] | os.PathLike[bytes]) -> bool:
         if isinstance(value, int):
@@ -97,11 +102,28 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
         *,
         dir_fd: int | None = None,
     ) -> int:
-        if is_payload(file):
-            raise AssertionError("status attempted to read queue payload")
         if dir_fd is None:
-            return original_os_open(file, flags, mode)
-        return original_os_open(file, flags, mode, dir_fd=dir_fd)
+            descriptor = original_os_open(file, flags, mode)
+        else:
+            descriptor = original_os_open(file, flags, mode, dir_fd=dir_fd)
+        if is_payload(file):
+            payload_descriptors.add(descriptor)
+            payload_open_count[0] += 1
+        return descriptor
+
+    def reject_os_read(descriptor: int, length: int) -> bytes:
+        if descriptor in payload_descriptors:
+            raise AssertionError("status attempted to read queue payload")
+        return original_os_read(descriptor, length)
+
+    def reject_os_pread(descriptor: int, length: int, offset: int) -> bytes:
+        if descriptor in payload_descriptors:
+            raise AssertionError("status attempted to read queue payload")
+        return original_os_pread(descriptor, length, offset)
+
+    def close_tracked(descriptor: int) -> None:
+        payload_descriptors.discard(descriptor)
+        original_os_close(descriptor)
 
     monkeypatch.setattr(builtins, "open", reject_open)
     monkeypatch.setattr(io, "open", reject_io_open)
@@ -109,6 +131,10 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> None:
     monkeypatch.setattr(Path, "read_text", reject_read_text)
     monkeypatch.setattr(Path, "read_bytes", reject_read_bytes)
     monkeypatch.setattr(os, "open", reject_os_open)
+    monkeypatch.setattr(os, "read", reject_os_read)
+    monkeypatch.setattr(os, "pread", reject_os_pread)
+    monkeypatch.setattr(os, "close", close_tracked)
+    return payload_open_count
 
 
 def test_queue_payload_file_is_never_read_through_any_content_seam(
@@ -120,10 +146,11 @@ def test_queue_payload_file_is_never_read_through_any_content_seam(
     queued.mkdir(parents=True)
     payload = queued / "job.json"
     payload.write_text("secret-canary", encoding="utf-8")
-    _deny_payload_reads(monkeypatch, payload)
+    payload_open_count = _deny_payload_reads(monkeypatch, payload)
 
     report = collect_factory_status(tmp_path)
 
+    assert payload_open_count[0] >= 1
     assert report.queue.queued == 1
 
 

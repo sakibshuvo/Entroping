@@ -26,16 +26,13 @@ class TraversalBudget:
         self.remaining -= 1
 
 
-def scan_queue(
-    root: Path, fingerprints: Fingerprints
-) -> tuple[dict[str, int], int]:
+def scan_queue(root: Path, fingerprints: Fingerprints) -> tuple[dict[str, int], int]:
     """Validate the fixed queue layout through bound directory descriptors."""
 
     counts = {state: 0 for state in QUEUE_STATES}
     try:
         with open_relative_directory(root, (".entroping", "ai-jobs")) as directory:
             invalid = _scan_queue_directory(
-                root,
                 directory,
                 (".entroping", "ai-jobs"),
                 fingerprints,
@@ -61,14 +58,13 @@ def scan_retention(
     try:
         with open_relative_directory(root, parts) as directory:
             _scan_retention_directory(
-                root, directory, parts, fingerprints, totals, depth=0, budget=budget
+                directory, parts, fingerprints, totals, depth=0, budget=budget
             )
     except (OSError, RetentionFsError) as exc:
         raise FactoryStatusError("retention traversal is unsafe") from exc
 
 
 def _scan_queue_directory(
-    root: Path,
     directory: int,
     parts: tuple[str, ...],
     fingerprints: Fingerprints,
@@ -83,8 +79,8 @@ def _scan_queue_directory(
     for name in _names(directory, budget):
         metadata = os.stat(name, dir_fd=directory, follow_symlinks=False)
         if stat.S_ISREG(metadata.st_mode):
-            bound = _queue_regular_metadata(metadata)
-            _fingerprint(root, (*parts, name), bound, fingerprints)
+            bound = _regular_metadata(directory, name)
+            _fingerprint((*parts, name), bound, fingerprints)
             if state is not None and depth == 1 and name.endswith(".json"):
                 counts[state] += 1
             else:
@@ -97,7 +93,6 @@ def _scan_queue_directory(
                 expected = depth == 0 and name in counts
                 invalid += 0 if expected else 1
                 invalid += _scan_queue_directory(
-                    root,
                     child,
                     (*parts, name),
                     fingerprints,
@@ -114,7 +109,6 @@ def _scan_queue_directory(
 
 
 def _scan_retention_directory(
-    root: Path,
     directory: int,
     parts: tuple[str, ...],
     fingerprints: Fingerprints,
@@ -128,7 +122,7 @@ def _scan_retention_directory(
         metadata = os.stat(name, dir_fd=directory, follow_symlinks=False)
         if stat.S_ISREG(metadata.st_mode):
             bound = _regular_metadata(directory, name)
-            _fingerprint(root, (*parts, name), bound, fingerprints)
+            _fingerprint((*parts, name), bound, fingerprints)
             totals[0] += 1
             totals[1] += bound.st_size
             continue
@@ -136,7 +130,6 @@ def _scan_retention_directory(
             child = _open_directory(directory, name, metadata)
             try:
                 _scan_retention_directory(
-                    root,
                     child,
                     (*parts, name),
                     fingerprints,
@@ -187,20 +180,12 @@ def _regular_metadata(parent: int, name: str) -> os.stat_result:
         os.close(descriptor)
 
 
-def _queue_regular_metadata(metadata: os.stat_result) -> os.stat_result:
-    if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
-        raise FactoryStatusError("unsafe regular queue metadata file")
-    return metadata
-
-
 def _fingerprint(
-    root: Path,
     parts: tuple[str, ...],
     metadata: os.stat_result,
     fingerprints: Fingerprints,
 ) -> None:
     relative = Path(*parts).as_posix()
-    _ = root
     fingerprints.append((relative, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns))
 
 

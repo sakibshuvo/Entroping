@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
+type SqliteScalar = str | bytes | int | float | None
+
 
 def validate_scheduler_authority(
     connection: sqlite3.Connection, observed_at: datetime
@@ -15,8 +17,7 @@ def validate_scheduler_authority(
     if clock is None or _canonical_utc(clock[0]) > observed_at:
         raise ValueError("scheduler clock authority is unsafe")
     lease = connection.execute(
-        "SELECT acquired_at_utc, heartbeat_at_utc, expires_at_utc "
-        "FROM scheduler_lease WHERE id = 1"
+        "SELECT acquired_at_utc, heartbeat_at_utc, expires_at_utc FROM scheduler_lease WHERE id = 1"
     ).fetchone()
     lease_expiry: datetime | None = None
     if lease is not None:
@@ -36,7 +37,7 @@ def validate_scheduler_authority(
     return lease_expiry
 
 
-def _canonical_utc(raw: object) -> datetime:
+def _canonical_utc(raw: SqliteScalar) -> datetime:
     if not isinstance(raw, str):
         raise ValueError("scheduler timestamp is not canonical UTC")
     value = datetime.fromisoformat(raw)
