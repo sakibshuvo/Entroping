@@ -98,7 +98,7 @@ def _deny_payload_reads(monkeypatch: MonkeyPatch, payload: Path) -> list[int]:
     def reject_os_open(
         file: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
         *,
         dir_fd: int | None = None,
     ) -> int:

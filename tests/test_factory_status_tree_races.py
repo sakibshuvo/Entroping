@@ -82,7 +82,7 @@ def test_queue_rejects_hardlink_swapped_after_path_stat(
     def swap_before_open(
         path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
         *,
         dir_fd: int | None = None,
     ) -> int:

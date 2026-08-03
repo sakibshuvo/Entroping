@@ -137,13 +137,7 @@ def _wrap_human_lines(lines: tuple[str, ...]) -> tuple[str, ...]:
 def status_exit_code(report: FactoryStatusReport) -> int:
     """Map the public ordered status to its command exit code."""
 
-    match report.state:
-        case "healthy":
-            return 0
-        case "paused":
-            return 1
-        case "unsafe":
-            return 2
+    return {"healthy": 0, "paused": 1, "unsafe": 2}.get(report.state, 2)
 
 
 def _collect_once(root: Path, observed_at: datetime) -> _Collected:
