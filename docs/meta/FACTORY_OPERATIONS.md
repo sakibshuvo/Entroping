@@ -459,7 +459,9 @@ Use this incident order:
    reconciliation. `resumed` means only that the execution returned to
    `never-dispatched` for later reconsideration; it does not prove external
    freshness or launch a provider. The #1574 static-document orchestrator does
-   not dispatch providers; #1575 must prove proposal-only integration end to end.
+   not dispatch providers; #1575 has completed bounded offline
+   proposal-controller evidence only, not live-selection, provider, or launchd
+   authorization, and #1576 remains blocking.
 
 Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
 deadlines use deterministic jitter, honor bounded provider hints, and never

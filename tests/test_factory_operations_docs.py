@@ -33,7 +33,7 @@ def test_factory_runbook_is_inactive_until_owned_safety_surfaces_exist() -> None
     )
     assert "crash/outage recovery" in safety_state
     assert "uv run python scripts/factoryctl.py status" in runbook
-    assert "proposal-only end-to-end proof" in safety_state
+    assert "bounded offline proposal-controller evidence only" in safety_state
     assert "`scripts/factoryctl.py tick`" in scheduler
     assert ".entroping/factory-scheduler/scheduler.sqlite3" in scheduler
     assert "budget ledger writer guard" in scheduler
