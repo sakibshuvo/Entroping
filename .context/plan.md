@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
 **Date:** 2026-08-03
-**Status:** Issue #1571 merged; issue #1572 implementation complete locally and pending merge
+**Status:** Issue #1573 is in progress pre-merge; provider scorecard repair requires acceptance review before any next issue.
 
 ## Objective
 
@@ -16,10 +16,12 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1572 Factory Status Projection
+## Current Issue Slice: #1573 Provider Scorecard Evidence
 
-Document the maintainer-only `scripts/factoryctl.py status [--json]` projection
-without changing the product `entroping` CLI. The strict
+Add a maintainer-only `scripts/factory_metrics.py provider-scorecard` contract
+without changing legacy metrics or the product `entroping` CLI. The strict,
+value-free evidence/report schemas must validate exact provider registry tuples
+and receipt identity while retaining manual-only promotion. The existing
 `entroping.factory-status.v1` report orders `unsafe > paused > healthy` and
 maps to exits `2/1/0`. It is observation only: no providers, network,
 test/gate/worker subprocesses, mutation, migration, recovery, raw payload
@@ -50,8 +52,8 @@ reserve means no valid persisted authority can reach the raw cap.
   wrong-schema, or secret-like sources must become invalid or unsafe.
 - AI worker lanes are advisory. OpenCode/DeepSeek outputs require Codex
   validation against local files, tests, and CI before commit or merge.
-- Issue #1571 is merged via PR #1597 at `b78c551a`; the #1572 implementation is
-  local on this branch and remains pending merge.
+- Issues #1571 and #1572 are done; #1573 adds separate provider-scorecard
+  evidence without changing the product runtime, legacy metrics, or authority.
 - Context packs, issue-scoped worktrees, PR body checks, regression/security
   gates, quality audit, and `scripts/finish_issue.sh` are the durable marathon
   loop. Keep context files concise enough for `scripts/context_pack.sh --mode
@@ -84,7 +86,7 @@ Guarded anchors retained for docs-link tests:
 
 Keep each marathon issue narrow, tested, merged through GitHub, and cleaned up
 before starting the next branch. The current factory dependency chain is #1571
-recovery, #1572 status, #1573 quality correlation, #1574 Tier A orchestration,
+recovery, #1572 status, #1573 quality correlation, and #1574 Tier A orchestration,
 #1575 end-to-end restart proof, and #1576 PR/CI/merge cleanup. External stable
 core targets remain package-index proof (#303-#305), downstream feedback
 (#306), and non-GitHub CI proof (#309-#310).

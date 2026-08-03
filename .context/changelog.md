@@ -2,8 +2,16 @@
 
 ## 2026-08-03
 
+- In-progress #1573 repair: added maintainer-attested scorecard evidence, replay protection, fresh-sample policy reporting, and split focused tests; not merged or release evidence.
+  Strict bounded JSON input authorizes and reads one stable no-follow descriptor,
+  validates exact registry tuples, and rejects immutable identity or cross-kind
+  digest replay; reports are value-free, preserve historical
+  classifications, surface exact-model drift and later regressions/reverts, and
+  require manual promotion. Legacy factory metrics and product runtime remain
+  unchanged.
+
 - Documented issue #1572's maintainer-only status projection and pre-merge
-  state; see `docs/meta/FACTORY_OPERATIONS.md` and `docs/technical/TDS.md` for
+  state, now done; see `docs/meta/FACTORY_OPERATIONS.md` and `docs/technical/TDS.md` for
   the strict v1, bounded read-only, and consistency contract. The product
   `entroping` CLI remains unchanged.
 

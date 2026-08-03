@@ -135,4 +135,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional report path under .entroping/factory-metrics/.",
     )
 
+    provider_scorecard = subparsers.add_parser(
+        "provider-scorecard",
+        help="Validate or report strict provider-quality scorecard evidence.",
+    )
+    provider_scorecard_subparsers = provider_scorecard.add_subparsers(
+        dest="provider_scorecard_command",
+        required=True,
+    )
+    provider_scorecard_validate = provider_scorecard_subparsers.add_parser(
+        "validate", help="Validate a provider scorecard evidence document."
+    )
+    provider_scorecard_validate.add_argument("--input", required=True, help="Evidence JSON file.")
+    provider_scorecard_validate.add_argument(
+        "--json", action="store_true", help="Emit JSON output."
+    )
+    provider_scorecard_report = provider_scorecard_subparsers.add_parser(
+        "report", help="Render a provider scorecard report."
+    )
+    provider_scorecard_report.add_argument("--input", required=True, help="Evidence JSON file.")
+    provider_scorecard_report.add_argument(
+        "--as-of", required=True, help="Timezone-aware report timestamp."
+    )
+    provider_scorecard_report.add_argument(
+        "--format", choices=("json", "md"), default="md", help="Report format."
+    )
+    provider_scorecard_report.add_argument(
+        "--output", help="Optional report path under .entroping/factory-metrics/."
+    )
+
     return parser

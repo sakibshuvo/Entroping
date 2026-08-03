@@ -137,8 +137,10 @@ also expose provider-qualified `cost_model_id` values under `cost_provider_id`;
 these are deterministic join metadata for the separate cost policy, never a
 price or spending authorization. Route resolution enforces the lane's
 `queue_dispatch` capability and autonomy ceiling before a queued job is
-written. Legacy factory-metrics provider/model labels remain noncanonical until
-issue #1573 binds them to job, diff, CI, merge, and regression evidence.
+written. Legacy factory-metrics provider/model labels remain noncanonical and
+are never joined by string shape. Issue #1573 adds a separate strict provider
+scorecard contract for exact lane/host/billing/model/autonomy evidence; it does
+not reinterpret or extend legacy events.
 
 OpenCode Go is the Kimi/Qwen/model-variety lane, not the default DeepSeek lane.
 Every worker artifact, metrics event, review note, or handoff should name the
@@ -335,6 +337,22 @@ The same script owns the context-tool scorecard protocol with schema
 promoting Obsidian/curated Markdown, Understand Anything, or any future
 context tool into the active agent workflow. Retired generated context tooling
 has been removed from the active workflow surface.
+The separate provider scorecard protocol uses
+`entroping.provider-scorecard-evidence.v1` and
+`entroping.provider-scorecard-report.v1`. Use
+`scripts/factory_metrics.py provider-scorecard validate --input <ignored-json>`
+before `provider-scorecard report --as-of <timezone-aware-ISO-8601> --format json`.
+It is maintainer-only, value-free correlation evidence: it requires trusted
+maintainer HMAC attestation with a dedicated local key, bounded owner-only
+files authorized and read from one stable descriptor through a no-follow parent
+tree, globally replay-unique work/receipt/cost identifiers, exact
+registry tuples, registry-derived nullable cost-provider/model identities, and
+identity-bound review, verification, CI, merge, and later
+outcomes. Its fixed manual-only policy requires at least three accepted samples,
+90-day recency, an accepted ratio of at least 0.80, terminal quality/security
+receipts without failures, and no regression, revert, or later inconclusive
+evidence; cost is secondary summary evidence only. It cannot spend, dispatch,
+merge, route, or automatically promote a provider or model.
 Recording from scripts is opt-in: use
 `scripts/context_pack.sh --mode implementation --record-factory-metrics` to
 measure context packs, use `uv run python scripts/ai_jobs.py run-next

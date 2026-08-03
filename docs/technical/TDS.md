@@ -152,6 +152,26 @@ restart/duplicate-tick end-to-end proof.
 Paid candidates must reference an authoritative `dispatching` budget
 reservation, and the eventual dispatch boundary must revalidate it.
 
+The provider scorecard is a separate maintainer-only report adapter under
+`scripts/factory_metrics_modules/provider_scorecard*.py`, exposed only through
+`scripts/factory_metrics.py provider-scorecard validate|report`. Its strict
+value-free evidence/report schemas bind exact registry lane/host/billing/model/
+autonomy and registry-derived cost-provider/model identity to review,
+verification, CI, merge, and later outcomes. It
+does not import or change product runtime behavior, authorize spending, select
+or dispatch work, create or merge pull requests, mutate routing, or permit
+automatic (including Tier C) promotion; every promotion remains manual.
+The envelope is HMAC-SHA256 attested by a trusted maintainer with a dedicated
+local key, bounded owner-only storage opened through a no-follow parent tree,
+with authorization and bytes bound to one stable descriptor. Replay rejection
+is global for work, reservation, CI/PR, job/correlation, receipt, and cost
+identifiers, including cross-kind digest reuse. Cohorts use
+task, lane, exact model, autonomy tier, and verification lane; freshness is per
+case observation rather than later outcome. Manual eligibility is deliberately
+conservative: at least three fresh accepted samples, 90-day recency, at least 0.80 accepted ratio, terminal passing
+quality/security for every case, and no regression, revert, or unresolved later
+outcome. Cost summaries are secondary evidence only.
+
 The maintainer-only status projection is a separate read adapter under
 `scripts/factory_status*.py`, exposed by `scripts/factoryctl.py status`; the
 product `entroping` CLI remains unchanged. It projects only trusted local

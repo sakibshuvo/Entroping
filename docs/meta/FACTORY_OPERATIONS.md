@@ -18,10 +18,10 @@ tracked template is inactive by default and must not be bootstrapped yet. Issue
 #1569 supplies the
 `uv run python scripts/factoryctl.py tick` lease and duplicate-tick guard, issue
 #1562 supplies bounded artifact and stream-log retention, and issue #1571 is merged
-via PR #1597 at commit `b78c551a`. On this branch, issue #1572's status
-projection is implementation-complete locally but pending merge. Activation
-therefore remains blocked pending that merge, Tier A orchestration (#1574), and
-the proposal-only end-to-end proof (#1575). Issue #1571 supplies recovery
+via PR #1597 at commit `b78c551a`. Issue #1572's status projection is done.
+Activation remains blocked pending Tier A orchestration (#1574), the
+proposal-only end-to-end proof (#1575), and PR/CI/merge cleanup (#1576). Issue
+#1571 supplies recovery
 authority, including crash/outage recovery, and the plan/apply command; it does
 not wire `ai_jobs`, select queue work, or perform automatic restart
 orchestration.
@@ -116,8 +116,32 @@ paid scheduling.
 
 The current factory metrics `provider` and `model` fields are legacy labels,
 not canonical registry or cost-policy join keys. Do not combine them by string
-shape. Issue #1573 owns evidence-bound migration to explicit lane, invocation,
-and cost identities.
+shape. The dedicated #1573 provider-scorecard evidence contract instead binds
+exact lane, host, billing path, model, autonomy tier, registry-derived nullable
+cost-provider/model identity, job/reservation, commit, diff, review,
+verification, CI, merge, and later-outcome identities. It is
+read-only maintainer evidence under `.entroping/factory-metrics/`; it does not
+spend, dispatch, merge, route, or auto-promote. Run
+`scripts/factory_metrics.py provider-scorecard validate --input <ignored-json>`
+and then `provider-scorecard report --as-of <timezone-aware-ISO-8601> --format json`.
+The final unmerged v1 envelope is accepted only after a trusted maintainer signs
+canonical unsigned JSON with the dedicated
+`ENTROPING_FACTORY_SCORECARD_EVIDENCE_HMAC_KEY_V1` key; this local attestation
+does not prove an external provider outcome. Reads open the complete parent tree
+without following symlinks, authorize owner and mode on the same file descriptor
+that supplies the bounded bytes, and fail closed if descriptor/path identity or
+authorization changes before the read completes. Replayed work
+(issue/base/head/diff), reservation, CI run, merged PR, job/correlation, or any
+receipt/cost digest is rejected globally, including cross-kind reuse. Cohorts include task,
+provider lane, exact model, autonomy tier, and verification lane. Recency is
+per case's `observed_at` (the exact 90-day boundary is fresh); later outcomes
+never refresh work, but regressions, reverts, and inconclusive outcomes still
+block confidence. A metered numeric cost needs its reservation and
+identity-bound cost receipt; non-metered evidence forbids `cost_usd`, while
+unknown cost remains allowed. Manual eligibility needs at least three fresh
+accepted samples, a fresh ratio of at least 0.80, terminal passing
+quality/security for every case, and no regression, revert, or unresolved later
+outcome. Cost is secondary evidence only and never authorizes promotion.
 
 ## Autonomous Control-Plane Protection
 
@@ -732,7 +756,7 @@ so lint the rendered file, not the source template.
 
 ## Future Install and First Tick
 
-Run this section only after issues #1569 and #1572 are merged and this retention
+Run this section only after issue #1569 is merged and this retention
 contract's acceptance gate passes.
 
 1. Create the log directory with mode `0700` and install its bounded retention
@@ -786,8 +810,8 @@ enable` stores an external override that can persist across boots. Always use
 
 ## Status and Logs
 
-Once #1572 is merged, use both launchd state and the current factory status CLI.
-Neither is sufficient alone. Until then, this section is not executable.
+Use both launchd state and the current factory status CLI. Neither is sufficient
+alone.
 
 ```text
 launchctl print-disabled gui/$UID
@@ -843,8 +867,8 @@ are satisfied; uninstall must not erase evidence automatically.
   during sleep are not replayed on wake.
 - If a tick is still running when an interval fires, that firing is skipped.
 - A user LaunchAgent becomes available only after its user session is active;
-  once #1572 is merged, inspect `launchctl print` and
-  `uv run python scripts/factoryctl.py status` following reboot or login.
+  inspect `launchctl print` and `uv run python scripts/factoryctl.py status`
+  following reboot or login.
 - Treat large clock changes as an operator event. Confirm the last settled tick
   and budget window before manually requesting another tick.
 
@@ -871,8 +895,8 @@ are satisfied; uninstall must not erase evidence automatically.
 
 ### Stale lease or duplicate tick
 
-- Once #1572 is merged, inspect
-  `uv run python scripts/factoryctl.py status` before changing launchd state.
+- Inspect `uv run python scripts/factoryctl.py status` before changing launchd
+  state.
 - Do not delete a lease by hand. Disable future scheduling, verify whether the
   recorded process is still healthy, and use
   `uv run python scripts/factoryctl.py recover` through the plan-first
