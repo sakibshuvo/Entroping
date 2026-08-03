@@ -1,5 +1,19 @@
 # Entroping Changelog
 
+## 2026-08-03
+
+- Documented issue #1572's maintainer-only `scripts/factoryctl.py status
+  [--json]` projection. The strict `entroping.factory-status.v1` report is
+  observation-only, orders `unsafe > paused > healthy`, and exits `2/1/0`.
+  Its trusted local inputs use descriptor-pinned, no-follow immutable SQLite
+  reads with sidecar rejection plus bounded metadata-only queue/retention
+  walks. Per-store read transactions are collected twice at one timestamp;
+  fingerprint drift is unsafe and no global cross-store atomicity is claimed.
+  Persisted 80%/90% cash stops remain observable, while 100% is a prospective
+  authorization backstop because positive reserve bounds valid persisted
+  authority below the raw cap. The implementation is complete locally and
+  pending merge; the product `entroping` CLI is unchanged.
+
 ## 2026-08-02
 
 - Added issue #1571's scheduler crash and outage recovery contract. Scheduler

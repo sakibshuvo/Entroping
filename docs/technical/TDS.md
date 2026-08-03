@@ -152,6 +152,26 @@ restart/duplicate-tick end-to-end proof.
 Paid candidates must reference an authoritative `dispatching` budget
 reservation, and the eventual dispatch boundary must revalidate it.
 
+The maintainer-only status projection is a separate read adapter under
+`scripts/factory_status*.py`, exposed by `scripts/factoryctl.py status`; the
+product `entroping` CLI remains unchanged. It projects only trusted local
+policy and provider-registry files, existing budget and scheduler SQLite
+state, and bounded queue/retention metadata. It has no provider, network,
+subprocess, mutation, migration, recovery, raw-payload, or dispatch-authorization
+path. Existing SQLite databases are opened through no-follow descriptor-pinned
+immutable read-only connections, with hot sidecars rejected. Queue and
+retention reads inspect bounded metadata only and never consume raw artifact
+contents or untrusted identifiers. Each store uses its own explicit
+read transaction; the collector takes two passes at one observation timestamp
+and compares immutable metadata fingerprints. A changed fingerprint is unsafe,
+and this deliberately does not claim global transactional atomicity across
+stores. The strict `entroping.factory-status.v1` projection orders overall
+state as `unsafe > paused > healthy` and maps those states to exits `2/1/0`.
+Persisted 80% and 90% cash thresholds remain observable stop boundaries; 100%
+is a prospective paid-authorization backstop because the positive reserve makes
+valid persisted authority stop below the raw cap. Status is observation only:
+it never grants spending or dispatch authority.
+
 The maintainer-only OpenCode worker consumes `opencode run --format json`
 incrementally through the shared bounded subprocess adapter. Raw JSON events,
 reasoning, tool payloads, provider errors, and child stderr do not cross into

@@ -13,18 +13,62 @@ tags:
 
 ## Current Safety State
 
-This runbook defines the future local macOS scheduler contract. The tracked
-template is inactive by default and must not be bootstrapped yet. Issue #1569
-implements the `factoryctl tick` lease and duplicate-tick guard, and issue #1562
-implements bounded artifact and stream-log retention. Activation remains
-blocked even though crash/outage recovery is implemented by issue #1571:
-read-only `factoryctl status` diagnostics (#1572), Tier A orchestration (#1574),
-and the proposal-only end-to-end proof (#1575) are still required.
-Issue #1571 supplies the recovery authority and plan/apply command; it does not
-wire `ai_jobs`, select queue work, or perform automatic restart orchestration.
+This runbook defines the current maintainer-local macOS scheduler contract. The
+tracked template is inactive by default and must not be bootstrapped yet. Issue
+#1569 supplies the `factoryctl tick` lease and duplicate-tick guard, issue #1562
+supplies bounded artifact and stream-log retention, and issue #1571 is merged
+via PR #1597 at commit `b78c551a`. On this branch, issue #1572's status
+projection is implementation-complete locally but pending merge. Activation
+therefore remains blocked pending that merge, Tier A orchestration (#1574), and
+the proposal-only end-to-end proof (#1575). Issue #1571 supplies recovery
+authority and the plan/apply command; it does not wire `ai_jobs`, select queue
+work, or perform automatic restart orchestration.
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
+
+## Maintainer Status Projection
+
+`status` is a maintainer-only `scripts/factoryctl.py` command. It does not add
+or change the product `entroping` CLI surface:
+
+```text
+uv run python scripts/factoryctl.py status
+uv run python scripts/factoryctl.py status --json
+```
+
+The default view is a bounded human summary. `--json` emits the strict
+`entroping.factory-status.v1` projection. Exit codes are ordered by safety:
+`0` means `healthy`, `1` means `paused`, and `2` means `unsafe`; callers must
+not treat a nonzero result as a dispatch decision.
+
+The projection observes only trusted local policy and registry files, existing
+budget and scheduler SQLite state, and bounded queue/retention metadata. It
+does not call providers or the network, invoke tests or subprocesses, read raw
+queue or artifact payloads, create directories or locks, mutate state, migrate
+databases, recover work, or authorize spending/dispatch. SQLite reads are
+descriptor-pinned, no-follow, immutable, and reject hot sidecars. Queue and
+retention walks are metadata-only and bounded; ambiguous paths or snapshots
+fail closed without reading or rendering raw artifact contents or untrusted
+identifiers.
+
+Each store is read in its own explicit read-only transaction at one observation
+timestamp, then collected a second time. `snapshot_consistency: stable` means
+the bounded fingerprints agreed; `changed` is unsafe and `unavailable` means a
+safe projection could not be established. This is not global transactional
+atomicity across stores. Use launchd state and factory status together: launchd
+describes process/service state, while status describes the local factory
+projection, and neither is sufficient alone.
+
+Interpret `paused` as a stop or incomplete-authority signal, not permission to
+work. Threshold reasons expose persisted 80% (stop experiments) and 90%
+(subscription/included-quota only) boundaries; 100% is a prospective paid
+dispatch backstop. Because the policy requires a positive reserve, valid
+persisted authority normally stops below the raw cap. `unsafe` or an
+`*_authority-uncertain`, stale, changed, or malformed reason requires stopping
+operator changes and preserving evidence; use the recovery procedure rather
+than editing state by hand. Reason codes are value-free diagnostics, never
+authorization tokens.
 
 ## Provider Capability Registry
 
@@ -499,8 +543,9 @@ Every new queue job records `work_purpose` explicitly. The conservative default
 is `experiment`; maintainers must opt into `essential` at submission. A blocked
 `ai_jobs run-next` result includes a stable `decision_code` and sanitized
 `decision_detail`, so the 80%, 90%, 100%, quota, policy, and evidence boundary
-remains observable without copying provider artifacts. Full read-only budget
-and quota status aggregation remains owned by issue #1572.
+remains observable without copying provider artifacts. The maintainer-only
+status projection above provides the corresponding bounded budget and quota
+aggregation; it remains observation rather than authorization.
 
 Observation and authorization expiry are exclusive. Unknown, stale, future,
 regressing, or identity-mismatched quota evidence blocks only the affected
@@ -688,7 +733,7 @@ contract's acceptance gate passes.
 2. Copy the reviewed rendered plist to
    `~/Library/LaunchAgents/com.entroping.factory-tick.plist` with mode `0600`.
 3. Validate the installed file again with `plutil -lint`.
-4. After #1572 provides it, inspect both launchd state and `factoryctl status`. If an old service is
+4. Inspect both launchd state and `factoryctl status`. If an old service is
    loaded, disable it, wait for a terminal tick and settled budget evidence,
    then boot it out. Do not terminate an active or uncertain tick.
 5. Enable the label, bootstrap it into the current GUI domain, and inspect its
@@ -733,8 +778,8 @@ enable` stores an external override that can persist across boots. Always use
 
 ## Status and Logs
 
-After #1572 is merged, use both launchd state and the future factory status
-CLI. Neither is sufficient alone. Until then, this section is not executable.
+Once #1572 is merged, use both launchd state and the current factory status CLI.
+Neither is sufficient alone. Until then, this section is not executable.
 
 ```text
 launchctl print-disabled gui/$UID
@@ -790,8 +835,8 @@ are satisfied; uninstall must not erase evidence automatically.
   during sleep are not replayed on wake.
 - If a tick is still running when an interval fires, that firing is skipped.
 - A user LaunchAgent becomes available only after its user session is active;
-  after #1572, inspect `launchctl print` and `factoryctl status` following
-  reboot or login.
+  once #1572 is merged, inspect `launchctl print` and `factoryctl status`
+  following reboot or login.
 - Treat large clock changes as an operator event. Confirm the last settled tick
   and budget window before manually requesting another tick.
 
@@ -818,7 +863,8 @@ are satisfied; uninstall must not erase evidence automatically.
 
 ### Stale lease or duplicate tick
 
-- After #1572, inspect `factoryctl status` before changing launchd state.
+- Once #1572 is merged, inspect `factoryctl status` before changing launchd
+  state.
 - Do not delete a lease by hand. Disable future scheduling, verify whether the
   recorded process is still healthy, and use `factoryctl recover` through the
   plan-first procedure above. Boot out only after that process is terminal or
