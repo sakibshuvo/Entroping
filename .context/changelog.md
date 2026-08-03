@@ -2,8 +2,27 @@
 
 ## 2026-08-03
 
-- In-progress #1574 adds plan-first maintainer Tier A worktree orchestration.
-  Strict request/proposal bytes bind live scheduler ownership, exact
+- Hardened #1575's final offline acceptance proof: each labeled receipt now
+  snapshots its own scenario boundary; provider absence is observed through an
+  injected dispatch port; fresh children install network/process denial before
+  production imports; strict v1 receipts reject coercion and encoding drift;
+  descriptor-relative no-follow writes survive ancestor swaps; and source
+  manifests include bounded relevant untracked bytes. The final 20-test offline
+  pilot emitted 32 receipts in 9.37s and matched deterministic outcomes across
+  repeated/concurrent runs.
+
+- Recorded #1575's offline proposal-controller validation: the 15-test harness
+  emitted 27 schema-version-1 value-free receipts, including a requested
+  three-iteration soak that rejects requests above four. Source/Git state
+  stayed stable; local timing was 5.89s baseline and 6.134s repeated mean.
+  This intentionally separates scheduler and provider boundaries and is not a
+  live provider-running controller. It excludes live GitHub selection,
+  orchestration apply, provider dispatch, and launchd; #1576 still owns
+  PR/CI/merge-control and cleanup evidence.
+
+- Merged #1574 via PR #1600 at `ac5878a`: the plan-first maintainer Tier A
+  worktree orchestration binds strict request/proposal bytes to live scheduler
+  ownership and exact
   `completed-unsettled` evidence, worktree/base/branch identity, allowed paths,
   and verification lane. Explicit apply delegates creation only to
   `scripts/start_issue.sh`, applies exact bytes, runs allowlisted bounded gates,

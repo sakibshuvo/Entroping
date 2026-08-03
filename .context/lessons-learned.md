@@ -2,6 +2,14 @@
 
 ## 2026-08-03
 
+- An offline scheduler/proposal harness is not a live provider-running
+  controller. Keep scheduler and provider boundary observations separate;
+  record a simulated provider negative control without calling a provider, and
+  state that live GitHub selection, orchestration apply, and launchd are
+  excluded. For repeatable soak evidence, use fresh ignored receipt roots,
+  enforce a requested-versus-accepted iteration ceiling, and treat local
+  latency as telemetry rather than an admission threshold.
+
 - Generated source execution is not Tier A-safe without OS/container isolation.
   Fail closed to a static Markdown envelope, persist selection and delivery
   authority in the scheduler assignment, and derive every gate from the
@@ -884,3 +892,9 @@
   writer scopes from persisted envelopes instead of mutable issue metadata.
   Keep admission construction private and expose no admission input on generic
   scheduler APIs; paid writer authority remains a separate existing path.
+- Offline evidence must install deny controls before production imports; an
+  in-process patch cannot revoke aliases cached earlier. Treat provider dispatch
+  as an injected port, snapshot receipts at the labeled observation boundary,
+  validate one strict serialized model, open every output ancestor
+  descriptor-relative with no-follow, and include bounded relevant untracked
+  bytes before claiming source stability.

@@ -19,9 +19,10 @@ tracked template is inactive by default and must not be bootstrapped yet. Issue
 `uv run python scripts/factoryctl.py tick` lease and duplicate-tick guard, issue
 #1562 supplies bounded artifact and stream-log retention, and issue #1571 is merged
 via PR #1597 at commit `b78c551a`. Issue #1572's status projection is done.
-Activation remains blocked pending Tier A orchestration (#1574), the
-proposal-only end-to-end proof (#1575), and PR/CI/merge cleanup (#1576). Issue
-#1571 supplies recovery
+Activation remains blocked pending PR/CI/merge cleanup (#1576) and a later
+explicit launchd enablement decision. Issue #1574 is merged, while #1575 now
+has bounded offline proposal-controller evidence only; it is not
+live-selection, provider, or launchd evidence. Issue #1571 supplies recovery
 authority, including crash/outage recovery, and the plan/apply command; it does
 not wire `ai_jobs`, select queue work, or perform automatic restart
 orchestration.
@@ -348,6 +349,64 @@ transition and all PR/CI/merge authority. Git identity protects tracked and
 relevant untracked checkout state; ignored `.entroping/` control state is
 validated by its own scheduler/journal storage contracts, not claimed as Git bytes.
 
+### Offline proposal-controller pilot (#1575)
+
+The #1575 proof is an offline validation harness, not one live
+provider-running controller. It intentionally keeps the scheduler and provider
+boundaries separate through an injected provider-dispatch port: accepted paths
+use a counted fake worker without invoking that port, while one negative-control
+scenario traverses it once to prove that `no-provider` is derived from
+observation. It does not select live GitHub
+work, read provider configuration, invoke a provider, or apply orchestration.
+
+Repeat this bounded local soak with a fresh ignored receipt directory:
+
+```text
+evidence_parent="$PWD/.omo/evidence" && test ! -L "$PWD/.omo" && test ! -L "$evidence_parent" &&
+mkdir -p "$evidence_parent" && test ! -L "$PWD/.omo" && test ! -L "$evidence_parent" &&
+run_dir="$(mktemp -d "$evidence_parent/issue-1575-offline-soak.XXXXXX")" &&
+ENTROPING_PROPOSAL_RECEIPTS_DIR="$run_dir/receipts" uv run --offline pytest -o addopts='' tests/test_factory_proposal_controller_e2e.py tests/test_factory_proposal_controller_round3.py -q
+```
+
+Do not add `--select-live` or `--apply` to this command. The included
+`offline-soak` scenario requests exactly three iterations and rejects every
+request above its accepted maximum of four. Each composed scenario runs in a
+fresh child whose deny boundary installs before production imports and rejects
+cached network, subprocess, and OS-spawn aliases. Separately, each scenario
+compares a bounded read-only source/Git manifest, including relevant untracked
+bytes and metadata, before and after execution. The
+setup rejects symlinked `.omo` or `.omo/evidence` parents before creating the
+ignored evidence root, and `uv run --offline` prevents dependency resolution
+over the network before those test boundaries activate.
+
+The final 2026-08-03 pilot produced 32 strict schema-version-1 receipts in the
+20-test suite: CLI status/plan/recovery, free and paid assignment,
+replay and overlapping ticks/settlement, restart boundaries, authority,
+cash/quota and uncertain settlement, retention/path escapes, and the bounded
+soak, plus startup-boundary and repeated/concurrent determinism probes. Each
+labeled receipt snapshots its own observation boundary. Receipt output uses
+descriptor-relative, no-follow ancestor traversal, and the strict contract
+forbids extras, coercion, malformed digests, unbounded counts/durations, and
+payload/encoding drift. The receipt contract passed: all scenarios carried `offline` and
+`no-source-mutation`; `no-worker` and `no-provider` matched their observed
+counts. Thirty-one receipts recorded zero provider-boundary calls and one
+simulated negative control recorded one; 25 recorded zero fake-worker calls
+and seven accepted-path receipts recorded one. Repeated and concurrent runs
+matched scenario outcomes, counts, changed categories, totals, and invariants;
+artifact paths and generated-identifier-derived state digests are allowed to
+vary. This is harness evidence, never a live
+provider call claim.
+
+On the local pilot host, the final stronger 20-test pilot completed in 9.37
+seconds. This is local telemetry, not a pass/fail threshold or a production
+performance promise. The source manifest remained unchanged during every
+scenario.
+
+Remaining enablement blockers are explicit: the offline soak excludes live
+GitHub selection, and #1576 still owns PR, CI, merge-control, and cleanup
+evidence. The launchd template remains disabled; this pilot does not authorize
+bootstrap, provider dispatch, or autonomous delivery.
+
 ### Scheduler recovery
 
 Scheduler schema v4 keeps one mutable, versioned execution row beside each
@@ -400,7 +459,9 @@ Use this incident order:
    reconciliation. `resumed` means only that the execution returned to
    `never-dispatched` for later reconsideration; it does not prove external
    freshness or launch a provider. The #1574 static-document orchestrator does
-   not dispatch providers; #1575 must prove proposal-only integration end to end.
+   not dispatch providers; #1575 has completed bounded offline
+   proposal-controller evidence only, not live-selection, provider, or launchd
+   authorization, and #1576 remains blocking.
 
 Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
 deadlines use deterministic jitter, honor bounded provider hints, and never
