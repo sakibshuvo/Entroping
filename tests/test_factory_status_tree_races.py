@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import cast
 
 import pytest
 from pytest import MonkeyPatch
@@ -33,10 +35,13 @@ def test_tree_walk_remains_bound_to_validated_directory_descriptor(
     (walked / "original.json").write_text("metadata", encoding="utf-8")
     original_inode = walked.stat().st_ino
     moved = walked.with_name(f"{walked.name}-opened")
-    original_scandir = os.scandir
+    original_scandir = cast(
+        Callable[[int | str | bytes | os.PathLike[str]], Iterator[os.DirEntry[str]]],
+        os.scandir,
+    )
     swapped = False
 
-    def swap_before_scan(path: int | str | bytes | os.PathLike[str]) -> os.ScandirIterator[str]:
+    def swap_before_scan(path: int | str | bytes | os.PathLike[str]) -> Iterator[os.DirEntry[str]]:
         nonlocal swapped
         if isinstance(path, int) and not swapped and os.fstat(path).st_ino == original_inode:
             os.replace(walked, moved)
@@ -48,10 +53,12 @@ def test_tree_walk_remains_bound_to_validated_directory_descriptor(
     monkeypatch.setattr(os, "scandir", swap_before_scan)
 
     if surface == "queue":
-        result, _ = collect_queue(tmp_path, [])
-        assert result.queued == 1
+        queue_result, _ = collect_queue(tmp_path, [])
+        assert queue_result.queued == 1
     else:
-        result, _ = collect_retention(tmp_path, [])
-        factory_log = next(item for item in result.classes if item.artifact_class == "factory_log")
+        retention_result, _ = collect_retention(tmp_path, [])
+        factory_log = next(
+            item for item in retention_result.classes if item.artifact_class == "factory_log"
+        )
         assert factory_log.count == 1
     assert swapped is True
