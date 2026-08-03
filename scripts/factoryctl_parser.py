@@ -8,6 +8,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run bounded maintainer factory scheduler operations."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    status = subparsers.add_parser(
+        "status",
+        description="Read a bounded, maintainer-only factory status projection.",
+        help="Read factory state without creating state, dispatching, or calling providers.",
+    )
+    _ = status.add_argument("--json", action="store_true")
     tick = subparsers.add_parser(
         "tick",
         description=(

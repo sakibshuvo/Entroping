@@ -152,6 +152,30 @@ restart/duplicate-tick end-to-end proof.
 Paid candidates must reference an authoritative `dispatching` budget
 reservation, and the eventual dispatch boundary must revalidate it.
 
+The maintainer-only status projection is a separate read adapter under
+`scripts/factory_status*.py`, exposed by `scripts/factoryctl.py status`; the
+product `entroping` CLI remains unchanged. It projects only trusted local
+policy and provider-registry files, existing budget and scheduler SQLite
+state, and bounded queue/retention metadata. Shared-worktree root discovery is
+the sole subprocess exception: a bounded read-only `/usr/bin/git rev-parse`
+call uses fixed arguments, a minimal environment, a five-second timeout, and a
+4 KiB output ceiling. It has no provider, network, test-runner, gate, worker,
+mutation, migration, recovery, raw-payload, or dispatch-authorization path.
+SQLite candidates are opened no-follow through validated descriptors; SQLite
+reads use immutable descriptor aliases, with hot sidecars rejected. Alias or
+pathname instability fails unsafe without falling back to a replaced pathname.
+Queue and retention reads inspect bounded metadata only and never consume raw
+artifact contents or untrusted identifiers. Each store uses its own explicit
+read transaction; the collector takes two passes at one observation timestamp
+and compares immutable metadata fingerprints. A changed fingerprint is unsafe,
+and this deliberately does not claim global transactional atomicity across
+stores. The strict `entroping.factory-status.v1` projection orders overall
+state as `unsafe > paused > healthy` and maps those states to exits `2/1/0`.
+Persisted 80% and 90% cash thresholds remain observable stop boundaries; 100%
+is a prospective paid-authorization backstop because the positive reserve means
+no valid persisted authority can reach the raw cap. Status is observation only:
+it never grants spending or dispatch authority.
+
 The maintainer-only OpenCode worker consumes `opencode run --format json`
 incrementally through the shared bounded subprocess adapter. Raw JSON events,
 reasoning, tool payloads, provider errors, and child stderr do not cross into

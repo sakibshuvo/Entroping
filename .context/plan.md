@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-08-02
-**Status:** Issue #1571 implementation and release-ci-architecture gates in progress
+**Date:** 2026-08-03
+**Status:** Issue #1571 merged; issue #1572 implementation complete locally and pending merge
 
 ## Objective
 
@@ -16,19 +16,23 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1571 Scheduler Crash And Outage Recovery
+## Current Issue Slice: #1572 Factory Status Projection
 
-Extend the Git-common-root scheduler to schema v3 with one durable execution
-state per immutable assignment and append-only recovery receipts. Fence worker
-heartbeats, completion, phase changes, and recovery by process identity, phase
-version, and lease epoch. Retry reconsideration is limited to scheduler state
-that durably remains never-dispatched and uses bounded, caller-declared
-GitHub/provider/price/quota observation metadata only to defer stale work. The
-scheduler does not authenticate that external metadata or authorize dispatch.
-Keep ambiguous work capacity-consuming, require ledger-first authority for paid
-uncertain or settled transitions, and expose a plan-first `factoryctl recover`
-surface that never dispatches providers or releases holds. Keep product runtime
-unchanged.
+Document the maintainer-only `scripts/factoryctl.py status [--json]` projection
+without changing the product `entroping` CLI. The strict
+`entroping.factory-status.v1` report orders `unsafe > paused > healthy` and
+maps to exits `2/1/0`. It is observation only: no providers, network,
+test/gate/worker subprocesses, mutation, migration, recovery, raw payload
+reads, or spending/dispatch authorization. One bounded read-only Git subprocess
+resolves shared-worktree authority. SQLite candidates are opened no-follow via
+validated descriptors; SQLite reads use immutable descriptor aliases with
+sidecar rejection, and alias or pathname instability fails unsafe without
+falling back to a replaced pathname. Queue and retention reads are bounded
+metadata-only walks. Each store is read in an explicit transaction and
+collected twice at one timestamp; fingerprint drift is unsafe and no global
+cross-store atomicity is claimed. Persisted 80%/90% cash thresholds are
+observable; 100% is a prospective authorization backstop because the positive
+reserve means no valid persisted authority can reach the raw cap.
 
 ## Current Baseline
 
@@ -46,6 +50,8 @@ unchanged.
   wrong-schema, or secret-like sources must become invalid or unsafe.
 - AI worker lanes are advisory. OpenCode/DeepSeek outputs require Codex
   validation against local files, tests, and CI before commit or merge.
+- Issue #1571 is merged via PR #1597 at `b78c551a`; the #1572 implementation is
+  local on this branch and remains pending merge.
 - Context packs, issue-scoped worktrees, PR body checks, regression/security
   gates, quality audit, and `scripts/finish_issue.sh` are the durable marathon
   loop. Keep context files concise enough for `scripts/context_pack.sh --mode

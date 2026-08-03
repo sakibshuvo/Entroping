@@ -1,5 +1,22 @@
 # Entroping Lessons Learned
 
+## 2026-08-03
+
+- A helper named `readonly` may still create SQLite locks, journals, or
+  directories. Status/observability paths need physically noncreating seams:
+  candidates opened no-follow through validated descriptors, immutable
+  descriptor aliases for SQLite reads, rejected sidecars, bounded metadata-only
+  walks, and explicit fail-closed handling for path or snapshot ambiguity.
+- Descriptor aliases can become unstable after a pathname swap on some SQLite
+  platforms. Treat that instability as unsafe and never fall back to the
+  replaced pathname; the race test must accept only original content or
+  unsafe-without-a-connection.
+- A multi-store status view is not a distributed transaction. Use one
+  observation timestamp, explicit read transactions per store, and a bounded
+  second collection whose metadata fingerprints must agree before calling the
+  projection stable. Keep status as observation only; it cannot authorize
+  spending or dispatch.
+
 ## 2026-08-02
 
 - Recovery evidence must distinguish a durable assignment identity from its

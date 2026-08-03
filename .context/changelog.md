@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-08-03
+
+- Documented issue #1572's maintainer-only status projection and pre-merge
+  state; see `docs/meta/FACTORY_OPERATIONS.md` and `docs/technical/TDS.md` for
+  the strict v1, bounded read-only, and consistency contract. The product
+  `entroping` CLI remains unchanged.
+
 ## 2026-08-02
 
 - Added issue #1571's scheduler crash and outage recovery contract. Scheduler
