@@ -1,31 +1,34 @@
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from factory_proposal_controller_test_support import run_offline_python
+from pydantic import ConfigDict, TypeAdapter
+from pydantic.dataclasses import dataclass
 
-from scripts.factory_scheduler_execution_models import ExecutionPhase
+from scripts.factory_budget_reservation_models import ReservationState
+from scripts.factory_scheduler_execution_models import ExecutionPhase, TerminalOutcome
 from scripts.factory_scheduler_models import LeaseOwner
 
 _CHILD_CODE = (
     "import sys; from factory_proposal_controller_test_restart_child import main; "
     "main(sys.argv[1:])"
 )
+type AssignmentState = Literal["active", "completed"]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, config=ConfigDict(strict=True, extra="forbid"))
 class DurableControllerState:
-    assignment_state: str | None
+    assignment_state: AssignmentState | None
     authorization_id: str | None
-    phase: str | None
+    phase: ExecutionPhase | None
     phase_version: int | None
-    reservation_state: str | None
+    reservation_state: ReservationState | None
     held_microcents: int
     spent_microcents: int
-    terminal_outcome: str | None
+    terminal_outcome: TerminalOutcome | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,5 +110,8 @@ def child_ledger_transition(root: Path, transition: LedgerTransition) -> Durable
 def _run(root: Path, operation: str, job_id: str, *values: str) -> DurableControllerState:
     result = run_offline_python(root, _CHILD_CODE, operation, job_id, *values)
     assert result.returncode == 0, result.stderr
-    payload = json.loads(result.stdout)
-    return DurableControllerState(**payload)
+    return parse_child_state(result.stdout)
+
+
+def parse_child_state(payload: str) -> DurableControllerState:
+    return TypeAdapter(DurableControllerState).validate_json(payload, strict=True)

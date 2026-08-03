@@ -5,7 +5,7 @@ from pathlib import Path
 
 from factory_proposal_controller_test_cli import recovery_request, recovery_snapshots
 from factory_proposal_controller_test_quota import quota_exhausted_request
-from factory_proposal_controller_test_receipt_contracts import ScenarioReceipt
+from factory_proposal_controller_test_receipt_contracts import CompositionOutcome, ScenarioReceipt
 from factory_proposal_controller_test_receipts import PendingReceipt
 from factory_proposal_controller_test_restart import DurableControllerState, child_state
 from factory_proposal_controller_test_support import (
@@ -101,9 +101,10 @@ def cash_and_quota_exhaustion(root: Path) -> PendingReceipt:
         ledger.reserve_for_dispatch(_exhausted_request())
     except FactoryBudgetLedgerError as exc:
         assert exc.code == "budget"
+        cash_denial = CompositionOutcome.denied(exc.code)
     else:
         raise AssertionError("cash exhaustion admitted a fake worker")
-    compose_counted_worker(observed, "blocked", None)
+    compose_counted_worker(observed, cash_denial)
     quota_root = root / "quota"
     quota_root.mkdir()
     quota_ledger = FactoryBudgetLedger.open_project(quota_root)
@@ -114,11 +115,19 @@ def cash_and_quota_exhaustion(root: Path) -> PendingReceipt:
         quota_ledger.authorize_dispatch(quota_exhausted_request())
     except FactoryBudgetLedgerError as exc:
         assert exc.code == "quota"
+        quota_denial = CompositionOutcome.denied(exc.code)
     else:
         raise AssertionError("quota exhaustion admitted a fake worker")
-    compose_counted_worker(observed, "blocked", None)
-    assert observed.worker.call_count == 0
+    compose_counted_worker(observed, quota_denial)
+    assert observed.worker.call_count == 0 and observed.provider.call_count == 0
     return observed.receipt(return_class="blocked")
+
+
+@offline_scenario
+def simulated_provider_boundary(root: Path) -> PendingReceipt:
+    observed = ScenarioObservation.begin(root, "simulated-provider-boundary")
+    observed.provider.invoke("local-simulated-provider-call")
+    return observed.receipt(return_class="fail-closed")
 
 
 @offline_scenario

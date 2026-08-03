@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from factory_proposal_controller_test_receipt_contracts import CompositionOutcome
 from factory_proposal_controller_test_receipts import PendingReceipt
 from factory_proposal_controller_test_support import (
     ScenarioObservation,
@@ -120,7 +121,7 @@ def run_cli_safety_sequence(root: Path) -> tuple[PendingReceipt, ...]:
         "capacity-full",
         "lease-held",
     }
-    compose_counted_worker(blocked, decision["decision"], decision.get("assignment_id"))
+    compose_counted_worker(blocked, CompositionOutcome.denied(str(decision["reason"])))
     receipts.append(blocked.receipt(return_class="blocked"))
 
     recovery_root = root / "recovery"

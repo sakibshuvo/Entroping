@@ -57,6 +57,7 @@ def _assert_receipt(receipt_path: Path) -> None:
         "return_class",
         "state_digest",
         "fake_call_count",
+        "provider_call_count",
         "changed_paths",
         "file_total",
         "byte_total",
@@ -118,7 +119,8 @@ def test_authority_observations_have_exact_safe_outcomes(tmp_path: Path) -> None
 def test_cash_quota_and_uncertain_holds_are_isolated(tmp_path: Path) -> None:
     blocked = cash_and_quota_exhaustion(tmp_path / "cash")
     _assert_receipt(blocked.path)
-    assert blocked.fake_call_count == 0 and "no-worker" in blocked.invariants
+    assert blocked.fake_call_count == blocked.provider_call_count == 0
+    assert "no-worker" in blocked.invariants and "no-provider" in blocked.invariants
     for receipt in uncertain_settlement_cases(tmp_path / "uncertain"):
         _assert_receipt(receipt.path)
 
@@ -191,6 +193,7 @@ def test_receipt_rejects_categorical_and_value_leak_boundaries(tmp_path: Path) -
         "return_class": "assigned",
         "state_digest": "a" * 64,
         "fake_call_count": 0,
+        "provider_call_count": 0,
         "changed_paths": (),
         "file_total": 0,
         "byte_total": 0,

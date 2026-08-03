@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
 
+from factory_proposal_controller_test_restart import DurableControllerState
 from pydantic import TypeAdapter
 
 from scripts.factory_budget_ledger import FactoryBudgetLedger, SettlementReceipt
@@ -13,23 +15,23 @@ from scripts.factory_scheduler_execution_models import ExecutionPhase
 from scripts.factory_scheduler_models import LeaseOwner
 
 
-def state(root: Path, job_id: str) -> dict[str, object]:
+def state(root: Path, job_id: str) -> DurableControllerState:
     scheduler = FactoryScheduler(root)
     assignment = scheduler.assignment_for_job_readonly(job_id)
     execution = scheduler.execution_for_job_readonly(job_id)
     ledger = FactoryBudgetLedger.open_project(root)
     reservation = ledger.reservation_for_job(job_id)
     balance = ledger.period_summary(date(2026, 7, 1))
-    return {
-        "assignment_state": None if assignment is None else assignment.state,
-        "authorization_id": None if assignment is None else assignment.request.authorization_id,
-        "phase": None if execution is None else execution.phase,
-        "phase_version": None if execution is None else execution.phase_version,
-        "reservation_state": None if reservation is None else reservation.state,
-        "held_microcents": balance.active_reserved_microcents,
-        "spent_microcents": balance.net_spent_microcents,
-        "terminal_outcome": None if execution is None else execution.terminal_outcome,
-    }
+    return DurableControllerState(
+        assignment_state=None if assignment is None else assignment.state,
+        authorization_id=None if assignment is None else assignment.request.authorization_id,
+        phase=None if execution is None else execution.phase,
+        phase_version=None if execution is None else execution.phase_version,
+        reservation_state=None if reservation is None else reservation.state,
+        held_microcents=balance.active_reserved_microcents,
+        spent_microcents=balance.net_spent_microcents,
+        terminal_outcome=None if execution is None else execution.terminal_outcome,
+    )
 
 
 def main(arguments: list[str]) -> None:
@@ -86,7 +88,7 @@ def main(arguments: list[str]) -> None:
         )
     elif operation != "state":
         raise AssertionError("unsupported child operation")
-    print(json.dumps(state(root, job_id), sort_keys=True))
+    print(json.dumps(asdict(state(root, job_id)), sort_keys=True))
 
 
 if __name__ == "__main__":

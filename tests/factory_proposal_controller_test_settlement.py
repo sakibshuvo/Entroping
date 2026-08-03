@@ -6,8 +6,10 @@ from datetime import date, timedelta
 from pathlib import Path
 from threading import Barrier
 
+from factory_proposal_controller_test_receipt_contracts import CompositionOutcome
 from factory_proposal_controller_test_receipts import PendingReceipt
 from factory_proposal_controller_test_restart import (
+    AssignmentState,
     DurableControllerState,
     LedgerTransition,
     SchedulerCompletion,
@@ -25,8 +27,9 @@ from factory_proposal_controller_test_support import (
 from factory_scheduler_test_support import NOW, dead, owner, paid_request_with_reservation
 
 from scripts.factory_budget_ledger import FactoryBudgetLedger, SettlementReceipt
+from scripts.factory_budget_reservation_models import ReservationState
 from scripts.factory_scheduler import FactoryScheduler
-from scripts.factory_scheduler_execution_models import ExecutionPhase
+from scripts.factory_scheduler_execution_models import ExecutionPhase, TerminalOutcome
 
 
 def _usage(reservation_id: str, job_id: str, key: str = "controller-settle") -> SettlementReceipt:
@@ -62,7 +65,7 @@ def paid_exact_settlement(root: Path) -> PendingReceipt:
         owner_health=dead,
     )
     assert assigned.decision == "assigned" and assigned.assignment_id is not None
-    compose_counted_worker(observed, assigned.decision, assigned.assignment_id)
+    compose_counted_worker(observed, CompositionOutcome.accepted(assigned.assignment_id))
     first = FactoryBudgetLedger.open_project(root).settle_reservation(
         _usage(paid.reservation_id, paid.job_id)
     )
@@ -96,7 +99,7 @@ def restart_boundaries(root: Path) -> PendingReceipt:
         owner_health=dead,
     )
     assert assigned.assignment_id is not None and assigned.lease_epoch is not None
-    compose_counted_worker(observed, assigned.decision, assigned.assignment_id)
+    compose_counted_worker(observed, CompositionOutcome.accepted(assigned.assignment_id))
     _assert_state(
         child_state(root, paid.job_id), "never-dispatched", 1, "dispatching", 60, 0, None, "active"
     )
@@ -183,13 +186,13 @@ def overlapping_settlement_replay(root: Path) -> PendingReceipt:
 
 def _assert_state(
     state: DurableControllerState,
-    phase: str | None,
+    phase: ExecutionPhase | None,
     version: int | None,
-    reservation: str,
+    reservation: ReservationState,
     held: int,
     spent: int,
-    terminal: str | None,
-    assignment: str | None,
+    terminal: TerminalOutcome | None,
+    assignment: AssignmentState | None,
 ) -> None:
     assert state == DurableControllerState(
         assignment,
