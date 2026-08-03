@@ -5,7 +5,13 @@ from pathlib import Path
 
 from factory_proposal_controller_test_cli import recovery_request, recovery_snapshots
 from factory_proposal_controller_test_quota import quota_exhausted_request
-from factory_proposal_controller_test_support import ScenarioReceipt, record_receipt
+from factory_proposal_controller_test_receipts import InvariantClass
+from factory_proposal_controller_test_support import (
+    ScenarioObservation,
+    ScenarioReceipt,
+    offline_scenario,
+    reopen_in_fresh_child,
+)
 from factory_scheduler_test_support import NOW, dead, owner, paid_request_with_reservation, request
 
 from scripts.factory_budget_ledger import (
@@ -14,54 +20,88 @@ from scripts.factory_budget_ledger import (
     FactoryBudgetLedger,
     FactoryBudgetLedgerError,
     PriceTerm,
+    SettlementOutcome,
     SettlementReceipt,
     UsageEnvelope,
 )
-from scripts.factory_retry_policy import RetryPolicy
+from scripts.factory_retry_policy import RecoverySnapshot, RetryPolicy
 from scripts.factory_scheduler import FactoryScheduler
 
 
-def authority_observations(root: Path) -> ScenarioReceipt:
-    assigned = FactoryScheduler(root).tick(
-        request=request(6, worker_class="free-local"),
-        owner=owner(6),
-        as_of=NOW,
-        lease_seconds=1,
-        plan_only=False,
-        owner_health=dead,
+@offline_scenario
+def authority_observations(root: Path) -> tuple[ScenarioReceipt, ...]:
+    cases = (
+        ("authority-control", recovery_snapshots(NOW), "retry-scheduled", "retry-scheduled"),
+        (
+            "authority-stale",
+            recovery_snapshots(NOW, expires=0),
+            "retry-scheduled",
+            "github-snapshot-stale",
+        ),
+        ("authority-missing", (), "retry-scheduled", "github-snapshot-missing"),
+        (
+            "authority-future",
+            recovery_snapshots(NOW, future=True),
+            "retry-scheduled",
+            "github-snapshot-future",
+        ),
+        (
+            "authority-conflict",
+            _conflicting_snapshots(),
+            "retry-scheduled",
+            "snapshot-source-duplicate",
+        ),
     )
-    assert assigned.assignment_id is not None and assigned.lease_epoch is not None
-    current = NOW + timedelta(seconds=2)
-    observations = (
-        recovery_snapshots(current, expires=0),
-        (),
-        recovery_snapshots(current, future=True),
-    )
-    for index, snapshots in enumerate(observations, start=1):
-        receipt = FactoryScheduler(root).recover(
-            recovery_request(
-                assigned.assignment_id, assigned.lease_epoch, snapshots[:2], f"authority-{index}"
-            ),
-            owner=owner(7),
-            as_of=current,
+    receipts = []
+    for index, (scenario, snapshots, decision, reason) in enumerate(cases, start=1):
+        case_root = root / scenario
+        observed = ScenarioObservation.begin(case_root, scenario)
+        assigned = FactoryScheduler(case_root).tick(
+            request=request(index, worker_class="free-local"),
+            owner=owner(index),
+            as_of=NOW - timedelta(seconds=2),
+            lease_seconds=1,
+            plan_only=False,
+            owner_health=dead,
+        )
+        assert assigned.assignment_id is not None and assigned.lease_epoch is not None
+        recovered = FactoryScheduler(case_root).recover(
+            recovery_request(assigned.assignment_id, assigned.lease_epoch, snapshots, scenario),
+            owner=owner(20 + index),
+            as_of=NOW,
             lease_seconds=30,
             retry_policy=RetryPolicy(),
             plan_only=False,
-            owner_health=(lambda _owner: True) if index == 3 else dead,
+            owner_health=dead,
         )
-        assert receipt.decision in {"blocked", "retry-scheduled"}
-    return record_receipt(
-        root,
-        scenario="authority-observations",
-        return_class="fail-closed",
-        changed_paths=("scheduler",),
-        invariants=("stale", "missing", "future", "conflicting"),
-    )
+        assert recovered.decision == decision and recovered.reason == reason, (
+            scenario,
+            recovered.decision,
+            recovered.reason,
+        )
+        checks: dict[InvariantClass, bool] = (
+            {"durable-reopen": recovered.decision == "retry-scheduled"}
+            if reason == "retry-scheduled"
+            else {"authority-fail-closed": recovered.decision == "retry-scheduled"}
+        )
+        receipts.append(
+            observed.receipt(
+                return_class="retry-scheduled" if decision == "retry-scheduled" else "blocked",
+                checks={**checks, "offline": True, "no-source-mutation": True},
+            )
+        )
+    return tuple(receipts)
 
 
-def cash_and_uncertain_settlement(root: Path) -> tuple[ScenarioReceipt, ScenarioReceipt]:
-    ledger, paid = paid_request_with_reservation(root)
-    assert paid.reservation_id is not None
+def _conflicting_snapshots() -> tuple[RecoverySnapshot, ...]:
+    snapshots = recovery_snapshots(NOW)
+    return (snapshots[0], snapshots[0], snapshots[2], snapshots[3])
+
+
+@offline_scenario
+def cash_and_quota_exhaustion(root: Path) -> ScenarioReceipt:
+    observed = ScenarioObservation.begin(root, "cash-quota-exhaustion")
+    ledger, _ = paid_request_with_reservation(root)
     try:
         ledger.reserve_for_dispatch(_exhausted_request())
     except FactoryBudgetLedgerError as exc:
@@ -72,15 +112,7 @@ def cash_and_uncertain_settlement(root: Path) -> tuple[ScenarioReceipt, Scenario
     quota_root.mkdir()
     quota_ledger = FactoryBudgetLedger.open_project(quota_root)
     quota_ledger.initialize_period(
-        BudgetPeriodConfig(
-            starts_on=date(2026, 7, 1),
-            cash_cap_microcents=1_000,
-            emergency_reserve_microcents=20,
-            currency="USD",
-            policy_id="factory-policy",
-            policy_revision=3,
-            reserve_idempotency_key="quota-period",
-        )
+        BudgetPeriodConfig(date(2026, 7, 1), 1_000, 20, "USD", "factory-policy", 3, "quota-period")
     )
     try:
         quota_ledger.authorize_dispatch(quota_exhausted_request())
@@ -88,100 +120,135 @@ def cash_and_uncertain_settlement(root: Path) -> tuple[ScenarioReceipt, Scenario
         assert exc.code == "quota"
     else:
         raise AssertionError("quota exhaustion admitted a fake worker")
-    uncertain = ledger.mark_reservation_uncertain(
-        paid.reservation_id,
-        idempotency_key="controller-missing",
-        reason="partial_receipt",
-        occurred_at=NOW + timedelta(seconds=1),
-        evidence_digest="b" * 64,
+    assert observed.worker.call_count == 0
+    return observed.receipt(
+        return_class="blocked",
+        checks={
+            "no-worker": observed.worker.call_count == 0,
+            "offline": True,
+            "no-source-mutation": True,
+        },
     )
-    assert uncertain.state == "uncertain"
-    cash = record_receipt(
-        root,
-        scenario="cash-quota-exhaustion",
-        return_class="cash-blocked",
-        changed_paths=("ledger",),
-        invariants=("no-worker-before-cash", "no-worker-before-quota"),
+
+
+@offline_scenario
+def uncertain_settlement_cases(root: Path) -> tuple[ScenarioReceipt, ...]:
+    outcomes = []
+    for index, kind in enumerate(
+        ("missing", "malformed", "mismatched", "duplicate", "ambiguous"), start=1
+    ):
+        case_root = root / kind
+        observed = ScenarioObservation.begin(case_root, f"uncertain-{kind}")
+        ledger, paid = paid_request_with_reservation(case_root)
+        assert paid.reservation_id is not None
+        outcome = _make_uncertain(ledger, paid.reservation_id, paid.job_id, kind, index)
+        reopen_in_fresh_child(case_root, "ledger")
+        reopened = FactoryBudgetLedger.open_project(case_root)
+        held = reopened.period_summary(date(2026, 7, 1))
+        reservation = reopened.reservation_for_job(paid.job_id)
+        try:
+            reopened.reserve_for_dispatch(_exhausted_request())
+        except FactoryBudgetLedgerError as exc:
+            assert exc.code == "budget"
+        else:
+            raise AssertionError("uncertain reservation reopened paid capacity")
+        assert (
+            outcome.state == "uncertain"
+            and reservation is not None
+            and reservation.state == "uncertain"
+        )
+        assert held.active_reserved_microcents == 60 and held.net_spent_microcents == 0
+        outcomes.append(
+            observed.receipt(
+                return_class="uncertain",
+                checks={
+                    "settlement-hold-retained": True,
+                    "offline": True,
+                    "no-source-mutation": True,
+                },
+            )
+        )
+    return tuple(outcomes)
+
+
+def _make_uncertain(
+    ledger: FactoryBudgetLedger,
+    reservation_id: str,
+    job_id: str,
+    kind: str,
+    index: int,
+) -> SettlementOutcome:
+    if kind == "missing":
+        return ledger.mark_reservation_uncertain(
+            reservation_id,
+            idempotency_key=f"missing-{index}",
+            reason="partial_receipt",
+            occurred_at=NOW + timedelta(seconds=1),
+            evidence_digest="b" * 64,
+        )
+    if kind == "duplicate":
+        first = ledger.mark_reservation_uncertain(
+            reservation_id,
+            idempotency_key=f"duplicate-{index}",
+            reason="partial_receipt",
+            occurred_at=NOW + timedelta(seconds=1),
+            evidence_digest="b" * 64,
+        )
+        replay = ledger.mark_reservation_uncertain(
+            reservation_id,
+            idempotency_key=f"duplicate-{index}",
+            reason="partial_receipt",
+            occurred_at=NOW + timedelta(seconds=1),
+            evidence_digest="b" * 64,
+        )
+        assert first.created and not replay.created
+        return replay
+    receipt = SettlementReceipt(
+        f"uncertain-{kind}-{index}",
+        reservation_id,
+        job_id if kind != "mismatched" else "wrong-job",
+        "test-paid/direct",
+        "test-paid",
+        "test-paid/model",
+        "test-paid-model",
+        "c" * (63 if kind == "malformed" else 64),
+        0,
+        0,
+        2 if kind == "ambiguous" else 1,
+        0,
+        NOW + timedelta(seconds=2),
     )
-    malformed = ledger.settle_reservation(_malformed_receipt(paid.reservation_id, paid.job_id))
-    assert malformed.state == "uncertain"
-    duplicate = ledger.mark_reservation_uncertain(
-        paid.reservation_id,
-        idempotency_key="controller-missing",
-        reason="partial_receipt",
-        occurred_at=NOW + timedelta(seconds=1),
-        evidence_digest="b" * 64,
-    )
-    assert not duplicate.created
-    mismatched = ledger.settle_reservation(_mismatched_receipt(paid.reservation_id))
-    assert mismatched.state == "uncertain"
-    uncertainty = record_receipt(
-        root,
-        scenario="uncertain-settlement",
-        return_class="uncertain",
-        changed_paths=("ledger",),
-        invariants=("missing", "malformed", "mismatched", "duplicate"),
-    )
-    return cash, uncertainty
+    return ledger.settle_reservation(receipt)
 
 
 def _exhausted_request() -> CostReservationRequest:
     return CostReservationRequest(
-        idempotency_key="controller-exhausted",
-        job_id="controller-exhausted",
-        provider_lane_id="test-paid/direct",
-        provider_id="test-paid",
-        model_id="test-paid/model",
-        requested_model="test-paid-model",
-        cost_policy_lane_id="test-paid-lane",
-        policy_id="monthly-budget",
-        policy_revision=1,
-        occurred_at=NOW,
-        usage_envelope=UsageEnvelope(requests=1),
-        price_terms=(
+        "controller-exhausted",
+        "controller-exhausted",
+        "test-paid/direct",
+        "test-paid",
+        "test-paid/model",
+        "test-paid-model",
+        "test-paid-lane",
+        "monthly-budget",
+        1,
+        NOW,
+        UsageEnvelope(requests=1),
+        (
             PriceTerm(
-                snapshot_id="controller-price",
-                unit="request",
-                quantity=1,
-                price_microcents=60,
-                observed_at=NOW - timedelta(seconds=1),
-                expires_at=NOW + timedelta(seconds=1),
+                "controller-price",
+                "request",
+                1,
+                60,
+                NOW - timedelta(seconds=1),
+                NOW + timedelta(seconds=1),
             ),
         ),
     )
 
 
-def _malformed_receipt(reservation_id: str, job_id: str) -> SettlementReceipt:
-    return SettlementReceipt(
-        idempotency_key="controller-malformed",
-        reservation_id=reservation_id,
-        job_id=job_id,
-        provider_lane_id="test-paid/direct",
-        provider_id="test-paid",
-        model_id="test-paid/model",
-        requested_model="test-paid-model",
-        provider_session_digest="c" * 63,
-        input_tokens=0,
-        output_tokens=0,
-        requests=1,
-        minutes=0,
-        occurred_at=NOW + timedelta(seconds=2),
-    )
-
-
-def _mismatched_receipt(reservation_id: str) -> SettlementReceipt:
-    return SettlementReceipt(
-        idempotency_key="controller-mismatched",
-        reservation_id=reservation_id,
-        job_id="controller-wrong-job",
-        provider_lane_id="test-paid/direct",
-        provider_id="test-paid",
-        model_id="test-paid/model",
-        requested_model="test-paid-model",
-        provider_session_digest="c" * 64,
-        input_tokens=0,
-        output_tokens=0,
-        requests=1,
-        minutes=0,
-        occurred_at=NOW + timedelta(seconds=2),
+def cash_and_uncertain_settlement(root: Path) -> tuple[ScenarioReceipt, ...]:
+    return (
+        cash_and_quota_exhaustion(root / "cash"),
+        *uncertain_settlement_cases(root / "uncertain"),
     )

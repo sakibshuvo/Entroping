@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from factory_proposal_controller_test_support import (
+    ScenarioObservation,
     ScenarioReceipt,
-    assert_source_unchanged,
     offline_scenario,
-    record_receipt,
     run_cli,
-    source_digest,
 )
-from factory_scheduler_test_support import dead, owner, request
+from factory_scheduler_test_support import NOW, dead, owner, request
 
 from scripts.factory_retry_policy import RecoverySnapshot, SnapshotSource
 from scripts.factory_scheduler import FactoryScheduler
@@ -41,16 +39,11 @@ def recovery_snapshots(
     *,
     expires: int = 60,
     future: bool = False,
+    duplicate: bool = False,
 ) -> tuple[RecoverySnapshot, ...]:
-    offset = timedelta(seconds=1)
-    observed = now + offset if future else now - offset
-    sources: tuple[SnapshotSource, ...] = (
-        "github",
-        "provider-capability",
-        "price",
-        "quota",
-    )
-    return tuple(
+    observed = now + timedelta(seconds=1) if future else now - timedelta(seconds=1)
+    sources: tuple[SnapshotSource, ...] = ("github", "provider-capability", "price", "quota")
+    snapshots = tuple(
         RecoverySnapshot(
             source=source,
             observed_at=observed,
@@ -59,6 +52,7 @@ def recovery_snapshots(
         )
         for index, source in enumerate(sources, start=1)
     )
+    return (*snapshots, snapshots[0]) if duplicate else snapshots
 
 
 def recovery_request(
@@ -84,36 +78,68 @@ def recovery_request(
 
 @offline_scenario
 def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
-    before = source_digest()
-    idle = run_cli(root, "status", "--json")
-    assert idle.returncode == 1 and not (root / ".entroping").exists()
+    idle = ScenarioObservation.begin(root, "idle-cli")
+    result = run_cli(root, "status", "--json")
+    assert result.returncode == 1 and not (root / ".entroping").exists()
     receipts = [
-        record_receipt(
-            root,
-            scenario="idle-cli",
-            return_class="exit-1",
-            changed_paths=("none",),
-            invariants=("offline", "no-state"),
-        )
+        idle.receipt(return_class="exit-1", checks={"offline": True, "no-source-mutation": True})
     ]
-    planned = run_cli(root, "tick", "--json", *candidate_arguments(1))
-    assert planned.returncode == 0 and json.loads(planned.stdout)["decision"] == "would-assign"
+
+    plan = ScenarioObservation.begin(root, "plan-only-cli")
+    result = run_cli(root, "tick", "--json", *candidate_arguments(1))
+    assert result.returncode == 0 and json.loads(result.stdout)["decision"] == "would-assign"
     assert not (root / ".entroping").exists()
     receipts.append(
-        _receipt(root, "plan-only-cli", "would-assign", ("none",), ("offline", "no-state"))
+        plan.receipt(
+            return_class="would-assign", checks={"offline": True, "no-source-mutation": True}
+        )
     )
-    invalid = run_cli(root, "tick", "--not-a-policy")
-    assert invalid.returncode == 2 and not (root / ".entroping").exists()
+
+    invalid = ScenarioObservation.begin(root, "invalid-cli")
+    result = run_cli(root, "tick", "--not-a-policy")
+    assert result.returncode == 2 and not (root / ".entroping").exists()
     receipts.append(
-        _receipt(root, "invalid-cli", "input-invalid", ("none",), ("offline", "no-state"))
+        invalid.receipt(
+            return_class="input-invalid", checks={"offline": True, "no-source-mutation": True}
+        )
     )
-    blocked = run_cli(root, "tick", "--apply", "--json", *candidate_arguments(2))
-    assert blocked.returncode == 2
+
+    blocked = ScenarioObservation.begin(root, "blocked-dispatch-cli")
+    admitted = run_cli(
+        root,
+        "tick",
+        "--apply",
+        "--json",
+        "--owner-id",
+        "controller-admitted",
+        *candidate_arguments(2),
+    )
+    result = run_cli(
+        root,
+        "tick",
+        "--apply",
+        "--json",
+        "--owner-id",
+        "controller-blocked",
+        *candidate_arguments(3),
+    )
+    assert admitted.returncode == 0 and result.returncode == 1
+    decision = json.loads(result.stdout)
+    assert decision["decision"] == "blocked" and decision["reason"] in {
+        "capacity-full",
+        "lease-held",
+    }
     receipts.append(
-        _receipt(root, "blocked-dispatch-cli", "blocked", ("none",), ("no-worker", "offline"))
+        blocked.receipt(
+            return_class="blocked",
+            checks={"offline": True, "no-worker": True, "no-source-mutation": True},
+        )
     )
-    now = datetime.now(UTC)
-    assigned = FactoryScheduler(root).tick(
+
+    recovery_root = root / "recovery"
+    recovery_root.mkdir()
+    now = NOW
+    assigned = FactoryScheduler(recovery_root).tick(
         request=request(9, worker_class="free-local"),
         owner=owner(1),
         as_of=now - timedelta(seconds=2),
@@ -123,32 +149,33 @@ def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
     )
     assert assigned.assignment_id is not None and assigned.lease_epoch is not None
     arguments = recovery_cli_arguments(assigned.assignment_id, assigned.lease_epoch, now)
-    planned_recovery = run_cli(root, "recover", "--json", *arguments)
-    assert planned_recovery.returncode == 0
-    assert json.loads(planned_recovery.stdout)["authoritative"] is False
+    planned = ScenarioObservation.begin(recovery_root, "plan-first-recovery-cli")
+    result = run_cli(recovery_root, "recover", "--json", *arguments)
+    assert result.returncode == 0 and json.loads(result.stdout)["authoritative"] is False
     receipts.append(
-        _receipt(
-            root,
-            "plan-first-recovery-cli",
-            "would-recover",
-            ("scheduler",),
-            ("offline", "no-worker"),
+        planned.receipt(
+            return_class="would-recover",
+            checks={"offline": True, "no-worker": True, "no-source-mutation": True},
         )
     )
-    applied = run_cli(
-        root, "recover", "--apply", "--json", "--owner-id", "controller-recovery", *arguments
+
+    applied = ScenarioObservation.begin(recovery_root, "explicit-recovery-apply-cli")
+    result = run_cli(
+        recovery_root,
+        "recover",
+        "--apply",
+        "--json",
+        "--owner-id",
+        "controller-recovery",
+        *arguments,
     )
-    assert applied.returncode == 0 and json.loads(applied.stdout)["authoritative"] is True
+    assert result.returncode == 0 and json.loads(result.stdout)["authoritative"] is True
     receipts.append(
-        _receipt(
-            root,
-            "explicit-recovery-apply-cli",
-            "retry-scheduled",
-            ("scheduler",),
-            ("offline", "no-worker"),
+        applied.receipt(
+            return_class="retry-scheduled",
+            checks={"offline": True, "no-worker": True, "no-source-mutation": True},
         )
     )
-    assert_source_unchanged(before)
     return tuple(receipts)
 
 
@@ -174,11 +201,3 @@ def recovery_cli_arguments(assignment_id: str, epoch: int, now: datetime) -> tup
         "offline",
     )
     return (*flags, *(value for item in snapshots for value in ("--snapshot", item)))
-
-
-def _receipt(
-    root: Path, scenario: str, result: str, paths: tuple[str, ...], invariants: tuple[str, ...]
-) -> ScenarioReceipt:
-    return record_receipt(
-        root, scenario=scenario, return_class=result, changed_paths=paths, invariants=invariants
-    )
