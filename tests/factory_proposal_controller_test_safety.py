@@ -5,12 +5,13 @@ from pathlib import Path
 
 from factory_proposal_controller_test_cli import recovery_request, recovery_snapshots
 from factory_proposal_controller_test_quota import quota_exhausted_request
-from factory_proposal_controller_test_receipts import InvariantClass
+from factory_proposal_controller_test_receipt_contracts import ScenarioReceipt
+from factory_proposal_controller_test_receipts import PendingReceipt
+from factory_proposal_controller_test_restart import DurableControllerState, child_state
 from factory_proposal_controller_test_support import (
     ScenarioObservation,
-    ScenarioReceipt,
+    compose_counted_worker,
     offline_scenario,
-    reopen_in_fresh_child,
 )
 from factory_scheduler_test_support import NOW, dead, owner, paid_request_with_reservation, request
 
@@ -29,7 +30,7 @@ from scripts.factory_scheduler import FactoryScheduler
 
 
 @offline_scenario
-def authority_observations(root: Path) -> tuple[ScenarioReceipt, ...]:
+def authority_observations(root: Path) -> tuple[PendingReceipt, ...]:
     cases = (
         ("authority-control", recovery_snapshots(NOW), "retry-scheduled", "retry-scheduled"),
         (
@@ -79,15 +80,9 @@ def authority_observations(root: Path) -> tuple[ScenarioReceipt, ...]:
             recovered.decision,
             recovered.reason,
         )
-        checks: dict[InvariantClass, bool] = (
-            {"durable-reopen": recovered.decision == "retry-scheduled"}
-            if reason == "retry-scheduled"
-            else {"authority-fail-closed": recovered.decision == "retry-scheduled"}
-        )
         receipts.append(
             observed.receipt(
-                return_class="retry-scheduled" if decision == "retry-scheduled" else "blocked",
-                checks={**checks, "offline": True, "no-source-mutation": True},
+                return_class="retry-scheduled" if decision == "retry-scheduled" else "blocked"
             )
         )
     return tuple(receipts)
@@ -99,7 +94,7 @@ def _conflicting_snapshots() -> tuple[RecoverySnapshot, ...]:
 
 
 @offline_scenario
-def cash_and_quota_exhaustion(root: Path) -> ScenarioReceipt:
+def cash_and_quota_exhaustion(root: Path) -> PendingReceipt:
     observed = ScenarioObservation.begin(root, "cash-quota-exhaustion")
     ledger, _ = paid_request_with_reservation(root)
     try:
@@ -108,6 +103,7 @@ def cash_and_quota_exhaustion(root: Path) -> ScenarioReceipt:
         assert exc.code == "budget"
     else:
         raise AssertionError("cash exhaustion admitted a fake worker")
+    compose_counted_worker(observed, "blocked", None)
     quota_root = root / "quota"
     quota_root.mkdir()
     quota_ledger = FactoryBudgetLedger.open_project(quota_root)
@@ -120,19 +116,13 @@ def cash_and_quota_exhaustion(root: Path) -> ScenarioReceipt:
         assert exc.code == "quota"
     else:
         raise AssertionError("quota exhaustion admitted a fake worker")
+    compose_counted_worker(observed, "blocked", None)
     assert observed.worker.call_count == 0
-    return observed.receipt(
-        return_class="blocked",
-        checks={
-            "no-worker": observed.worker.call_count == 0,
-            "offline": True,
-            "no-source-mutation": True,
-        },
-    )
+    return observed.receipt(return_class="blocked")
 
 
 @offline_scenario
-def uncertain_settlement_cases(root: Path) -> tuple[ScenarioReceipt, ...]:
+def uncertain_settlement_cases(root: Path) -> tuple[PendingReceipt, ...]:
     outcomes = []
     for index, kind in enumerate(
         ("missing", "malformed", "mismatched", "duplicate", "ambiguous"), start=1
@@ -142,7 +132,17 @@ def uncertain_settlement_cases(root: Path) -> tuple[ScenarioReceipt, ...]:
         ledger, paid = paid_request_with_reservation(case_root)
         assert paid.reservation_id is not None
         outcome = _make_uncertain(ledger, paid.reservation_id, paid.job_id, kind, index)
-        reopen_in_fresh_child(case_root, "ledger")
+        reconstructed = child_state(case_root, paid.job_id)
+        assert reconstructed == DurableControllerState(
+            None,
+            None,
+            None,
+            None,
+            "uncertain",
+            60,
+            0,
+            None,
+        )
         reopened = FactoryBudgetLedger.open_project(case_root)
         held = reopened.period_summary(date(2026, 7, 1))
         reservation = reopened.reservation_for_job(paid.job_id)
@@ -158,16 +158,7 @@ def uncertain_settlement_cases(root: Path) -> tuple[ScenarioReceipt, ...]:
             and reservation.state == "uncertain"
         )
         assert held.active_reserved_microcents == 60 and held.net_spent_microcents == 0
-        outcomes.append(
-            observed.receipt(
-                return_class="uncertain",
-                checks={
-                    "settlement-hold-retained": True,
-                    "offline": True,
-                    "no-source-mutation": True,
-                },
-            )
-        )
+        outcomes.append(observed.receipt(return_class="uncertain"))
     return tuple(outcomes)
 
 

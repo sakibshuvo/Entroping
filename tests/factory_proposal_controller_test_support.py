@@ -6,16 +6,20 @@ import sys
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
-from typing import Literal
+from typing import overload
 from unittest.mock import patch
 
-from factory_proposal_controller_test_receipts import (
+from factory_proposal_controller_test_receipt_contracts import (
     MAX_LIST_ITEMS,
     MAX_RECEIPT_BYTES,
     RECEIPT_SCHEMA_VERSION,
-    ScenarioObservation,
     ScenarioReceipt,
-    record_receipt,
+)
+from factory_proposal_controller_test_receipts import (
+    PendingReceipt,
+    ScenarioObservation,
+    compose_counted_worker,
+    finalize_receipt,
 )
 from factory_proposal_controller_test_source_manifest import SourceManifest, source_manifest
 
@@ -32,20 +36,26 @@ def offline_child_environment(root: Path) -> dict[str, str]:
     code = """import os, socket, subprocess
 def _blocked(*_args, **_kwargs): raise RuntimeError('offline test boundary reached')
 for _name in ('create_connection',): setattr(socket, _name, _blocked)
-for _name in ('connect', 'connect_ex', 'send', 'sendall', 'sendto', 'sendmsg'):
+for _name in (
+    'connect', 'connect_ex', 'send', 'sendall', 'sendto', 'sendmsg',
+    'bind', 'listen', 'accept',
+):
     if hasattr(socket.socket, _name): setattr(socket.socket, _name, _blocked)
 for _name in ('Popen', 'run', 'call', 'check_call', 'check_output', 'getoutput', 'getstatusoutput'):
     if hasattr(subprocess, _name): setattr(subprocess, _name, _blocked)
 for _name in (
     'system', 'spawnl', 'spawnle', 'spawnlp', 'spawnlpe', 'spawnv', 'spawnve',
-    'spawnvp', 'spawnvpe', 'execv', 'execve', 'execvp', 'execvpe',
+    'spawnvp', 'spawnvpe', 'posix_spawn', 'posix_spawnp', 'execv', 'execve', 'execvp', 'execvpe',
 ):
     if hasattr(os, _name): setattr(os, _name, _blocked)
 import scripts.factory_scheduler as _factory_scheduler
 _factory_scheduler.resolve_scheduler_root = lambda value: value
 """
     (site_root / "sitecustomize.py").write_text(code, encoding="utf-8")
-    return {"PATH": "", "PYTHONPATH": os.pathsep.join((str(site_root), str(REPO_ROOT)))}
+    return {
+        "PATH": "",
+        "PYTHONPATH": os.pathsep.join((str(site_root), str(REPO_ROOT / "tests"), str(REPO_ROOT))),
+    }
 
 
 def _trusted_child(root: Path, arguments: list[str]) -> subprocess.CompletedProcess[str]:
@@ -73,22 +83,8 @@ def run_cli(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return _trusted_child(root, [sys.executable, str(FACTORYCTL), *args])
 
 
-def run_offline_python(root: Path, code: str) -> subprocess.CompletedProcess[str]:
-    return _trusted_child(root, [sys.executable, "-c", code])
-
-
-def reopen_in_fresh_child(root: Path, component: Literal["scheduler", "ledger"]) -> None:
-    scheduler_code = (
-        "from pathlib import Path; from scripts.factory_scheduler import "
-        "FactoryScheduler; FactoryScheduler(Path.cwd()).snapshot()"
-    )
-    ledger_code = (
-        "from pathlib import Path; from scripts.factory_budget_ledger import "
-        "FactoryBudgetLedger; FactoryBudgetLedger.open_project(Path.cwd())"
-    )
-    code = scheduler_code if component == "scheduler" else ledger_code
-    result = run_offline_python(root, code)
-    assert result.returncode == 0, result.stderr
+def run_offline_python(root: Path, code: str, *arguments: str) -> subprocess.CompletedProcess[str]:
+    return _trusted_child(root, [sys.executable, "-c", code, *arguments])
 
 
 @contextmanager
@@ -99,7 +95,17 @@ def offline_direct_boundary() -> Iterator[None]:
     with ExitStack() as stack:
         for name in ("create_connection",):
             stack.enter_context(patch(f"socket.{name}", side_effect=blocked))
-        for name in ("connect", "connect_ex", "send", "sendall", "sendto", "sendmsg"):
+        for name in (
+            "connect",
+            "connect_ex",
+            "send",
+            "sendall",
+            "sendto",
+            "sendmsg",
+            "bind",
+            "listen",
+            "accept",
+        ):
             if hasattr(__import__("socket").socket, name):
                 stack.enter_context(patch(f"socket.socket.{name}", side_effect=blocked))
         for name in (
@@ -122,6 +128,8 @@ def offline_direct_boundary() -> Iterator[None]:
             "spawnve",
             "spawnvp",
             "spawnvpe",
+            "posix_spawn",
+            "posix_spawnp",
             "execv",
             "execve",
             "execvp",
@@ -132,8 +140,22 @@ def offline_direct_boundary() -> Iterator[None]:
         yield
 
 
-def offline_scenario[T](function: Callable[[Path], T]) -> Callable[[Path], T]:
-    def wrapped(root: Path) -> T:
+@overload
+def offline_scenario(
+    function: Callable[[Path], PendingReceipt],
+) -> Callable[[Path], ScenarioReceipt]: ...
+
+
+@overload
+def offline_scenario(
+    function: Callable[[Path], tuple[PendingReceipt, ...]],
+) -> Callable[[Path], tuple[ScenarioReceipt, ...]]: ...
+
+
+def offline_scenario(
+    function: Callable[[Path], PendingReceipt | tuple[PendingReceipt, ...]],
+) -> Callable[[Path], ScenarioReceipt | tuple[ScenarioReceipt, ...]]:
+    def wrapped(root: Path) -> ScenarioReceipt | tuple[ScenarioReceipt, ...]:
         before = source_manifest()
         with (
             offline_direct_boundary(),
@@ -142,8 +164,10 @@ def offline_scenario[T](function: Callable[[Path], T]) -> Callable[[Path], T]:
             ),
         ):
             result = function(root)
-        assert source_manifest() == before
-        return result
+        after = source_manifest()
+        if isinstance(result, PendingReceipt):
+            return finalize_receipt(result, before, after)
+        return tuple(finalize_receipt(item, before, after) for item in result)
 
     return wrapped
 
@@ -163,10 +187,9 @@ __all__ = [
     "ScenarioObservation",
     "ScenarioReceipt",
     "assert_source_unchanged",
+    "compose_counted_worker",
     "offline_direct_boundary",
     "offline_scenario",
-    "record_receipt",
-    "reopen_in_fresh_child",
     "run_cli",
     "run_offline_python",
     "source_digest",

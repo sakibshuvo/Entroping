@@ -4,9 +4,10 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from factory_proposal_controller_test_receipts import PendingReceipt
 from factory_proposal_controller_test_support import (
     ScenarioObservation,
-    ScenarioReceipt,
+    compose_counted_worker,
     offline_scenario,
     run_cli,
 )
@@ -77,34 +78,23 @@ def recovery_request(
 
 
 @offline_scenario
-def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
+def run_cli_safety_sequence(root: Path) -> tuple[PendingReceipt, ...]:
     idle = ScenarioObservation.begin(root, "idle-cli")
     result = run_cli(root, "status", "--json")
     assert result.returncode == 1 and not (root / ".entroping").exists()
-    receipts = [
-        idle.receipt(return_class="exit-1", checks={"offline": True, "no-source-mutation": True})
-    ]
+    receipts = [idle.receipt(return_class="exit-1")]
 
     plan = ScenarioObservation.begin(root, "plan-only-cli")
     result = run_cli(root, "tick", "--json", *candidate_arguments(1))
     assert result.returncode == 0 and json.loads(result.stdout)["decision"] == "would-assign"
     assert not (root / ".entroping").exists()
-    receipts.append(
-        plan.receipt(
-            return_class="would-assign", checks={"offline": True, "no-source-mutation": True}
-        )
-    )
+    receipts.append(plan.receipt(return_class="would-assign"))
 
     invalid = ScenarioObservation.begin(root, "invalid-cli")
     result = run_cli(root, "tick", "--not-a-policy")
     assert result.returncode == 2 and not (root / ".entroping").exists()
-    receipts.append(
-        invalid.receipt(
-            return_class="input-invalid", checks={"offline": True, "no-source-mutation": True}
-        )
-    )
+    receipts.append(invalid.receipt(return_class="input-invalid"))
 
-    blocked = ScenarioObservation.begin(root, "blocked-dispatch-cli")
     admitted = run_cli(
         root,
         "tick",
@@ -114,6 +104,7 @@ def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
         "controller-admitted",
         *candidate_arguments(2),
     )
+    blocked = ScenarioObservation.begin(root, "blocked-dispatch-cli")
     result = run_cli(
         root,
         "tick",
@@ -129,12 +120,8 @@ def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
         "capacity-full",
         "lease-held",
     }
-    receipts.append(
-        blocked.receipt(
-            return_class="blocked",
-            checks={"offline": True, "no-worker": True, "no-source-mutation": True},
-        )
-    )
+    compose_counted_worker(blocked, decision["decision"], decision.get("assignment_id"))
+    receipts.append(blocked.receipt(return_class="blocked"))
 
     recovery_root = root / "recovery"
     recovery_root.mkdir()
@@ -152,12 +139,7 @@ def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
     planned = ScenarioObservation.begin(recovery_root, "plan-first-recovery-cli")
     result = run_cli(recovery_root, "recover", "--json", *arguments)
     assert result.returncode == 0 and json.loads(result.stdout)["authoritative"] is False
-    receipts.append(
-        planned.receipt(
-            return_class="would-recover",
-            checks={"offline": True, "no-worker": True, "no-source-mutation": True},
-        )
-    )
+    receipts.append(planned.receipt(return_class="would-recover"))
 
     applied = ScenarioObservation.begin(recovery_root, "explicit-recovery-apply-cli")
     result = run_cli(
@@ -170,12 +152,7 @@ def run_cli_safety_sequence(root: Path) -> tuple[ScenarioReceipt, ...]:
         *arguments,
     )
     assert result.returncode == 0 and json.loads(result.stdout)["authoritative"] is True
-    receipts.append(
-        applied.receipt(
-            return_class="retry-scheduled",
-            checks={"offline": True, "no-worker": True, "no-source-mutation": True},
-        )
-    )
+    receipts.append(applied.receipt(return_class="retry-scheduled"))
     return tuple(receipts)
 
 
