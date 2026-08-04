@@ -36,6 +36,7 @@ __all__ = [
     "GitHubCall",
     "GitHubDeliveryError",
     "GitHubDeliveryPort",
+    "REPOSITORY",
     "GhGitHubDeliveryPort",
     "ScriptedGitHubDeliveryPort",
     "CheckObservation",

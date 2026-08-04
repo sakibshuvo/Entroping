@@ -62,6 +62,14 @@ def test_factoryctl_help_documents_safe_tick_modes(tmp_path: Path) -> None:
     assert "does not dispatch providers" in result.stdout
 
 
+def test_factoryctl_help_exposes_plan_first_delivery_command(tmp_path: Path) -> None:
+    result = _run(tmp_path, "--help")
+
+    assert result.returncode == 0
+    assert "deliver" in result.stdout
+    assert "accepted proposal delivery" in result.stdout
+
+
 def test_factoryctl_status_empty_state_is_paused_and_creates_nothing(
     tmp_path: Path,
 ) -> None:

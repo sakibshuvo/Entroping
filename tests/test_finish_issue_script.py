@@ -65,6 +65,7 @@ def write_fake_gh(
     issue_state: str = "CLOSED",
     pr_state: str = "MERGED",
     checks_json: str | None = None,
+    head_sha: str | None = None,
 ) -> Path:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir(exist_ok=True)
@@ -91,7 +92,9 @@ def write_fake_gh(
         "  cat <<'JSON'\n"
         "{"
         '"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123",'
-        f'"state":"{pr_state}","headRefName":"{branch_name}","mergedAt":"2026-05-30T00:00:00Z",'
+        f'"state":"{pr_state}","headRefName":"{branch_name}",'
+        + (f'"headRefOid":"{head_sha}",' if head_sha is not None else "")
+        + '"mergedAt":"2026-05-30T00:00:00Z",'
         f'"statusCheckRollup":{checks}'
         "}\n"
         "JSON\n"
@@ -231,6 +234,48 @@ def run_finish_issue(
         text=True,
         env=env,
     )
+
+
+def test_strict_expected_identity_checks_exact_pr_head_branch_and_worktree(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+
+    result = run_finish_issue(
+        repo,
+        fake_bin,
+        tmp_path,
+        "99",
+        "--dry-run",
+        "--expected-pr",
+        "123",
+        "--expected-head",
+        head,
+        "--expected-branch",
+        "feat/dry-run",
+    )
+
+    assert result.returncode == 0
+    assert "DRY RUN" in result.stdout
+
+
+def test_strict_expected_identity_requires_all_three_arguments(tmp_path: Path) -> None:
+    _repo, _worktree = create_repo_with_worktree(tmp_path)
+    fake_bin = write_fake_gh(tmp_path)
+    result = run_finish_issue(
+        _repo,
+        fake_bin,
+        tmp_path,
+        "99",
+        "--dry-run",
+        "--expected-pr",
+        "123",
+    )
+
+    assert result.returncode == 1
+    assert "must be supplied together" in result.stderr
 
 
 def write_factory_metrics_fixture(worktree: Path) -> tuple[Path, Path]:

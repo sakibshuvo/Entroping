@@ -14,6 +14,11 @@ Options:
   --keep-worktree   Verify merged issue, PR, and CI but leave local cleanup
                    state untouched for post-merge diagnostics.
   --worktree PATH   Override the issue worktree path.
+  --expected-pr N   Strict controller contract: require this exact PR.
+  --expected-head SHA
+                   Strict controller contract: require this exact PR head.
+  --expected-branch NAME
+                   Strict controller contract: require this exact branch.
   -h, --help        Show this help text.
 
 Environment:
@@ -239,6 +244,9 @@ shift
 dry_run="0"
 keep_worktree="0"
 worktree_override=""
+expected_pr=""
+expected_head=""
+expected_branch=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -255,6 +263,21 @@ while [[ $# -gt 0 ]]; do
       worktree_override="$2"
       shift 2
       ;;
+    --expected-pr)
+      [[ $# -ge 2 ]] || die "--expected-pr requires a number"
+      expected_pr="$2"
+      shift 2
+      ;;
+    --expected-head)
+      [[ $# -ge 2 ]] || die "--expected-head requires a commit"
+      expected_head="$2"
+      shift 2
+      ;;
+    --expected-branch)
+      [[ $# -ge 2 ]] || die "--expected-branch requires a branch"
+      expected_branch="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -267,6 +290,19 @@ done
 
 if [[ "$dry_run" == "1" && "$keep_worktree" == "1" ]]; then
   die "--dry-run and --keep-worktree cannot be combined"
+fi
+
+strict_cleanup="0"
+if [[ -n "$expected_pr" || -n "$expected_head" || -n "$expected_branch" ]]; then
+  [[ -n "$expected_pr" && -n "$expected_head" && -n "$expected_branch" ]] \
+    || die "--expected-pr, --expected-head, and --expected-branch must be supplied together"
+  [[ "$expected_pr" =~ ^[1-9][0-9]*$ ]] || die "--expected-pr must be a positive integer"
+  [[ "$expected_head" =~ ^[0-9a-f]{40}$ ]] || die "--expected-head must be a commit SHA"
+  [[ "$expected_branch" != "main" && "$expected_branch" != "master" ]] \
+    || die "--expected-branch must not be the base branch"
+  [[ "$expected_branch" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{2,159}$ ]] \
+    || die "--expected-branch has invalid syntax"
+  strict_cleanup="1"
 fi
 
 [[ "$issue_number" =~ ^[1-9][0-9]*$ ]] || die "issue-number must be a positive integer"
@@ -297,7 +333,7 @@ if ! pr_number=$(json_closing_pr_number "$issue_json"); then
   die "issue #$issue_number has no closing pull request reference"
 fi
 pr_json=$(gh pr view "$pr_number" --repo "$repo" \
-  --json number,url,state,headRefName,mergedAt,statusCheckRollup) \
+  --json number,url,state,headRefName,headRefOid,mergedAt,statusCheckRollup) \
   || die "could not read closing PR #$pr_number"
 pr_state=$(json_key "$pr_json" "state")
 pr_url=$(json_key "$pr_json" "url")
@@ -305,6 +341,18 @@ branch_name=$(json_key "$pr_json" "headRefName")
 merged_at=$(json_key "$pr_json" "mergedAt")
 [[ "$pr_state" == "MERGED" && -n "$merged_at" ]] || die "closing PR #$pr_number is not merged"
 [[ -n "$branch_name" ]] || die "closing PR #$pr_number has no head branch name"
+if [[ "$strict_cleanup" == "1" ]]; then
+  [[ "$pr_number" == "$expected_pr" ]] || die "closing PR identity does not match expected PR"
+  [[ "$branch_name" == "$expected_branch" ]] || die "closing PR branch does not match expected branch"
+  [[ "$(json_key "$pr_json" "headRefOid")" == "$expected_head" ]] \
+    || die "closing PR head does not match expected head"
+  closing_count=$(printf '%s' "$issue_json" | python3 -c '
+import json, sys
+refs = json.load(sys.stdin).get("closedByPullRequestsReferences") or []
+print(len(refs))
+')
+  [[ "$closing_count" == "1" ]] || die "issue must have exactly one closing pull request"
+fi
 if ! check_count=$(json_check_rollup_passed "$pr_json"); then
   die "closing PR #$pr_number checks have not all passed"
 fi
@@ -322,9 +370,21 @@ if [[ -e "$worktree_path" ]]; then
   worktree_branch=$(git -C "$worktree_path" branch --show-current)
   [[ "$worktree_branch" == "$branch_name" ]] \
     || die "worktree branch is $worktree_branch, expected $branch_name"
+  if [[ "$strict_cleanup" == "1" ]]; then
+    [[ "$(git -C "$worktree_path" rev-parse HEAD)" == "$expected_head" ]] \
+      || die "worktree head does not match expected head"
+  fi
   if [[ -n "$(git -C "$worktree_path" status --porcelain)" ]]; then
     die "worktree is not clean: $worktree_path"
   fi
+fi
+
+if [[ "$strict_cleanup" == "1" ]]; then
+  [[ "$worktree_exists" == "1" ]] || die "strict cleanup requires the exact worktree to be present"
+  git -C "$repo_root" show-ref --verify --quiet "refs/heads/$expected_branch" \
+    || die "strict cleanup requires the exact local branch to be present"
+  [[ "$(git -C "$repo_root" rev-parse "refs/heads/$expected_branch")" == "$expected_head" ]] \
+    || die "local branch does not match expected head"
 fi
 
 if [[ "$dry_run" != "1" && "$keep_worktree" != "1" && -n "$(git -C "$repo_root" status --porcelain)" ]]; then

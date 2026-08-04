@@ -24,6 +24,8 @@ from scripts.factory_orchestration_io import (
 )
 from scripts.factory_orchestration_service import orchestrate
 from scripts.factory_patch_inspection import PatchInspectionError
+from scripts.factory_pr_delivery_github import GhGitHubDeliveryPort
+from scripts.factory_pr_delivery_service import DeliveryService, DeliveryServiceError
 from scripts.factory_retry_policy import RecoverySnapshot, RetryPolicy
 from scripts.factory_scheduler import FactoryScheduler, FactorySchedulerError
 from scripts.factory_scheduler_delivery import tick_selected_delivery
@@ -36,7 +38,12 @@ from scripts.factory_status import (
     render_json,
     status_exit_code,
 )
-from scripts.factoryctl_output import print_decision, print_orchestration, print_recovery
+from scripts.factoryctl_output import (
+    print_decision,
+    print_delivery,
+    print_orchestration,
+    print_recovery,
+)
 from scripts.factoryctl_parser import build_parser
 
 
@@ -56,6 +63,8 @@ def main(argv: list[str] | None = None) -> int:
             return _recover(args)
         if args.command == "orchestrate":
             return _orchestrate(args)
+        if args.command == "deliver":
+            return _deliver(args)
     except (
         FactorySchedulerError,
         OrchestrationGitError,
@@ -63,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         OrchestrationJournalError,
         OrchestrationServiceError,
         PatchInspectionError,
+        DeliveryServiceError,
         ValidationError,
         ValueError,
     ) as exc:
@@ -156,6 +166,19 @@ def _orchestrate(args: argparse.Namespace) -> int:
     )
     print_orchestration(receipt, json_output=bool(args.json))
     return 0 if receipt.lifecycle in {"prepared", "accepted"} else 1
+
+
+def _deliver(args: argparse.Namespace) -> int:
+    receipt = DeliveryService(
+        Path.cwd(),
+        github=GhGitHubDeliveryPort(cwd=Path.cwd()),
+    ).deliver(cast(Path, args.request), apply=bool(args.apply))
+    print_delivery(receipt, json_output=bool(args.json))
+    if receipt.lifecycle == "completed":
+        return 0
+    if receipt.lifecycle == "uncertain":
+        return 2
+    return 1
 
 
 def _request(args: argparse.Namespace) -> AssignmentRequest | None:
