@@ -29,6 +29,7 @@ from scripts.factory_pr_delivery_git import (  # noqa: E402
     push_exact_commit,
 )
 from scripts.factory_pr_delivery_io import load_delivery_envelope  # noqa: E402
+from scripts.factory_scheduler_storage import writable_connection  # noqa: E402
 
 
 def _envelope(tmp_path: Path):
@@ -83,6 +84,38 @@ def test_accepted_diff_becomes_one_exact_controller_commit(tmp_path: Path) -> No
     )
     assert git(worktree, "status", "--porcelain=v1", "-z", "--untracked-files=all") == ""
     assert git(main, "rev-parse", "HEAD") == base
+
+
+def test_commit_uses_stored_authority_after_live_lease_expiry(tmp_path: Path) -> None:
+    # Given: accepted work whose live scheduler lease expired after execution settled.
+    main, worktree, envelope = _envelope(tmp_path)
+
+    # When: delivery runs after the lease expiry boundary.
+    result = commit_exact_diff(
+        main,
+        envelope,
+        committed_at=datetime(2026, 8, 3, 14, 0, tzinfo=UTC),
+    )
+
+    # Then: stored assignment and execution authority, not the live lease, governs delivery.
+    assert git(worktree, "rev-parse", "HEAD") == result.committed_head
+
+
+def test_commit_rejects_scheduler_execution_drift_before_mutation(tmp_path: Path) -> None:
+    # Given: accepted work whose stored execution evidence was changed after acceptance.
+    main, worktree, envelope = _envelope(tmp_path)
+    with writable_connection(main, initialized_at="2026-08-03T12:30:00+00:00") as connection:
+        _ = connection.execute(
+            "UPDATE scheduler_execution_state SET evidence_digest = ? WHERE assignment_id = ?",
+            ("e" * 64, envelope.orchestration_request.assignment_id),
+        )
+    before = git(worktree, "rev-parse", "HEAD")
+
+    # When/Then: scheduler drift is rejected before any Git mutation.
+    with pytest.raises(DeliveryGitError) as exc_info:
+        commit_exact_diff(main, envelope, committed_at=datetime.now(UTC))
+    assert exc_info.value.code == "authority-mismatch"
+    assert git(worktree, "rev-parse", "HEAD") == before
 
 
 @pytest.mark.parametrize("drift", ["untracked", "staged", "head", "branch", "operation"])

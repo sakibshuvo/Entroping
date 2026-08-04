@@ -25,6 +25,20 @@ from scripts.factory_orchestration_models import (  # noqa: E402
     OrchestrationRequest,
 )
 from scripts.factory_orchestration_receipts import build_receipt  # noqa: E402
+from scripts.factory_scheduler import FactoryScheduler  # noqa: E402
+from scripts.factory_scheduler_assignment_transaction import insert_assignment  # noqa: E402
+from scripts.factory_scheduler_lease_transaction import store_lease  # noqa: E402
+from scripts.factory_scheduler_models import (  # noqa: E402
+    AssignmentRequest,
+    DeliveryAuthorityEnvelope,
+    LeaseOwner,
+)
+from scripts.factory_scheduler_receipts import (  # noqa: E402
+    make_decision_id,
+    request_digest,
+)
+from scripts.factory_scheduler_storage import writable_connection  # noqa: E402
+from scripts.factory_scheduler_transaction_control import update_clock  # noqa: E402
 
 
 def accepted_artifacts(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
@@ -32,6 +46,7 @@ def accepted_artifacts(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
     orchestration = OrchestrationRequest.model_validate(
         request_payload(main, worktree, base), strict=True
     )
+    _seed_scheduler_authority(main, orchestration)
     truth = apply_exact_patch(main, orchestration, update_patch())
     now = datetime(2026, 8, 3, 12, 0, tzinfo=UTC)
     gate = GateExitState.model_validate(
@@ -80,6 +95,75 @@ def accepted_artifacts(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
 
     payload["request_id"] = delivery_request_id_for_payload(payload)
     return main, worktree, payload
+
+
+def _seed_scheduler_authority(main: Path, orchestration: OrchestrationRequest) -> None:
+    now = datetime(2026, 8, 3, 12, 0, tzinfo=UTC)
+    owner = LeaseOwner(
+        owner_id=orchestration.scheduler_owner_id,
+        pid=orchestration.scheduler_owner_pid,
+        process_start_token=orchestration.scheduler_owner_start_token,
+    )
+    authority = DeliveryAuthorityEnvelope(
+        selector_digest=orchestration.selector_digest,
+        selection_digest=orchestration.selection_digest,
+        autonomy_tier=orchestration.autonomy_tier,
+        verification_lane="tiny-docs",
+        allowed_scopes=orchestration.allowed_scopes,
+        allowed_scope_digest=orchestration.allowed_scope_digest,
+    )
+    request = AssignmentRequest(
+        request_id=orchestration.request_id,
+        job_id=orchestration.job_id,
+        issue_number=orchestration.issue_number,
+        worktree_id=orchestration.worktree_id,
+        worker_class="free-local",
+        access_mode="write",
+        delivery_authority=authority,
+    )
+    digest = request_digest(request)
+    decision = make_decision_id(
+        request_digest_value=digest,
+        epoch=orchestration.scheduler_owner_epoch,
+        observed_at=now,
+        decision="assigned",
+        reason="capacity-reserved",
+    )
+    with writable_connection(main, initialized_at=now.isoformat()) as connection:
+        update_clock(connection, now, epoch=orchestration.scheduler_owner_epoch)
+        store_lease(
+            connection,
+            owner,
+            orchestration.scheduler_owner_epoch,
+            now,
+            now.replace(hour=13),
+        )
+        insert_assignment(
+            connection,
+            request=request,
+            request_digest=digest,
+            assignment_id=orchestration.assignment_id,
+            decision_id=decision,
+            owner=owner,
+            epoch=orchestration.scheduler_owner_epoch,
+            created_at=now,
+            lease_expires_at=now.replace(hour=13),
+        )
+    scheduler = FactoryScheduler(main, settlement_authority=lambda _assignment: "not-required")
+    for version, phase in enumerate(("dispatch-intent", "dispatched", "completed-unsettled"), 1):
+        scheduler.transition_execution(
+            assignment_id=orchestration.assignment_id,
+            owner=owner,
+            epoch=orchestration.scheduler_owner_epoch,
+            expected_phase_version=version,
+            target_phase=phase,
+            observed_at=now.replace(microsecond=version),
+            evidence_digest=(
+                orchestration.proposal_sha256
+                if phase == "completed-unsettled"
+                else f"{version:x}" * 64
+            ),
+        )
 
 
 def write_delivery_request(path: Path, payload: dict[str, object]) -> None:

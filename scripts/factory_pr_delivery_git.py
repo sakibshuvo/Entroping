@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Final
 
+from pydantic import ValidationError
+
 from scripts.factory_control_plane_policy import static_tier_a_doc_scope
 from scripts.factory_orchestration_git_identity import operation_active, worktree_records
 from scripts.factory_pr_delivery_git_io import (
@@ -17,8 +19,10 @@ from scripts.factory_pr_delivery_git_io import (
     git_bytes,
     git_ok,
     git_text,
+    plan_commit,
     status_paths,
 )
+from scripts.factory_pr_delivery_journal import DeliveryJournal
 from scripts.factory_pr_delivery_models import (
     CommitResult,
     DeliveryEnvelope,
@@ -58,7 +62,7 @@ def validate_scheduler_authority(
             assignment = read_assignment(connection, job_id=request.job_id)
             execution = read_execution_for_job(connection, job_id=request.job_id)
             connection.execute("COMMIT")
-    except (SchedulerStateError, sqlite3.DatabaseError):
+    except (SchedulerStateError, sqlite3.DatabaseError, ValidationError, TypeError, ValueError):
         raise DeliveryGitError("authority-mismatch") from None
     if assignment is None or execution is None:
         raise DeliveryGitError("authority-mismatch")
@@ -67,6 +71,7 @@ def validate_scheduler_authority(
     if (
         assignment.state != "active"
         or assignment.assignment_id != request.assignment_id
+        or stored.request_id != request.request_id
         or stored.issue_number != request.issue_number
         or stored.job_id != request.job_id
         or stored.worktree_id != request.worktree_id
@@ -91,6 +96,7 @@ def commit_exact_diff(
     envelope: DeliveryEnvelope,
     *,
     committed_at: datetime,
+    journal: DeliveryJournal | None = None,
 ) -> CommitResult:
     """Create one exact commit from accepted diff evidence using Git plumbing."""
 
@@ -100,6 +106,19 @@ def commit_exact_diff(
     receipt = envelope.orchestration_receipt
     worktree = envelope.worktree_path
     _validate_authority(repo_root, envelope)
+    delivery_journal = journal if journal is not None else DeliveryJournal(repo_root)
+    subject = f"docs(factory): deliver issue #{request.issue_number}"
+    identity_env = {
+        **_COMMIT_ENV,
+        "HOME": "/dev/null",
+        "XDG_CONFIG_HOME": "/dev/null",
+        "GIT_AUTHOR_NAME": "Entroping Factory Controller",
+        "GIT_AUTHOR_EMAIL": "factory-controller@entroping.invalid",
+        "GIT_COMMITTER_NAME": "Entroping Factory Controller",
+        "GIT_COMMITTER_EMAIL": "factory-controller@entroping.invalid",
+        "GIT_AUTHOR_DATE": committed_at.isoformat(),
+        "GIT_COMMITTER_DATE": committed_at.isoformat(),
+    }
     accepted_diff_sha256 = receipt.diff_sha256
     accepted_manifest_sha256 = receipt.result_manifest_sha256
     if accepted_diff_sha256 is None or accepted_manifest_sha256 is None:
@@ -113,6 +132,20 @@ def commit_exact_diff(
         or accepted_paths != receipt.approved_paths
     ):
         raise DeliveryGitError("authority-mismatch")
+    planned_head, planned_tree = plan_commit(
+        worktree,
+        base=request.base_commit,
+        paths=receipt.approved_paths,
+        subject=subject,
+        commit_env=identity_env,
+    )
+    _ = delivery_journal.prepare(envelope)
+    _ = delivery_journal.commit_intent(
+        envelope,
+        committed_head=planned_head,
+        commit_parent=request.base_commit,
+        commit_tree=planned_tree,
+    )
     for relative in receipt.approved_paths:
         candidate = worktree / relative
         if candidate.exists() or candidate.is_symlink():
@@ -145,6 +178,7 @@ def commit_exact_diff(
         "--binary",
         "--full-index",
         "--no-ext-diff",
+        "--no-textconv",
         "--no-renames",
         request.base_commit,
         "--",
@@ -153,18 +187,8 @@ def commit_exact_diff(
     if cached_diff != accepted_diff or cached_paths != receipt.approved_paths:
         raise DeliveryGitError("authority-mismatch")
     tree = git_text(worktree, "write-tree")
-    subject = f"docs(factory): deliver issue #{request.issue_number}"
-    identity_env = {
-        **_COMMIT_ENV,
-        "HOME": "/dev/null",
-        "XDG_CONFIG_HOME": "/dev/null",
-        "GIT_AUTHOR_NAME": "Entroping Factory Controller",
-        "GIT_AUTHOR_EMAIL": "factory-controller@entroping.invalid",
-        "GIT_COMMITTER_NAME": "Entroping Factory Controller",
-        "GIT_COMMITTER_EMAIL": "factory-controller@entroping.invalid",
-        "GIT_AUTHOR_DATE": committed_at.isoformat(),
-        "GIT_COMMITTER_DATE": committed_at.isoformat(),
-    }
+    if tree != planned_tree:
+        raise DeliveryGitError("uncertain")
     committed_head = (
         git_bytes(
             worktree,
@@ -180,6 +204,8 @@ def commit_exact_diff(
     )
     if len(committed_head) != 40:
         raise DeliveryGitError("commit-failed")
+    if committed_head != planned_head:
+        raise DeliveryGitError("uncertain")
     git_ok(
         worktree,
         "update-ref",
@@ -193,6 +219,7 @@ def commit_exact_diff(
         "--binary",
         "--full-index",
         "--no-ext-diff",
+        "--no-textconv",
         "--no-renames",
         request.base_commit,
         committed_head,
@@ -201,6 +228,7 @@ def commit_exact_diff(
     status = git_bytes(worktree, "status", "--porcelain=v1", "-z", "--untracked-files=all")
     if committed_diff != accepted_diff or status:
         raise DeliveryGitError("uncertain")
+    _ = delivery_journal.committed(envelope)
     diff_sha = hashlib.sha256(committed_diff).hexdigest()
     manifest_sha = hashlib.sha256(request.base_commit.encode() + b"\0" + committed_diff).hexdigest()
     return CommitResult(
@@ -217,6 +245,7 @@ def commit_exact_diff(
 
 
 def _validate_authority(repo_root: Path, envelope: DeliveryEnvelope) -> None:
+    validate_scheduler_authority(repo_root, envelope)
     request = envelope.orchestration_request
     receipt = envelope.orchestration_receipt
     if repo_root.resolve() != envelope.main_root or envelope.main_root != repo_root.resolve():

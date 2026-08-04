@@ -96,7 +96,11 @@ def _validate_accepted(request: OrchestrationRequest, receipt: OrchestrationRece
         or receipt.assignment_id != request.assignment_id
         or receipt.selector_digest != request.selector_digest
         or receipt.selection_digest != request.selection_digest
+        or receipt.scheduler_owner_id != request.scheduler_owner_id
+        or receipt.scheduler_owner_epoch != request.scheduler_owner_epoch
         or receipt.worktree_id != request.worktree_id
+        or receipt.worktree_path_sha256
+        != hashlib.sha256(str(Path(request.worktree_path).resolve()).encode()).hexdigest()
         or receipt.branch != request.branch
         or receipt.verification_lane != request.verification_lane
         or receipt.proposal_sha256 != request.proposal_sha256

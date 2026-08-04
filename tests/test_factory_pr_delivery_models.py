@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -16,6 +17,8 @@ from scripts.factory_pr_delivery_io import DeliveryInputError, load_delivery_env
 from scripts.factory_pr_delivery_models import (  # noqa: E402
     DeliveryReceipt,
     DeliveryRequest,
+    delivery_receipt_id_for_payload,
+    delivery_request_id_for_payload,
 )
 
 
@@ -59,11 +62,11 @@ def test_load_rejects_unknown_drifted_or_noncanonical_request(
     assert exc_info.value.code == "request-invalid"
 
 
-def test_load_rejects_duplicate_keys_and_nonfinite_constants(tmp_path: Path) -> None:
-    # Given: JSON whose parser-level shape is ambiguous or non-finite.
+def test_load_rejects_duplicate_keys(tmp_path: Path) -> None:
+    # Given: JSON whose parser-level shape is ambiguous.
     request_path = tmp_path / "private/delivery-request.json"
     request_path.parent.mkdir(mode=0o700)
-    request_path.write_text('{"schema_version":"x","schema_version":NaN}', encoding="utf-8")
+    request_path.write_text('{"schema_version":"x","schema_version":"x"}', encoding="utf-8")
     os.chmod(request_path, 0o600)
 
     # When/Then: parser ambiguity fails before model validation.
@@ -72,11 +75,24 @@ def test_load_rejects_duplicate_keys_and_nonfinite_constants(tmp_path: Path) -> 
     assert exc_info.value.code == "request-invalid"
 
 
-def test_load_rejects_non_private_referenced_artifact_and_invalid_utf8(tmp_path: Path) -> None:
-    # Given: a world-readable body that is not valid UTF-8.
+def test_load_rejects_nonfinite_constants(tmp_path: Path) -> None:
+    # Given: JSON containing a non-finite constant.
+    request_path = tmp_path / "private/delivery-request.json"
+    request_path.parent.mkdir(mode=0o700)
+    request_path.write_text('{"schema_version":"x","value":NaN}', encoding="utf-8")
+    os.chmod(request_path, 0o600)
+
+    # When/Then: parser ambiguity fails before model validation.
+    with pytest.raises(DeliveryInputError) as exc_info:
+        load_delivery_envelope(request_path)
+    assert exc_info.value.code == "request-invalid"
+
+
+def test_load_rejects_non_private_referenced_artifact(tmp_path: Path) -> None:
+    # Given: a world-readable body.
     _main, _worktree, payload = accepted_artifacts(tmp_path)
     body = Path(str(payload["pr_body_path"]))
-    body.write_bytes(b"\xff")
+    body.write_text("public", encoding="utf-8")
     os.chmod(body, 0o644)
     request_path = tmp_path / "private/delivery-request.json"
     write_delivery_request(request_path, payload)
@@ -87,7 +103,24 @@ def test_load_rejects_non_private_referenced_artifact_and_invalid_utf8(tmp_path:
     assert exc_info.value.code == "artifact-invalid"
 
 
-def test_receipt_projection_rejects_values_and_inconsistent_lifecycle() -> None:
+def test_load_rejects_invalid_utf8_referenced_artifact(tmp_path: Path) -> None:
+    # Given: a private body that is not valid UTF-8.
+    _main, _worktree, payload = accepted_artifacts(tmp_path)
+    body = Path(str(payload["pr_body_path"]))
+    body.write_bytes(b"\xff")
+    payload["pr_body_sha256"] = hashlib.sha256(body.read_bytes()).hexdigest()
+    payload["request_id"] = "pending"
+    payload["request_id"] = delivery_request_id_for_payload(payload)
+    request_path = tmp_path / "private/delivery-request.json"
+    write_delivery_request(request_path, payload)
+
+    # When/Then: strict decoding fails without exposing body bytes.
+    with pytest.raises(DeliveryInputError) as exc_info:
+        load_delivery_envelope(request_path)
+    assert exc_info.value.code == "artifact-invalid"
+
+
+def _valid_receipt_payload() -> dict[str, object]:
     # Given: a value-free pushed receipt projection.
     payload = {
         "schema_version": "entroping.factory-pr-delivery-receipt.v1",
@@ -111,8 +144,21 @@ def test_receipt_projection_rejects_values_and_inconsistent_lifecycle() -> None:
         "updated_at": "2026-08-03T12:00:01Z",
     }
 
-    # When/Then: identity and lifecycle are both content-addressed, never value-bearing.
+    payload["receipt_id"] = delivery_receipt_id_for_payload(
+        {key: value for key, value in payload.items() if key != "receipt_id"}
+    )
+    return payload
+
+
+def test_receipt_projection_rejects_inconsistent_lifecycle() -> None:
+    payload = _valid_receipt_payload()
+    payload["lifecycle"] = "committed"
     with pytest.raises(ValidationError):
         DeliveryReceipt.model_validate(payload, strict=True)
+
+
+def test_receipt_projection_rejects_unknown_values() -> None:
+    payload = _valid_receipt_payload()
+    payload["pr_body"] = "secret"
     with pytest.raises(ValidationError):
-        DeliveryReceipt.model_validate({**payload, "pr_body": "secret"}, strict=True)
+        DeliveryReceipt.model_validate(payload, strict=True)

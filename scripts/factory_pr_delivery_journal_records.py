@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,6 +15,12 @@ from scripts.factory_pr_delivery_models import (
 )
 
 type JournalReason = Literal["none", "committed", "pushed", "interrupted"]
+
+_REQUEST_ID = re.compile(r"delivery_[a-f0-9]{64}\Z")
+_ASSIGNMENT_ID = re.compile(r"assign_[a-f0-9]{64}\Z")
+_WORKTREE_ID = re.compile(r"wt_[a-f0-9]{64}\Z")
+_DIGEST = re.compile(r"[a-f0-9]{64}\Z")
+_COMMIT = re.compile(r"[a-f0-9]{40}\Z")
 
 
 class DeliveryJournalError(RuntimeError):
@@ -74,7 +81,7 @@ def read_record(connection: sqlite3.Connection, request_id: str) -> DeliveryJour
             "uncertain",
         } or reason not in {"none", "committed", "pushed", "interrupted"}:
             raise ValueError
-        return DeliveryJournalRecord(
+        record = DeliveryJournalRecord(
             request_id=row[0],
             request_digest=row[1],
             envelope_digest=row[2],
@@ -96,11 +103,17 @@ def read_record(connection: sqlite3.Connection, request_id: str) -> DeliveryJour
             created_at=created,
             updated_at=updated,
         )
+        _validate_shape(record)
+        return record
     except (IndexError, TypeError, ValueError):
         raise DeliveryJournalError("journal-invalid") from None
 
 
 def validate_record(envelope: DeliveryEnvelope, record: DeliveryJournalRecord) -> None:
+    try:
+        _validate_shape(record)
+    except (TypeError, ValueError, KeyError):
+        raise DeliveryJournalError("journal-invalid") from None
     receipt = envelope.orchestration_receipt
     request = envelope.orchestration_request
     if (
@@ -121,3 +134,56 @@ def validate_record(envelope: DeliveryEnvelope, record: DeliveryJournalRecord) -
         or (record.lifecycle == "uncertain") != (record.reason == "interrupted")
     ):
         raise DeliveryJournalError("journal-invalid")
+
+
+def _validate_shape(record: DeliveryJournalRecord) -> None:
+    if (
+        not _REQUEST_ID.fullmatch(record.request_id)
+        or not _DIGEST.fullmatch(record.request_digest)
+        or not _DIGEST.fullmatch(record.envelope_digest)
+        or not _ASSIGNMENT_ID.fullmatch(record.assignment_id)
+        or not _WORKTREE_ID.fullmatch(record.worktree_id)
+        or not _COMMIT.fullmatch(record.accepted_local_head)
+        or not _DIGEST.fullmatch(record.accepted_diff_sha256)
+        or not _DIGEST.fullmatch(record.accepted_manifest_sha256)
+        or not _DIGEST.fullmatch(record.approved_path_sha256)
+        or not _DIGEST.fullmatch(record.body_sha256)
+        or record.issue_number < 1
+        or record.phase_version < 1
+        or record.created_at.tzinfo is None
+        or record.created_at.utcoffset() is None
+        or record.updated_at.tzinfo is None
+        or record.updated_at.utcoffset() is None
+        or record.updated_at < record.created_at
+    ):
+        raise ValueError
+    for commit in (
+        record.committed_head,
+        record.remote_head,
+        record.commit_parent,
+        record.commit_tree,
+    ):
+        if commit is not None and not _COMMIT.fullmatch(commit):
+            raise ValueError
+    commit_values = (record.committed_head, record.commit_parent, record.commit_tree)
+    committed = record.lifecycle in {"commit-intent", "committed", "push-intent", "pushed"}
+    if (committed or any(value is not None for value in commit_values)) and not all(
+        value is not None for value in commit_values
+    ):
+        raise ValueError
+    if record.commit_parent is not None and record.commit_parent != record.accepted_local_head:
+        raise ValueError
+    if record.lifecycle != "pushed" and record.remote_head is not None:
+        raise ValueError
+    if record.lifecycle == "pushed" and record.remote_head != record.committed_head:
+        raise ValueError
+    expected_reason: dict[DeliveryLifecycle, JournalReason] = {
+        "prepared": "none",
+        "commit-intent": "none",
+        "committed": "committed",
+        "push-intent": "committed",
+        "pushed": "pushed",
+        "uncertain": "interrupted",
+    }
+    if record.reason != expected_reason[record.lifecycle]:
+        raise ValueError

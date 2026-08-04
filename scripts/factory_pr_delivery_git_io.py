@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Final
@@ -31,6 +32,7 @@ def canonical_diff(worktree: Path, base: str) -> bytes:
         "--binary",
         "--full-index",
         "--no-ext-diff",
+        "--no-textconv",
         "--no-renames",
         base,
         "--",
@@ -43,7 +45,7 @@ def diff_paths(worktree: Path, base: str, *, cached: bool) -> tuple[str, ...]:
     args = ["diff"]
     if cached:
         args.append("--cached")
-    args.extend(("--name-only", "-z", "--no-renames", base, "--"))
+    args.extend(("--name-only", "-z", "--no-ext-diff", "--no-textconv", "--no-renames", base, "--"))
     raw = git_bytes(worktree, *args)
     return tuple(sorted(part.decode("utf-8") for part in raw.split(b"\0") if part))
 
@@ -59,16 +61,86 @@ def status_paths(worktree: Path) -> tuple[str, ...]:
     return tuple(paths)
 
 
-def git_text(cwd: Path, *args: str) -> str:
+def git_text(
+    cwd: Path,
+    *args: str,
+    input_bytes: bytes | None = None,
+    env: dict[str, str] | None = None,
+) -> str:
     """Run one bounded Git command and return sanitized text."""
 
-    return git_bytes(cwd, *args).decode().strip()
+    return git_bytes(cwd, *args, input_bytes=input_bytes, env=env).decode().strip()
 
 
-def git_ok(cwd: Path, *args: str) -> None:
+def git_ok(cwd: Path, *args: str, env: dict[str, str] | None = None) -> None:
     """Run one bounded Git command and discard its bounded output."""
 
-    _ = git_bytes(cwd, *args)
+    _ = git_bytes(cwd, *args, env=env)
+
+
+def plan_commit(
+    worktree: Path,
+    *,
+    base: str,
+    paths: tuple[str, ...],
+    subject: str,
+    commit_env: dict[str, str],
+) -> tuple[str, str]:
+    """Plan tree and commit objects in an isolated temporary object database."""
+
+    git_dir = Path(git_text(worktree, "rev-parse", "--git-dir"))
+    if not git_dir.is_absolute():
+        git_dir = (worktree / git_dir).resolve()
+    object_dir = Path(git_text(worktree, "rev-parse", "--git-path", "objects"))
+    if not object_dir.is_absolute():
+        object_dir = (worktree / object_dir).resolve()
+    with tempfile.TemporaryDirectory(prefix="entroping-delivery-") as temp_root:
+        temp = Path(temp_root)
+        temp_objects = temp / "objects"
+        temp_objects.mkdir(mode=0o700)
+        temp_index = temp / "index"
+        env = {
+            **_BASE_ENV,
+            **commit_env,
+            "GIT_DIR": str(git_dir),
+            "GIT_INDEX_FILE": str(temp_index),
+            "GIT_OBJECT_DIRECTORY": str(temp_objects),
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES": str(object_dir),
+        }
+        git_ok(worktree, "read-tree", base, env=env)
+        for relative in paths:
+            candidate = worktree / relative
+            if candidate.is_file() and not candidate.is_symlink():
+                blob = git_text(
+                    worktree,
+                    "hash-object",
+                    "-w",
+                    "--no-filters",
+                    "--stdin",
+                    input_bytes=candidate.read_bytes(),
+                    env=env,
+                )
+                git_ok(
+                    worktree,
+                    "update-index",
+                    "--add",
+                    "--cacheinfo",
+                    f"100644,{blob},{relative}",
+                    env=env,
+                )
+            else:
+                git_ok(worktree, "update-index", "--force-remove", "--", relative, env=env)
+        tree = git_text(worktree, "write-tree", env=env)
+        commit = git_text(
+            worktree,
+            "commit-tree",
+            tree,
+            "-p",
+            base,
+            input_bytes=f"{subject}\n".encode(),
+            env=env,
+        )
+        return commit, tree
 
 
 def git_bytes(
