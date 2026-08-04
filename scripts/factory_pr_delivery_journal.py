@@ -65,6 +65,15 @@ class DeliveryJournal:
                 raise DeliveryJournalError("journal-invalid")
             return record
 
+    def read(self, envelope: DeliveryEnvelope) -> DeliveryJournalRecord | None:
+        """Read and validate one request without advancing its lifecycle."""
+
+        with journal_connection(self._root) as connection:
+            record = read_record(connection, envelope.request.request_id)
+        if record is not None:
+            validate_record(envelope, record)
+        return record
+
     def commit_intent(
         self,
         envelope: DeliveryEnvelope,

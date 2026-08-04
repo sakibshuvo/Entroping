@@ -22,6 +22,7 @@ from scripts.factory_pr_delivery_github import (  # noqa: E402
     ScriptedGitHubDeliveryPort,
 )
 from scripts.factory_pr_delivery_io import load_delivery_envelope  # noqa: E402
+from scripts.factory_pr_delivery_journal import DeliveryJournal  # noqa: E402
 from scripts.factory_pr_delivery_models import CommitResult  # noqa: E402
 from scripts.factory_pr_delivery_receipts import DeliveryReceipt  # noqa: E402
 from scripts.factory_pr_delivery_service import DeliveryService  # noqa: E402
@@ -34,6 +35,9 @@ HEAD = "b" * 40
 class _Journal:
     def __init__(self, _repo_root: Path) -> None:
         pass
+
+    def read(self, _envelope):
+        return None
 
     def push_intent(self, _envelope):
         return None
@@ -212,6 +216,42 @@ def test_apply_stops_after_push_when_required_ci_is_not_green(
     assert receipt.lifecycle == "pushed"
     assert receipt.reason == "ci-pending"
     assert not any(call.operation == "merge-pr" for call in port.calls)
+
+
+def test_apply_replays_pushed_journal_without_second_commit_or_push(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    main, request_path, base, _body_sha = _setup(tmp_path)
+    envelope = load_delivery_envelope(request_path)
+    journal = DeliveryJournal(main)
+    _ = journal.prepare(envelope)
+    _ = journal.commit_intent(
+        envelope,
+        committed_head=HEAD,
+        commit_parent=base,
+        commit_tree="c" * 40,
+    )
+    _ = journal.committed(envelope)
+    _ = journal.push_intent(envelope)
+    _ = journal.pushed(envelope, remote_head=HEAD)
+
+    def fail_commit(*_args, **_kwargs):
+        raise AssertionError("replay must not create a second commit")
+
+    def fail_push(*_args, **_kwargs):
+        raise AssertionError("replay must not push a second time")
+
+    monkeypatch.setattr("scripts.factory_pr_delivery_service.commit_exact_diff", fail_commit)
+    monkeypatch.setattr("scripts.factory_pr_delivery_service.push_exact_commit", fail_push)
+    result, pushed = DeliveryService(main, github=_port(base, "1" * 64))._apply_git(
+        envelope,
+        now=datetime(2026, 8, 4, 12, 0, tzinfo=UTC),
+        journal=journal,
+    )
+
+    assert result.committed_head == HEAD
+    assert pushed.state == "replay"
+    assert pushed.remote_head == HEAD
 
 
 def test_delivery_receipt_rejects_incomplete_merged_projection() -> None:

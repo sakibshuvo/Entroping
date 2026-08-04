@@ -6,7 +6,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from scripts.factory_pr_delivery_git import commit_exact_diff
+from scripts.factory_pr_delivery_git import commit_exact_diff, validate_scheduler_authority
+from scripts.factory_pr_delivery_git_io import git_text
 from scripts.factory_pr_delivery_github import (
     REPOSITORY,
     GitHubDeliveryError,
@@ -16,6 +17,7 @@ from scripts.factory_pr_delivery_github_models import evaluate_ci
 from scripts.factory_pr_delivery_io import DeliveryInputError, load_delivery_envelope
 from scripts.factory_pr_delivery_journal import DeliveryJournal
 from scripts.factory_pr_delivery_journal_records import DeliveryJournalError
+from scripts.factory_pr_delivery_models import CommitResult, DeliveryEnvelope
 from scripts.factory_pr_delivery_receipts import DeliveryReceipt, DeliveryReceiptReason
 from scripts.factory_pr_delivery_service_support import (
     DeliveryServiceError,
@@ -24,7 +26,7 @@ from scripts.factory_pr_delivery_service_support import (
 )
 
 __all__ = ["DeliveryService", "DeliveryServiceError"]
-from scripts.factory_pr_delivery_ssh import push_exact_commit
+from scripts.factory_pr_delivery_ssh import PushResult, push_exact_commit
 
 
 class DeliveryService(DeliveryServiceSupport):
@@ -71,19 +73,8 @@ class DeliveryService(DeliveryServiceSupport):
 
         journal = DeliveryJournal(self.repo_root)
         try:
-            result = commit_exact_diff(
-                self.repo_root,
-                envelope,
-                committed_at=now,
-                journal=journal,
-            )
-            _ = journal.push_intent(envelope)
-            pushed = push_exact_commit(
-                envelope.worktree_path,
-                branch=request.branch,
-                committed_head=result.committed_head,
-            )
-            _ = journal.pushed(envelope, remote_head=pushed.remote_head)
+            validate_scheduler_authority(self.repo_root, envelope)
+            result, pushed = self._apply_git(envelope, now=now, journal=journal)
         except DeliveryJournalError as exc:
             raise DeliveryServiceError(exc.code) from None
         except (GitHubDeliveryError, RuntimeError) as exc:
@@ -148,3 +139,83 @@ class DeliveryService(DeliveryServiceSupport):
             merge_head=merged.merged_head,
             now=now,
         )
+
+    def _apply_git(
+        self,
+        envelope: DeliveryEnvelope,
+        *,
+        now: datetime,
+        journal: DeliveryJournal,
+    ) -> tuple[CommitResult, PushResult]:
+        """Apply or replay the journaled local commit and exact branch push."""
+
+        record = journal.read(envelope)
+        request = envelope.orchestration_request
+        receipt = envelope.orchestration_receipt
+        if record is None or record.lifecycle == "prepared":
+            result = commit_exact_diff(
+                self.repo_root,
+                envelope,
+                committed_at=now,
+                journal=journal,
+            )
+            _ = journal.push_intent(envelope)
+            pushed = push_exact_commit(
+                envelope.worktree_path,
+                branch=request.branch,
+                committed_head=result.committed_head,
+            )
+            _ = journal.pushed(envelope, remote_head=pushed.remote_head)
+            return result, pushed
+        if record.lifecycle == "uncertain":
+            raise DeliveryServiceError("uncertain-recovery-required")
+        if record.lifecycle == "commit-intent":
+            local_head = git_text(envelope.worktree_path, "rev-parse", "HEAD")
+            if local_head != record.committed_head:
+                raise DeliveryServiceError("commit-recovery-required")
+            _ = journal.recover(
+                envelope,
+                local_head=local_head,
+                remote_head=request.base_commit,
+            )
+            record = journal.read(envelope)
+            if record is None or record.lifecycle != "committed":
+                raise DeliveryServiceError("uncertain-recovery-required")
+        if record.committed_head is None:
+            raise DeliveryServiceError("journal-invalid")
+        committed_head = record.committed_head
+        if record.lifecycle == "committed":
+            _ = journal.push_intent(envelope)
+            record = journal.read(envelope)
+            if record is None:
+                raise DeliveryServiceError("journal-invalid")
+        if record.lifecycle == "push-intent":
+            pushed = push_exact_commit(
+                envelope.worktree_path,
+                branch=request.branch,
+                committed_head=committed_head,
+            )
+            _ = journal.pushed(envelope, remote_head=pushed.remote_head)
+            record = journal.read(envelope)
+            if record is None:
+                raise DeliveryServiceError("journal-invalid")
+        if record.lifecycle != "pushed" or record.remote_head is None:
+            raise DeliveryServiceError("journal-invalid")
+        commit_parent = record.commit_parent
+        commit_tree = record.commit_tree
+        if commit_parent is None or commit_tree is None:
+            raise DeliveryServiceError("journal-invalid")
+        if receipt.diff_sha256 is None or receipt.result_manifest_sha256 is None:
+            raise DeliveryServiceError("journal-invalid")
+        result = CommitResult(
+            accepted_local_head=request.base_commit,
+            committed_head=committed_head,
+            commit_parent=commit_parent,
+            commit_tree=commit_tree,
+            accepted_diff_sha256=receipt.diff_sha256,
+            committed_diff_sha256=receipt.diff_sha256,
+            accepted_manifest_sha256=receipt.result_manifest_sha256,
+            committed_manifest_sha256=receipt.result_manifest_sha256,
+            approved_path_sha256=record.approved_path_sha256,
+        )
+        return result, PushResult("replay", record.remote_head)
