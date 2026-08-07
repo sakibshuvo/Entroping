@@ -111,6 +111,12 @@ def test_run_otel_mapping_writes_value_free_json_from_local_evidence(
         "metric",
         "trace",
     }
+    for mapping in payload["mappings"]:
+        assert {
+            "ticket_mutation_payloads",
+            "dashboard_payloads",
+            "monitor_payloads",
+        } <= set(mapping["forbidden_fields"])
     attributes = {mapping["attribute"] for mapping in payload["mappings"]}
     assert {
         "service.name",

@@ -546,18 +546,11 @@ def test_external_test_evidence_rejects_secret_like_rendered_packet(
         run_external_test_evidence_report(project_root=tmp_path, output="json")
 
 
-def test_external_test_evidence_rejects_secret_from_public_packet_result(
+def test_external_test_evidence_builder_rejects_secret_like_project(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packet = build_external_test_evidence(project_root=tmp_path).model_copy(
-        update={"project": "sk-proj-" + ("a" * 24)}
-    )
-    monkeypatch.setattr(
-        external_test_evidence,
-        "build_external_test_evidence",
-        lambda **_: packet,
-    )
+    secret_root = tmp_path / ("sk-proj-" + ("a" * 24))
+    secret_root.mkdir()
 
     with pytest.raises(ExternalTestEvidenceError, match="contains secret-like"):
-        run_external_test_evidence_report(project_root=tmp_path, output="json")
+        build_external_test_evidence(project_root=secret_root)

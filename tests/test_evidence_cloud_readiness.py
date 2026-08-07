@@ -314,6 +314,32 @@ def test_evidence_cloud_readiness_rejects_secret_rendered_content(
         run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
 
 
+def test_evidence_cloud_readiness_builder_rejects_secret_from_public_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    original_model_dump = cast(Any, EvidenceCloudReadinessPacket.model_dump)
+
+    def expose_secret_model_dump(
+        self: EvidenceCloudReadinessPacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        payload = cast(dict[str, object], original_model_dump(self, *args, **kwargs))
+        payload["project"] = "sk-proj-" + ("a" * 24)
+        return payload
+
+    monkeypatch.setattr(
+        readiness.EvidenceCloudReadinessPacket,
+        "model_dump",
+        expose_secret_model_dump,
+    )
+
+    with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
+        build_evidence_cloud_readiness(project_root=tmp_path)
+
+
 def test_evidence_cloud_readiness_packet_json_supports_pydantic_without_fallback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
