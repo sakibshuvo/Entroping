@@ -168,6 +168,11 @@ revision-bound accepted receipt is evidence, not scheduler settlement, merge
 authority, paid authority, or permission to bypass PR CI and finish cleanup.
 Uncertain journal state or any authority/worktree/main/gate drift stops the
 lane for maintainer reconciliation.
+
+The delivery controller is mixed-risk work: Codex is the final architecture,
+integration, and merge authority. Its design does not grant helpers or cheap
+workers any mutation or merge authority; they remain bounded proposal or review
+participants under the existing Tier A/B/C controls.
 The preceding write assignment must come from scheduler-owned
 `factoryctl tick --select-live`: saved selector output remains non-authorizing,
 generic APIs expose no admission input, and the specialized free-local lane

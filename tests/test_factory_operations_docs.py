@@ -43,6 +43,44 @@ def test_factory_runbook_is_inactive_until_owned_safety_surfaces_exist() -> None
     assert "scheduler lease and idempotency contract is the guard" in " ".join(launchd.split())
 
 
+def test_factory_runbook_documents_maintainer_delivery_controller_contract() -> None:
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+    normalized = " ".join(runbook.split())
+
+    required = [
+        (
+            "uv run python scripts/factoryctl.py deliver "
+            "--request <owner-only-delivery-request.json> --json"
+        ),
+        "reads and validates by default",
+        "`--apply` is the explicit mutation boundary",
+        "completed terminal receipt replays exactly across fresh processes",
+        "final fresh issue eligibility",
+        "exact PR body, base, head, and CI rollup",
+        "expected head",
+        "exact merged-head and closure proof",
+        "response is lost",
+        "exact live or local evidence",
+        "otherwise it marks the state uncertain and does not repeat proven earlier effects",
+        "Strict finish cleanup is identity-bound and partial-replay safe",
+        "expected-value lease",
+        "persists an absence proof",
+        "accepted after cleanup remains valid after lease expiry",
+        "without extending the heartbeat or lease",
+        (
+            "Exit `0` means completed, `1` means safe pending, blocked, or "
+            "failed, and `2` means invalid, unsafe, or uncertain"
+        ),
+        "#1575 now has bounded offline proposal-controller evidence only",
+        "launchd template remains disabled",
+        "does not activate the controller",
+    ]
+
+    for term in required:
+        assert term in normalized
+    assert "#1576 remains blocking" not in runbook
+
+
 def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
     runbook = RUNBOOK.read_text(encoding="utf-8")
     install = _section(runbook, "## Future Install", "## Status and Logs")

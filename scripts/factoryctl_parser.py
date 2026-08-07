@@ -107,4 +107,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Apply the exact proposal and run allowlisted gates; otherwise remain plan-only.",
     )
     _ = orchestrate.add_argument("--json", action="store_true")
+    deliver = subparsers.add_parser(
+        "deliver",
+        description=(
+            "Plan or apply one accepted Tier A delivery. Plan mode is read-only; "
+            "apply mode remains bounded by the stored receipt and exact GitHub evidence."
+        ),
+        help="Plan or apply one accepted proposal delivery.",
+    )
+    _ = deliver.add_argument("--request", type=Path, required=True)
+    _ = deliver.add_argument(
+        "--apply",
+        action="store_true",
+        help="Commit, push, and perform exact PR/CI/merge actions after validation.",
+    )
+    _ = deliver.add_argument("--json", action="store_true")
     return parser

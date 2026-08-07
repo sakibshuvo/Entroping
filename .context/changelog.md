@@ -1,5 +1,20 @@
 # Entroping Changelog
 
+## 2026-08-06
+
+- Local/unmerged issue-branch evidence for #1576 now covers exact terminal
+  receipt persistence/replay, exact local commit and PR/CI/merge-head binding,
+  strict finish partial replay, expected-value remote deletion with persisted
+  absence proof, scheduler owner/epoch/phase-version fencing with one cleanup
+  completion timestamp, post-lease completion without heartbeat or lease
+  extension, and bounded `factoryctl deliver` exits/output. This does not mark
+  #1576 done, merged, release-ready, or activated: full
+  `scripts/regression.sh --security`, `scripts/audit_quality.sh`, whole-branch
+  review/QA, PR/CI, merge, and finish cleanup remain pending. Launchd remains
+  disabled pending a separate explicit activation decision; the product
+  `entroping` CLI and provider boundary remain unchanged. #1575 remains offline
+  proposal-only and excludes live selection, provider dispatch, and launchd.
+
 ## 2026-08-03
 
 - Hardened #1575's final offline acceptance proof: each labeled receipt now

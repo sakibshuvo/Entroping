@@ -67,6 +67,7 @@ def complete_assignment(
                 execution=execution,
                 phase="completed",
                 observed_at=observed_at,
+                worker_heartbeat_at=execution.worker_heartbeat_at,
                 terminal_outcome="completed",
                 evidence_digest=execution.evidence_digest,
             )

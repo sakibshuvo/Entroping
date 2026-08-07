@@ -129,6 +129,41 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert len(progress.splitlines()) <= 150
 
 
+def test_issue_1576_status_handoff_stays_local_and_release_gated() -> None:
+    progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
+        encoding="utf-8"
+    )
+    plan = (REPO_ROOT / ".context" / "plan.md").read_text(encoding="utf-8")
+    changelog = (REPO_ROOT / ".context" / "changelog.md").read_text(encoding="utf-8")
+    current_changelog = changelog.split("## 2026-08-03", maxsplit=1)[0]
+    normalized = " ".join(f"{progress} {plan} {current_changelog}".split())
+
+    required = [
+        "Focused local evidence; release gates pending",
+        "focused local unmerged issue-branch evidence",
+        "Local/unmerged issue-branch evidence for #1576",
+        "scripts/regression.sh --security",
+        "scripts/audit_quality.sh",
+        "Launchd remains disabled pending a separate explicit activation decision",
+        (
+            "#1575 remains offline proposal-only and excludes live selection, "
+            "provider dispatch, and launchd"
+        ),
+    ]
+    for term in required:
+        assert term in normalized
+
+    stale = [
+        "#1576 remains the PR/CI/merge-control blocker",
+        "#1576 still owns PR/CI/merge-control and cleanup evidence",
+        "#1576 is merged",
+        "#1576 is done",
+        "#1576 is activated",
+    ]
+    for term in stale:
+        assert term not in normalized
+
+
 def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     stable_core_blockers = roadmap.split(

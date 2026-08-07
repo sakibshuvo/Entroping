@@ -41,12 +41,18 @@ def run_bounded_process(
     capture_stdout: bool = True,
     input_bytes: bytes | None = None,
     cancelled: Callable[[], bool] | None = None,
+    pass_fds: Sequence[int] = (),
 ) -> BoundedProcessResult:
     args = tuple(str(item) for item in command)
     if not args:
         raise BoundedProcessError("bounded command must not be empty")
     if timeout_seconds <= 0 or max_output_bytes <= 0:
         raise BoundedProcessError("bounded process limits must be positive")
+    inherited_fds = tuple(pass_fds)
+    if len(set(inherited_fds)) != len(inherited_fds) or any(
+        type(descriptor) is not int or descriptor < 0 for descriptor in inherited_fds
+    ):
+        raise BoundedProcessError("bounded process descriptors are invalid")
     try:
         process = subprocess.Popen(  # nosec B603
             args,
@@ -56,6 +62,7 @@ def run_bounded_process(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True,
+            pass_fds=inherited_fds,
         )
     except OSError as exc:
         raise BoundedProcessError("could not start bounded subprocess") from exc
