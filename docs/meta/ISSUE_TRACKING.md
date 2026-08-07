@@ -257,13 +257,15 @@ a fixture exported from GitHub:
 python scripts/backlog_health.py --input /path/to/issues.json
 ```
 
-The default query includes open and closed issues. Open issues should have at
-least one `type:*`, one `priority:*`, one `status:*`, and a milestone. Closed
-issues retaining `status:ready` or `status:in-progress`, or a registered
-`Entroping-issue-<number>` worktree, are reported as cleanup drift. Use
-`--repo-root <path>` when checking a repository other than the current Git
-root. The script is intentionally about queue hygiene, not product priority
-judgment.
+The live query inspects the bounded open backlog, separately enumerates closed
+issues with `status:ready` or `status:in-progress`, and looks up every
+registered `Entroping-issue-<number>` worktree by exact issue number. Open
+issues should have at least one `type:*`, one `priority:*`, one `status:*`, and
+a milestone. Closed issues retaining an active status label or registered
+worktree are reported as cleanup drift even when they fall outside the open
+query limit. Use `--repo-root <path>` when checking a repository other than the
+current Git root. The script is intentionally about queue hygiene, not product
+priority judgment.
 
 ## Obsidian Boundary
 
