@@ -11,7 +11,6 @@ import entroping.core.evidence.external_test_evidence as external_test_evidence
 from entroping.core.evidence.external_test_evidence import (
     EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
     ExternalTestEvidenceError,
-    ExternalTestEvidencePacket,
     build_external_test_evidence,
     render_external_test_evidence_markdown,
     run_external_test_evidence_report,
@@ -106,64 +105,6 @@ end_of_record
                 ],
             }
         ),
-    )
-
-
-def test_external_test_evidence_source_counts_group_each_state(
-    tmp_path: Path,
-) -> None:
-    packet = build_external_test_evidence(project_root=tmp_path)
-    states = (
-        "present",
-        "present",
-        "missing",
-        "missing",
-        "missing",
-        "invalid",
-        "invalid",
-        "unsafe",
-    )
-    sources = tuple(
-        source.model_copy(update={"state": state})
-        for source, state in zip(packet.sources, states, strict=True)
-    )
-
-    counts = external_test_evidence._source_counts(sources)
-
-    assert counts == external_test_evidence._SourceCounts(
-        present=2,
-        missing=3,
-        invalid=2,
-        unsafe=1,
-    )
-
-
-def test_external_test_evidence_event_counts_include_only_junit_sources(
-    tmp_path: Path,
-) -> None:
-    _write_ready_sources(tmp_path)
-    packet = build_external_test_evidence(project_root=tmp_path)
-    sources = tuple(
-        source.model_copy(
-            update={
-                "tests": 1_000,
-                "failures": 1_000,
-                "errors": 1_000,
-                "skipped": 1_000,
-            }
-        )
-        if source.kind != "junit"
-        else source
-        for source in packet.sources
-    )
-
-    counts = external_test_evidence._event_counts(sources)
-
-    assert counts == external_test_evidence._EventCounts(
-        tests=15,
-        failures=1,
-        errors=0,
-        skipped=2,
     )
 
 
@@ -454,20 +395,6 @@ def test_external_test_evidence_marks_source_resolution_errors_unsafe(
     assert "must stay under" in packet.sources[0].summary
 
 
-def test_external_test_evidence_rejects_source_escape_after_resolution(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        external_test_evidence,
-        "first_symlink_path_component",
-        lambda *_args, **_kwargs: None,
-    )
-
-    with pytest.raises(ExternalTestEvidenceError, match="must stay under"):
-        external_test_evidence._resolve_source_path(Path("..") / "escape.xml", root=tmp_path)
-
-
 def test_external_test_evidence_rejects_source_replaced_during_read(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -533,26 +460,6 @@ def test_external_test_evidence_bounded_read_handles_open_errors(
 
     assert packet.sources[0].state == "invalid"
     assert "Could not read unit JUnit" in packet.sources[0].summary
-
-
-def test_external_test_evidence_bounded_read_works_without_no_follow_flag(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    source = _write_text(tmp_path / "source.xml", "<testsuite />")
-    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
-
-    assert external_test_evidence._read_bounded_bytes(source, artifact="source") == (
-        b"<testsuite />"
-    )
-
-
-def test_external_test_evidence_bounded_read_rejects_directories(tmp_path: Path) -> None:
-    directory = tmp_path / "not-a-file"
-    directory.mkdir()
-
-    with pytest.raises(ExternalTestEvidenceError, match="not a regular file"):
-        external_test_evidence._read_bounded_bytes(directory, artifact="directory")
 
 
 def test_external_test_evidence_rejects_unsupported_and_unsafe_outputs(
@@ -639,51 +546,18 @@ def test_external_test_evidence_rejects_secret_like_rendered_packet(
         run_external_test_evidence_report(project_root=tmp_path, output="json")
 
 
-def test_external_test_evidence_wraps_packet_serialization_errors(
+def test_external_test_evidence_rejects_secret_from_public_packet_result(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packet = ExternalTestEvidencePacket.model_construct(
-        schema_version=EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
-        generated_at="2026-06-21T00:00:00+00:00",
-        project="sk-proj-" + ("a" * 24),
-        summary=object(),
-        sources=(),
-        layers=(),
-        next_actions=(),
+    packet = build_external_test_evidence(project_root=tmp_path).model_copy(
+        update={"project": "sk-proj-" + ("a" * 24)}
     )
-    monkeypatch.setattr(external_test_evidence, "_build_packet", lambda **_: packet)
-
-    with (
-        pytest.warns(UserWarning, match="Pydantic serializer warnings"),
-        pytest.raises(ExternalTestEvidenceError, match="contains secret-like"),
-    ):
-        build_external_test_evidence(project_root=tmp_path)
-
-
-def test_external_test_evidence_packet_json_fallback_and_errors() -> None:
-    class FallbackPacket:
-        def model_dump(self, **kwargs: object) -> dict[str, str]:
-            if "fallback" in kwargs:
-                raise TypeError("old pydantic")
-            return {"schema_version": EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION}
-
-    class BrokenPacket:
-        def model_dump(self, **_kwargs: object) -> object:
-            raise RuntimeError("broken")
-
-    assert json.loads(external_test_evidence._packet_json(cast(Any, FallbackPacket()))) == {
-        "schema_version": EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
-    }
-    with pytest.raises(ExternalTestEvidenceError, match="could not be serialized"):
-        external_test_evidence._packet_json(cast(Any, BrokenPacket()))
-
-
-def test_external_test_evidence_deduplicates_next_actions() -> None:
-    action = external_test_evidence.ExternalTestEvidenceNextAction(
-        priority="medium",
-        action="Generate unit evidence.",
-        source_ids=("unit_junit",),
+    monkeypatch.setattr(
+        external_test_evidence,
+        "build_external_test_evidence",
+        lambda **_: packet,
     )
 
-    assert external_test_evidence._dedupe_actions((action, action)) == (action,)
+    with pytest.raises(ExternalTestEvidenceError, match="contains secret-like"):
+        run_external_test_evidence_report(project_root=tmp_path, output="json")

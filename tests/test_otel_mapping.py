@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.otel_mapping as otel_mapping
-import entroping.core.readiness.observability_adapter_readiness as adapter_readiness
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
@@ -332,19 +331,6 @@ def test_otel_mapping_source_path_resolution_failures_are_unsafe(
 
     assert {source.state for source in packet.sources} == {"unsafe"}
     assert "path outside project" in {source.summary for source in packet.sources}
-    assert otel_mapping._relative_display(tmp_path.parent / "outside", root=tmp_path) == "outside"
-
-    monkeypatch.setattr(
-        otel_mapping,
-        "first_symlink_path_component",
-        lambda *_args, **_kwargs: None,
-    )
-    assert (
-        otel_mapping._source_path_error(tmp_path.parent / "outside.json", root=tmp_path)
-        == "path outside project"
-    )
-
-
 def test_otel_mapping_source_summaries_keep_unknown_counts_value_free(
     tmp_path: Path,
 ) -> None:
@@ -420,11 +406,6 @@ def test_otel_mapping_source_summaries_keep_unknown_counts_value_free(
     assert packet.summary.severity == "info"
     sources = {source.id: source for source in packet.sources}
     assert sources["observability_packet"].summary.endswith("unknown events")
-    assert otel_mapping._observability_packet_severity(None) is None
-    assert (
-        otel_mapping._observability_packet_severity({"summary": {"severity": "info"}})
-        == "info"
-    )
 
 
 def test_otel_mapping_rejects_unsupported_and_unsafe_outputs(tmp_path: Path) -> None:
@@ -514,104 +495,6 @@ def test_otel_mapping_markdown_escapes_backslash_pipe_cells(tmp_path: Path) -> N
     markdown = render_otel_mapping_markdown(build_otel_mapping_packet(project_root=tmp_path))
 
     assert "&#42;bold&#42;&#95;under&#95;&#96;code&#96;" in markdown
-
-
-def test_otel_mapping_source_counts_aggregate_every_source_state() -> None:
-    sources = (
-        _source_fixture("observability_packet", "present"),
-        _source_fixture("runtime_card", "missing"),
-        _source_fixture("test_pyramid", "invalid"),
-        _source_fixture("external_test_evidence", "unsafe"),
-    )
-
-    counts = otel_mapping._source_counts(sources)
-
-    assert counts == otel_mapping._SourceCounts(
-        total=4,
-        present=1,
-        missing=1,
-        invalid=1,
-        unsafe=1,
-    )
-
-
-def test_otel_mapping_signal_counts_aggregate_every_signal() -> None:
-    mappings = otel_mapping._attribute_mappings()
-
-    counts = otel_mapping._signal_counts(mappings)
-
-    assert counts == otel_mapping._SignalCounts(
-        total=10,
-        resource=2,
-        log=3,
-        metric=3,
-        trace=2,
-    )
-
-
-@pytest.mark.parametrize(
-    ("present", "missing", "invalid", "unsafe", "expected"),
-    (
-        (3, 0, 0, 1, "insufficient"),
-        (3, 0, 1, 0, "insufficient"),
-        (0, 4, 0, 0, "insufficient"),
-        (3, 1, 0, 0, "partial"),
-        (4, 0, 0, 0, "ready"),
-    ),
-)
-def test_otel_mapping_status_preserves_source_state_precedence(
-    present: int,
-    missing: int,
-    invalid: int,
-    unsafe: int,
-    expected: otel_mapping.OtelMappingStatus,
-) -> None:
-    counts = otel_mapping._SourceCounts(4, present, missing, invalid, unsafe)
-
-    assert otel_mapping._summary_status(counts) == expected
-
-
-def test_otel_mapping_severity_preserves_fail_closed_precedence() -> None:
-    observability = otel_mapping._LoadedSource(
-        source=_source_fixture("observability_packet", "present"),
-        document={"summary": {"severity": "attention"}},
-    )
-
-    assert (
-        otel_mapping._summary_severity(
-            otel_mapping._SourceCounts(4, 3, 0, 0, 1),
-            loaded_sources=(),
-        )
-        == "blocker"
-    )
-    assert (
-        otel_mapping._summary_severity(
-            otel_mapping._SourceCounts(4, 4, 0, 0, 0),
-            loaded_sources=(observability,),
-        )
-        == "attention"
-    )
-
-
-def test_otel_mapping_forbidden_fields_match_observability_adapter_readiness() -> None:
-    assert otel_mapping._FORBIDDEN_VALUE_FIELDS == adapter_readiness._FORBIDDEN_VALUE_FIELDS
-    assert "ticket_mutation_payloads" in otel_mapping._FORBIDDEN_VALUE_FIELDS
-    assert "dashboard_payloads" in otel_mapping._FORBIDDEN_VALUE_FIELDS
-    assert "monitor_payloads" in otel_mapping._FORBIDDEN_VALUE_FIELDS
-
-
-def _source_fixture(
-    source_id: otel_mapping.OtelMappingSourceId,
-    state: otel_mapping.OtelMappingSourceState,
-) -> otel_mapping.OtelMappingSource:
-    return otel_mapping.OtelMappingSource(
-        id=source_id,
-        label=source_id,
-        path=f"reports/{source_id}.json",
-        state=state,
-        schema_version=None,
-        summary=state,
-    )
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> Path:

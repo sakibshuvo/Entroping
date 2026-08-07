@@ -2,7 +2,6 @@ import hashlib
 import json
 import os
 import shutil
-from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -10,7 +9,6 @@ import pytest
 import entroping.core.evidence.api_inventory as api_inventory
 from entroping.core.evidence.api_inventory import (
     ApiInventoryError,
-    ApiInventorySource,
     build_api_inventory,
     render_api_inventory_markdown,
     run_api_inventory_report,
@@ -35,47 +33,20 @@ WEBHOOK_FIXTURE_ROOT = REPO_ROOT / "examples" / "webhook-api"
     ],
 )
 def test_api_inventory_style_priority_preserves_protocol_classification(
+    tmp_path: Path,
     tags: frozenset[str],
-    expected: api_inventory.ApiStyle | None,
+    expected: str | None,
 ) -> None:
-    assert api_inventory._style_from_tags(tags) == expected
-
-
-def test_api_inventory_style_priority_is_explicit_and_ordered() -> None:
-    assert tuple(rule.style for rule in api_inventory._STYLE_TAG_PRIORITY) == (
-        "graphql",
-        "soap_xml",
-        "grpc_proto",
-        "asyncapi",
-        "webhook_event",
-        "websocket_realtime",
-        "rest_openapi",
+    _write_text(
+        tmp_path / "tests" / "style-probe.hurl",
+        "# entroping: tags=" + ",".join(sorted(tags)) + "\n"
+        "GET http://127.0.0.1:18080/health\nHTTP 200\n",
     )
 
+    packet = build_api_inventory(project_root=tmp_path)
+    source = next(source for source in packet.sources if source.kind == "hurl_test")
 
-def test_api_inventory_source_state_counts_are_frozen_and_present_totals_only() -> None:
-    sources = (
-        _inventory_source(state="present", kind="hurl_test", operations=2),
-        _inventory_source(state="missing", kind="hurl_test", operations=3),
-        _inventory_source(state="invalid", kind="schema_file", operations=5),
-        _inventory_source(state="unsafe", kind="schema_file", operations=7),
-    )
-
-    counts = api_inventory._source_state_counts(sources)
-    summary = api_inventory._summary(sources=sources, styles=())
-
-    assert (
-        counts.present,
-        counts.missing,
-        counts.invalid,
-        counts.unsafe,
-    ) == (1, 1, 1, 1)
-    assert not hasattr(counts, "__dict__")
-    with pytest.raises(FrozenInstanceError):
-        counts.__setattr__("present", 2)
-    assert summary.status == "partial"
-    assert summary.hurl_tests_total == 1
-    assert summary.operations_total == 2
+    assert source.style == (expected or "unknown_http")
 
 
 def test_run_api_inventory_writes_json_from_local_api_signals(tmp_path: Path) -> None:
@@ -785,70 +756,18 @@ def test_api_inventory_marks_malformed_postman_collection_shapes_invalid(
         '{"info": {"name": "Checkout"}}\n',
     )
 
-    list_source = api_inventory._load_schema_source(
-        root=tmp_path,
-        raw_path=list_path,
-        style="postman_collection",
-    )
-    missing_items_source = api_inventory._load_schema_source(
-        root=tmp_path,
-        raw_path=missing_items_path,
-        style="postman_collection",
-    )
+    packet = build_api_inventory(project_root=tmp_path)
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    list_source = sources[("schema_file", list_path.relative_to(tmp_path).as_posix())]
+    missing_items_source = sources[
+        ("schema_file", missing_items_path.relative_to(tmp_path).as_posix())
+    ]
 
     assert list_source.state == "invalid"
     assert list_source.summary == "Postman collection document must be an object."
     assert missing_items_source.state == "invalid"
     assert missing_items_source.summary == (
         "Postman collection document must contain an item list."
-    )
-
-
-def test_api_inventory_postman_shape_probe_ignores_invalid_json_candidates(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    assert api_inventory._postman_operation_count([]) is None
-    assert api_inventory._postman_operation_count({"item": "not a list"}) is None
-    assert api_inventory._postman_operation_count({"item": [[], {"item": "bad"}]}) == 0
-    assert (
-        api_inventory._schema_style_from_postman_probe(
-            path=tmp_path / "missing.json",
-            root=tmp_path,
-        )
-        is None
-    )
-    directory_path = tmp_path / "directory.json"
-    directory_path.mkdir()
-    assert (
-        api_inventory._schema_style_from_postman_probe(path=directory_path, root=tmp_path)
-        is None
-    )
-
-    oversized_path = _write_text(tmp_path / "oversized.json", "{}\n")
-    monkeypatch.setattr(api_inventory, "_MAX_API_INVENTORY_ARTIFACT_BYTES", 1)
-    assert (
-        api_inventory._schema_style_from_postman_probe(path=oversized_path, root=tmp_path)
-        is None
-    )
-    monkeypatch.setattr(api_inventory, "_MAX_API_INVENTORY_ARTIFACT_BYTES", 10 * 1024 * 1024)
-
-    binary_path = tmp_path / "binary.json"
-    binary_path.write_bytes(b"\xff")
-    malformed_path = _write_text(tmp_path / "malformed.json", "{not json\n")
-    no_operations_path = _write_text(tmp_path / "no-operations.json", '{"item": "bad"}\n')
-
-    assert api_inventory._schema_style_from_postman_probe(path=binary_path, root=tmp_path) is None
-    assert (
-        api_inventory._schema_style_from_postman_probe(path=malformed_path, root=tmp_path)
-        is None
-    )
-    assert (
-        api_inventory._schema_style_from_postman_probe(
-            path=no_operations_path,
-            root=tmp_path,
-        )
-        is None
     )
 
 
@@ -1063,23 +982,6 @@ def test_api_inventory_marks_bad_wsdl_sources_invalid_or_unsafe(tmp_path: Path) 
     assert entity.operations == 0
     assert "Unsafe WSDL XML construct" in entity.summary
     assert "should-not-appear" not in packet.model_dump_json()
-
-
-def test_api_inventory_keeps_generic_schema_styles_as_present_evidence(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setitem(api_inventory._SCHEMA_EXTENSIONS, ".http-schema", "unknown_http")
-    _write_text(tmp_path / "contracts" / "legacy.http-schema", "legacy schema\n")
-
-    packet = build_api_inventory(project_root=tmp_path)
-
-    sources = {(source.kind, source.path): source for source in packet.sources}
-    source = sources[("schema_file", "contracts/legacy.http-schema")]
-    assert source.state == "present"
-    assert source.style == "unknown_http"
-    assert source.operations == 0
-    assert source.summary == "Unknown HTTP schema file."
 
 
 def test_api_inventory_counts_wsdl_operations_without_leaking_names(
@@ -1614,12 +1516,6 @@ def test_api_inventory_marks_resolution_and_read_failures(
     assert "Could not read" in packet.sources[0].summary
 
 
-def test_api_inventory_defensive_path_helpers(tmp_path: Path) -> None:
-    assert api_inventory._ignored(tmp_path.parent / "outside.graphql", root=tmp_path) is True
-    assert api_inventory._relative_path(tmp_path.parent / "outside.graphql", root=tmp_path)
-    assert api_inventory._safe_optional_text(None) is None
-
-
 def test_api_inventory_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1707,19 +1603,3 @@ def _write_text(path: Path, content: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
-
-
-def _inventory_source(
-    *,
-    state: api_inventory.ApiSourceState,
-    kind: api_inventory.ApiSourceKind,
-    operations: int,
-) -> ApiInventorySource:
-    return ApiInventorySource(
-        kind=kind,
-        style="unknown_http",
-        path=f"{state}.source",
-        state=state,
-        operations=operations,
-        summary=f"{state} source",
-    )

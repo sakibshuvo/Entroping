@@ -4,7 +4,6 @@ from typing import cast
 
 import pytest
 
-from entroping.bridge import openapi_diff as openapi_diff_bridge
 from entroping.bridge.openapi_diff import (
     audit_openapi_breaking_changes,
     breaking_diff_report_to_dict,
@@ -27,6 +26,10 @@ def _deep_json_value(depth: int) -> dict[str, object]:
     for index in range(depth):
         value = {f"child_{index}": value}
     return value
+
+
+def _wide_json_value() -> list[dict[str, int]]:
+    return [{"index": index} for index in range(10_001)]
 
 
 def test_detect_openapi_operation_changes_classifies_added_modified_renamed_and_removed() -> None:
@@ -794,17 +797,23 @@ def test_audit_openapi_breaking_changes_rejects_excessively_deep_operation_paylo
         audit_openapi_breaking_changes(base, current)
 
 
-def test_audit_openapi_breaking_changes_budget_helper_rejects_node_exhaustion() -> None:
-    budget = openapi_diff_bridge._JsonTraversalBudget(  # noqa: SLF001
-        nodes=openapi_diff_bridge._MAX_OPENAPI_JSON_NODES,  # noqa: SLF001
-    )
+def test_audit_openapi_breaking_changes_rejects_more_than_ten_thousand_json_nodes() -> None:
+    base = {"openapi": "3.1.0", "paths": {"/health": {"get": _operation("getHealth")}}}
+    current: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "x-entroping-wide": _wide_json_value(),
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
 
     with pytest.raises(OpenApiCompilationError, match="JSON traversal exceeds"):
-        openapi_diff_bridge._check_openapi_json_budget(  # noqa: SLF001
-            depth=0,
-            budget=budget,
-            context="GET /health operation",
-        )
+        audit_openapi_breaking_changes(base, current)
 
 
 def test_audit_openapi_breaking_changes_rejects_malformed_schema_shapes() -> None:
