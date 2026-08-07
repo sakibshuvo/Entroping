@@ -43,17 +43,23 @@ decisions:
     summary: >
       CLI namespaces and flags should remain constrained to the product spec and
       command cheat sheet. New commands require explicit product and technical
-      documentation before implementation.
+      documentation before implementation. Experimental report growth is
+      governed by a tracked repository policy and test guard, not by shipped CLI
+      runtime code.
     tags: [cli, compatibility, product-contract]
     source_links:
       - path: decisions/ADR-0002-locked-command-surface.md
         role: adr
       - path: docs/technical/COMMAND_CHEAT_SHEET.md
         role: command-contract
+      - path: docs/technical/CLI_COMPATIBILITY_AUDIT.md
+        role: compatibility-audit
+      - path: docs/meta/experimental-report-growth-policy.json
+        role: governance-policy
     related_docs:
       - docs/product/MVP_PLAN.md
       - docs/user/USER_GUIDE.md
-    related_issues: ["#1", "#347"]
+    related_issues: ["#1", "#347", "#1503", "#1547"]
     supersedes: []
     superseded_by: null
 
