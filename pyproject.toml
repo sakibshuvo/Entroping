@@ -63,7 +63,10 @@ target-version = "py312"
 # security lines, but the security gate requires patched versions until
 # upstream relaxes the bounds.
 override-dependencies = [
+  "cryptography>=50.0.0",
+  "h2>=4.4.1",
   "msgpack>=1.2.1",
+  "pyopenssl>=26.4.0",
   "tornado>=6.5.6",
 ]
 

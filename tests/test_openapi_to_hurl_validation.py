@@ -7,8 +7,11 @@ from openapi_to_hurl_test_helpers import (
     _oversized_openapi_string,
 )
 
-from entroping.bridge import openapi_to_hurl as openapi_compiler
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError, compile_openapi_to_hurl
+
+
+def _wide_json_value() -> list[dict[str, int]]:
+    return [{"index": index} for index in range(10_001)]
 
 
 def test_compile_openapi_rejects_missing_paths_mapping() -> None:
@@ -618,26 +621,49 @@ def test_compile_openapi_rejects_excessively_deep_schema_examples() -> None:
         _compile_single_operation(operation, path="/deep-example", method="post")
 
 
-def test_compile_openapi_budget_helpers_reject_node_exhaustion() -> None:
-    schema_budget = openapi_compiler._TraversalBudget(  # noqa: SLF001
-        nodes=openapi_compiler._MAX_OPENAPI_SCHEMA_NODES,  # noqa: SLF001
-    )
-    with pytest.raises(OpenApiCompilationError, match="schema traversal exceeds"):
-        openapi_compiler._check_openapi_schema_budget(  # noqa: SLF001
-            depth=0,
-            budget=schema_budget,
-            context="OpenAPI schema",
-        )
+def test_compile_openapi_rejects_more_than_ten_thousand_schema_nodes() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createWideSchema",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": [f"field_{index}" for index in range(10_001)],
+                        "properties": {
+                            f"field_{index}": {"type": "string"}
+                            for index in range(10_001)
+                        },
+                    },
+                },
+            },
+        },
+        "responses": {"201": {"description": "created"}},
+    }
 
-    json_budget = openapi_compiler._TraversalBudget(  # noqa: SLF001
-        nodes=openapi_compiler._MAX_OPENAPI_JSON_NODES,  # noqa: SLF001
-    )
+    with pytest.raises(OpenApiCompilationError, match="schema traversal exceeds"):
+        _compile_single_operation(operation, path="/wide-schema", method="post")
+
+
+def test_compile_openapi_rejects_more_than_ten_thousand_json_nodes() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createWideExample",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["payload"],
+                        "properties": {"payload": {"example": _wide_json_value()}},
+                    },
+                },
+            },
+        },
+        "responses": {"201": {"description": "created"}},
+    }
+
     with pytest.raises(OpenApiCompilationError, match="JSON traversal exceeds"):
-        openapi_compiler._check_openapi_json_budget(  # noqa: SLF001
-            depth=0,
-            budget=json_budget,
-            context="OpenAPI schema example",
-        )
+        _compile_single_operation(operation, path="/wide-example", method="post")
 
 
 def test_compile_openapi_rejects_invalid_schema_examples_defaults_and_keys() -> None:

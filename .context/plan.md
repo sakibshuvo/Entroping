@@ -1,7 +1,9 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-07-29
-**Status:** Issue #1561 implementation and release gates in progress
+**Date:** 2026-08-06
+**Status:** #1576 has focused local unmerged issue-branch evidence; full release
+gates, GitHub review/merge, and finish cleanup remain pending. Launchd remains
+disabled pending a separate explicit activation decision.
 
 ## Objective
 
@@ -16,15 +18,33 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1561 Factory Control-Plane Protection
+## Merged Dependency: #1574 Tier A Worktree Orchestration
 
-Prevent Tier A workers from changing budget, routing, scheduler,
-repository-authority, workflow, security-gate, or credential boundaries.
-Maintainer labels own autonomy; issue prose and model output remain untrusted.
-Enforce the canonical policy at queue submission, pre-dispatch revalidation,
-patch review, and PR readiness with rename, alias, symlink, and multi-file
-coverage. Keep product runtime, Brain/LiteLLM, Hurl, QAnstitution, and traffic
-behavior unchanged.
+The merged maintainer-only, plan-first `factoryctl orchestrate` adapter does
+not change the product `entroping` CLI. It accepts strict owner-only request and
+proposal files, revalidates the live scheduler owner and the exact
+`completed-unsettled` proposal handoff plus scheduler-persisted delivery
+authority, and may create a missing canonical
+issue worktree only through `scripts/start_issue.sh`. Explicit `--apply`
+checks and applies only static Markdown under `docs/product/` or `docs/user/`
+in the two docs lanes. Source, tests, scripts, config, workflows, and
+machine-consumed control docs escalate until OS/container isolation exists.
+Gates come only from the validated target worktree's exact allowlist and emit a value-free
+revision-bound receipt. A separate private lifecycle journal makes exact
+terminal replay deterministic; ambiguous mutation, authority drift, gate
+drift, cancellation after mutation, main-checkout drift, or interrupted active
+replay becomes `uncertain` and requires recovery. Scheduler settlement and
+completion remain a later trusted control-plane action.
+
+Free-local write admission has one public entrypoint,
+`tick_selected_delivery`, which fetches fresh selection state internally and
+uses private admission helpers. Generic scheduler APIs expose no admission or
+snapshot seam and reject free-local writes; paid writes retain their existing
+reservation or authorization authority path. The policy digest follows an
+AST-derived transitive internal-import closure from fixed authority roots and
+includes executed parent package initializers recursively under fixed aggregate
+path/load/byte/AST/depth budgets, then verifies every loaded closure module
+against canonical-main commit bytes.
 
 ## Current Baseline
 
@@ -42,6 +62,26 @@ behavior unchanged.
   wrong-schema, or secret-like sources must become invalid or unsafe.
 - AI worker lanes are advisory. OpenCode/DeepSeek outputs require Codex
   validation against local files, tests, and CI before commit or merge.
+- Issues #1571 through #1574 are done; #1574 adds the separate Tier A worktree
+  orchestration adapter without changing product runtime or merge authority.
+- Issue #1575 has accepted offline harness evidence only: 32 strict
+  schema-version-1 receipts across 20 tests, including a three-iteration soak
+  capped at four. Fresh startup-guarded children, descriptor-relative receipt
+  writes, bounded untracked-source manifests, and repeated/concurrent outcome
+  comparison close the final semantic review gaps.
+  The intentional scheduler/provider separation means this is not one live
+  provider-running controller. Live GitHub selection, orchestration apply,
+  provider dispatch, and launchd remain outside the soak.
+- Issue #1576 has focused local issue-branch implementation and independent
+  review evidence for terminal receipt replay, exact local commit plus
+  PR/CI/merge binding, strict finish partial replay, expected-value remote
+  deletion with an absence proof, scheduler owner/epoch/phase fencing with one
+  post-cleanup timestamp, post-lease completion without heartbeat or lease
+  extension, and bounded deliver CLI exits/output. It is not merged,
+  release-ready, or activated; `scripts/regression.sh --security`,
+  `scripts/audit_quality.sh`, whole-branch review/QA, PR/CI, merge, and finish
+  cleanup remain the next gates. Product `entroping` CLI and provider boundaries
+  remain unchanged.
 - Context packs, issue-scoped worktrees, PR body checks, regression/security
   gates, quality audit, and `scripts/finish_issue.sh` are the durable marathon
   loop. Keep context files concise enough for `scripts/context_pack.sh --mode
@@ -73,10 +113,10 @@ Guarded anchors retained for docs-link tests:
 ## Current Validation Queue
 
 Keep each marathon issue narrow, tested, merged through GitHub, and cleaned up
-before starting the next branch. Near-term validation targets remain package
-index proof (#303-#305), downstream feedback (#306), stable-core compatibility
-(#308), and non-GitHub CI proof (#309-#310); package issue #268 stays gated on
-package-index evidence.
+before starting the next branch. Validate #1576's focused local evidence through
+the pending security regression, quality audit, whole-branch review/QA, PR/CI,
+merge, and finish-cleanup gates. External stable-core targets remain package-index
+proof (#303-#305), downstream feedback (#306), and non-GitHub CI proof (#309-#310).
 
 ## Explicitly Deferred
 

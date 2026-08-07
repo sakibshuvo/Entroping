@@ -85,8 +85,45 @@ def test_cli_run_wires_discovery_gate_injection_fake_hurl_and_reports(
             if "GET {{base_url}}/health" not in content:
                 print("missing original request", file=sys.stderr)
                 raise SystemExit(9)
-            print("HTTP/1.1 200")
-            print("base_url=http://localhost:18080")
+            gate_line = next(
+                index + 2
+                for index, line in enumerate(content.splitlines())
+                if line.startswith("# entroping-gate:")
+            )
+            capture_name = next(
+                line.split(":", maxsplit=1)[0]
+                for line in content.splitlines()
+                if line.startswith("__entroping_response_body_") and line.endswith(": bytes")
+            )
+            print(
+                json.dumps(
+                    {
+                        "filename": str(hurl_path),
+                        "success": True,
+                        "entries": [
+                            {
+                                "asserts": [{"line": gate_line, "success": True}],
+                                "calls": [
+                                    {
+                                        "response": {
+                                            "status": 200,
+                                            "headers": [
+                                                {"name": "Content-Type", "value": "text/plain"},
+                                            ],
+                                        },
+                                    },
+                                ],
+                                "captures": [
+                                    {
+                                        "name": capture_name,
+                                        "value": "YmFzZV91cmw9aHR0cDovL2xvY2FsaG9zdDoxODA4MAo=",
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ),
+            )
             """
         ),
         encoding="utf-8",

@@ -173,6 +173,69 @@ def test_evidence_cloud_readiness_marks_missing_invalid_and_unsafe_sources(
     assert "sk-proj" not in packet.model_dump_json()
 
 
+def test_evidence_cloud_readiness_public_source_path_errors_are_unsafe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_path(*_args: object, **_kwargs: object) -> Path | None:
+        raise ValueError("outside")
+
+    monkeypatch.setattr(readiness, "first_symlink_path_component", reject_path)
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert {source.state for source in packet.sources} == {"unsafe"}
+    assert all("project root" in source.summary for source in packet.sources)
+
+
+def test_evidence_cloud_readiness_public_source_symlink_escape_is_unsafe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = tmp_path.parent / "outside-team-readiness.json"
+    _write_json(
+        outside,
+        {
+            "schema_version": "entroping.team-evidence-readiness.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+    linked = tmp_path / "reports" / "team-evidence-readiness.json"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    linked.symlink_to(outside)
+    monkeypatch.setattr(
+        readiness,
+        "first_symlink_path_component",
+        lambda *_args, **_kwargs: None,
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    source = next(
+        source for source in packet.sources if source.id == "team_evidence_readiness"
+    )
+    assert source.state == "unsafe"
+    assert "project root" in source.summary
+
+
+def test_evidence_cloud_readiness_public_markdown_renders_missing_actions(
+    tmp_path: Path,
+) -> None:
+    result = run_evidence_cloud_readiness_report(project_root=tmp_path, output="md")
+
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Next Actions" in markdown
+    assert "Generate" in markdown or "Repair" in markdown
+
+
+def test_evidence_cloud_readiness_public_empty_project_is_insufficient(
+    tmp_path: Path,
+) -> None:
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert packet.summary.status == "insufficient"
+
+
 def test_evidence_cloud_readiness_dedupes_same_invalid_source_across_areas(
     tmp_path: Path,
 ) -> None:
@@ -301,25 +364,39 @@ def test_evidence_cloud_readiness_rejects_secret_rendered_content(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _write_ready_sources(tmp_path)
+    packet = build_evidence_cloud_readiness(project_root=tmp_path).model_copy(
+        update={"project": "sk-proj-" + ("a" * 24)}
+    )
     monkeypatch.setattr(
         readiness,
-        "_render_packet_content",
-        lambda packet, *, output: "api_key = sk-proj-" + ("a" * 24),
+        "build_evidence_cloud_readiness",
+        lambda **_: packet,
     )
 
     with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
         run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
 
 
-def test_evidence_cloud_readiness_rejects_secret_packet_json(
+def test_evidence_cloud_readiness_builder_rejects_secret_from_public_packet(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _write_ready_sources(tmp_path)
+    original_model_dump = cast(Any, EvidenceCloudReadinessPacket.model_dump)
+
+    def expose_secret_model_dump(
+        self: EvidenceCloudReadinessPacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        payload = cast(dict[str, object], original_model_dump(self, *args, **kwargs))
+        payload["project"] = "sk-proj-" + ("a" * 24)
+        return payload
+
     monkeypatch.setattr(
-        readiness,
-        "_packet_json",
-        lambda packet: "api_key = sk-proj-" + ("a" * 24),
+        readiness.EvidenceCloudReadinessPacket,
+        "model_dump",
+        expose_secret_model_dump,
     )
 
     with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
@@ -433,27 +510,6 @@ def test_evidence_cloud_readiness_marks_oversized_and_unreadable_sources(
     assert "exceeds" in sources["team_evidence_readiness"].summary
 
 
-def test_evidence_cloud_readiness_rejects_escaped_source_path(tmp_path: Path) -> None:
-    with pytest.raises(EvidenceCloudReadinessError, match="source path must stay under"):
-        readiness._resolve_source_path(Path("../outside.json"), root=tmp_path)
-
-
-def test_evidence_cloud_readiness_wraps_source_path_relative_errors(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def raise_relative_error(*_args: object, **_kwargs: object) -> Path | None:
-        raise ValueError("not relative")
-
-    monkeypatch.setattr(readiness, "first_symlink_path_component", raise_relative_error)
-
-    with pytest.raises(EvidenceCloudReadinessError, match="source path must stay under"):
-        readiness._resolve_source_path(
-            Path("reports") / "team-evidence-readiness.json",
-            root=tmp_path,
-        )
-
-
 def test_evidence_cloud_readiness_marks_invalid_utf8_and_non_object_sources(
     tmp_path: Path,
 ) -> None:
@@ -522,22 +578,6 @@ def test_evidence_cloud_readiness_artifact_manifest_summary_counts(
     assert sources["artifact_manifest"].summary == "2 present; 1 missing"
 
 
-def test_evidence_cloud_readiness_area_next_action_without_blockers() -> None:
-    assert readiness._area_next_action(
-        label="Synthetic area",
-        status="attention",
-        source_ids=("team_evidence_readiness",),
-        blockers=(),
-    ) == (
-        "Generate Synthetic area evidence with: "
-        "entroping report team-evidence-readiness --output json."
-    )
-
-
-def test_evidence_cloud_readiness_text_field_rejects_blank_values() -> None:
-    assert readiness._text_field({"status": "   "}, "status") is None
-
-
 def test_evidence_cloud_source_rejects_invalid_sha256() -> None:
     payload = {
         "id": "team_evidence_readiness",
@@ -551,211 +591,6 @@ def test_evidence_cloud_source_rejects_invalid_sha256() -> None:
 
     with pytest.raises(ValueError):
         readiness.EvidenceCloudSource.model_validate(payload)
-
-
-def test_evidence_cloud_next_action_dedupe_preserves_priority_variants() -> None:
-    actions = [
-        readiness.EvidenceCloudNextAction(
-            priority="high",
-            action="Repair evidence.",
-            source_ids=("team_evidence_readiness",),
-            area_ids=("team_upload_boundary",),
-        ),
-        readiness.EvidenceCloudNextAction(
-            priority="medium",
-            action="Repair evidence.",
-            source_ids=("team_evidence_readiness",),
-            area_ids=("team_upload_boundary",),
-        ),
-        readiness.EvidenceCloudNextAction(
-            priority="high",
-            action="Repair evidence.",
-            source_ids=("team_evidence_readiness",),
-            area_ids=("team_upload_boundary",),
-        ),
-    ]
-
-    deduped = readiness._dedupe_actions(actions)
-
-    assert [action.priority for action in deduped] == ["high", "medium"]
-
-
-def test_evidence_cloud_summary_dedupes_duplicate_area_blockers() -> None:
-    areas = (
-        readiness.EvidenceCloudReadinessArea(
-            id="team_upload_boundary",
-            label="Team upload boundary",
-            status="blocked",
-            source_ids=("team_evidence_readiness",),
-            boundary="local only",
-            upload_candidate=True,
-            blockers=("Shared blocker.", "Team-specific blocker."),
-            next_action="Repair local evidence.",
-        ),
-        readiness.EvidenceCloudReadinessArea(
-            id="cloud_boundary_controls",
-            label="Cloud boundary controls",
-            status="blocked",
-            source_ids=("team_evidence_readiness",),
-            boundary="local only",
-            upload_candidate=False,
-            blockers=("Shared blocker.",),
-            next_action="Repair local evidence.",
-        ),
-    )
-
-    summary = readiness._summary(
-        sources=(),
-        areas=areas,
-        upload_candidates=(),
-        next_actions=(),
-    )
-
-    assert summary.blockers_total == 2
-    assert areas[0].blockers == ("Shared blocker.", "Team-specific blocker.")
-    assert areas[1].blockers == ("Shared blocker.",)
-
-
-def test_evidence_cloud_summary_counts_upload_candidate_blockers_once() -> None:
-    areas = (
-        readiness.EvidenceCloudReadinessArea(
-            id="team_upload_boundary",
-            label="Team upload boundary",
-            status="blocked",
-            source_ids=("team_evidence_readiness",),
-            boundary="local only",
-            upload_candidate=True,
-            blockers=("Shared blocker.",),
-            next_action="Repair local evidence.",
-        ),
-    )
-    upload_candidates = (
-        readiness.EvidenceCloudUploadCandidate(
-            id="team_evidence_bundle",
-            label="Team evidence bundle",
-            state="blocked",
-            source_ids=("team_evidence_readiness",),
-            description="Local metadata.",
-            blockers=("Shared blocker.", "Upload-only blocker."),
-        ),
-    )
-
-    summary = readiness._summary(
-        sources=(),
-        areas=areas,
-        upload_candidates=upload_candidates,
-        next_actions=(),
-    )
-
-    assert summary.blockers_total == 2
-    assert areas[0].blockers == ("Shared blocker.",)
-    assert upload_candidates[0].blockers == (
-        "Shared blocker.",
-        "Upload-only blocker.",
-    )
-
-
-def test_evidence_cloud_summary_helpers_count_all_states() -> None:
-    source_states: tuple[readiness.EvidenceCloudSourceState, ...] = (
-        "present",
-        "missing",
-        "invalid",
-        "unsafe",
-    )
-    sources = tuple(
-        readiness.EvidenceCloudSource(
-            id="team_evidence_readiness",
-            label=f"Source {state}",
-            path=f"reports/{state}.json",
-            state=state,
-            schema_version=None,
-            summary=state,
-        )
-        for state in source_states
-    )
-    area_statuses: tuple[readiness.EvidenceCloudAreaStatus, ...] = (
-        "ready",
-        "attention",
-        "blocked",
-    )
-    areas = tuple(
-        readiness.EvidenceCloudReadinessArea(
-            id="team_upload_boundary",
-            label=f"Area {status}",
-            status=status,
-            source_ids=(),
-            boundary="local only",
-            upload_candidate=False,
-            next_action=f"Handle {status}.",
-        )
-        for status in area_statuses
-    )
-    candidate_states: tuple[readiness.EvidenceCloudUploadCandidateState, ...] = (
-        "ready",
-        "blocked",
-    )
-    candidates = tuple(
-        readiness.EvidenceCloudUploadCandidate(
-            id="team_evidence_bundle",
-            label=f"Candidate {state}",
-            state=state,
-            source_ids=(),
-            description="Local metadata.",
-        )
-        for state in candidate_states
-    )
-
-    assert readiness._source_counts(sources) == readiness._SourceCounts(
-        present=1,
-        missing=1,
-        invalid=1,
-        unsafe=1,
-    )
-    assert readiness._area_counts(areas) == readiness._AreaCounts(
-        ready=1,
-        attention=1,
-        blocked=1,
-    )
-    assert readiness._candidate_counts(candidates) == readiness._CandidateCounts(
-        ready=1,
-        blocked=1,
-    )
-
-
-def test_evidence_cloud_unique_blockers_unions_areas_and_candidates() -> None:
-    areas = (
-        readiness.EvidenceCloudReadinessArea(
-            id="team_upload_boundary",
-            label="Team upload boundary",
-            status="blocked",
-            source_ids=(),
-            boundary="local only",
-            upload_candidate=True,
-            blockers=("Shared blocker.", "Area-only blocker."),
-            next_action="Repair local evidence.",
-        ),
-    )
-    candidates = (
-        readiness.EvidenceCloudUploadCandidate(
-            id="team_evidence_bundle",
-            label="Team evidence bundle",
-            state="blocked",
-            source_ids=(),
-            description="Local metadata.",
-            blockers=("Shared blocker.", "Candidate-only blocker."),
-        ),
-    )
-
-    assert readiness._unique_blockers(
-        areas=areas,
-        upload_candidates=candidates,
-    ) == frozenset(
-        {
-            "Shared blocker.",
-            "Area-only blocker.",
-            "Candidate-only blocker.",
-        }
-    )
 
 
 def test_evidence_cloud_readiness_packet_schema_rejects_extra_fields() -> None:

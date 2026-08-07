@@ -1,9 +1,12 @@
 """Adapter tests for the deterministic Hurl subprocess runner."""
 
+import base64
+import json
 import subprocess
 import threading
 import time
 from collections.abc import Callable
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 
@@ -11,9 +14,12 @@ import pytest
 
 from entroping.core import hurl_runner
 from entroping.core.hurl_runner import (
+    HurlAssertionEvidence,
+    HurlAssertionPolicy,
     HurlBinaryNotFoundError,
     HurlRunnerError,
     HurlRunOptions,
+    HurlStructuredReportError,
     discover_hurl,
     run_hurl_file,
     run_hurl_files,
@@ -25,6 +31,87 @@ def _write_hurl(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("GET {{base_url}}/health\nHTTP 200\n", encoding="utf-8")
     return path
+
+
+def _write_structured_json(
+    stdout: BinaryIO,
+    *,
+    filename: str,
+    success: bool,
+    assertions: list[dict[str, object]],
+    capture_name: str = "__entroping_response_body_0",
+    body: bytes = b"response body\n",
+    captures: list[dict[str, str]] | None = None,
+) -> None:
+    response_captures = captures if captures is not None else [
+        {"name": capture_name, "value": base64.b64encode(body).decode("ascii")},
+    ]
+    stdout.write(
+        json.dumps(
+            {
+                "filename": filename,
+                "success": success,
+                "entries": [
+                    {
+                        "asserts": assertions,
+                        "calls": [
+                            {
+                                "response": {
+                                    "status": 200,
+                                    "headers": [
+                                        {"name": "Content-Type", "value": "text/plain"},
+                                    ],
+                                },
+                            },
+                        ],
+                        "captures": response_captures,
+                    },
+                ],
+            },
+    ).encode("utf-8"),
+    )
+
+
+_RESPONSE_CAPTURE_NAME = "__entroping_response_body_0"
+
+
+def _structured_entry(
+    *,
+    asserts: object = (),
+    calls: object = (
+        {
+            "response": {
+                "status": 200,
+                "headers": [],
+            },
+        },
+    ),
+    captures: object = (
+        {"name": _RESPONSE_CAPTURE_NAME, "value": "aGVsbG8="},
+    ),
+) -> dict[str, object]:
+    return {"asserts": asserts, "calls": calls, "captures": captures}
+
+
+def _structured_root(entries: object) -> dict[str, object]:
+    return {
+        "filename": "/tmp/health.hurl",
+        "success": True,
+        "entries": entries,
+    }
+
+
+def _read_structured_payload(
+    payload: object,
+    *,
+    capture_names: tuple[str, ...] = (_RESPONSE_CAPTURE_NAME,),
+) -> hurl_runner._StructuredHurlReport:
+    return hurl_runner._read_hurl_json_output(
+        BytesIO(json.dumps(payload).encode("utf-8")),
+        hurl_path=Path("/tmp/health.hurl"),
+        expected_success=True,
+        capture_names=capture_names,
+    )
 
 
 def _write_executable(path: Path, body: str) -> Path:
@@ -351,6 +438,707 @@ def test_run_hurl_file_invokes_hurl_with_argument_array_and_redacts_output(
     assert "live-secret" not in result.stderr
     assert "Authorization: [REDACTED]" in result.stdout
     assert "token=[REDACTED]" in result.stderr
+
+
+def test_run_hurl_file_classifies_structured_nonblocking_assertion_without_replay(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        calls.append(args)
+        _write_structured_json(
+            stdout,
+            filename=args[-1],
+            success=False,
+            assertions=[{"line": 2, "success": False}],
+        )
+        return subprocess.CompletedProcess(args=args, returncode=4)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            assertion_policies={
+                hurl_file.resolve(): (HurlAssertionPolicy(line=2, blocking=False),),
+            },
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert len(calls) == 1
+    assert "--continue-on-error" in calls[0]
+    assert "--json" in calls[0]
+    assert "--report-json" not in calls[0]
+    assert result.passed
+    assert result.exit_code == 0
+    assert result.assertion_evidence == (HurlAssertionEvidence(line=2, success=False),)
+
+
+def test_run_hurl_files_scopes_structured_execution_to_gated_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gated_path = _write_hurl(tmp_path / "tests" / "gated.hurl")
+    normal_path = _write_hurl(tmp_path / "tests" / "normal.hurl")
+    calls: dict[Path, list[str]] = {}
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        path = Path(args[-1]).resolve()
+        calls[path] = args
+        if path == gated_path.resolve():
+            _write_structured_json(
+                stdout,
+                filename=args[-1],
+                success=True,
+                assertions=[{"line": 2, "success": True}],
+            )
+        else:
+            stdout.write(b"normal stdout\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_files(
+        (gated_path, normal_path),
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            assertion_policies={
+                gated_path.resolve(): (HurlAssertionPolicy(line=2, blocking=True),),
+            },
+            response_capture_names={gated_path.resolve(): (_RESPONSE_CAPTURE_NAME,)},
+        ),
+    )
+
+    gated_result, normal_result = result.results
+    assert "--json" in calls[gated_path.resolve()]
+    assert "--continue-on-error" in calls[gated_path.resolve()]
+    assert "--json" not in calls[normal_path.resolve()]
+    assert "--continue-on-error" not in calls[normal_path.resolve()]
+    assert gated_result.assertion_evidence == (HurlAssertionEvidence(line=2, success=True),)
+    assert "HTTP/1.1 200" in gated_result.stdout
+    assert normal_result.assertion_evidence is None
+    assert normal_result.stdout == "normal stdout\n"
+
+
+def test_run_hurl_file_unscoped_capture_assertions_remains_structured(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "unscoped.hurl")
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        calls.append(args)
+        _write_structured_json(
+            stdout,
+            filename=args[-1],
+            success=True,
+            assertions=[],
+        )
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl", capture_assertions=True))
+
+    assert "--json" in calls[0]
+    assert result.assertion_evidence == ()
+    assert "HTTP/1.1 200" in result.stdout
+
+
+def test_run_hurl_file_reconstructs_response_without_policy_classification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "response-only.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        _write_structured_json(
+            stdout,
+            filename=args[-1],
+            success=True,
+            assertions=[],
+        )
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            response_capture_names={hurl_file.resolve(): (_RESPONSE_CAPTURE_NAME,)},
+        ),
+    )
+
+    assert result.passed
+    assert "HTTP/1.1 200" in result.stdout
+    assert "response body" in result.stdout
+
+
+def test_run_hurl_file_rejects_missing_structured_report_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, env, shell)
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert result.status == "error"
+    assert result.exit_code == 126
+    assert result.assertion_evidence is None
+    assert result.stderr == "Hurl structured assertion report invalid"
+    assert calls and "--report-json" not in calls[0]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"{",
+        b"{}",
+        b"{}" + b"x" * (hurl_runner._STRUCTURED_JSON_LIMIT_BYTES + 1),
+    ],
+)
+def test_run_hurl_file_rejects_malformed_or_oversized_4_3_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    payload: bytes,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "malformed-json.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        stdout.write(payload)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert result.status == "error"
+    assert result.exit_code == 126
+    assert result.stdout == ""
+    assert result.stderr == "Hurl structured assertion report invalid"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        [],
+        _structured_root({}),
+        _structured_root([None]),
+        _structured_root([_structured_entry(asserts="invalid")]),
+        _structured_root([_structured_entry(asserts=[None])]),
+        _structured_root([_structured_entry(asserts=[{"line": 0, "success": True}])]),
+        _structured_root([_structured_entry(calls="invalid")]),
+        _structured_root([_structured_entry(calls=[None])]),
+        _structured_root([_structured_entry(calls=[{"response": None}])]),
+        _structured_root(
+            [
+                _structured_entry(
+                    calls=[{"response": {"status": 99, "headers": []}}],
+                ),
+            ],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    calls=[{"response": {"status": "200", "headers": []}}],
+                ),
+            ],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    calls=[{"response": {"status": 200, "headers": None}}],
+                ),
+            ],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    calls=[{"response": {"status": 200, "headers": [None]}}],
+                ),
+            ],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    calls=[
+                        {
+                            "response": {
+                                "status": 200,
+                                "headers": [{"name": "X-Test", "value": "bad\n"}],
+                            },
+                        },
+                    ],
+                ),
+            ],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    asserts=[{"line": 1, "success": "true"}],
+                ),
+            ],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    calls=[
+                        {
+                            "response": {
+                                "status": 200,
+                                "headers": [{"name": 1, "value": "bad"}],
+                            },
+                        },
+                    ],
+                ),
+            ],
+        ),
+        _structured_root([_structured_entry(captures="invalid")]),
+        _structured_root([_structured_entry(captures=[None])]),
+        _structured_root(
+            [_structured_entry(captures=[{"name": 1, "value": "value"}])],
+        ),
+        _structured_root(
+            [
+                _structured_entry(
+                    captures=[{"name": _RESPONSE_CAPTURE_NAME, "value": 200}],
+                ),
+            ],
+        ),
+    ],
+)
+def test_read_hurl_json_rejects_malformed_4_3_shapes(payload: object) -> None:
+    with pytest.raises(HurlStructuredReportError):
+        _read_structured_payload(payload)
+
+
+def test_read_hurl_json_ignores_non_reserved_captures() -> None:
+    payload = _structured_root(
+        [
+            _structured_entry(
+                captures=[
+                    {"name": "unrelated", "value": "not surfaced"},
+                    {"name": _RESPONSE_CAPTURE_NAME, "value": "aGVsbG8="},
+                ],
+            ),
+        ],
+    )
+
+    report = _read_structured_payload(payload)
+
+    assert report.response_output is not None
+    assert report.response_output.endswith(b"hello")
+
+
+def test_read_hurl_json_allows_numeric_non_reserved_captures() -> None:
+    payload = _structured_root(
+        [
+            _structured_entry(
+                captures=[
+                    {"name": "status", "value": 200},
+                    {"name": _RESPONSE_CAPTURE_NAME, "value": "aGVsbG8="},
+                ],
+            ),
+        ],
+    )
+
+    report = _read_structured_payload(payload)
+
+    assert report.response_output is not None
+    assert report.response_output.endswith(b"hello")
+
+
+def test_read_hurl_json_rejects_capture_without_response_status() -> None:
+    payload = _structured_root(
+        [_structured_entry(calls=[], captures=[{"name": _RESPONSE_CAPTURE_NAME, "value": "aA=="}])],
+    )
+
+    with pytest.raises(HurlStructuredReportError):
+        _read_structured_payload(payload)
+
+
+def test_read_hurl_json_without_capture_returns_no_response_output() -> None:
+    payload = _structured_root([_structured_entry(calls=[], captures=[])])
+
+    report = _read_structured_payload(payload, capture_names=())
+
+    assert report.response_output is None
+
+
+@pytest.mark.parametrize(
+    "capture_value",
+    [
+        "not-base64",
+        base64.b64encode(
+            b"x" * (hurl_runner._STRUCTURED_RESPONSE_BODY_LIMIT_BYTES + 1),
+        ).decode("ascii"),
+    ],
+)
+def test_read_hurl_json_rejects_invalid_or_oversized_capture(
+    capture_value: str,
+) -> None:
+    payload = _structured_root(
+        [
+            _structured_entry(
+                captures=[{"name": _RESPONSE_CAPTURE_NAME, "value": capture_value}],
+            ),
+        ],
+    )
+
+    with pytest.raises(HurlStructuredReportError):
+        _read_structured_payload(payload)
+
+
+def test_classify_structured_result_rejects_duplicate_policy_lines() -> None:
+    result = hurl_runner._classify_structured_result(
+        status="passed",
+        exit_code=0,
+        assertions=(),
+        policies=(
+            HurlAssertionPolicy(line=2, blocking=False),
+            HurlAssertionPolicy(line=2, blocking=False),
+        ),
+    )
+
+    assert result == ("error", 126)
+
+
+def test_classify_structured_result_keeps_nonpassed_block_failure_status() -> None:
+    result = hurl_runner._classify_structured_result(
+        status="failed",
+        exit_code=4,
+        assertions=(HurlAssertionEvidence(line=2, success=False),),
+        policies=(HurlAssertionPolicy(line=2, blocking=True),),
+    )
+
+    assert result == ("failed", 4)
+
+    assert hurl_runner._classify_structured_result(
+        status="passed",
+        exit_code=0,
+        assertions=(HurlAssertionEvidence(line=2, success=False),),
+        policies=(HurlAssertionPolicy(line=2, blocking=True),),
+    ) == ("failed", 1)
+    assert hurl_runner._classify_structured_result(
+        status="passed",
+        exit_code=0,
+        assertions=(HurlAssertionEvidence(line=2, success=True),),
+        policies=(HurlAssertionPolicy(line=2, blocking=True),),
+    ) == ("passed", 0)
+
+
+def test_read_hurl_json_rejects_stdout_handle_errors() -> None:
+    class BrokenStdout(BytesIO):
+        def seek(self, offset: int, whence: int = 0) -> int:
+            _ = offset, whence
+            raise OSError("seek failed")
+
+    with pytest.raises(HurlStructuredReportError):
+        hurl_runner._read_hurl_json_output(
+            BrokenStdout(),
+            hurl_path=Path("/tmp/health.hurl"),
+            expected_success=True,
+            capture_names=(_RESPONSE_CAPTURE_NAME,),
+        )
+
+
+def test_read_hurl_json_rejects_oversized_entry_list() -> None:
+    payload = _structured_root(
+        [_structured_entry() for _ in range(hurl_runner._STRUCTURED_REPORT_ENTRY_LIMIT + 1)],
+    )
+
+    with pytest.raises(HurlStructuredReportError):
+        _read_structured_payload(payload)
+
+
+@pytest.mark.parametrize("field", ["filename", "success"])
+def test_run_hurl_file_rejects_4_3_json_identity_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "identity-mismatch.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        _write_structured_json(
+            stdout,
+            filename=args[-1] if field != "filename" else "other.hurl",
+            success=field != "success",
+            assertions=[{"line": 2, "success": True}],
+        )
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert result.status == "error"
+    assert result.exit_code == 126
+    assert result.assertion_evidence is None
+
+
+@pytest.mark.parametrize(
+    "assertions",
+    [
+        [{"line": 9, "success": False}],
+        [{"line": 2, "success": False}, {"line": 2, "success": False}],
+    ],
+)
+def test_run_hurl_file_rejects_missing_or_duplicate_policy_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    assertions: list[dict[str, object]],
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "policy-evidence.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        _write_structured_json(
+            stdout,
+            filename=args[-1],
+            success=False,
+            assertions=assertions,
+        )
+        return subprocess.CompletedProcess(args=args, returncode=1)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            assertion_policies={
+                hurl_file.resolve(): (HurlAssertionPolicy(line=2, blocking=False),),
+            },
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert result.status == "error"
+    assert result.exit_code == 126
+
+
+def test_run_hurl_file_keeps_original_assertion_failure_blocking(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "source-assertion.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        _write_structured_json(
+            stdout,
+            filename=args[-1],
+            success=False,
+            assertions=[{"line": 2, "success": False}, {"line": 4, "success": False}],
+        )
+        return subprocess.CompletedProcess(args=args, returncode=1)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            assertion_policies={
+                hurl_file.resolve(): (HurlAssertionPolicy(line=2, blocking=False),),
+            },
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert result.status == "failed"
+    assert result.exit_code == 1
+
+
+@pytest.mark.parametrize(
+    "captures",
+    [
+        [],
+        [
+            {"name": "__entroping_response_body_0", "value": "not-base64"},
+            {"name": "__entroping_response_body_0", "value": "aGVsbG8="},
+        ],
+    ],
+)
+def test_run_hurl_file_rejects_missing_or_invalid_reserved_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    captures: list[dict[str, str]],
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "reserved-capture.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        _write_structured_json(
+            stdout,
+            filename=args[-1],
+            success=True,
+            assertions=[{"line": 2, "success": True}],
+            captures=captures,
+        )
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            capture_assertions=True,
+            response_capture_names={hurl_file.resolve(): ("__entroping_response_body_0",)},
+        ),
+    )
+
+    assert result.status == "error"
+    assert result.exit_code == 126
 
 
 def test_run_hurl_file_uses_minimal_subprocess_environment(

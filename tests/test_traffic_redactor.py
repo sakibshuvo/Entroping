@@ -213,6 +213,53 @@ def test_redactor_redacts_secret_values_inside_json_arrays() -> None:
     assert "inline-secret" not in redacted.model_dump_json()
 
 
+def test_redactor_redacts_short_credentials_in_nested_json_and_arrays() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=256,
+                        text=(
+                            '{"quantity":7,"status_code":200,"nested":'
+                            '{"OTP":"otp-json-probe",'
+                            '"verification-code":"verification-json-probe"},'
+                            '"items":[{"pinCode":"pin-json-probe"},'
+                            '{"recoveryCode":"recovery-json-probe"}]}'
+                        ),
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
+
+    request_body = redacted.request.body
+    assert request_body is not None
+    assert request_body.text is not None
+    assert json.loads(request_body.text) == {
+        "quantity": 7,
+        "status_code": 200,
+        "nested": {"OTP": "[REDACTED]", "verification-code": "[REDACTED]"},
+        "items": [
+            {"pinCode": "[REDACTED]"},
+            {"recoveryCode": "[REDACTED]"},
+        ],
+    }
+    assert request_body.redaction_confidence == "high"
+    assert redacted.redaction_confidence == "high"
+    serialized = redacted.model_dump_json()
+    for raw_value in (
+        "otp-json-probe",
+        "verification-json-probe",
+        "pin-json-probe",
+        "recovery-json-probe",
+    ):
+        assert raw_value not in serialized
+
+
 def test_redactor_redacts_token_shaped_values_in_non_sensitive_fields() -> None:
     token = "sk-proj-" + ("a" * 24)
     exchange = _raw_exchange().model_copy(
@@ -446,6 +493,39 @@ def test_redactor_redacts_plaintext_before_truncating_boundary_crossing_values()
     assert request_body.text == "note=[REDACTED]"
     assert request_body.truncated is True
     assert "eyJhbGci" not in redacted.model_dump_json()
+
+
+def test_redactor_redacts_short_credentials_in_form_bodies() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "headers": {"Content-Type": "application/x-www-form-urlencoded"},
+                    "body": TrafficBody(
+                        content_type="application/x-www-form-urlencoded",
+                        size_bytes=128,
+                        text=(
+                            "OTP=otp-form-probe&quantity=3&"
+                            "verification-code=verification-form-probe&status_code=200"
+                        ),
+                    ),
+                }
+            )
+        }
+    )
+
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
+
+    request_body = redacted.request.body
+    assert request_body is not None
+    assert request_body.text == (
+        "OTP=[REDACTED]&quantity=3&"
+        "verification-code=[REDACTED]&status_code=200"
+    )
+    assert request_body.redaction_confidence == "low"
+    assert redacted.redaction_confidence == "low"
+    assert "otp-form-probe" not in redacted.model_dump_json()
+    assert "verification-form-probe" not in redacted.model_dump_json()
 
 
 def test_redactor_bounds_json_parser_input_for_large_bodies(

@@ -166,11 +166,9 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 `docs/meta/experimental-report-growth-policy.json` is the versioned,
 machine-readable governance record for the 41 commands in the experimental
 report help panel. Its order must match the resolved panel exactly. The strict
-policy implementation has no Typer or registration dependency, and runtime
-registration does not import it. Standard Python import still initializes the
-parent `report` package, so the offline guarantee applies to loading and
-validation—no network, provider, or runtime mutation—not package-import
-isolation. Tests pass resolved command names into the completeness validator.
+repository test guard loads the tracked JSON directly and compares it with the
+resolved Typer panel. No shipped `entroping.cli` module parses or validates this
+maintainer policy, and runtime registration does not import it.
 
 Each entry records an owner, adoption-evidence state and pointer, proposed
 disposition, and review date. A tracking issue or other pointer identifies where
