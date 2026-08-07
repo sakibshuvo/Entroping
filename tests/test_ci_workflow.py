@@ -22,11 +22,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 _CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
 _SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
-_SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
-_SETUP_NODE_PIN = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
+_SETUP_UV_PIN = "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9"
+_SETUP_NODE_PIN = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
 _UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 _SCORECARD_PIN = "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
-_CODEQL_ACTION_PIN = "github/codeql-action/{action}@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a"
+_CODEQL_ACTION_PIN = "github/codeql-action/{action}@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81"
 _TAG_STYLE_ACTION_REF_RE = re.compile(r"uses:\s*[^@\s]+@(?:v[0-9]|release/|[0-9]+\.)")
 
 
