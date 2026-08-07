@@ -13,7 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.bounded_process import OUTPUT_LIMIT_MARKER, run_bounded_process  # noqa: E402
+from scripts.bounded_process import (  # noqa: E402
+    OUTPUT_LIMIT_MARKER,
+    BoundedProcessError,
+    run_bounded_process,
+)
 
 
 def test_bounded_process_captures_normal_stdout_and_stderr(tmp_path: Path) -> None:
@@ -32,6 +36,44 @@ def test_bounded_process_captures_normal_stdout_and_stderr(tmp_path: Path) -> No
     assert result.stderr == "warning\n"
     assert result.timed_out is False
     assert result.output_limit_exceeded is False
+
+
+def test_bounded_process_passes_readable_descriptor_to_child(tmp_path: Path) -> None:
+    payload_path = tmp_path / "descriptor-payload"
+    payload_path.write_bytes(b"descriptor-bound\n")
+
+    with payload_path.open("rb") as payload:
+        descriptor = payload.fileno()
+        result = run_bounded_process(
+            [
+                sys.executable,
+                "-c",
+                "import os,sys; os.write(1, os.read(int(sys.argv[1]), 1024))",
+                str(descriptor),
+            ],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            pass_fds=(descriptor,),
+        )
+
+    assert result.returncode == 0
+    assert result.stdout == "descriptor-bound\n"
+
+
+@pytest.mark.parametrize("pass_fds", [(-1,), (True,), (3, 3)])
+def test_bounded_process_rejects_invalid_pass_fds(
+    tmp_path: Path,
+    pass_fds: tuple[int, ...],
+) -> None:
+    with pytest.raises(BoundedProcessError):
+        run_bounded_process(
+            [sys.executable, "-c", "pass"],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            pass_fds=pass_fds,
+        )
 
 
 def test_bounded_process_streams_stdout_without_returning_raw_bytes(tmp_path: Path) -> None:
