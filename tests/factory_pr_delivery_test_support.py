@@ -27,6 +27,7 @@ from scripts.factory_orchestration_models import (  # noqa: E402
 from scripts.factory_orchestration_receipts import build_receipt  # noqa: E402
 from scripts.factory_scheduler import FactoryScheduler  # noqa: E402
 from scripts.factory_scheduler_assignment_transaction import insert_assignment  # noqa: E402
+from scripts.factory_scheduler_execution_models import ExecutionPhase  # noqa: E402
 from scripts.factory_scheduler_lease_transaction import store_lease  # noqa: E402
 from scripts.factory_scheduler_models import (  # noqa: E402
     AssignmentRequest,
@@ -150,7 +151,12 @@ def _seed_scheduler_authority(main: Path, orchestration: OrchestrationRequest) -
             lease_expires_at=now.replace(hour=13),
         )
     scheduler = FactoryScheduler(main, settlement_authority=lambda _assignment: "not-required")
-    for version, phase in enumerate(("dispatch-intent", "dispatched", "completed-unsettled"), 1):
+    phases: tuple[ExecutionPhase, ...] = (
+        "dispatch-intent",
+        "dispatched",
+        "completed-unsettled",
+    )
+    for version, phase in enumerate(phases, 1):
         scheduler.transition_execution(
             assignment_id=orchestration.assignment_id,
             owner=owner,

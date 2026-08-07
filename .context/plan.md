@@ -1,9 +1,9 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-08-03
-**Status:** Issue #1574 merged via PR #1600 at `ac5878a`; #1575 has offline
-proposal-controller evidence, while #1576 retains PR/CI/merge-control and
-cleanup work before any activation decision.
+**Date:** 2026-08-06
+**Status:** #1576 has focused local unmerged issue-branch evidence; full release
+gates, GitHub review/merge, and finish cleanup remain pending. Launchd remains
+disabled pending a separate explicit activation decision.
 
 ## Objective
 
@@ -71,8 +71,17 @@ against canonical-main commit bytes.
   comparison close the final semantic review gaps.
   The intentional scheduler/provider separation means this is not one live
   provider-running controller. Live GitHub selection, orchestration apply,
-  provider dispatch, and launchd remain outside the soak; #1576 owns the
-  remaining PR/CI/merge-control and cleanup evidence.
+  provider dispatch, and launchd remain outside the soak.
+- Issue #1576 has focused local issue-branch implementation and independent
+  review evidence for terminal receipt replay, exact local commit plus
+  PR/CI/merge binding, strict finish partial replay, expected-value remote
+  deletion with an absence proof, scheduler owner/epoch/phase fencing with one
+  post-cleanup timestamp, post-lease completion without heartbeat or lease
+  extension, and bounded deliver CLI exits/output. It is not merged,
+  release-ready, or activated; `scripts/regression.sh --security`,
+  `scripts/audit_quality.sh`, whole-branch review/QA, PR/CI, merge, and finish
+  cleanup remain the next gates. Product `entroping` CLI and provider boundaries
+  remain unchanged.
 - Context packs, issue-scoped worktrees, PR body checks, regression/security
   gates, quality audit, and `scripts/finish_issue.sh` are the durable marathon
   loop. Keep context files concise enough for `scripts/context_pack.sh --mode
@@ -104,11 +113,10 @@ Guarded anchors retained for docs-link tests:
 ## Current Validation Queue
 
 Keep each marathon issue narrow, tested, merged through GitHub, and cleaned up
-before starting the next branch. The current factory dependency chain is #1571
-recovery, #1572 status, #1573 quality correlation, and #1574 Tier A orchestration,
-#1575 end-to-end restart proof, and #1576 PR/CI/merge cleanup. External stable
-core targets remain package-index proof (#303-#305), downstream feedback
-(#306), and non-GitHub CI proof (#309-#310).
+before starting the next branch. Validate #1576's focused local evidence through
+the pending security regression, quality audit, whole-branch review/QA, PR/CI,
+merge, and finish-cleanup gates. External stable-core targets remain package-index
+proof (#303-#305), downstream feedback (#306), and non-GitHub CI proof (#309-#310).
 
 ## Explicitly Deferred
 

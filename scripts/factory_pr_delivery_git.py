@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import sqlite3
 import stat
 from datetime import datetime
 from pathlib import Path
 from typing import Final
-
-from pydantic import ValidationError
 
 from scripts.factory_control_plane_policy import static_tier_a_doc_scope
 from scripts.factory_orchestration_git_identity import operation_active, worktree_records
@@ -29,15 +26,13 @@ from scripts.factory_pr_delivery_models import (
     DeliveryGitError,
     approved_path_digest,
 )
+from scripts.factory_pr_delivery_scheduler import validate_scheduler_authority
 from scripts.factory_pr_delivery_ssh import (
     build_push_spec as build_push_spec,
 )
 from scripts.factory_pr_delivery_ssh import (
     push_exact_commit as push_exact_commit,
 )
-from scripts.factory_scheduler_queries import read_assignment, read_execution_for_job
-from scripts.factory_scheduler_storage import readonly_connection
-from scripts.factory_scheduler_storage_fs import SchedulerStateError
 
 _COMMIT_ENV: Final = {
     "PATH": "/usr/bin:/bin",
@@ -47,48 +42,6 @@ _COMMIT_ENV: Final = {
     "GIT_CONFIG_GLOBAL": "/dev/null",
     "GIT_TERMINAL_PROMPT": "0",
 }
-
-
-def validate_scheduler_authority(
-    repo_root: Path,
-    envelope: DeliveryEnvelope,
-) -> None:
-    """Revalidate stored post-acceptance authority without requiring a live lease."""
-
-    request = envelope.orchestration_request
-    try:
-        with readonly_connection(repo_root) as connection:
-            connection.execute("BEGIN")
-            assignment = read_assignment(connection, job_id=request.job_id)
-            execution = read_execution_for_job(connection, job_id=request.job_id)
-            connection.execute("COMMIT")
-    except (SchedulerStateError, sqlite3.DatabaseError, ValidationError, TypeError, ValueError):
-        raise DeliveryGitError("authority-mismatch") from None
-    if assignment is None or execution is None:
-        raise DeliveryGitError("authority-mismatch")
-    stored = assignment.request
-    authority = stored.delivery_authority
-    if (
-        assignment.state != "active"
-        or assignment.assignment_id != request.assignment_id
-        or stored.request_id != request.request_id
-        or stored.issue_number != request.issue_number
-        or stored.job_id != request.job_id
-        or stored.worktree_id != request.worktree_id
-        or stored.worker_class != "free-local"
-        or stored.access_mode != "write"
-        or authority is None
-        or authority.selector_digest != request.selector_digest
-        or authority.selection_digest != request.selection_digest
-        or authority.autonomy_tier != request.autonomy_tier
-        or authority.verification_lane != request.verification_lane
-        or authority.allowed_scopes != request.allowed_scopes
-        or authority.allowed_scope_digest != request.allowed_scope_digest
-        or execution.assignment_id != request.assignment_id
-        or execution.phase != "completed-unsettled"
-        or execution.evidence_digest != request.proposal_sha256
-    ):
-        raise DeliveryGitError("authority-mismatch")
 
 
 def commit_exact_diff(
@@ -139,12 +92,13 @@ def commit_exact_diff(
         subject=subject,
         commit_env=identity_env,
     )
-    _ = delivery_journal.prepare(envelope)
+    _ = delivery_journal.prepare(envelope, observed_at=committed_at)
     _ = delivery_journal.commit_intent(
         envelope,
         committed_head=planned_head,
         commit_parent=request.base_commit,
         commit_tree=planned_tree,
+        observed_at=committed_at,
     )
     for relative in receipt.approved_paths:
         candidate = worktree / relative
@@ -228,7 +182,7 @@ def commit_exact_diff(
     status = git_bytes(worktree, "status", "--porcelain=v1", "-z", "--untracked-files=all")
     if committed_diff != accepted_diff or status:
         raise DeliveryGitError("uncertain")
-    _ = delivery_journal.committed(envelope)
+    _ = delivery_journal.committed(envelope, observed_at=committed_at)
     diff_sha = hashlib.sha256(committed_diff).hexdigest()
     manifest_sha = hashlib.sha256(request.base_commit.encode() + b"\0" + committed_diff).hexdigest()
     return CommitResult(

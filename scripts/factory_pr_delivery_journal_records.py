@@ -2,25 +2,34 @@
 
 from __future__ import annotations
 
-import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
 
+from scripts.factory_pr_delivery_journal_cleanup_records import (
+    DeliveryCleanupRecord,
+    read_cleanup_record,
+)
+from scripts.factory_pr_delivery_journal_record_validation import (
+    JournalLifecycle,
+    JournalReason,
+    validate_journal_record_shape,
+)
 from scripts.factory_pr_delivery_models import (
     DeliveryEnvelope,
-    DeliveryLifecycle,
     approved_path_digest,
 )
+from scripts.factory_pr_delivery_receipts import DeliveryReceipt, decode_delivery_receipt
 
-type JournalReason = Literal["none", "committed", "pushed", "interrupted"]
-
-_REQUEST_ID = re.compile(r"delivery_[a-f0-9]{64}\Z")
-_ASSIGNMENT_ID = re.compile(r"assign_[a-f0-9]{64}\Z")
-_WORKTREE_ID = re.compile(r"wt_[a-f0-9]{64}\Z")
-_DIGEST = re.compile(r"[a-f0-9]{64}\Z")
-_COMMIT = re.compile(r"[a-f0-9]{40}\Z")
+__all__ = [
+    "DeliveryJournalError",
+    "DeliveryJournalRecord",
+    "JournalLifecycle",
+    "JournalReason",
+    "read_record",
+    "read_terminal_receipt",
+    "validate_record",
+]
 
 
 class DeliveryJournalError(RuntimeError):
@@ -40,7 +49,7 @@ class DeliveryJournalRecord:
     issue_number: int
     assignment_id: str
     worktree_id: str
-    lifecycle: DeliveryLifecycle
+    lifecycle: JournalLifecycle
     reason: JournalReason
     accepted_local_head: str
     committed_head: str | None
@@ -54,33 +63,48 @@ class DeliveryJournalRecord:
     phase_version: int
     created_at: datetime
     updated_at: datetime
+    merge_pr_number: int | None
+    merge_head: str | None
+    merge_ci_digest: str | None
+    merge_intent_at: datetime | None
+    terminal_receipt_json: str | None
+    terminal_receipt_sha256: str | None
+    terminal_at: datetime | None
+    cleanup: DeliveryCleanupRecord | None
 
 
 def read_record(connection: sqlite3.Connection, request_id: str) -> DeliveryJournalRecord | None:
     row = connection.execute(
-        "SELECT request_id, request_digest, envelope_digest, issue_number, assignment_id, "
-        "worktree_id, lifecycle, reason, accepted_local_head, committed_head, remote_head, "
-        "commit_parent, commit_tree, accepted_diff_sha256, accepted_manifest_sha256, "
-        "approved_path_sha256, body_sha256, phase_version, created_at_utc, updated_at_utc "
-        "FROM delivery_lifecycle WHERE request_id = ?",
+        "SELECT lifecycle.request_id, lifecycle.request_digest, lifecycle.envelope_digest, "
+        "lifecycle.issue_number, lifecycle.assignment_id, lifecycle.worktree_id, "
+        "lifecycle.lifecycle, lifecycle.reason, lifecycle.accepted_local_head, "
+        "lifecycle.committed_head, lifecycle.remote_head, lifecycle.commit_parent, "
+        "lifecycle.commit_tree, lifecycle.accepted_diff_sha256, "
+        "lifecycle.accepted_manifest_sha256, lifecycle.approved_path_sha256, "
+        "lifecycle.body_sha256, lifecycle.phase_version, lifecycle.created_at_utc, "
+        "lifecycle.updated_at_utc, lifecycle.merge_pr_number, lifecycle.merge_head, "
+        "lifecycle.merge_ci_digest, lifecycle.merge_intent_at_utc, "
+        "lifecycle.terminal_receipt_json, lifecycle.terminal_receipt_sha256, "
+        "lifecycle.terminal_at_utc, "
+        "cleanup.request_id, cleanup.remote_branch, cleanup.expected_remote_head, "
+        "cleanup.scheduler_owner_id, cleanup.scheduler_owner_pid, "
+        "cleanup.scheduler_owner_start_token, cleanup.scheduler_owner_epoch, "
+        "cleanup.scheduler_phase_version, cleanup.cleanup_intent_at_utc, "
+        "cleanup.remote_absent_at_utc, cleanup.finish_cleanup_at_utc, "
+        "cleanup.scheduler_completion_at_utc, cleanup.scheduler_completed_at_utc, "
+        "cleanup.phase_version "
+        "FROM delivery_lifecycle AS lifecycle "
+        "LEFT JOIN delivery_cleanup AS cleanup ON cleanup.request_id = lifecycle.request_id "
+        "WHERE lifecycle.request_id = ?",
         (request_id,),
     ).fetchone()
     if row is None:
         return None
     try:
-        lifecycle: DeliveryLifecycle = row[6]
+        lifecycle: JournalLifecycle = row[6]
         reason: JournalReason = row[7]
         created = datetime.fromisoformat(row[18])
         updated = datetime.fromisoformat(row[19])
-        if lifecycle not in {
-            "prepared",
-            "commit-intent",
-            "committed",
-            "push-intent",
-            "pushed",
-            "uncertain",
-        } or reason not in {"none", "committed", "pushed", "interrupted"}:
-            raise ValueError
         record = DeliveryJournalRecord(
             request_id=row[0],
             request_digest=row[1],
@@ -102,10 +126,23 @@ def read_record(connection: sqlite3.Connection, request_id: str) -> DeliveryJour
             phase_version=row[17],
             created_at=created,
             updated_at=updated,
+            merge_pr_number=row[20],
+            merge_head=row[21],
+            merge_ci_digest=row[22],
+            merge_intent_at=(
+                datetime.fromisoformat(row[23]) if row[23] is not None else None
+            ),
+            terminal_receipt_json=row[24],
+            terminal_receipt_sha256=row[25],
+            terminal_at=(datetime.fromisoformat(row[26]) if row[26] is not None else None),
+            cleanup=(
+                None if all(value is None for value in row[27:]) else read_cleanup_record(row[27:])
+            ),
         )
         _validate_shape(record)
+        _ = read_terminal_receipt(record)
         return record
-    except (IndexError, TypeError, ValueError):
+    except (DeliveryJournalError, IndexError, TypeError, ValueError):
         raise DeliveryJournalError("journal-invalid") from None
 
 
@@ -116,6 +153,7 @@ def validate_record(envelope: DeliveryEnvelope, record: DeliveryJournalRecord) -
         raise DeliveryJournalError("journal-invalid") from None
     receipt = envelope.orchestration_receipt
     request = envelope.orchestration_request
+    _ = read_terminal_receipt(record)
     if (
         record.request_id != envelope.request.request_id
         or record.request_digest != envelope.request.request_digest
@@ -131,59 +169,75 @@ def validate_record(envelope: DeliveryEnvelope, record: DeliveryJournalRecord) -
         or record.created_at.tzinfo is None
         or record.updated_at.tzinfo is None
         or record.updated_at < record.created_at
-        or (record.lifecycle == "uncertain") != (record.reason == "interrupted")
+        or (
+            record.lifecycle == "uncertain"
+            and record.reason not in {"interrupted", "cleanup-pending"}
+        )
+    ):
+        raise DeliveryJournalError("journal-invalid")
+
+    if (
+        record.cleanup is not None
+        and not (
+            record.lifecycle == "merged" and record.reason == "cleanup-pending"
+        )
+    ):
+        raise DeliveryJournalError("journal-invalid")
+
+    if record.cleanup is None:
+        return
+
+    if (
+        record.cleanup.request_id != record.request_id
+        or record.cleanup.request_id != envelope.request.request_id
+        or record.cleanup.remote_branch != request.branch
+        or record.cleanup.expected_remote_head != record.committed_head
+        or record.cleanup.expected_remote_head != record.remote_head
+        or record.cleanup.expected_remote_head != record.merge_head
+        or record.cleanup.scheduler_owner_id != request.scheduler_owner_id
+        or record.cleanup.scheduler_owner_pid != request.scheduler_owner_pid
+        or record.cleanup.scheduler_owner_start_token != request.scheduler_owner_start_token
+        or record.cleanup.scheduler_owner_epoch != request.scheduler_owner_epoch
     ):
         raise DeliveryJournalError("journal-invalid")
 
 
-def _validate_shape(record: DeliveryJournalRecord) -> None:
+def read_terminal_receipt(record: DeliveryJournalRecord) -> DeliveryReceipt | None:
     if (
-        not _REQUEST_ID.fullmatch(record.request_id)
-        or not _DIGEST.fullmatch(record.request_digest)
-        or not _DIGEST.fullmatch(record.envelope_digest)
-        or not _ASSIGNMENT_ID.fullmatch(record.assignment_id)
-        or not _WORKTREE_ID.fullmatch(record.worktree_id)
-        or not _COMMIT.fullmatch(record.accepted_local_head)
-        or not _DIGEST.fullmatch(record.accepted_diff_sha256)
-        or not _DIGEST.fullmatch(record.accepted_manifest_sha256)
-        or not _DIGEST.fullmatch(record.approved_path_sha256)
-        or not _DIGEST.fullmatch(record.body_sha256)
-        or record.issue_number < 1
-        or record.phase_version < 1
-        or record.created_at.tzinfo is None
-        or record.created_at.utcoffset() is None
-        or record.updated_at.tzinfo is None
-        or record.updated_at.utcoffset() is None
-        or record.updated_at < record.created_at
+        record.terminal_receipt_json is None
+        and record.terminal_receipt_sha256 is None
+        and record.terminal_at is None
     ):
-        raise ValueError
-    for commit in (
-        record.committed_head,
-        record.remote_head,
-        record.commit_parent,
-        record.commit_tree,
+        return None
+    if (
+        record.terminal_receipt_json is None
+        or record.terminal_receipt_sha256 is None
+        or record.terminal_at is None
     ):
-        if commit is not None and not _COMMIT.fullmatch(commit):
-            raise ValueError
-    commit_values = (record.committed_head, record.commit_parent, record.commit_tree)
-    committed = record.lifecycle in {"commit-intent", "committed", "push-intent", "pushed"}
-    if (committed or any(value is not None for value in commit_values)) and not all(
-        value is not None for value in commit_values
+        raise DeliveryJournalError("journal-invalid")
+    try:
+        receipt = decode_delivery_receipt(
+            record.terminal_receipt_json, record.terminal_receipt_sha256
+        )
+    except ValueError:
+        raise DeliveryJournalError("journal-invalid") from None
+    if (
+        record.request_id != receipt.request_id
+        or not receipt.authoritative
+        or record.accepted_local_head != receipt.accepted_local_head
+        or record.committed_head != receipt.committed_head
+        or record.remote_head != receipt.remote_head
+        or record.merge_pr_number != receipt.pr_number
+        or record.merge_ci_digest != receipt.ci_digest
+        or record.merge_head != receipt.merge_head
+        or record.merge_intent_at != receipt.created_at
+        or record.terminal_at != receipt.updated_at
+        or (receipt.lifecycle, receipt.reason)
+        not in {("merged", "cleanup-pending"), ("completed", "completed")}
     ):
-        raise ValueError
-    if record.commit_parent is not None and record.commit_parent != record.accepted_local_head:
-        raise ValueError
-    if record.lifecycle != "pushed" and record.remote_head is not None:
-        raise ValueError
-    if record.lifecycle == "pushed" and record.remote_head != record.committed_head:
-        raise ValueError
-    expected_reason: dict[DeliveryLifecycle, JournalReason] = {
-        "prepared": "none",
-        "commit-intent": "none",
-        "committed": "committed",
-        "push-intent": "committed",
-        "pushed": "pushed",
-        "uncertain": "interrupted",
-    }
-    if record.reason != expected_reason[record.lifecycle]:
-        raise ValueError
+        raise DeliveryJournalError("journal-invalid")
+    return receipt
+
+
+def _validate_shape(record: DeliveryJournalRecord) -> None:
+    validate_journal_record_shape(record)

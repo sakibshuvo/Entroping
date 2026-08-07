@@ -9,7 +9,7 @@ import shlex
 import stat
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 from scripts.bounded_process import (
     BoundedProcessError,
@@ -44,6 +44,15 @@ class PushSpec:
 class PushResult:
     state: str
     remote_head: str
+
+
+DeleteBranchState = Literal["deleted", "absent"]
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteBranchResult:
+    state: DeleteBranchState
+    remote_head: str | None
 
 
 def build_push_spec(
@@ -132,6 +141,55 @@ def push_exact_commit(
     raise DeliveryGitError("push-uncertain")
 
 
+def delete_remote_branch(
+    worktree: Path,
+    *,
+    branch: str,
+    expected_head: str,
+) -> DeleteBranchResult:
+    """Delete one exact remote branch with a strict lease or replay safely."""
+
+    spec = build_push_spec(
+        worktree,
+        branch=branch,
+        committed_head=expected_head,
+    )
+    before = _remote_head(worktree, spec, branch)
+    if before is None:
+        return DeleteBranchResult("absent", None)
+    if before != expected_head:
+        raise DeliveryGitError("remote-diverged")
+
+    outcome: BoundedProcessResult | None = None
+    push_index = spec.argv.index("push")
+    delete_argv = (
+        *spec.argv[: push_index + 4],
+        f"--force-with-lease=refs/heads/{branch}:{expected_head}",
+        "--",
+        "origin",
+        f":refs/heads/{branch}",
+    )
+    try:
+        outcome = _run_external(delete_argv, cwd=worktree, env=spec.env)
+    except DeliveryGitError:
+        outcome = None
+    try:
+        after = _remote_head(worktree, spec, branch)
+    except DeliveryGitError:
+        raise DeliveryGitError("remote-delete-uncertain") from None
+    if after is None:
+        return DeleteBranchResult("deleted", None)
+    if after != expected_head:
+        raise DeliveryGitError("remote-diverged")
+    if outcome is None:
+        raise DeliveryGitError("remote-delete-uncertain")
+    if outcome.timed_out or outcome.output_limit_exceeded or outcome.cancelled:
+        raise DeliveryGitError("remote-delete-uncertain")
+    if outcome.returncode != 0:
+        raise DeliveryGitError("remote-delete-rejected")
+    raise DeliveryGitError("remote-delete-uncertain")
+
+
 def _remote_head(worktree: Path, spec: PushSpec, branch: str) -> str | None:
     push_index = spec.argv.index("push")
     argv = (
@@ -144,12 +202,25 @@ def _remote_head(worktree: Path, spec: PushSpec, branch: str) -> str | None:
         f"refs/heads/{branch}",
     )
     result = _run_external(argv, cwd=worktree, env=spec.env)
-    if result.returncode == 2 and not result.timed_out and not result.output_limit_exceeded:
+    if (
+        result.returncode == 2
+        and not result.timed_out
+        and not result.output_limit_exceeded
+        and not result.cancelled
+        and not result.stdout.strip()
+    ):
         return None
-    if result.returncode != 0 or result.timed_out or result.output_limit_exceeded:
+    if (
+        result.returncode != 0
+        or result.timed_out
+        or result.output_limit_exceeded
+        or result.cancelled
+    ):
         raise DeliveryGitError("remote-unavailable")
     fields = result.stdout.split()
-    if len(fields) != 2 or fields[1] != f"refs/heads/{branch}" or len(fields[0]) != 40:
+    if len(fields) != 2 or fields[1] != f"refs/heads/{branch}":
+        raise DeliveryGitError("remote-invalid")
+    if re.fullmatch(r"[a-f0-9]{40}", fields[0]) is None:
         raise DeliveryGitError("remote-invalid")
     return fields[0]
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import pwd
 import stat
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from factory_orchestration_test_support import git
@@ -23,16 +25,16 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts import factory_pr_delivery_ssh as delivery_ssh  # noqa: E402
 from scripts.factory_pr_delivery_git import (  # noqa: E402
-    DeliveryGitError,
     build_push_spec,
     commit_exact_diff,
     push_exact_commit,
 )
 from scripts.factory_pr_delivery_io import load_delivery_envelope  # noqa: E402
+from scripts.factory_pr_delivery_models import DeliveryEnvelope, DeliveryGitError  # noqa: E402
 from scripts.factory_scheduler_storage import writable_connection  # noqa: E402
 
 
-def _envelope(tmp_path: Path):
+def _envelope(tmp_path: Path) -> tuple[Path, Path, DeliveryEnvelope]:
     main, worktree, payload = accepted_artifacts(tmp_path)
     path = tmp_path / "private/delivery-request.json"
     write_delivery_request(path, payload)
@@ -43,6 +45,7 @@ def test_accepted_diff_becomes_one_exact_controller_commit(tmp_path: Path) -> No
     # Given: one accepted unstaged diff whose base, digest, manifest, and paths are bound.
     main, worktree, envelope = _envelope(tmp_path)
     base = envelope.orchestration_receipt.result_head
+    assert base is not None
 
     # When: the controller commits at its fixed timestamp and identity.
     result = commit_exact_diff(
@@ -179,7 +182,7 @@ def test_push_spec_is_explicit_config_free_and_credential_bounded(
     git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
     home = private_ssh_home(tmp_path)
     monkeypatch.setattr(
-        delivery_ssh.pwd,
+        pwd,
         "getpwuid",
         lambda _uid: SimpleNamespace(pw_dir=str(home)),
     )
@@ -258,7 +261,7 @@ def test_push_replay_response_loss_timeout_and_divergence_are_classified(
     git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
     home = private_ssh_home(tmp_path)
     monkeypatch.setattr(
-        delivery_ssh.pwd,
+        pwd,
         "getpwuid",
         lambda _uid: SimpleNamespace(pw_dir=str(home)),
     )
@@ -295,3 +298,415 @@ def test_push_replay_response_loss_timeout_and_divergence_are_classified(
             )
         assert exc_info.value.code == expected
         assert "output" not in str(exc_info.value)
+
+
+def test_delete_remote_branch_uses_strict_lease_destination_and_no_commit_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    main, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    captured: dict[str, object] = {}
+    remote = iter((expected, None))
+    monkeypatch.setattr(delivery_ssh, "_remote_head", lambda *_args: next(remote))
+
+    def build_expected_argv() -> tuple[str, ...]:
+        spec = delivery_ssh.build_push_spec(
+            worktree,
+            branch=branch,
+            committed_head=expected,
+        )
+        push_index = spec.argv.index("push")
+        return (
+            *spec.argv[: push_index + 4],
+            f"--force-with-lease=refs/heads/{branch}:{expected}",
+            "--",
+            "origin",
+            f":refs/heads/{branch}",
+        )
+
+    def capture(
+        argv: tuple[str, ...],
+        *,
+        env: dict[str, str],
+        **_kwargs: object,
+    ) -> BoundedProcessResult:
+        captured["argv"] = argv
+        captured["env"] = env
+        return BoundedProcessResult(
+            args=argv,
+            returncode=0,
+            stdout="",
+            stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
+            cancelled=False,
+        )
+
+    monkeypatch.setattr(delivery_ssh, "_run_external", capture)
+    result = delivery_ssh.delete_remote_branch(
+        worktree, branch=branch, expected_head=expected
+    )
+    assert result.state == "deleted"
+    argv = cast(tuple[str, ...], captured["argv"])
+    expected_argv = build_expected_argv()
+    expected_refspec = f":refs/heads/{branch}"
+    assert argv == expected_argv
+    assert argv.count("--") == 1
+    assert argv[-2:] == ("origin", expected_refspec)
+    assert all(not item.startswith(f"{expected}:refs/heads/{branch}") for item in argv)
+    env = cast(dict[str, str], captured["env"])
+    assert env == {
+        "PATH": "/usr/bin:/bin",
+        "LC_ALL": "C",
+        "LANG": "C",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+
+
+@pytest.mark.parametrize(
+    ("sequence", "state", "code"),
+    [
+        ((None,), "absent", None),
+        (("b" * 40,), None, "remote-diverged"),
+    ],
+)
+def test_delete_remote_branch_preobserve_replays_or_rejects_without_delete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sequence: tuple[str | None, ...],
+    state: str | None,
+    code: str | None,
+) -> None:
+    main, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    remote = iter(sequence)
+    monkeypatch.setattr(delivery_ssh, "_remote_head", lambda *_args: next(remote))
+
+    def fail_if_called(*_args: object, **_kwargs: object) -> BoundedProcessResult:
+        raise AssertionError("delete command must not run")
+
+    monkeypatch.setattr(delivery_ssh, "_run_external", fail_if_called)
+    if code is None:
+        result = delivery_ssh.delete_remote_branch(
+            worktree, branch=branch, expected_head=expected
+        )
+        assert result.state == state
+        assert result.remote_head is None
+    else:
+        with pytest.raises(DeliveryGitError) as exc:
+            delivery_ssh.delete_remote_branch(
+                worktree, branch=branch, expected_head=expected
+            )
+        assert exc.value.code == code
+
+
+@pytest.mark.parametrize(
+    ("sequence", "returncode", "timed_out", "output_limit_exceeded", "cancelled", "code"),
+    [
+        ((("a" * 40, None)), 0, False, False, False, "deleted"),
+        ((("a" * 40, None)), 1, False, False, False, "deleted"),
+        (("a" * 40, "b" * 40), 0, False, False, False, "remote-diverged"),
+        (("a" * 40, "a" * 40), 1, False, False, False, "remote-delete-rejected"),
+        (("a" * 40, "a" * 40), 0, False, False, False, "remote-delete-uncertain"),
+        (("a" * 40, "a" * 40), 0, True, False, False, "remote-delete-uncertain"),
+        (("a" * 40, "a" * 40), 0, False, True, False, "remote-delete-uncertain"),
+        (("a" * 40, "a" * 40), 0, False, False, True, "remote-delete-uncertain"),
+    ],
+)
+def test_delete_remote_branch_classifies_delete_outcome(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sequence: tuple[str | None, ...],
+    returncode: int,
+    timed_out: bool,
+    output_limit_exceeded: bool,
+    cancelled: bool,
+    code: str,
+) -> None:
+    main, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    remote = iter(sequence)
+    monkeypatch.setattr(delivery_ssh, "_remote_head", lambda *_args: next(remote))
+
+    def fake_run(*args: object, **kwargs: object) -> BoundedProcessResult:
+        return BoundedProcessResult(
+            args=("/usr/bin/git",),
+            returncode=returncode,
+            stdout="attacker-controlled output",
+            stderr="credential-like output",
+            timed_out=timed_out,
+            output_limit_exceeded=output_limit_exceeded,
+            cancelled=cancelled,
+        )
+
+    monkeypatch.setattr(delivery_ssh, "_run_external", fake_run)
+    if code in {"deleted"}:
+        result = delivery_ssh.delete_remote_branch(
+            worktree, branch=branch, expected_head=expected
+        )
+        assert result.state == code
+        assert result.remote_head is None
+    else:
+        with pytest.raises(DeliveryGitError) as exc:
+            delivery_ssh.delete_remote_branch(
+                worktree, branch=branch, expected_head=expected
+            )
+        assert exc.value.code == code
+        assert "attacker-controlled output" not in str(exc.value)
+        assert "credential-like output" not in str(exc.value)
+
+
+def test_delete_remote_branch_retries_once_after_replayed_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    main, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    remote = iter((expected, None, None))
+    monkeypatch.setattr(delivery_ssh, "_remote_head", lambda *_args: next(remote))
+    calls = 0
+
+    def fake_run(*_args: object, **_kwargs: object) -> BoundedProcessResult:
+        nonlocal calls
+        calls += 1
+        return BoundedProcessResult(
+            args=("/usr/bin/git",),
+            returncode=0,
+            stdout="",
+            stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
+            cancelled=False,
+        )
+
+    monkeypatch.setattr(delivery_ssh, "_run_external", fake_run)
+    first = delivery_ssh.delete_remote_branch(
+        worktree, branch=branch, expected_head=expected
+    )
+    second = delivery_ssh.delete_remote_branch(
+        worktree, branch=branch, expected_head=expected
+    )
+    assert first.state == "deleted"
+    assert second.state == "absent"
+    assert calls == 1
+
+
+def test_delete_remote_branch_rejects_malformed_remote_ref_observation_without_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+
+    def fake_run(*_args: object, **_kwargs: object) -> BoundedProcessResult:
+        return BoundedProcessResult(
+            args=("/usr/bin/git",),
+            returncode=0,
+            stdout=f"{'g'*39} refs/heads/{branch}",
+            stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
+            cancelled=False,
+        )
+
+    monkeypatch.setattr(delivery_ssh, "_run_external", fake_run)
+    with pytest.raises(DeliveryGitError) as exc:
+        delivery_ssh.delete_remote_branch(
+            worktree, branch=branch, expected_head=expected
+        )
+    assert exc.value.code == "remote-invalid"
+
+
+@pytest.mark.parametrize(
+    ("stdout", "expected_code"),
+    [
+        (f"{'a'*40} refs/heads/foo\\n", "remote-unavailable"),
+        (
+            f"{'a'*40} refs/heads/{'branch'}\n{'b'*40} refs/heads/other\n",
+            "remote-unavailable",
+        ),
+    ],
+)
+def test_delete_remote_branch_rejects_rc2_with_non_empty_or_multiref_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: str,
+    expected_code: str,
+) -> None:
+    _, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    monkeypatch.setattr(
+        delivery_ssh,
+        "_run_external",
+        lambda *_args, **_kwargs: BoundedProcessResult(
+            args=("/usr/bin/git",),
+            returncode=2,
+            stdout=stdout,
+            stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
+            cancelled=False,
+        ),
+    )
+
+    with pytest.raises(DeliveryGitError) as exc:
+        delivery_ssh.delete_remote_branch(
+            worktree, branch=branch, expected_head=expected
+        )
+    assert exc.value.code == expected_code
+
+
+def test_delete_remote_branch_treats_cancelled_remote_scan_as_opaque(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+
+    def fake_run(*_args: object, **_kwargs: object) -> BoundedProcessResult:
+        return BoundedProcessResult(
+            args=("/usr/bin/git",),
+            returncode=2,
+            stdout=f"{expected} refs/heads/{branch}",
+            stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
+            cancelled=True,
+        )
+
+    monkeypatch.setattr(delivery_ssh, "_run_external", fake_run)
+    with pytest.raises(DeliveryGitError) as exc:
+        delivery_ssh.delete_remote_branch(
+            worktree, branch=branch, expected_head=expected
+        )
+    assert exc.value.code == "remote-unavailable"
+
+
+def test_delete_remote_branch_launch_failure_then_post_observation_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    remote = iter((expected, None))
+    monkeypatch.setattr(delivery_ssh, "_remote_head", lambda *_args: next(remote))
+    monkeypatch.setattr(
+        delivery_ssh,
+        "_run_external",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            DeliveryGitError("remote-unavailable")
+        ),
+    )
+    result = delivery_ssh.delete_remote_branch(
+        worktree, branch=branch, expected_head=expected
+    )
+    assert result.state == "deleted"
+
+
+def test_delete_remote_branch_post_observation_failure_is_uncertain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, worktree, envelope = _envelope(tmp_path)
+    git(worktree, "remote", "add", "origin", "git@github.com:sakibshuvo/Entroping.git")
+    home = private_ssh_home(tmp_path)
+    monkeypatch.setattr(
+        pwd,
+        "getpwuid",
+        lambda _uid: SimpleNamespace(pw_dir=str(home)),
+    )
+    branch = envelope.orchestration_request.branch
+    expected = "a" * 40
+    remote = iter((expected, None))
+    monkeypatch.setattr(delivery_ssh, "_remote_head", lambda *_args: next(remote))
+
+    monkeypatch.setattr(
+        delivery_ssh,
+        "_run_external",
+        lambda *_args, **_kwargs: BoundedProcessResult(
+            args=("/usr/bin/git",),
+            returncode=0,
+            stdout="",
+            stderr="",
+            timed_out=False,
+            output_limit_exceeded=False,
+            cancelled=False,
+        ),
+    )
+    calls = 0
+
+    def observe(_worktree: Path, _spec: delivery_ssh.PushSpec, _branch: str) -> str:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return expected
+        raise DeliveryGitError("remote-unavailable")
+
+    monkeypatch.setattr(delivery_ssh, "_remote_head", observe)
+    with pytest.raises(DeliveryGitError) as exc:
+        delivery_ssh.delete_remote_branch(
+            worktree, branch=branch, expected_head=expected
+        )
+    assert exc.value.code == "remote-delete-uncertain"

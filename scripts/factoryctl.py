@@ -24,7 +24,7 @@ from scripts.factory_orchestration_io import (
 )
 from scripts.factory_orchestration_service import orchestrate
 from scripts.factory_patch_inspection import PatchInspectionError
-from scripts.factory_pr_delivery_github import GhGitHubDeliveryPort
+from scripts.factory_pr_delivery_github import GhGitHubDeliveryPort, GitHubDeliveryError
 from scripts.factory_pr_delivery_service import DeliveryService, DeliveryServiceError
 from scripts.factory_retry_policy import RecoverySnapshot, RetryPolicy
 from scripts.factory_scheduler import FactoryScheduler, FactorySchedulerError
@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         OrchestrationJournalError,
         OrchestrationServiceError,
         PatchInspectionError,
+        GitHubDeliveryError,
         DeliveryServiceError,
         ValidationError,
         ValueError,

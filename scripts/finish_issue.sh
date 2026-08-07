@@ -40,9 +40,73 @@ warn() {
   printf 'finish_issue warning: %s\n' "$*" >&2
 }
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+controller_mode="0"
+if [[ -n "${ENTROPING_FINISH_SCRIPT_DIR:-}" \
+  || -n "${ENTROPING_FINISH_PROJECT_LIB:-}" \
+  || -n "${ENTROPING_FINISH_METRICS_HELPER:-}" \
+  || -n "${ENTROPING_FINISH_REPLAY_HELPER:-}" ]]; then
+  [[ -z "${ENTROPING_FINISH_SCRIPT_DIR:-}" \
+    && "${ENTROPING_FINISH_PROJECT_LIB:-}" =~ ^/dev/fd/[1-9][0-9]*$ \
+    && "${ENTROPING_FINISH_METRICS_HELPER:-}" =~ ^/dev/fd/[1-9][0-9]*$ \
+    && "${ENTROPING_FINISH_REPLAY_HELPER:-}" =~ ^/dev/fd/[1-9][0-9]*$ \
+    && "$ENTROPING_FINISH_PROJECT_LIB" != "$ENTROPING_FINISH_METRICS_HELPER" \
+    && "$ENTROPING_FINISH_PROJECT_LIB" != "$ENTROPING_FINISH_REPLAY_HELPER" \
+    && "$ENTROPING_FINISH_METRICS_HELPER" != "$ENTROPING_FINISH_REPLAY_HELPER" ]] \
+    || die "internal finish helper capabilities are invalid"
+  controller_mode="1"
+else
+  script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+fi
+
+run_python_helper() {
+  local helper_name="$1"
+  shift
+  if [[ "$controller_mode" == "1" ]]; then
+    local helper_path
+    case "$helper_name" in
+      factory_metrics_archive.py)
+        helper_path="$ENTROPING_FINISH_METRICS_HELPER"
+        ;;
+      finish_issue_replay_evidence.py)
+        helper_path="$ENTROPING_FINISH_REPLAY_HELPER"
+        ;;
+      *)
+        die "internal finish helper is unavailable"
+        ;;
+    esac
+    python3 -c '
+import os
+import sys
+
+descriptor = int(sys.argv[1])
+os.lseek(descriptor, 0, os.SEEK_SET)
+try:
+    sys.argv = [sys.argv[2], *sys.argv[3:]]
+    payload = bytearray()
+    while chunk := os.read(descriptor, 65_536):
+        payload.extend(chunk)
+    capability = f"/dev/fd/{descriptor}"
+    namespace = {
+        "__name__": "__main__",
+        "__file__": capability,
+        "__package__": None,
+        "__cached__": None,
+    }
+    exec(compile(bytes(payload), capability, "exec"), namespace)
+finally:
+    os.lseek(descriptor, 0, os.SEEK_SET)
+' "${helper_path#/dev/fd/}" "$helper_name" "$@"
+  else
+    python3 "$script_dir/$helper_name" "$@"
+  fi
+}
+
 # shellcheck source=scripts/_project_board_lib.sh
-source "$script_dir/_project_board_lib.sh"
+if [[ "$controller_mode" == "1" ]]; then
+  source "$ENTROPING_FINISH_PROJECT_LIB"
+else
+  source "$script_dir/_project_board_lib.sh"
+fi
 
 json_key() {
   local payload="$1"
@@ -117,24 +181,55 @@ canonical_path() {
   (cd "$1" && pwd -P)
 }
 
-worktree_is_registered() {
+worktree_registration_probe() {
   local repo_root="$1"
   local worktree_path="$2"
-  git -C "$repo_root" worktree list --porcelain | python3 -c '
+  local listing
+  local parser_status
+  if ! listing=$(git -C "$repo_root" worktree list --porcelain 2>/dev/null); then
+    return 2
+  fi
+  if printf '%s\n' "$listing" | python3 -c '
 from __future__ import annotations
 
 import os
 import sys
 
 target = os.path.realpath(sys.argv[1])
+seen = False
 for line in sys.stdin:
     if not line.startswith("worktree "):
         continue
-    candidate = os.path.realpath(line.removeprefix("worktree ").strip())
+    value = line.removeprefix("worktree ").strip()
+    if not value:
+        raise SystemExit(2)
+    seen = True
+    candidate = os.path.realpath(value)
     if candidate == target:
         raise SystemExit(0)
+if not seen:
+    raise SystemExit(2)
 raise SystemExit(1)
-' "$worktree_path"
+' "$worktree_path"; then
+    return 0
+  else
+    parser_status=$?
+  fi
+  [[ "$parser_status" == "1" ]] && return 1
+  return 2
+}
+
+local_branch_probe() {
+  local repo_root="$1"
+  local branch="$2"
+  local probe_status
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+    return 0
+  else
+    probe_status=$?
+  fi
+  [[ "$probe_status" == "1" ]] && return 1
+  return 2
 }
 
 preserve_factory_metrics() {
@@ -154,7 +249,7 @@ preserve_factory_metrics() {
   if [[ "$dry_run" == "1" ]]; then
     archive_args+=(--dry-run)
   fi
-  python3 "$script_dir/factory_metrics_archive.py" "${archive_args[@]}"
+  run_python_helper "factory_metrics_archive.py" "${archive_args[@]}"
 }
 
 remove_status_labels() {
@@ -320,7 +415,6 @@ if [[ -n "$worktree_override" ]]; then
 else
   worktree_path="${worktree_parent}/Entroping-issue-${issue_number}"
 fi
-
 issue_json=$(gh issue view "$issue_number" --repo "$repo" \
   --json title,url,state,closedByPullRequestsReferences) \
   || die "could not read GitHub issue #$issue_number from $repo"
@@ -357,7 +451,27 @@ if ! check_count=$(json_check_rollup_passed "$pr_json"); then
   die "closing PR #$pr_number checks have not all passed"
 fi
 
+if [[ "$strict_cleanup" == "1" ]]; then
+  [[ ! -L "$worktree_path" ]] || die "strict cleanup worktree path must not be a symlink"
+  worktree_path=$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$worktree_path")
+fi
+
 worktree_exists="0"
+worktree_registered="0"
+worktree_probe_status="0"
+worktree_registration_probe "$repo_root" "$worktree_path" || worktree_probe_status=$?
+case "$worktree_probe_status" in
+  0)
+    worktree_registered="1"
+    ;;
+  1)
+    ;;
+  *)
+    if [[ "$strict_cleanup" == "1" ]]; then
+      die "strict cleanup worktree registration probe failed"
+    fi
+    ;;
+esac
 if [[ -e "$worktree_path" ]]; then
   worktree_exists="1"
   worktree_real=$(canonical_path "$worktree_path")
@@ -365,7 +479,7 @@ if [[ -e "$worktree_path" ]]; then
   if [[ "$worktree_real" == "$repo_real" && "$dry_run" != "1" && "$keep_worktree" != "1" ]]; then
     die "refusing to remove the current worktree; run from another checkout or use --dry-run"
   fi
-  worktree_is_registered "$repo_root" "$worktree_path" \
+  [[ "$worktree_registered" == "1" ]] \
     || die "worktree path is not registered for this repository: $worktree_path"
   worktree_branch=$(git -C "$worktree_path" branch --show-current)
   [[ "$worktree_branch" == "$branch_name" ]] \
@@ -379,12 +493,73 @@ if [[ -e "$worktree_path" ]]; then
   fi
 fi
 
+branch_exists="0"
+branch_probe_status="0"
+local_branch_probe "$repo_root" "$branch_name" || branch_probe_status=$?
+case "$branch_probe_status" in
+  0)
+    branch_exists="1"
+    if [[ "$strict_cleanup" == "1" ]]; then
+    [[ "$(git -C "$repo_root" rev-parse "refs/heads/$expected_branch")" == "$expected_head" ]] \
+      || die "local branch does not match expected head"
+    fi
+    ;;
+  1)
+    ;;
+  *)
+    if [[ "$strict_cleanup" == "1" ]]; then
+      die "strict cleanup local branch probe failed"
+    fi
+    ;;
+esac
+
 if [[ "$strict_cleanup" == "1" ]]; then
-  [[ "$worktree_exists" == "1" ]] || die "strict cleanup requires the exact worktree to be present"
-  git -C "$repo_root" show-ref --verify --quiet "refs/heads/$expected_branch" \
-    || die "strict cleanup requires the exact local branch to be present"
-  [[ "$(git -C "$repo_root" rev-parse "refs/heads/$expected_branch")" == "$expected_head" ]] \
-    || die "local branch does not match expected head"
+  replay_helper() {
+    local action="$1"
+    local requested_stage="${2:-}"
+    local output
+    local helper_args=(
+      "$action"
+      --repo-root "$repo_root"
+      --issue "$issue_number"
+      --pull-request "$pr_number"
+      --expected-head "$expected_head"
+      --expected-branch "$expected_branch"
+      --merged-at "$merged_at"
+      --worktree-path "$worktree_path"
+    )
+    if [[ -n "$requested_stage" ]]; then
+      helper_args+=(--stage "$requested_stage")
+    fi
+    if ! output=$(run_python_helper "finish_issue_replay_evidence.py" "${helper_args[@]}" 2>/dev/null); then
+      die "strict cleanup replay evidence is invalid or unsafe"
+    fi
+    printf '%s' "$output"
+  }
+
+  replay_stage=$(replay_helper read)
+  case "$replay_stage" in
+    none)
+      [[ "$worktree_exists" == "1" && "$worktree_registered" == "1" ]] \
+        || die "strict cleanup requires the exact worktree on its first attempt"
+      [[ "$branch_exists" == "1" ]] \
+        || die "strict cleanup requires the exact local branch on its first attempt"
+      ;;
+    worktree-removal-attempted)
+      [[ "$branch_exists" == "1" ]] \
+        || die "strict cleanup replay lacks branch deletion evidence"
+      if [[ "$worktree_exists" == "0" && "$worktree_registered" != "0" ]]; then
+        die "strict cleanup replay has a stale worktree registration"
+      fi
+      ;;
+    branch-deletion-attempted)
+      [[ "$worktree_exists" == "0" && "$worktree_registered" == "0" ]] \
+        || die "strict cleanup replay has a worktree after branch deletion intent"
+      ;;
+    *)
+      die "strict cleanup replay evidence is invalid or unsafe"
+      ;;
+  esac
 fi
 
 if [[ "$dry_run" != "1" && "$keep_worktree" != "1" && -n "$(git -C "$repo_root" status --porcelain)" ]]; then
@@ -432,20 +607,65 @@ if [[ "$keep_worktree" == "1" ]]; then
   exit 0
 fi
 
-if [[ "$worktree_exists" == "1" ]]; then
-  preserve_factory_metrics \
-    "$worktree_path" "$repo_root" "$issue_number" "0" "$pr_number" "$merged_at"
-  git -C "$repo_root" worktree remove "$worktree_path"
-  printf '%s\n' "Removed worktree: $worktree_path"
-else
-  warn "worktree path does not exist; skipping worktree removal: $worktree_path"
-fi
+if [[ "$strict_cleanup" == "1" ]]; then
+  if [[ "$worktree_exists" == "1" ]]; then
+    preserve_factory_metrics \
+      "$worktree_path" "$repo_root" "$issue_number" "0" "$pr_number" "$merged_at"
+    [[ "$(replay_helper advance worktree-removal-attempted)" == "worktree-removal-attempted" ]] \
+      || die "strict cleanup replay evidence is invalid or unsafe"
+    git -C "$repo_root" worktree remove "$worktree_path"
+    printf '%s\n' "Removed worktree: $worktree_path"
+  fi
+  [[ ! -e "$worktree_path" && ! -L "$worktree_path" ]] \
+    || die "strict cleanup did not remove the exact worktree path"
+  post_worktree_probe="0"
+  worktree_registration_probe "$repo_root" "$worktree_path" || post_worktree_probe=$?
+  case "$post_worktree_probe" in
+    0)
+      die "strict cleanup did not unregister the exact worktree"
+      ;;
+    1)
+      ;;
+    *)
+      die "strict cleanup worktree absence verification failed"
+      ;;
+  esac
 
-if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch_name"; then
-  git -C "$repo_root" branch -D "$branch_name" >/dev/null
-  printf '%s\n' "Deleted local branch: $branch_name"
+  [[ "$(replay_helper advance branch-deletion-attempted)" == "branch-deletion-attempted" ]] \
+    || die "strict cleanup replay evidence is invalid or unsafe"
+  if [[ "$branch_exists" == "1" ]]; then
+    git -C "$repo_root" update-ref -d "refs/heads/$expected_branch" "$expected_head" \
+      || die "strict cleanup local branch changed before deletion"
+    printf '%s\n' "Deleted local branch: $expected_branch"
+  fi
+  post_branch_probe="0"
+  local_branch_probe "$repo_root" "$expected_branch" || post_branch_probe=$?
+  case "$post_branch_probe" in
+    0)
+      die "strict cleanup did not delete the exact local branch"
+      ;;
+    1)
+      ;;
+    *)
+      die "strict cleanup local branch absence verification failed"
+      ;;
+  esac
 else
-  warn "local branch does not exist; skipping branch deletion: $branch_name"
+  if [[ "$worktree_exists" == "1" ]]; then
+    preserve_factory_metrics \
+      "$worktree_path" "$repo_root" "$issue_number" "0" "$pr_number" "$merged_at"
+    git -C "$repo_root" worktree remove "$worktree_path"
+    printf '%s\n' "Removed worktree: $worktree_path"
+  else
+    warn "worktree path does not exist; skipping worktree removal: $worktree_path"
+  fi
+
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch_name"; then
+    git -C "$repo_root" branch -D "$branch_name" >/dev/null
+    printf '%s\n' "Deleted local branch: $branch_name"
+  else
+    warn "local branch does not exist; skipping branch deletion: $branch_name"
+  fi
 fi
 
 remove_status_labels

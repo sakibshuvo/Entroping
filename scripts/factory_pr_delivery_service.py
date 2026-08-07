@@ -6,27 +6,28 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from scripts.factory_pr_delivery_git import commit_exact_diff, validate_scheduler_authority
+from scripts.factory_pr_delivery_git import commit_exact_diff
 from scripts.factory_pr_delivery_git_io import git_text
-from scripts.factory_pr_delivery_github import (
-    REPOSITORY,
-    GitHubDeliveryError,
-    GitHubDeliveryPort,
-)
+from scripts.factory_pr_delivery_github import REPOSITORY, GitHubDeliveryPort
 from scripts.factory_pr_delivery_github_models import evaluate_ci
 from scripts.factory_pr_delivery_io import DeliveryInputError, load_delivery_envelope
 from scripts.factory_pr_delivery_journal import DeliveryJournal
-from scripts.factory_pr_delivery_journal_records import DeliveryJournalError
+from scripts.factory_pr_delivery_journal_records import (
+    DeliveryJournalError,
+    read_terminal_receipt,
+)
 from scripts.factory_pr_delivery_models import CommitResult, DeliveryEnvelope
 from scripts.factory_pr_delivery_receipts import DeliveryReceipt, DeliveryReceiptReason
+from scripts.factory_pr_delivery_scheduler import validate_scheduler_authority
+from scripts.factory_pr_delivery_service_replay import prepare_delivery_apply
 from scripts.factory_pr_delivery_service_support import (
     DeliveryServiceError,
     DeliveryServiceSupport,
     digest_model,
 )
+from scripts.factory_pr_delivery_ssh import PushResult, push_exact_commit
 
 __all__ = ["DeliveryService", "DeliveryServiceError"]
-from scripts.factory_pr_delivery_ssh import PushResult, push_exact_commit
 
 
 class DeliveryService(DeliveryServiceSupport):
@@ -49,7 +50,21 @@ class DeliveryService(DeliveryServiceSupport):
         if envelope.main_root != self.repo_root:
             raise DeliveryServiceError("authority-mismatch")
         request = envelope.orchestration_request
-        accepted_head = request.base_commit
+        journal: DeliveryJournal | None = None
+        if apply:
+            try:
+                journal, terminal = prepare_delivery_apply(
+                    self.repo_root,
+                    envelope,
+                    now=self._aware_now,
+                )
+                if terminal is not None:
+                    return terminal
+            except DeliveryJournalError as exc:
+                raise DeliveryServiceError(exc.code) from None
+            except RuntimeError as exc:
+                raise DeliveryServiceError(str(exc)) from None
+
         now = self._aware_now()
         issue = self._observe_issue(request.issue_number)
         self._validate_issue_and_body(envelope, issue)
@@ -65,87 +80,103 @@ class DeliveryService(DeliveryServiceSupport):
                 lifecycle="blocked",
                 reason="pr-conflict",
                 authoritative=apply,
-                accepted_local_head=accepted_head,
+                accepted_local_head=request.base_commit,
                 now=now,
             )
         if not apply:
-            return self._plan_receipt(envelope, existing, protection, issue.title, now)
+            return self._plan_receipt(
+                envelope,
+                existing,
+                protection,
+                issue.title,
+                now,
+            )
 
-        journal = DeliveryJournal(self.repo_root)
+        if journal is None:
+            raise DeliveryServiceError("journal-invalid")
         try:
             validate_scheduler_authority(self.repo_root, envelope)
             result, pushed = self._apply_git(envelope, now=now, journal=journal)
+            pull = self._ensure_pull_request(envelope, issue.title)
+            self._validate_pull(pull, envelope, result.committed_head, issue.title)
+            protection = self._observe_protection(pull.base_sha)
+            ci = self.github.observe_ci(
+                REPOSITORY,
+                pr_number=pull.number,
+                head_sha=result.committed_head,
+                protection=protection,
+            )
+            ready, ci_reason = evaluate_ci(protection, ci)
+            ci_digest = digest_model(ci)
+            if not ready:
+                reason: DeliveryReceiptReason = (
+                    "ci-pending"
+                    if ci_reason
+                    in {"visible-check-not-terminal", "required-check-not-green"}
+                    else "ci-failed"
+                )
+                return self._receipt(
+                    envelope,
+                    lifecycle="pushed",
+                    reason=reason,
+                    authoritative=True,
+                    accepted_local_head=result.accepted_local_head,
+                    committed_head=result.committed_head,
+                    remote_head=pushed.remote_head,
+                    pr_number=pull.number,
+                    ci_digest=ci_digest,
+                    now=now,
+                )
+            journal.merge_intent(
+                envelope,
+                pr_number=pull.number,
+                merge_head=result.committed_head,
+                ci_digest=ci_digest,
+                observed_at=now,
+            )
+            merged = self.github.merge_pull_request(
+                REPOSITORY,
+                pr_number=pull.number,
+                head_sha=result.committed_head,
+            )
+            if merged.state == "uncertain":
+                journal.recover(
+                    envelope,
+                    local_head=result.committed_head,
+                    remote_head=result.committed_head,
+                )
+                raise DeliveryServiceError("uncertain-recovery-required")
+            if merged.state not in {"merged", "already-merged"}:
+                return self._receipt(
+                    envelope=envelope,
+                    lifecycle="blocked",
+                    reason="merge-rejected",
+                    authoritative=True,
+                    accepted_local_head=result.accepted_local_head,
+                    pr_number=pull.number,
+                    ci_digest=ci_digest,
+                    now=now,
+                )
+            if merged.merged_head is None:
+                journal.recover(
+                    envelope,
+                    local_head=result.committed_head,
+                    remote_head=pushed.remote_head,
+                )
+                raise DeliveryServiceError("uncertain-recovery-required")
+            terminal = read_terminal_receipt(
+                journal.merged(envelope, merged_head=merged.merged_head, observed_at=now)
+            )
+            if terminal is None:
+                raise DeliveryServiceError("journal-invalid")
+            return terminal
         except DeliveryJournalError as exc:
             raise DeliveryServiceError(exc.code) from None
-        except (GitHubDeliveryError, RuntimeError) as exc:
+        except RuntimeError as exc:
             raise DeliveryServiceError(str(exc)) from None
 
-        pull = self._ensure_pull_request(envelope, issue.title)
-        self._validate_pull(pull, envelope, result.committed_head, issue.title)
-        current_protection = self._observe_protection(request.base_commit)
-        ci = self.github.observe_ci(
-            REPOSITORY,
-            pr_number=pull.number,
-            head_sha=result.committed_head,
-            protection=current_protection,
-        )
-        ready, ci_reason = evaluate_ci(current_protection, ci)
-        if not ready:
-            reason: DeliveryReceiptReason = (
-                "ci-pending"
-                if ci_reason in {"visible-check-not-terminal", "required-check-not-green"}
-                else "ci-failed"
-            )
-            return self._receipt(
-                envelope,
-                lifecycle="pushed",
-                reason=reason,
-                authoritative=True,
-                accepted_local_head=result.accepted_local_head,
-                committed_head=result.committed_head,
-                remote_head=pushed.remote_head,
-                pr_number=pull.number,
-                ci_digest=digest_model(ci),
-                now=now,
-            )
-        merged = self.github.merge_pull_request(
-            REPOSITORY,
-            pr_number=pull.number,
-            head_sha=result.committed_head,
-        )
-        if merged.state not in {"merged", "already-merged"}:
-            return self._receipt(
-                envelope,
-                lifecycle="uncertain" if merged.state == "uncertain" else "blocked",
-                reason="uncertain" if merged.state == "uncertain" else "merge-rejected",
-                authoritative=True,
-                accepted_local_head=result.accepted_local_head,
-                committed_head=result.committed_head,
-                remote_head=pushed.remote_head,
-                pr_number=pull.number,
-                ci_digest=digest_model(ci),
-                now=now,
-            )
-        return self._receipt(
-            envelope,
-            lifecycle="merged",
-            reason="cleanup-pending",
-            authoritative=True,
-            accepted_local_head=result.accepted_local_head,
-            committed_head=result.committed_head,
-            remote_head=pushed.remote_head,
-            pr_number=pull.number,
-            ci_digest=digest_model(ci),
-            merge_head=merged.merged_head,
-            now=now,
-        )
-
     def _apply_git(
-        self,
-        envelope: DeliveryEnvelope,
-        *,
-        now: datetime,
-        journal: DeliveryJournal,
+        self, envelope: DeliveryEnvelope, *, now: datetime, journal: DeliveryJournal
     ) -> tuple[CommitResult, PushResult]:
         """Apply or replay the journaled local commit and exact branch push."""
 
@@ -159,13 +190,15 @@ class DeliveryService(DeliveryServiceSupport):
                 committed_at=now,
                 journal=journal,
             )
-            _ = journal.push_intent(envelope)
+            _ = journal.push_intent(envelope, observed_at=now)
             pushed = push_exact_commit(
                 envelope.worktree_path,
                 branch=request.branch,
                 committed_head=result.committed_head,
             )
-            _ = journal.pushed(envelope, remote_head=pushed.remote_head)
+            _ = journal.pushed(
+                envelope, remote_head=pushed.remote_head, observed_at=now
+            )
             return result, pushed
         if record.lifecycle == "uncertain":
             raise DeliveryServiceError("uncertain-recovery-required")
@@ -185,7 +218,7 @@ class DeliveryService(DeliveryServiceSupport):
             raise DeliveryServiceError("journal-invalid")
         committed_head = record.committed_head
         if record.lifecycle == "committed":
-            _ = journal.push_intent(envelope)
+            _ = journal.push_intent(envelope, observed_at=now)
             record = journal.read(envelope)
             if record is None:
                 raise DeliveryServiceError("journal-invalid")
@@ -195,7 +228,9 @@ class DeliveryService(DeliveryServiceSupport):
                 branch=request.branch,
                 committed_head=committed_head,
             )
-            _ = journal.pushed(envelope, remote_head=pushed.remote_head)
+            _ = journal.pushed(
+                envelope, remote_head=pushed.remote_head, observed_at=now
+            )
             record = journal.read(envelope)
             if record is None:
                 raise DeliveryServiceError("journal-invalid")

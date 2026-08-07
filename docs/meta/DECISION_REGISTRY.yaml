@@ -729,3 +729,28 @@ decisions:
     related_issues: ["#1574"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0032
+    title: Tier A PR delivery uses durable exact-effect replay
+    status: accepted
+    date: "2026-08-06"
+    summary: >
+      A disabled maintainer-only plan-first factoryctl deliver adapter extends
+      ADR-0031's owner-only worktree authority with exact local commit, push,
+      PR, CI, merge, cleanup, and scheduler-completion evidence. Private
+      journal intent and canonical terminal receipts replay proven effects
+      exactly; ambiguity fails closed. Strict cleanup and expected-value remote
+      deletion are identity-bound, and scheduler completion retains fencing
+      while preserving an expired worker heartbeat and lease.
+    tags: [factory, delivery, github, scheduler, sqlite, cleanup, reliability]
+    source_links:
+      - path: decisions/ADR-0032-tier-a-pr-delivery-controller.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_pr_delivery_service.py
+        role: delivery-adapter
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md, docs/meta/AGENT_CONTROL_PLANE.md]
+    related_issues: ["#1576"]
+    supersedes: []
+    superseded_by: null

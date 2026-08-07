@@ -122,7 +122,7 @@ def test_load_rejects_invalid_utf8_referenced_artifact(tmp_path: Path) -> None:
 
 def _valid_receipt_payload() -> dict[str, object]:
     # Given: a value-free pushed receipt projection.
-    payload = {
+    payload: dict[str, object] = {
         "schema_version": "entroping.factory-pr-delivery-receipt.v1",
         "receipt_id": f"delivery_receipt_{'0' * 64}",
         "request_id": f"delivery_{'1' * 64}",

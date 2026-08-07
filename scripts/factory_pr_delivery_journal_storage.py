@@ -11,27 +11,40 @@ from contextlib import contextmanager, suppress
 from pathlib import Path
 from urllib.parse import quote
 
+import scripts.factory_pr_delivery_journal_migration as _journal_migration
+from scripts.factory_pr_delivery_journal_cleanup_schema import (
+    CLEANUP_DDL as _SCHEMA_CLEANUP_DDL,
+)
+from scripts.factory_pr_delivery_journal_cleanup_schema import (
+    CLEANUP_TRIGGER_CREATORS,
+)
+from scripts.factory_pr_delivery_journal_cleanup_schema import (
+    CLEANUP_TRIGGER_IMMUTABLE_IDENTITY as _SCHEMA_CLEANUP_TRIGGER_IMMUTABLE_IDENTITY,
+)
+from scripts.factory_pr_delivery_journal_cleanup_schema import (
+    CLEANUP_TRIGGER_NO_DELETE as _SCHEMA_CLEANUP_TRIGGER_NO_DELETE,
+)
+from scripts.factory_pr_delivery_journal_cleanup_schema import (
+    CLEANUP_TRIGGER_NO_REWRITE_PROOFS as _SCHEMA_CLEANUP_TRIGGER_NO_REWRITE_PROOFS,
+)
 from scripts.factory_pr_delivery_journal_records import DeliveryJournalError
 
 _MAX_BYTES = 67_108_864
 type FileIdentity = tuple[int, int, int, int, int]
-METADATA_DDL = (
-    "CREATE TABLE delivery_metadata(id INTEGER PRIMARY KEY CHECK(id = 1), "
-    "schema_version INTEGER NOT NULL CHECK(schema_version = 1)) STRICT"
-)
-LIFECYCLE_DDL = (
-    "CREATE TABLE delivery_lifecycle("
-    "request_id TEXT PRIMARY KEY, request_digest TEXT NOT NULL, envelope_digest TEXT NOT NULL, "
-    "issue_number INTEGER NOT NULL, assignment_id TEXT NOT NULL, worktree_id TEXT NOT NULL, "
-    "lifecycle TEXT NOT NULL CHECK(lifecycle IN "
-    "('prepared','commit-intent','committed','push-intent','pushed','uncertain')), "
-    "reason TEXT NOT NULL CHECK(reason IN ('none','committed','pushed','interrupted')), "
-    "accepted_local_head TEXT NOT NULL, committed_head TEXT, remote_head TEXT, "
-    "commit_parent TEXT, commit_tree TEXT, accepted_diff_sha256 TEXT NOT NULL, "
-    "accepted_manifest_sha256 TEXT NOT NULL, approved_path_sha256 TEXT NOT NULL, "
-    "body_sha256 TEXT NOT NULL, phase_version INTEGER NOT NULL CHECK(phase_version > 0), "
-    "created_at_utc TEXT NOT NULL, updated_at_utc TEXT NOT NULL) STRICT"
-)
+
+# Re-export schema constants for compatibility with existing callers/tests.
+METADATA_DDL = _journal_migration.METADATA_DDL
+METADATA_DDL_V2 = _journal_migration.METADATA_DDL_V2
+METADATA_DDL_V1 = _journal_migration.METADATA_DDL_V1
+METADATA_DDL_V3 = _journal_migration.METADATA_DDL_V3
+LIFECYCLE_DDL = _journal_migration.LIFECYCLE_DDL
+LIFECYCLE_DDL_V2 = _journal_migration.LIFECYCLE_DDL_V2
+LIFECYCLE_DDL_V1 = _journal_migration.LIFECYCLE_DDL_V1
+LIFECYCLE_DDL_V3 = _journal_migration.LIFECYCLE_DDL_V3
+CLEANUP_DDL = _SCHEMA_CLEANUP_DDL
+CLEANUP_TRIGGER_IMMUTABLE_IDENTITY = _SCHEMA_CLEANUP_TRIGGER_IMMUTABLE_IDENTITY
+CLEANUP_TRIGGER_NO_REWRITE_PROOFS = _SCHEMA_CLEANUP_TRIGGER_NO_REWRITE_PROOFS
+CLEANUP_TRIGGER_NO_DELETE = _SCHEMA_CLEANUP_TRIGGER_NO_DELETE
 
 
 @contextmanager
@@ -62,12 +75,15 @@ def journal_connection(root: Path) -> Generator[sqlite3.Connection, None, None]:
         try:
             _require_stable_paths(state, state_identity, database, database_identity)
             if created:
-                connection.execute(METADATA_DDL)
+                connection.execute(METADATA_DDL_V3)
                 connection.execute(
-                    "INSERT INTO delivery_metadata(id, schema_version) VALUES (1, 1)"
+                    "INSERT INTO delivery_metadata(id, schema_version) VALUES (1, 3)"
                 )
                 connection.execute(LIFECYCLE_DDL)
-            _validate_schema(connection)
+                connection.execute(CLEANUP_DDL)
+                for trigger in CLEANUP_TRIGGER_CREATORS:
+                    connection.execute(trigger)
+            _journal_migration.validate_journal_schema(connection)
             yield connection
             _require_stable_paths(state, state_identity, database, database_identity)
             _reject_sidecars(state)
@@ -110,6 +126,9 @@ def _open_connection(database: Path, expected: FileIdentity) -> sqlite3.Connecti
             raise DeliveryJournalError("journal-invalid")
         connection.execute("PRAGMA busy_timeout = 100")
         connection.execute("PRAGMA trusted_schema = OFF")
+        connection.execute("PRAGMA foreign_keys = ON")
+        if connection.execute("PRAGMA foreign_keys").fetchone() != (1,):
+            raise DeliveryJournalError("journal-invalid")
         if connection.execute("PRAGMA journal_mode").fetchone() != ("delete",):
             raise DeliveryJournalError("journal-invalid")
         connection.execute("PRAGMA synchronous = EXTRA")
@@ -191,21 +210,3 @@ def _reject_sidecars(state: Path) -> None:
     for suffix in ("-wal", "-shm", "-journal"):
         if (state / f"delivery.sqlite3{suffix}").exists():
             raise DeliveryJournalError("journal-invalid")
-
-
-def _validate_schema(connection: sqlite3.Connection) -> None:
-    objects = tuple(
-        connection.execute(
-            "SELECT type, name, tbl_name, sql FROM sqlite_schema "
-            "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
-        )
-    )
-    if objects != (
-        ("table", "delivery_lifecycle", "delivery_lifecycle", LIFECYCLE_DDL),
-        ("table", "delivery_metadata", "delivery_metadata", METADATA_DDL),
-    ):
-        raise DeliveryJournalError("journal-invalid")
-    if connection.execute(
-        "SELECT schema_version FROM delivery_metadata WHERE id = 1"
-    ).fetchone() != (1,):
-        raise DeliveryJournalError("journal-invalid")

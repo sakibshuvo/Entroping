@@ -22,11 +22,13 @@ from scripts.factory_pr_delivery_github_io import (  # noqa: E402
 )
 from scripts.factory_pr_delivery_github_models import (  # noqa: E402
     CheckObservation,
+    CheckStatus,
     CiObservation,
     IssueObservation,
     MergeResult,
     ProtectionObservation,
     PullRequestObservation,
+    PullRequestState,
     RequiredCheck,
     evaluate_ci,
 )
@@ -47,7 +49,9 @@ def _issue() -> IssueObservation:
     )
 
 
-def _pr(*, number: int = 42, state: str = "open") -> PullRequestObservation:
+def _pr(
+    *, number: int = 42, state: PullRequestState = "open"
+) -> PullRequestObservation:
     return PullRequestObservation(
         repo=REPO,
         number=number,
@@ -77,7 +81,9 @@ def _protection() -> ProtectionObservation:
     )
 
 
-def _ci(protection: ProtectionObservation, status: str = "success") -> CiObservation:
+def _ci(
+    protection: ProtectionObservation, status: CheckStatus = "success"
+) -> CiObservation:
     return CiObservation(
         repo=REPO,
         base_ref="main",
@@ -129,7 +135,7 @@ def test_scripted_port_records_typed_calls_without_body_text() -> None:
      ("failure", (False, "visible-check-not-terminal"))],
 )
 def test_ci_classifier_requires_exact_terminal_required_context(
-    status: str, expected: tuple[bool, str]
+    status: CheckStatus, expected: tuple[bool, str]
 ) -> None:
     protection = _protection()
     assert evaluate_ci(protection, _ci(protection, status)) == expected
