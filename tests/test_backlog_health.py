@@ -66,7 +66,7 @@ def test_backlog_health_accepts_well_labeled_issue_fixture(tmp_path: Path) -> No
                     "url": "https://github.com/sakibshuvo/Entroping/issues/281",
                     "labels": ["type:bug", "priority:p3", "status:blocked"],
                     "milestone": {"title": "v0.4.0-alpha integrations"},
-                }
+                },
             ]
         ),
         encoding="utf-8",
@@ -215,29 +215,149 @@ def test_backlog_health_decodes_github_cli_output_as_utf8(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = load_backlog_health_module()
-    captured_kwargs: dict[str, object] = {}
+    captured_args: list[list[str]] = []
+    captured_kwargs: list[dict[str, object]] = []
 
     def complete(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        captured_kwargs["args"] = args
-        captured_kwargs.update(kwargs)
+        captured_args.append(args)
+        captured_kwargs.append(kwargs)
         command = args
         return subprocess.CompletedProcess(args=command, returncode=0, stdout="[]", stderr="")
 
     monkeypatch.setattr(module, "run_subprocess", complete)
 
     assert module._load_issues_from_gh(repo="sakibshuvo/Entroping", limit=200) == []
-    assert captured_kwargs["args"] == [
-        "gh",
-        "issue",
-        "list",
+    assert captured_args == [
+        [
+            "gh",
+            "issue",
+            "list",
+            "--repo",
+            "sakibshuvo/Entroping",
+            "--state",
+            "open",
+            "--limit",
+            "200",
+            "--json",
+            "number,title,url,state,labels,milestone",
+        ],
+        [
+            "gh",
+            "issue",
+            "list",
+            "--repo",
+            "sakibshuvo/Entroping",
+            "--state",
+            "closed",
+            "--limit",
+            "1000",
+            "--json",
+            "number,title,url,state,labels,milestone",
+            "--label",
+            "status:ready",
+        ],
+        [
+            "gh",
+            "issue",
+            "list",
+            "--repo",
+            "sakibshuvo/Entroping",
+            "--state",
+            "closed",
+            "--limit",
+            "1000",
+            "--json",
+            "number,title,url,state,labels,milestone",
+            "--label",
+            "status:in-progress",
+        ],
+    ]
+    assert captured_kwargs == [
+        {"check": False, "timeout": 30},
+        {"check": False, "timeout": 30},
+        {"check": False, "timeout": 30},
+    ]
+
+
+def test_backlog_health_live_queries_cannot_hide_closed_drift_behind_open_limit(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    (repo / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "fixture"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    worktree = tmp_path / "Entroping-issue-302"
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree), "-b", "feat/closed-302"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_gh = bin_dir / "gh"
+    fake_gh.write_text(
+        """#!/bin/sh
+if [ "$1" = "issue" ] && [ "$2" = "list" ]; then
+  case "$*" in
+    *"--state open"*)
+      printf '%s' '[{"number":900,"title":"open","url":"https://example.test/900","state":"OPEN","labels":[{"name":"type:bug"},{"name":"priority:p2"},{"name":"status:ready"}],"milestone":{"title":"m"}}]'
+      ;;
+    *"--label status:ready"*)
+      printf '%s' '[{"number":301,"title":"closed active","url":"https://example.test/301","state":"CLOSED","labels":[{"name":"type:bug"},{"name":"priority:p2"},{"name":"status:ready"}],"milestone":{"title":"m"}}]'
+      ;;
+    *)
+      printf '%s' '[]'
+      ;;
+  esac
+elif [ "$1" = "issue" ] && [ "$2" = "view" ] && [ "$3" = "302" ]; then
+  printf '%s' '{"number":302,"title":"closed worktree","url":"https://example.test/302","state":"CLOSED","labels":[{"name":"type:bug"},{"name":"priority:p2"},{"name":"status:blocked"}],"milestone":{"title":"m"}}'
+else
+  echo 'unexpected gh command' >&2
+  exit 1
+fi
+""",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+
+    result = run_backlog_health(
         "--repo",
         "sakibshuvo/Entroping",
-        "--state",
-        "open",
+        "--repo-root",
+        str(repo),
         "--limit",
-        "200",
-        "--json",
-        "number,title,url,labels,milestone",
+        "1",
+        env=env,
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.splitlines() == [
+        "Backlog health failed:",
+        "  #301: closed issue retains active status label: status:ready",
+        "  #302: closed issue retains registered issue worktree",
     ]
 
 
@@ -247,3 +367,82 @@ def test_backlog_health_help_documents_github_cli_mode() -> None:
     assert result.returncode == 0
     assert "gh issue list" in result.stdout
     assert "--input" in result.stdout
+
+
+def test_backlog_health_reports_closed_active_state_and_registered_worktree(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    (repo / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "fixture"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    worktree = tmp_path / "Entroping-issue-302"
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree), "-b", "feat/closed-302"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    fixture = tmp_path / "issues.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "number": 301,
+                    "title": "closed active status",
+                    "state": "CLOSED",
+                    "labels": [
+                        {"name": "type:bug"},
+                        {"name": "priority:p2"},
+                        {"name": "status:ready"},
+                    ],
+                    "milestone": {"title": "milestone"},
+                },
+                {
+                    "number": 302,
+                    "title": "closed retained worktree",
+                    "state": "CLOSED",
+                    "labels": [
+                        {"name": "type:bug"},
+                        {"name": "priority:p2"},
+                        {"name": "status:blocked"},
+                    ],
+                    "milestone": {"title": "milestone"},
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_backlog_health(
+        "--input",
+        str(fixture),
+        "--repo-root",
+        str(repo),
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.splitlines() == [
+        "Backlog health failed:",
+        "  #301: closed issue retains active status label: status:ready",
+        "  #302: closed issue retains registered issue worktree",
+    ]

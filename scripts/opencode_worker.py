@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess  # nosec B404
@@ -34,6 +35,20 @@ from scripts.opencode_event_stream import (  # noqa: E402
     ReceiptReason,
     build_usage_receipt,
 )
+from scripts.opencode_unattended_preflight import (  # noqa: E402
+    preflight_unattended_profile,
+    verify_execution_binding,
+)
+from scripts.opencode_unattended_profile import (  # noqa: E402
+    UnattendedAttestation,
+    UnattendedProfileError,
+    build_unattended_profile,
+)
+from scripts.provider_capability_registry import (  # noqa: E402
+    load_provider_registry,
+    resolve_queue_model,
+)
+from scripts.provider_capability_types import ProviderRegistryError  # noqa: E402
 from scripts.worker_output import (  # noqa: E402
     atomic_write_text,
     bounded_persisted_text,
@@ -137,10 +152,8 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
 
     snapshot_paths = _write_selected_file_snapshots(config, artifact_dir)
     prompt = _build_prompt(config, snapshot_paths)
-    (artifact_dir / "prompt.md").write_text(prompt, encoding="utf-8")
-
-    command = _opencode_command(config, prompt, snapshot_paths)
     if config.dry_run:
+        command = _opencode_command(config, prompt, snapshot_paths)
         receipt = build_usage_receipt(
             None,
             job_id=config.job_id,
@@ -157,7 +170,7 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             usage_receipt=receipt,
         )
         _write_usage_receipt(result)
-        _write_metadata(config, result, command)
+        _write_metadata(config, result, command, None)
         _record_factory_metrics(
             config,
             result,
@@ -165,13 +178,48 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
         )
         return result
 
-    worker_cwd = artifact_dir / "worker-cwd"
-    worker_cwd.mkdir(exist_ok=False)
+    with tempfile.TemporaryDirectory(prefix="entroping-opencode-unattended-") as root:
+        isolated_root = Path(root).resolve()
+        if _path_is_relative_to(isolated_root, config.repo_root):
+            raise WorkerInputError("OpenCode isolated root must stay outside repository")
+        try:
+            profile = build_unattended_profile(
+                mode=config.mode,
+                model=config.model,
+                executable=config.opencode_bin,
+                isolated_root=isolated_root,
+                snapshot_paths=snapshot_paths,
+                inherited_environment=os.environ,
+            )
+            attestation = preflight_unattended_profile(profile)
+            verify_execution_binding(attestation)
+        except UnattendedProfileError as exc:
+            raise WorkerInputError(str(exc)) from exc
+        command = profile.command(prompt)
+        return _run_attested_worker(
+            config,
+            artifact_dir,
+            command,
+            attestation,
+            started_at=started_at,
+        )
+
+
+def _run_attested_worker(
+    config: WorkerConfig,
+    artifact_dir: Path,
+    command: list[str],
+    attestation: UnattendedAttestation,
+    *,
+    started_at: float,
+) -> WorkerResult:
     event_stream = OpenCodeEventStream(max_text_bytes=config.max_output_bytes)
     try:
+        verify_execution_binding(attestation)
         completed = run_bounded_process(
             command,
-            cwd=worker_cwd.resolve(),
+            cwd=attestation.profile.worker_directory,
+            env=attestation.profile.environment,
             timeout_seconds=config.timeout_seconds,
             max_output_bytes=config.max_output_bytes,
             stdout_consumer=event_stream.feed,
@@ -190,16 +238,7 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             stderr=f"OpenCode worker timed out after {config.timeout_seconds} seconds.",
             usage_receipt=receipt,
         )
-        result = _withhold_secret_like_worker_output(result)
-        _write_execution_artifacts(config, result, command)
-        _record_factory_metrics(
-            config,
-            result,
-            duration_seconds=time.monotonic() - started_at,
-        )
-        return result
-
-    if completed.output_limit_exceeded:
+    elif completed.output_limit_exceeded:
         receipt = _usage_receipt(
             config,
             artifact_dir,
@@ -216,30 +255,29 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             ),
             usage_receipt=receipt,
         )
-        result = _withhold_secret_like_worker_output(result)
-        _write_execution_artifacts(config, result, command)
-        _record_factory_metrics(
-            config,
-            result,
-            duration_seconds=time.monotonic() - started_at,
+    else:
+        receipt_reason: ReceiptReason | None = (
+            "process_failed" if completed.returncode != 0 else None
         )
-        return result
-
-    status = _classify_stream_status(config.mode, completed.returncode, stream_summary)
-    receipt_reason: ReceiptReason | None = None
-    if completed.returncode != 0:
-        receipt_reason = "process_failed"
-    receipt = _usage_receipt(config, artifact_dir, stream_summary, receipt_reason)
-    result = WorkerResult(
-        status=status,
-        artifact_dir=artifact_dir,
-        returncode=completed.returncode,
-        stdout=stream_summary.output_text,
-        stderr=_sanitized_child_stderr(completed.stderr),
-        usage_receipt=receipt,
-    )
+        result = WorkerResult(
+            status=_classify_stream_status(
+                config.mode,
+                completed.returncode,
+                stream_summary,
+            ),
+            artifact_dir=artifact_dir,
+            returncode=completed.returncode,
+            stdout=stream_summary.output_text,
+            stderr=_sanitized_child_stderr(completed.stderr),
+            usage_receipt=_usage_receipt(
+                config,
+                artifact_dir,
+                stream_summary,
+                receipt_reason,
+            ),
+        )
     result = _withhold_secret_like_worker_output(result)
-    _write_execution_artifacts(config, result, command)
+    _write_execution_artifacts(config, result, command, attestation)
     _record_factory_metrics(
         config,
         result,
@@ -354,6 +392,13 @@ def _parse_args() -> WorkerConfig:
     if not files:
         msg = "at least one --file is required"
         raise WorkerInputError(msg)
+
+    try:
+        resolve_queue_model(load_provider_registry(), "opencode", args.model)
+    except ProviderRegistryError as exc:
+        raise WorkerInputError(
+            f"--model must name an active registered OpenCode queue model ({exc})"
+        ) from exc
 
     opencode_bin = _resolve_opencode_bin(args.opencode_bin, required=not args.dry_run)
     mode: Mode = args.mode
@@ -600,10 +645,10 @@ def _opencode_host_capability_context(config: WorkerConfig) -> list[str]:
             "host, not the direct DeepSeek API worker."
         ),
         (
-            "- OpenCode may use OpenCode-configured agents, plugins, MCP "
-            "servers, hooks, shell/tools, and GitHub integrations only when "
-            "they are present in the active OpenCode host and permissioned by "
-            "that host."
+            "- This unattended worker cannot use host agents, plugins, MCP "
+            "servers, hooks, shell/write/web tools, GitHub integrations, or "
+            "nested agents. No model-issued tools are enabled; the trusted CLI "
+            "ingests only the explicitly attached, wrapper-validated snapshots."
         ),
         (
             "- Codex-native plugins, skills, Codex Security, Browser, Computer "
@@ -681,10 +726,10 @@ def _opencode_command(
         config.model,
         "--format",
         "json",
-        prompt,
     ]
     for snapshot_path in snapshot_paths:
         command.extend(["--file", str(snapshot_path)])
+    command.append(prompt)
     return command
 
 
@@ -813,6 +858,7 @@ def _write_execution_artifacts(
     config: WorkerConfig,
     result: WorkerResult,
     command: list[str],
+    attestation: UnattendedAttestation,
 ) -> None:
     stdout = bounded_persisted_text(result.stdout, config.max_output_bytes)
     stderr = bounded_persisted_text(result.stderr, config.max_output_bytes)
@@ -823,7 +869,8 @@ def _write_execution_artifacts(
         if proposal is not None:
             atomic_write_text(result.artifact_dir / "proposal.diff", proposal)
     _write_usage_receipt(result)
-    _write_metadata(config, result, command)
+    _write_capability_receipt(result.artifact_dir, attestation)
+    _write_metadata(config, result, command, attestation)
 
 
 def _write_usage_receipt(result: WorkerResult) -> None:
@@ -833,9 +880,27 @@ def _write_usage_receipt(result: WorkerResult) -> None:
     )
 
 
-def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[str]) -> None:
+def _write_capability_receipt(
+    artifact_dir: Path,
+    attestation: UnattendedAttestation,
+) -> None:
+    atomic_write_text(
+        artifact_dir / "capability-receipt.json",
+        json.dumps(attestation.receipt_payload(), indent=2, sort_keys=True) + "\n",
+    )
+
+
+def _write_metadata(
+    config: WorkerConfig,
+    result: WorkerResult,
+    command: list[str],
+    attestation: UnattendedAttestation | None,
+) -> None:
+    redacted_command = [*command]
+    if redacted_command:
+        redacted_command[-1] = "<prompt-redacted>"
     metadata = {
-        "schema_version": "entroping.opencode-worker.v1",
+        "schema_version": "entroping.opencode-worker.v2",
         "status": result.status,
         "mode": config.mode,
         "model": config.model,
@@ -848,7 +913,7 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "max_file_bytes": config.max_file_bytes,
         "max_output_bytes": config.max_output_bytes,
         "capability_context_version": CAPABILITY_CONTEXT_VERSION,
-        "command": command,
+        "command": redacted_command,
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,
         "usage_receipt": {
@@ -856,6 +921,14 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
             "accounting_status": result.usage_receipt.accounting_status,
             "path": "usage-receipt.json",
         },
+        "capability_receipt": (
+            {
+                "path": "capability-receipt.json",
+                "profile_id": attestation.profile.profile_id,
+            }
+            if attestation is not None
+            else None
+        ),
     }
     atomic_write_text(
         result.artifact_dir / "metadata.json",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -12,7 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.bounded_process import OUTPUT_LIMIT_MARKER, run_bounded_process  # noqa: E402
+from scripts.bounded_process import (  # noqa: E402
+    OUTPUT_LIMIT_MARKER,
+    BoundedProcessError,
+    run_bounded_process,
+)
 
 
 def test_bounded_process_captures_normal_stdout_and_stderr(tmp_path: Path) -> None:
@@ -31,6 +36,44 @@ def test_bounded_process_captures_normal_stdout_and_stderr(tmp_path: Path) -> No
     assert result.stderr == "warning\n"
     assert result.timed_out is False
     assert result.output_limit_exceeded is False
+
+
+def test_bounded_process_passes_readable_descriptor_to_child(tmp_path: Path) -> None:
+    payload_path = tmp_path / "descriptor-payload"
+    payload_path.write_bytes(b"descriptor-bound\n")
+
+    with payload_path.open("rb") as payload:
+        descriptor = payload.fileno()
+        result = run_bounded_process(
+            [
+                sys.executable,
+                "-c",
+                "import os,sys; os.write(1, os.read(int(sys.argv[1]), 1024))",
+                str(descriptor),
+            ],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            pass_fds=(descriptor,),
+        )
+
+    assert result.returncode == 0
+    assert result.stdout == "descriptor-bound\n"
+
+
+@pytest.mark.parametrize("pass_fds", [(-1,), (True,), (3, 3)])
+def test_bounded_process_rejects_invalid_pass_fds(
+    tmp_path: Path,
+    pass_fds: tuple[int, ...],
+) -> None:
+    with pytest.raises(BoundedProcessError):
+        run_bounded_process(
+            [sys.executable, "-c", "pass"],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            pass_fds=pass_fds,
+        )
 
 
 def test_bounded_process_streams_stdout_without_returning_raw_bytes(tmp_path: Path) -> None:
@@ -165,3 +208,176 @@ def test_bounded_process_cleans_group_after_leader_exits_with_descendant_alive(
     else:
         os.kill(child_pid, signal.SIGKILL)
         raise AssertionError("bounded subprocess descendant remained alive")
+
+
+def test_bounded_process_cleans_devnull_descendant_after_leader_exits(
+    tmp_path: Path,
+) -> None:
+    child_pid_path = tmp_path / "child.pid"
+    result = run_bounded_process(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import pathlib,subprocess,sys; "
+                "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)'], "
+                "stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
+                f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid))"
+            ),
+        ],
+        cwd=tmp_path,
+        timeout_seconds=5,
+        max_output_bytes=1_024,
+    )
+
+    child_pid = int(child_pid_path.read_text())
+    if _process_is_executing(child_pid):
+        os.kill(child_pid, signal.SIGKILL)
+        pytest.fail("bounded DEVNULL descendant remained alive")
+    assert result.returncode == 0
+
+
+class _CallbackAbort(BaseException):
+    pass
+
+
+def _process_is_executing(pid: int) -> bool:
+    observed = subprocess.run(
+        ["/bin/ps", "-o", "state=", "-p", str(pid)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return observed.returncode == 0 and not observed.stdout.strip().startswith("Z")
+
+
+def test_bounded_process_base_exception_consumer_cleans_process_group(
+    tmp_path: Path,
+) -> None:
+    leader_pid_path = tmp_path / "leader.pid"
+
+    def abort(_chunk: bytes) -> None:
+        raise _CallbackAbort
+
+    with pytest.raises(_CallbackAbort):
+        run_bounded_process(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import os,pathlib,time; "
+                    f"pathlib.Path({str(leader_pid_path)!r}).write_text(str(os.getpid())); "
+                    "print('ready', flush=True); time.sleep(60)"
+                ),
+            ],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            stdout_consumer=abort,
+        )
+
+    leader_pid = int(leader_pid_path.read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(leader_pid, 0)
+
+
+def test_bounded_process_base_exception_cancellation_callback_cleans_group(
+    tmp_path: Path,
+) -> None:
+    leader_pid_path = tmp_path / "cancel-leader.pid"
+
+    def abort_after_start() -> bool:
+        if leader_pid_path.exists():
+            raise _CallbackAbort
+        return False
+
+    with pytest.raises(_CallbackAbort):
+        run_bounded_process(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import os,pathlib,time; "
+                    f"pathlib.Path({str(leader_pid_path)!r}).write_text(str(os.getpid())); "
+                    "time.sleep(60)"
+                ),
+            ],
+            cwd=tmp_path,
+            timeout_seconds=5,
+            max_output_bytes=1_024,
+            cancelled=abort_after_start,
+        )
+
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(leader_pid_path.read_text()), 0)
+
+
+def test_bounded_process_streams_exact_input_bytes(tmp_path: Path) -> None:
+    # Given: a payload larger than a typical pipe buffer.
+    payload = b"x" * 131_072
+
+    # When: the bounded runner streams it to a controlled child stdin.
+    result = run_bounded_process(
+        [sys.executable, "-c", "import sys; print(len(sys.stdin.buffer.read()))"],
+        cwd=tmp_path,
+        timeout_seconds=5,
+        max_output_bytes=1_024,
+        input_bytes=payload,
+    )
+
+    # Then: the child receives every byte exactly once.
+    assert result.returncode == 0
+    assert result.stdout == "131072\n"
+
+
+def test_bounded_process_input_cannot_block_timeout(tmp_path: Path) -> None:
+    # Given: a child that never reads a payload much larger than its pipe buffer.
+    started = time.monotonic()
+
+    # When: the bounded runner reaches its deadline.
+    result = run_bounded_process(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        cwd=tmp_path,
+        timeout_seconds=0.1,
+        max_output_bytes=1_024,
+        input_bytes=b"x" * 4_000_000,
+    )
+
+    # Then: non-reading stdin cannot defeat the process-group timeout.
+    assert result.timed_out is True
+    assert result.returncode != 0
+    assert time.monotonic() - started < 2
+
+
+def test_bounded_process_cancellation_kills_process_group(tmp_path: Path) -> None:
+    # Given: a long-lived leader with a long-lived descendant.
+    started = time.monotonic()
+    result = run_bounded_process(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import subprocess,sys,time; "
+                "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); "
+                "print(child.pid, flush=True); time.sleep(60)"
+            ),
+        ],
+        cwd=tmp_path,
+        timeout_seconds=10,
+        max_output_bytes=1_024,
+        cancelled=lambda: time.monotonic() - started >= 0.1,
+    )
+
+    # When/Then: cancellation terminates the whole process group promptly.
+    assert result.cancelled is True
+    assert result.returncode != 0
+    child_pid = int(result.stdout.strip())
+    for _ in range(50):
+        try:
+            os.kill(child_pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.01)
+    else:
+        os.kill(child_pid, signal.SIGKILL)
+        raise AssertionError("cancelled subprocess descendant remained alive")

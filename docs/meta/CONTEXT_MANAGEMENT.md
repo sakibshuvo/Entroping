@@ -75,8 +75,11 @@ risk, and archive/source material.
 
 - `README.md` - public project overview and quickstart.
 - `docs/meta/VAULT_INDEX.md` - Obsidian vault map.
-- `.context/changelog.md` - recent work.
-- `.context/lessons-learned.md` - durable pitfalls and decisions.
+- `.context/changelog.md` - recent work. Review context packs include an explicit
+  newest-first byte-bounded excerpt and retain this full path for targeted reads.
+- `.context/lessons-learned.md` - durable pitfalls and decisions. Review context
+  packs use the same explicit newest-first selection contract rather than silently
+  truncating the source.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - review and merge checklist.
 - `docs/meta/DECISION_REGISTRY.yaml` - accepted decisions, supersession state, and source pointers.
 - `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.

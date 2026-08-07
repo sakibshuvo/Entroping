@@ -4,9 +4,141 @@ from pathlib import Path
 from typing import TextIO
 
 import pytest
+import yaml
+from yaml.events import MappingEndEvent
 
 import entroping.core.openapi_loader as openapi_loader
-from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
+from entroping.core.openapi_loader import (
+    OpenApiLoadError,
+    load_openapi_document,
+    load_openapi_document_text,
+)
+
+
+def _deep_openapi_yaml(*, depth: int, prefix: str) -> str:
+    lines = ["openapi: '3.1.0'", "paths:", f"  {prefix}:"]
+    lines.extend("  " * (index + 2) + f"level_{index}:" for index in range(depth))
+    lines.append("  " * (depth + 2) + "leaf: redacted")
+    return "\n".join(lines) + "\n"
+
+
+def _alias_expansion_openapi_yaml(*, prefix: str) -> str:
+    aliases = ", ".join(["*previous"] * 10)
+    lines = [
+        "openapi: '3.1.0'",
+        "paths: {}",
+        f"{prefix}:",
+        "  seed: &previous [a, b, c, d, e, f, g, h, i, j]",
+    ]
+    for index in range(3):
+        anchor = f"level_{index}"
+        lines.append(f"  {anchor}: &{anchor} [{aliases}]")
+        aliases = ", ".join([f"*{anchor}"] * 10)
+    lines.append(f"  expanded: [{aliases}]")
+    return "\n".join(lines) + "\n"
+
+
+def test_load_openapi_document_text_rejects_excessive_yaml_nesting_without_content() -> None:
+    content = _deep_openapi_yaml(depth=500, prefix="attacker_secret")
+
+    with pytest.raises(OpenApiLoadError, match="YAML nesting exceeds 128") as exc_info:
+        load_openapi_document_text(content, source_name="memory")
+
+    assert "attacker_secret" not in str(exc_info.value)
+
+
+def test_load_openapi_document_rejects_excessive_yaml_nesting_from_file(
+    tmp_path: Path,
+) -> None:
+    spec = tmp_path / "openapi.yaml"
+    spec.write_text(
+        _deep_openapi_yaml(depth=500, prefix="attacker_secret"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(OpenApiLoadError, match="YAML nesting exceeds 128") as exc_info:
+        load_openapi_document(spec)
+
+    assert "attacker_secret" not in str(exc_info.value)
+
+
+def test_load_openapi_document_text_accepts_depth_100() -> None:
+    document = load_openapi_document_text(
+        _deep_openapi_yaml(depth=100, prefix="representative"),
+        source_name="memory",
+    )
+
+    assert document["openapi"] == "3.1.0"
+
+
+def test_load_openapi_document_text_rejects_yaml_alias_expansion_budget() -> None:
+    content = _alias_expansion_openapi_yaml(prefix="attacker_secret")
+
+    with pytest.raises(OpenApiLoadError, match="YAML expansion exceeds 10000 nodes") as exc_info:
+        load_openapi_document_text(content, source_name="memory")
+
+    assert "attacker_secret" not in str(exc_info.value)
+
+
+def test_load_openapi_document_text_rejects_yaml_node_budget() -> None:
+    content = "openapi: '3.1.0'\npaths: {}\nnodes:\n" + "".join(
+        f"  - value_{index}\n" for index in range(10_000)
+    )
+
+    with pytest.raises(OpenApiLoadError, match="YAML document exceeds 10000 nodes"):
+        load_openapi_document_text(content, source_name="memory")
+
+
+def test_load_openapi_document_text_rejects_recursive_aliases() -> None:
+    content = "openapi: '3.1.0'\npaths: {}\nrecursive: &loop [*loop]\n"
+
+    with pytest.raises(OpenApiLoadError, match="recursive or unresolved aliases"):
+        load_openapi_document_text(content, source_name="memory")
+
+
+def test_load_openapi_document_text_preserves_valid_scalar_aliases() -> None:
+    content = "openapi: &version '3.1.0'\npaths: {}\nx-version: *version\n"
+
+    document = load_openapi_document_text(content, source_name="memory")
+
+    assert document == {"openapi": "3.1.0", "paths": {}, "x-version": "3.1.0"}
+
+
+def test_load_openapi_document_text_wraps_parser_recursion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_recursion(*_args: object, **_kwargs: object) -> object:
+        raise RecursionError
+
+    monkeypatch.setattr(yaml, "parse", raise_recursion)
+
+    with pytest.raises(OpenApiLoadError, match="YAML parser resource limit exceeded"):
+        load_openapi_document_text("attacker_secret: value\n", source_name="memory")
+
+
+def test_load_openapi_document_text_wraps_constructor_recursion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_recursion(*_args: object, **_kwargs: object) -> object:
+        raise RecursionError
+
+    monkeypatch.setattr(yaml, "safe_load", raise_recursion)
+
+    with pytest.raises(OpenApiLoadError, match="YAML parser resource limit exceeded"):
+        load_openapi_document_text("openapi: '3.1.0'\n", source_name="memory")
+
+
+def test_load_openapi_document_text_wraps_invalid_collection_events(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        yaml,
+        "parse",
+        lambda *_args, **_kwargs: iter((MappingEndEvent(None, None),)),
+    )
+
+    with pytest.raises(OpenApiLoadError, match="YAML collection structure is invalid"):
+        load_openapi_document_text("attacker_secret: value\n", source_name="memory")
 
 
 def test_load_openapi_document_reads_local_yaml_mapping(tmp_path: Path) -> None:

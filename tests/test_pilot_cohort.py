@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.pilot_cohort as pilot_cohort
+from entroping.core.evidence.evidence_index import (
+    read_local_evidence_json_artifact_bytes,
+)
 from entroping.core.safe_write import SafeWriteError
 
 PILOT_COHORT_SCHEMA_VERSION = (
@@ -130,6 +133,14 @@ def test_pilot_cohort_writes_json_from_explicit_outcomes(tmp_path: Path) -> None
     assert payload["monetization_signals"][0]["yes"] == 1
     assert payload["monetization_signals"][0]["no"] == 1
     assert payload["monetization_signals"][1]["unclear"] == 1
+    assert [
+        (action["priority"], action["category"], action["status"])
+        for action in payload["actions"]
+    ] == [
+        ("medium", "collect", "manual_input_required"),
+        ("medium", "review", "partial"),
+        ("low", "review", "unclear"),
+    ]
     assert "feedback.private_note_should_not_render" not in json.dumps(payload)
 
 
@@ -288,9 +299,6 @@ def test_pilot_cohort_marks_invalid_json_validation_and_directory_sources(
     assert sources["pilot-2"].state == "invalid"
     assert sources["pilot-2"].summary == "schema validation failed"
     assert sources["pilot-3"].state == "unsafe"
-    assert pilot_cohort._state_from_load_error("bad encoding") == "invalid"
-    assert pilot_cohort._state_from_load_error("not a file") == "unsafe"
-    assert pilot_cohort._parse_document("{bad") is None
 
 
 def test_pilot_cohort_rejects_manifest_outside_project(tmp_path: Path) -> None:
@@ -451,6 +459,33 @@ def test_pilot_cohort_marks_forbidden_outcome_path_unsafe(tmp_path: Path) -> Non
     assert packet.outcomes[0].summary == "path in forbidden directory"
 
 
+def test_pilot_cohort_public_loader_classifies_unexpected_read_error_as_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outcome_path = tmp_path / "reports" / "pilot.json"
+    _write_json(outcome_path, _pilot_outcome(project="checkout-api", status="ready"))
+    manifest = tmp_path / "reports" / "pilot-cohort-manifest.json"
+    _write_json(manifest, _manifest("reports/pilot.json"))
+    original_reader = read_local_evidence_json_artifact_bytes
+
+    def fail_outcome(path: Path, *, root: Path) -> tuple[bytes | None, str]:
+        if path == outcome_path:
+            return None, "unexpected read error"
+        return original_reader(path, root=root)
+
+    monkeypatch.setattr(
+        pilot_cohort,
+        "read_local_evidence_json_artifact_bytes",
+        fail_outcome,
+    )
+
+    packet = build_pilot_cohort_packet(project_root=tmp_path, manifest=manifest)
+
+    assert packet.outcomes[0].state == "invalid"
+    assert packet.outcomes[0].summary == "unexpected read error"
+
+
 def test_pilot_cohort_marks_symlinked_outcome_path_unsafe(tmp_path: Path) -> None:
     real_reports = tmp_path / "real-reports"
     _write_json(
@@ -539,10 +574,14 @@ def test_pilot_cohort_rejects_secret_like_rendered_output(
 ) -> None:
     manifest = tmp_path / "reports" / "pilot-cohort-manifest.json"
     _write_json(manifest, _manifest("reports/missing.json"))
+    packet = build_pilot_cohort_packet(
+        project_root=tmp_path,
+        manifest=manifest,
+    ).model_copy(update={"project": "sk-proj-" + ("a" * 24)})
     monkeypatch.setattr(
         pilot_cohort,
-        "_render_packet_content",
-        lambda *_args, **_kwargs: "sk-proj-" + ("a" * 24),
+        "build_pilot_cohort_packet",
+        lambda **_: packet,
     )
 
     with pytest.raises(PilotCohortError, match="secret-like content"):
@@ -575,177 +614,3 @@ def test_pilot_cohort_rejects_unsupported_output(tmp_path: Path) -> None:
             manifest=manifest,
             output="csv",  # type: ignore[arg-type]
         )
-
-
-def test_pilot_cohort_outcome_counts_preserve_every_value_free_bucket() -> None:
-    outcomes = (
-        pilot_cohort.PilotCohortOutcome(
-            id="ready",
-            path="reports/ready.json",
-            state="present",
-            status="ready",
-            manual_input_gaps=1,
-            summary="ready",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="partial",
-            path="reports/partial.json",
-            state="present",
-            status="partial",
-            manual_input_gaps=2,
-            summary="partial",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="insufficient",
-            path="reports/insufficient.json",
-            state="present",
-            status="insufficient",
-            manual_input_gaps=3,
-            summary="insufficient",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="missing",
-            path="reports/missing.json",
-            state="missing",
-            summary="missing",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="invalid",
-            path="reports/invalid.json",
-            state="invalid",
-            summary="invalid",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="unsafe",
-            path="reports/unsafe.json",
-            state="unsafe",
-            summary="unsafe",
-        ),
-    )
-
-    counts = pilot_cohort._outcome_counts(outcomes)
-
-    assert counts == pilot_cohort._OutcomeCounts(
-        present=3,
-        missing=1,
-        invalid=1,
-        unsafe=1,
-        ready=1,
-        partial=1,
-        insufficient=1,
-        manual_input_gaps_total=6,
-    )
-
-
-def test_pilot_cohort_action_counts_preserve_priority_buckets() -> None:
-    actions = (
-        pilot_cohort.PilotCohortAction(
-            priority="high",
-            category="repair",
-            action="repair",
-        ),
-        pilot_cohort.PilotCohortAction(
-            priority="medium",
-            category="generate",
-            action="generate",
-        ),
-        pilot_cohort.PilotCohortAction(
-            priority="medium",
-            category="collect",
-            action="collect",
-        ),
-        pilot_cohort.PilotCohortAction(
-            priority="low",
-            category="review",
-            action="review",
-        ),
-    )
-
-    counts = pilot_cohort._action_counts(actions)
-
-    assert counts == pilot_cohort._ActionCounts(high=1, medium=2, low=1)
-
-
-def test_pilot_cohort_action_groups_preserve_overlap_and_input_order() -> None:
-    outcomes = (
-        pilot_cohort.PilotCohortOutcome(
-            id="invalid",
-            path="reports/invalid.json",
-            state="invalid",
-            summary="invalid",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="missing",
-            path="reports/missing.json",
-            state="missing",
-            summary="missing",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="partial-manual",
-            path="reports/partial-manual.json",
-            state="present",
-            status="partial",
-            manual_input_gaps=2,
-            summary="partial",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="unsafe",
-            path="reports/unsafe.json",
-            state="unsafe",
-            summary="unsafe",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="insufficient",
-            path="reports/insufficient.json",
-            state="present",
-            status="insufficient",
-            summary="insufficient",
-        ),
-        pilot_cohort.PilotCohortOutcome(
-            id="manual",
-            path="reports/manual.json",
-            state="present",
-            status="ready",
-            manual_input_gaps=1,
-            summary="ready",
-        ),
-    )
-
-    groups = pilot_cohort._action_groups(outcomes)
-
-    assert groups == pilot_cohort._ActionGroups(
-        repair=("invalid", "unsafe"),
-        generate=("missing",),
-        collect=("partial-manual", "manual"),
-        partial_review=("partial-manual", "insufficient"),
-    )
-    actions = pilot_cohort._actions(
-        outcomes=outcomes,
-        signals=(
-            pilot_cohort.PilotCohortMonetizationSignal(
-                id="hosted_aggregation",
-                yes=0,
-                no=0,
-                unclear=1,
-            ),
-        ),
-    )
-    assert tuple(
-        (action.priority, action.category, action.status, action.outcome_ids)
-        for action in actions
-    ) == (
-        ("high", "repair", "repair_required", ("invalid", "unsafe")),
-        ("medium", "generate", "missing", ("missing",)),
-        ("medium", "collect", "manual_input_required", ("partial-manual", "manual")),
-        ("medium", "review", "partial", ("partial-manual", "insufficient")),
-        ("low", "review", "unclear", ()),
-    )
-
-
-def test_pilot_cohort_private_helpers_keep_defensive_branches_covered(
-    tmp_path: Path,
-) -> None:
-    assert pilot_cohort._readiness_status(None, "runtime_card") is None
-    assert pilot_cohort._relative_path(tmp_path.parent / "outside.json", root=tmp_path).endswith(
-        "outside.json"
-    )

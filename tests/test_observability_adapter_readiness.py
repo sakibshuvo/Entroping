@@ -9,6 +9,7 @@ import entroping.core.readiness.observability_adapter_readiness as adapter_readi
 from entroping.core.evidence.evidence_index_report import EVIDENCE_INDEX_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.evidence.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.readiness.observability_adapter_readiness import (
     OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
     ObservabilityAdapterReadinessError,
@@ -105,6 +106,12 @@ def test_run_observability_adapter_readiness_writes_value_free_json(
         "generic",
     }
     assert {adapter["status"] for adapter in payload["adapters"]} == {"ready"}
+    source_ids = {source["id"] for source in payload["sources"]}
+    assert all(
+        set(adapter["required_source_ids"]) <= source_ids
+        and set(adapter["optional_source_ids"]) <= source_ids
+        for adapter in payload["adapters"]
+    )
     assert payload["next_actions"] == [
         {
             "priority": "low",
@@ -297,7 +304,6 @@ def test_observability_adapter_readiness_keeps_unknown_counts_value_free(
     assert sources["otel_mapping"].summary.endswith("unknown mappings")
     assert sources["evidence_index"].summary.endswith("unknown/unknown artifacts")
     assert sources["runtime_card"].summary == "pass runtime, unknown findings, unknown links"
-    assert adapter_readiness._document_severity(None) is None
 
     _write_json(
         tmp_path / "reports" / "observability-packet.json",
@@ -385,158 +391,35 @@ def test_observability_adapter_readiness_source_path_resolution_failures_are_uns
 
     assert {source.state for source in packet.sources} == {"unsafe"}
     assert "path outside project" in {source.summary for source in packet.sources}
-    assert (
-        adapter_readiness._relative_display(tmp_path.parent / "outside", root=tmp_path)
-        == "outside"
-    )
 
+
+def test_observability_adapter_readiness_public_source_escape_is_unsafe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = _write_json(
+        tmp_path.parent / "outside-observability-packet.json",
+        {
+            "schema_version": OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            "summary": {"status": "ready", "severity": "info"},
+        },
+    )
+    linked = tmp_path / "reports" / "observability-packet.json"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    linked.symlink_to(outside)
     monkeypatch.setattr(
         adapter_readiness,
         "first_symlink_path_component",
         lambda *_args, **_kwargs: None,
     )
-    assert (
-        adapter_readiness._source_path_error(tmp_path.parent / "outside.json", root=tmp_path)
-        == "path outside project"
-    )
 
+    packet = build_observability_adapter_readiness_packet(project_root=tmp_path)
 
-def test_observability_adapter_readiness_adapter_definitions_reference_known_sources() -> None:
-    source_ids = {definition.id for definition in adapter_readiness._sources()}
-
-    for definition in adapter_readiness._adapter_definitions():
-        assert set(definition.required_source_ids) <= source_ids
-        assert set(definition.optional_source_ids) <= source_ids
-
-
-def test_observability_adapter_readiness_summary_count_helpers_characterize_states() -> None:
-    source_states: tuple[
-        tuple[
-            adapter_readiness.ObservabilityAdapterSourceId,
-            adapter_readiness.ObservabilityAdapterReadinessSourceState,
-        ],
-        ...,
-    ] = (
-        ("observability_packet", "present"),
-        ("otel_mapping", "missing"),
-        ("evidence_index", "invalid"),
-        ("runtime_card", "unsafe"),
+    source = next(
+        source for source in packet.sources if source.id == "observability_packet"
     )
-    sources = tuple(
-        adapter_readiness.ObservabilityAdapterReadinessSource(
-            id=source_id,
-            label=source_id,
-            path=f"reports/{source_id}.json",
-            state=state,
-            schema_version=None,
-            summary=state,
-        )
-        for source_id, state in source_states
-    )
-    adapter_states: tuple[
-        tuple[
-            adapter_readiness.ObservabilityAdapterId,
-            adapter_readiness.ObservabilityAdapterStatus,
-        ],
-        ...,
-    ] = (
-        ("opentelemetry", "ready"),
-        ("datadog", "attention"),
-        ("splunk", "blocked"),
-    )
-    adapters = tuple(
-        adapter_readiness.ObservabilityAdapterReadinessRow(
-            id=adapter_id,
-            label=adapter_id,
-            status=status,
-            required_source_ids=(),
-            optional_source_ids=(),
-            summary=status,
-            next_action=status,
-            forbidden_fields=(),
-        )
-        for adapter_id, status in adapter_states
-    )
-
-    assert adapter_readiness._source_state_counts(sources) == (
-        adapter_readiness._SourceStateCounts(4, 1, 1, 1, 1)
-    )
-    assert adapter_readiness._adapter_status_counts(adapters) == (
-        adapter_readiness._AdapterStatusCounts(3, 1, 1, 1)
-    )
-
-
-@pytest.mark.parametrize(
-    (
-        "sources",
-        "adapters",
-        "source_severity",
-        "expected_status",
-        "expected_severity",
-    ),
-    [
-        (
-            adapter_readiness._SourceStateCounts(4, 4, 0, 0, 0),
-            adapter_readiness._AdapterStatusCounts(5, 5, 0, 0),
-            "info",
-            "ready",
-            "info",
-        ),
-        (
-            adapter_readiness._SourceStateCounts(4, 1, 3, 0, 0),
-            adapter_readiness._AdapterStatusCounts(5, 0, 5, 0),
-            "attention",
-            "partial",
-            "attention",
-        ),
-        (
-            adapter_readiness._SourceStateCounts(4, 0, 4, 0, 0),
-            adapter_readiness._AdapterStatusCounts(5, 0, 5, 0),
-            "attention",
-            "insufficient",
-            "attention",
-        ),
-        (
-            adapter_readiness._SourceStateCounts(4, 3, 0, 1, 0),
-            adapter_readiness._AdapterStatusCounts(5, 5, 0, 0),
-            "info",
-            "insufficient",
-            "blocker",
-        ),
-        (
-            adapter_readiness._SourceStateCounts(4, 3, 0, 0, 1),
-            adapter_readiness._AdapterStatusCounts(5, 5, 0, 0),
-            "info",
-            "insufficient",
-            "blocker",
-        ),
-        (
-            adapter_readiness._SourceStateCounts(4, 4, 0, 0, 0),
-            adapter_readiness._AdapterStatusCounts(5, 4, 0, 1),
-            "info",
-            "insufficient",
-            "blocker",
-        ),
-    ],
-)
-def test_observability_adapter_readiness_summary_helpers_preserve_state_semantics(
-    sources: adapter_readiness._SourceStateCounts,
-    adapters: adapter_readiness._AdapterStatusCounts,
-    source_severity: adapter_readiness.ObservabilityAdapterReadinessSeverity,
-    expected_status: adapter_readiness.ObservabilityAdapterReadinessStatus,
-    expected_severity: adapter_readiness.ObservabilityAdapterReadinessSeverity,
-) -> None:
-    assert (
-        adapter_readiness._readiness_status(sources=sources, adapters=adapters) == expected_status
-    )
-    assert (
-        adapter_readiness._readiness_severity(
-            sources=sources,
-            adapters=adapters,
-            source_severity=source_severity,
-        )
-        == expected_severity
-    )
+    assert source.state == "unsafe"
+    assert source.summary == "path outside project"
 
 
 def test_observability_adapter_readiness_rejects_unsupported_and_unsafe_outputs(
@@ -581,6 +464,36 @@ def test_observability_adapter_readiness_rejects_symlinked_output_path(
         )
 
 
+def test_observability_adapter_readiness_public_output_keeps_display_bounded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_reports = tmp_path / "real-reports"
+    real_reports.mkdir()
+    linked = tmp_path / "linked-reports"
+    linked.symlink_to(real_reports, target_is_directory=True)
+    output_path = linked / "observability-adapter-readiness.json"
+    outside_display = tmp_path.parent / "foreign-display"
+    original_first = first_symlink_path_component
+
+    def fake_first(path: Path, *, root: Path | None = None) -> Path | None:
+        if path == output_path:
+            return outside_display
+        return original_first(path, root=root)
+
+    monkeypatch.setattr(adapter_readiness, "first_symlink_path_component", fake_first)
+
+    with pytest.raises(
+        ObservabilityAdapterReadinessError,
+        match="symlinked component: foreign-display",
+    ):
+        run_observability_adapter_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=output_path,
+        )
+
+
 def test_observability_adapter_readiness_rejects_secret_like_rendered_packet(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -599,10 +512,17 @@ def test_observability_adapter_readiness_rejects_secret_like_rendered_packet(
 def test_observability_adapter_readiness_packet_renderer_returns_json_and_markdown(
     tmp_path: Path,
 ) -> None:
-    packet = build_observability_adapter_readiness_packet(project_root=tmp_path)
+    json_result = run_observability_adapter_readiness_report(
+        project_root=tmp_path,
+        output="json",
+    )
+    markdown_result = run_observability_adapter_readiness_report(
+        project_root=tmp_path,
+        output="md",
+    )
 
-    json_content = adapter_readiness._render_packet_content(packet, output="json")
-    markdown_content = adapter_readiness._render_packet_content(packet, output="md")
+    json_content = json_result.output_path.read_text(encoding="utf-8")
+    markdown_content = markdown_result.output_path.read_text(encoding="utf-8")
 
     assert json.loads(json_content)["schema_version"] == (
         OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION

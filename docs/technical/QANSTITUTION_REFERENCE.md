@@ -547,15 +547,15 @@ gate: "status < 500"
 
 The gate injector is responsible for translating these into the correct Hurl assertion placement for each execution copy.
 
-Current implementation note: gate matching evaluates `true`, tags, metadata, and shallow parsed Hurl request method/path/URL values. Injection writes temporary execution copies and adds `# entroping-gate: <rule_id> enforcement=<level>` comments next to injected assertions so runner and report layers can distinguish `block`, `warn`, and `audit_only` gates without mutating source `.hurl` files.
+Current implementation note: gate matching evaluates `true`, tags, metadata, and shallow parsed Hurl request method/path/URL values. Runtime injects all matching gates for a selected source into one bounded temporary execution copy; each Hurl attempt invokes Hurl once for that source, and no enforcement mode adds a request sequence. It adds `# entroping-gate: <rule_id> enforcement=<level>` next to each executable assertion. The source `.hurl` remains unchanged and its request sequence runs once per attempt. JSON, JUnit, and HTML reports preserve each gate's rule ID, enforcement, result, and exit evidence.
 
 ## 13. Enforcement Behavior
 
 | Enforcement | Behavior |
 | --- | --- |
 | `block` | Failing gate causes non-zero exit in normal and CI runs |
-| `warn` | Failing gate is reported but does not fail the run |
-| `audit_only` | Gate is evaluated or listed for visibility without blocking |
+| `warn` | Failing gate is evaluated by Hurl and reported but does not fail the run |
+| `audit_only` | Gate is evaluated by Hurl and reported for visibility without blocking |
 
 Reports must show enforcement level and rule ID.
 

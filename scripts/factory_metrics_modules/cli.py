@@ -26,9 +26,11 @@ from .commands import (
 from .commands import (
     _validate_command as _validate_command,
 )
-from .common import FactoryMetricsError, _repo_root
+from .common import _repo_root
+from .errors import FactoryMetricsError
 from .parser import _add_common_output_args as _add_common_output_args  # noqa: F401
 from .parser import build_parser as build_parser
+from .provider_scorecard_commands import provider_scorecard_command as _provider_scorecard_command
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
             return _readiness_command(repo_root, args)
         if args.command == "context-scorecard":
             return _context_scorecard_command(repo_root, args)
+        if args.command == "provider-scorecard":
+            return _provider_scorecard_command(repo_root, args)
     except FactoryMetricsError as exc:
         parser.exit(2, f"{exc}\n")
 

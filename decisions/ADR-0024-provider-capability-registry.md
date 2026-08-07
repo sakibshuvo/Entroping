@@ -55,10 +55,12 @@ authority. A route must be both registered and budget-authorized before a
 future paid scheduler may dispatch it.
 
 Existing factory metrics `provider` and `model` labels predate this registry and
-are not canonical cost-policy keys. Issue #1573 owns correlation of lane,
-invocation, cost identity, commit, diff, CI, merge, and regression evidence;
-until that migration lands, consumers must not infer a registry or cost-policy
-join from legacy metric labels.
+are not canonical cost-policy keys. Issue #1573 delivers separate strict,
+value-free provider-scorecard evidence for exact lane, host, billing, model,
+autonomy, registry-derived cost-provider/model identity, job/reservation,
+commit, diff, CI, merge, and regression correlation.
+Consumers must not infer a registry or cost-policy join from legacy metric
+labels; the scorecard does not extend or reinterpret them.
 
 ## Consequences
 
@@ -79,7 +81,7 @@ join from legacy metric labels.
 ## Evidence
 
 - GitHub issue #1558 owns the release-CI-architecture acceptance lane; issue
-  #1573 owns downstream evidence correlation.
+  #1573 supplies the separate downstream evidence-correlation contract.
 - `docs/meta/provider-capability-registry.v1.schema.json` is the committed
   authoring schema.
 - `scripts/provider_capability_registry.py` exposes registry-backed routing and

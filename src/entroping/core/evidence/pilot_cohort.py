@@ -583,11 +583,9 @@ def _readiness_signal(
 
 
 def _readiness_status(
-    packet: PilotOutcomePacket | None,
+    packet: PilotOutcomePacket,
     readiness_id: PilotCohortReadinessId,
 ) -> str | None:
-    if packet is None:
-        return None
     readiness = packet.pilot_evidence_readiness
     mapping = {
         "design_partner_feedback": readiness.design_partner_feedback_status,

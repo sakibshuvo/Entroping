@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
-from typing import Final, Literal
+from typing import Final, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -581,14 +581,13 @@ def _source_severity(loaded_sources: tuple[_LoadedSource, ...]) -> OtelMappingSe
     observability = next(
         loaded for loaded in loaded_sources if loaded.source.id == "observability_packet"
     )
-    return _observability_packet_severity(observability.document) or "info"
+    document = cast(dict[str, object], observability.document)
+    return _observability_packet_severity(document) or "info"
 
 
 def _observability_packet_severity(
-    document: dict[str, object] | None,
+    document: dict[str, object],
 ) -> OtelMappingSeverity | None:
-    if document is None:
-        return None
     severity = _object_field(document, "summary").get("severity")
     if severity == "blocker":
         return "blocker"
