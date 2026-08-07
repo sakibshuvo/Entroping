@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -94,8 +95,7 @@ def test_load_rejects_non_private_referenced_artifact(tmp_path: Path) -> None:
     body = Path(str(payload["pr_body_path"]))
     body.write_text("public", encoding="utf-8")
     # Deliberately non-private: the test asserts that loading fails closed.
-    # codeql[py/overly-permissive-file]
-    os.chmod(body, 0o640)
+    os.chmod(body, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
     request_path = tmp_path / "private/delivery-request.json"
     write_delivery_request(request_path, payload)
 

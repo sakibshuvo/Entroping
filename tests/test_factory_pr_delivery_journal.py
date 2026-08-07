@@ -1543,8 +1543,7 @@ def test_journal_storage_abuse_fails_closed(tmp_path: Path, abuse: str) -> None:
             )
     elif abuse == "mode":
         # Deliberately non-private: the test asserts that journal reuse fails closed.
-        # codeql[py/overly-permissive-file]
-        os.chmod(database, 0o640)
+        os.chmod(database, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
     else:
         database.unlink()
         target = tmp_path / "foreign.sqlite3"
