@@ -1,0 +1,148 @@
+{
+  "schema_version": "entroping.aggregate-pr-finish-evidence.v1",
+  "repository": "sakibshuvo/Entroping",
+  "aggregate_pr_number": 1537,
+  "aggregate_merge_commit": "3d43a4821d0c6475314266b6dc9a2f3b6116530d",
+  "entries": [
+    {
+      "issue_number": 1503,
+      "source_branch": "feat/experimental-report-governance",
+      "source_commit": "4c83aabada1883855d14526894373ef2f731fb92",
+      "integrated_commit": "a56c34e47f58173630af1a694957ba2f81d5276c",
+      "patch_id": "614139c012dea694d25da4afff653e0cf0bdcb6a"
+    },
+    {
+      "issue_number": 1504,
+      "source_branch": "feat/source-maintainability-ratchet",
+      "source_commit": "5bc0349f9e0ff4997a99459b136f07857d61f304",
+      "integrated_commit": "02dff60382d28b0e416f49b8082464488166572f",
+      "patch_id": "0a6c7caac1eafe4439774ae113617eae8af78086"
+    },
+    {
+      "issue_number": 1505,
+      "source_branch": "feat/test-taxonomy-provenance",
+      "source_commit": "53e9a16aadbdad17bed6eb7fef2fbe605df715e5",
+      "integrated_commit": "76589b140f6222bafc287c47d887bbb6115c2f9a",
+      "patch_id": "a1dde98c4646909f9c317aaecee32a1f394bb9ad"
+    },
+    {
+      "issue_number": 1506,
+      "source_branch": "docs/compat-shim-retirement",
+      "source_commit": "fb713b320bd3d60174bd2c499bfafc8ff8455fc3",
+      "integrated_commit": "448b1684e3a54b41beeeeaeb8a7a26ef93096e02",
+      "patch_id": "8a561cc0aeb1a83695804d0892bf567b46d8ca0b"
+    },
+    {
+      "issue_number": 1515,
+      "source_branch": "test/split-report-schema-contracts",
+      "source_commit": "fe0f2a89c875108fb59d4dbca9fbc4120129e8bf",
+      "integrated_commit": "54f263d6250758f0d3668cce8a6f76c82d092531",
+      "patch_id": "d1d04c3572ad595cfed78e95b9e7b99167a997ce"
+    },
+    {
+      "issue_number": 1516,
+      "source_branch": "test/split-cli-report",
+      "source_commit": "a10005daa0a7791fca48bb514b59ea4f9a30aa19",
+      "integrated_commit": "97be69e46e37ba00918220bdcf9e743013bf2085",
+      "patch_id": "644c73e16efdb04aca65fabb92b2e597d298308a"
+    },
+    {
+      "issue_number": 1517,
+      "source_branch": "test/split-openapi-contracts",
+      "source_commit": "bc358e7d53ae3b2d5599af7a5382b4ca7064fbd2",
+      "integrated_commit": "f17c574cf6b060e4ab23d63bbbe1068c2b34543f",
+      "patch_id": "deca1407d90b02d353e78ff5607d616462123dc9"
+    },
+    {
+      "issue_number": 1518,
+      "source_branch": "test/split-architect-cli",
+      "source_commit": "63aca010c34dbabb407997799be9db4a9e868d52",
+      "integrated_commit": "7e97911ac04184f79799edb68531cb82e516b5ab",
+      "patch_id": "cd1fc6ec38abbae7c08cd676fe8c195d380928c2"
+    },
+    {
+      "issue_number": 1520,
+      "source_branch": "test/split-report-writer",
+      "source_commit": "ea5f680f8ce756d9ef02db6ef07742b10731300d",
+      "integrated_commit": "9f5e95f6d840b431eea9f00f6ed3f8130d7d6eb9",
+      "patch_id": "7c1d74d123286b3021ec4acd4c4d965943eb4a69"
+    },
+    {
+      "issue_number": 1521,
+      "source_branch": "fix/report-command-help",
+      "source_commit": "1ae53302607c4f913b1578853f781ef49cb2268c",
+      "integrated_commit": "cfb3b153e0a4aa22c0257afed1032a2261f10680",
+      "patch_id": "d7d54cb78bd438ba3ebc434fbf9ae289b612b70e"
+    },
+    {
+      "issue_number": 1522,
+      "source_branch": "refactor/external-test-summary",
+      "source_commit": "eb8ab70ed4e9d6d94f0dc9a91b903d2d8935da1b",
+      "integrated_commit": "ab7e12ffa67954cfb5ddea8648de2f5b789a7e63",
+      "patch_id": "0d02fb59c7ad7e9ffca1bec1e23455bad5a6d75c"
+    },
+    {
+      "issue_number": 1523,
+      "source_branch": "refactor/observability-readiness-summary",
+      "source_commit": "b6d21d17a153eb8bcc7bea051217f27d9f012f7c",
+      "integrated_commit": "c0ed9ddfe672fc72d5428e79d66e30a34cf760b8",
+      "patch_id": "d85e97411b1a1f6dae30d2d0ca6566368f86fc78"
+    },
+    {
+      "issue_number": 1524,
+      "source_branch": "refactor/otel-mapping-summary",
+      "source_commit": "650342bac887b6fd2fbf3cffb1d482947d8a043a",
+      "integrated_commit": "7f3efdff1c4c88dbaf81241d3c4c050affb7c28f",
+      "patch_id": "32b30c8a3422d42b141073f0012e9dfc2468797f"
+    },
+    {
+      "issue_number": 1525,
+      "source_branch": "refactor/api-inventory-summaries",
+      "source_commit": "9743be59a24eb28a99db766ea526ceb9c6b5ac59",
+      "integrated_commit": "47a25795ffc035b563caf4267cf160b958f607d9",
+      "patch_id": "83e2abdc86a7610fb43bf7ec5bdd8d45c7560b09"
+    },
+    {
+      "issue_number": 1526,
+      "source_branch": "refactor/evidence-cloud-readiness",
+      "source_commit": "25bcb21db7dce1a88ab2bd0d19173abcb2c0c678",
+      "integrated_commit": "4c2eafc04e0daa405bb6efb0a0de73cba316ba08",
+      "patch_id": "416d9464aa8b7581868db85c8d14a8297def443e"
+    },
+    {
+      "issue_number": 1527,
+      "source_branch": "refactor/observability-packet-summary",
+      "source_commit": "079a9cff1f06fdc2c820ed66d3235560014282a3",
+      "integrated_commit": "8313713496d75f8d46e4dbf657242cd5129eabfe",
+      "patch_id": "e78d7b940f84e5bc9c5f4627de18a1e43af83c15"
+    },
+    {
+      "issue_number": 1528,
+      "source_branch": "refactor/pilot-cohort-summary",
+      "source_commit": "1befa9dc86648c8f23173dcff9cf5e190fef01c3",
+      "integrated_commit": "8f55902778c8debef942419e0c3dfd70af248f1e",
+      "patch_id": "c5227c15ec34fa27abbd532b48a264b44a29911d"
+    },
+    {
+      "issue_number": 1529,
+      "source_branch": "refactor/pilot-outcome-summary",
+      "source_commit": "b2702829e10fb14da33de2dfbf608216026ca2b5",
+      "integrated_commit": "9adf508a2fb8c24540ab59b0a6400b3d16ba0eaf",
+      "patch_id": "f688881e2d6eeac3da444c06fb59ec13ea558206"
+    },
+    {
+      "issue_number": 1531,
+      "source_branch": "docs/stabilize-schema-suite-pointer",
+      "source_commit": "8b5852782f6f5801d61238c58aace91ca4573bfc",
+      "integrated_commit": "1d6eef24ec166a9d88c80035d498d3731b6b92cc",
+      "patch_id": "e38d90be9fc0ef10d2e2ac07fd9ef6218b16f97e"
+    },
+    {
+      "issue_number": 1532,
+      "source_branch": "test/isolate-openapi-shim-evidence",
+      "source_commit": "dc7b7a61700db91220bd09f77084d5d5989e1a74",
+      "integrated_commit": "297e470a66e65157e7bab172c5dcdd04b644e2b7",
+      "patch_id": "4f67fb58d728b9ab321716fa9b6721c5f383ac41"
+    }
+  ]
+}

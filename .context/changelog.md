@@ -2,6 +2,16 @@
 
 ## 2026-08-07
 
+- Added the maintainer-only aggregate-PR finish path for #1549. A tracked,
+  strict evidence manifest binds each retained issue worktree to its source
+  branch/commit, integrated commit, and stable patch identity; live issue,
+  merged PR, CI, ancestry, and clean-worktree checks remain mandatory before
+  the existing exact local cleanup. Aggregate cleanup also verifies the exact
+  remote source ref, uses a persisted deletion intent plus expected-value
+  lease, and proves remote absence without touching the aggregate PR branch.
+  Dry-run is mutation-free, and backlog health now reports closed active issues
+  and registered issue worktrees.
+  Historical PR #1537 cleanup has not been run by this branch.
 - Implemented issue #1540's nonblocking QAnstitution enforcement contract:
   block, warn, and audit_only gates share one temporary Hurl execution copy and
   one Hurl invocation per attempt. Source and block failures remain blocking;
