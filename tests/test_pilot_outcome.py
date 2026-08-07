@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.pilot_outcome as pilot_outcome
+from entroping.core.evidence.evidence_index import (
+    read_local_evidence_json_artifact_bytes,
+)
 from entroping.core.safe_write import SafeWriteError
 
 PILOT_OUTCOME_SCHEMA_VERSION = (
@@ -132,6 +135,58 @@ def _write_all_sources(root: Path) -> None:
         reports / "work-item-import-bundle.json",
         _status_packet("entroping.work-item-import-bundle.v1", "partial"),
     )
+
+
+def test_pilot_outcome_public_feedback_without_status_is_present(tmp_path: Path) -> None:
+    _write_all_sources(tmp_path)
+    feedback = _design_partner_feedback()
+    evidence = feedback["evidence"]
+    assert isinstance(evidence, dict)
+    evidence["pilot_metrics_status"] = 1
+    _write_json(tmp_path / "reports" / "design-partner-feedback.json", feedback)
+
+    packet = build_pilot_outcome_packet(project_root=tmp_path)
+
+    source = next(
+        source for source in packet.sources if source.id == "design-partner-feedback-json"
+    )
+    assert source.status == "present"
+
+    _write_json(
+        tmp_path / "reports" / "runtime-card.json",
+        {"schema_version": "entroping.runtime-card.v1"},
+    )
+    packet = build_pilot_outcome_packet(project_root=tmp_path)
+    runtime_source = next(
+        source for source in packet.sources if source.id == "runtime-card-json"
+    )
+    assert runtime_source.status == "present"
+
+
+def test_pilot_outcome_public_loader_classifies_unknown_read_error_as_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_all_sources(tmp_path)
+    target = tmp_path / "reports" / "runtime-card.json"
+    original_reader = read_local_evidence_json_artifact_bytes
+
+    def fail_runtime(path: Path, *, root: Path) -> tuple[bytes | None, str]:
+        if path == target:
+            return None, "unexpected read error"
+        return original_reader(path, root=root)
+
+    monkeypatch.setattr(
+        pilot_outcome,
+        "read_local_evidence_json_artifact_bytes",
+        fail_runtime,
+    )
+
+    packet = build_pilot_outcome_packet(project_root=tmp_path)
+
+    source = next(source for source in packet.sources if source.id == "runtime-card-json")
+    assert source.state == "invalid"
+    assert source.summary == "unexpected read error"
 
 
 def _complete_feedback() -> dict[str, object]:

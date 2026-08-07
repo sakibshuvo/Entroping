@@ -11,10 +11,12 @@ import entroping.core.evidence.external_test_evidence as external_test_evidence
 from entroping.core.evidence.external_test_evidence import (
     EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
     ExternalTestEvidenceError,
+    ExternalTestEvidencePacket,
     build_external_test_evidence,
     render_external_test_evidence_markdown,
     run_external_test_evidence_report,
 )
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -395,6 +397,54 @@ def test_external_test_evidence_marks_source_resolution_errors_unsafe(
     assert "must stay under" in packet.sources[0].summary
 
 
+def test_external_test_evidence_public_source_boundaries_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    original_first = first_symlink_path_component
+    unit_source = tmp_path / "reports" / "external-tests" / "unit-junit.xml"
+    outside = _write_text(
+        tmp_path.parent / "outside-external-unit.xml",
+        '<testsuite tests="1" failures="0" errors="0" skipped="0" />',
+    )
+    unit_source.unlink()
+    unit_source.symlink_to(outside)
+    monkeypatch.setattr(
+        external_test_evidence,
+        "first_symlink_path_component",
+        lambda *_args, **_kwargs: None,
+    )
+
+    packet = build_external_test_evidence(project_root=tmp_path)
+
+    assert packet.sources[0].state == "unsafe"
+    assert "must stay under" in packet.sources[0].summary
+
+    unit_source.unlink()
+    unit_source.mkdir()
+    monkeypatch.setattr(
+        external_test_evidence,
+        "first_symlink_path_component",
+        original_first,
+    )
+    original_is_file = Path.is_file
+    is_file_calls = 0
+
+    def allow_then_reject_directory(self: Path, *args: object, **kwargs: object) -> bool:
+        nonlocal is_file_calls
+        if self == unit_source:
+            is_file_calls += 1
+            return is_file_calls == 1
+        return original_is_file(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", allow_then_reject_directory)
+    packet = build_external_test_evidence(project_root=tmp_path)
+
+    assert packet.sources[0].state == "invalid"
+    assert "not a regular file" in packet.sources[0].summary
+
+
 def test_external_test_evidence_rejects_source_replaced_during_read(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -554,3 +604,56 @@ def test_external_test_evidence_builder_rejects_secret_like_project(
 
     with pytest.raises(ExternalTestEvidenceError, match="contains secret-like"):
         build_external_test_evidence(project_root=secret_root)
+
+
+def test_external_test_evidence_builder_uses_public_packet_json_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    original_model_dump = cast(Any, ExternalTestEvidencePacket.model_dump)
+
+    def legacy_model_dump(
+        self: ExternalTestEvidencePacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if "fallback" in kwargs:
+            raise TypeError("fallback keyword is unsupported")
+        return cast(dict[str, object], original_model_dump(self, *args, **kwargs))
+
+    monkeypatch.setattr(
+        external_test_evidence.ExternalTestEvidencePacket,
+        "model_dump",
+        legacy_model_dump,
+    )
+
+    packet = build_external_test_evidence(project_root=tmp_path)
+
+    assert packet.summary.status == "ready"
+
+
+def test_external_test_evidence_builder_normalizes_public_packet_json_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    def broken_model_dump(
+        self: ExternalTestEvidencePacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        raise ValueError("serialization detail")
+
+    monkeypatch.setattr(
+        external_test_evidence.ExternalTestEvidencePacket,
+        "model_dump",
+        broken_model_dump,
+    )
+
+    with pytest.raises(
+        ExternalTestEvidenceError,
+        match="could not be serialized safely",
+    ):
+        build_external_test_evidence(project_root=tmp_path)

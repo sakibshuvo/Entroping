@@ -13,6 +13,8 @@ from entroping.core.evidence.api_inventory import (
     render_api_inventory_markdown,
     run_api_inventory_report,
 )
+from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
+from entroping.core.path_safety import first_symlink_path_component, is_ignored_project_path
 from entroping.core.safe_write import SafeWriteError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -771,6 +773,113 @@ def test_api_inventory_marks_malformed_postman_collection_shapes_invalid(
     )
 
 
+def test_api_inventory_public_postman_probe_handles_ambiguous_json_shapes(
+    tmp_path: Path,
+) -> None:
+    _write_text(tmp_path / "collections" / "root-list.json", "[]\n")
+    _write_text(
+        tmp_path / "collections" / "nested-nodes.json",
+        json.dumps({"item": [[], {"item": "not-a-list"}]}),
+    )
+    _write_text(
+        tmp_path / "collections" / "no-item.json",
+        json.dumps({"info": {"name": "not a collection"}}),
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {source.path: source for source in packet.sources}
+    assert "collections/root-list.json" not in sources
+    assert "collections/no-item.json" not in sources
+    assert sources["collections/nested-nodes.json"].operations == 0
+
+
+def test_api_inventory_public_postman_probe_handles_bounded_file_failures(
+    tmp_path: Path,
+) -> None:
+    collections = tmp_path / "collections"
+    _write_text(collections / "malformed.json", "{not json: [}\n")
+    (collections / "binary.json").parent.mkdir(parents=True, exist_ok=True)
+    (collections / "binary.json").write_bytes(b"\xff")
+    (collections / "large.json").write_bytes(
+        b"x" * (LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES + 1)
+    )
+
+    outside = _write_text(tmp_path.parent / "foreign-postman.json", "{}\n")
+    linked = collections / "linked.json"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    linked.symlink_to(outside)
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    assert not {
+        source.path
+        for source in packet.sources
+        if source.path.startswith("collections/")
+    }
+
+
+def test_api_inventory_public_postman_probe_handles_stat_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _write_text(tmp_path / "collections" / "stat-error.json", "{}\n")
+    original_first = first_symlink_path_component
+    original_stat = Path.stat
+    probe_started = False
+    default_stat_calls = 0
+
+    def observe_path(path: Path, *, root: Path | None = None) -> Path | None:
+        nonlocal probe_started
+        if path == target:
+            probe_started = True
+        return original_first(path, root=root)
+
+    def fail_target_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        nonlocal default_stat_calls
+        if probe_started and self == target and follow_symlinks:
+            default_stat_calls += 1
+        if default_stat_calls == 3 and self == target:
+            raise OSError("stat race")
+        return original_stat(self, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(api_inventory, "first_symlink_path_component", observe_path)
+    monkeypatch.setattr(Path, "stat", fail_target_stat)
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    assert not any(source.path == "collections/stat-error.json" for source in packet.sources)
+
+
+def test_api_inventory_public_scan_preserves_external_relative_display(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    foreign_root = tmp_path.parent / "foreign-api-inventory"
+    foreign_path = _write_text(foreign_root / "openapi.yaml", "openapi: 3.0.0\npaths: {}\n")
+    original_rglob = Path.rglob
+    original_ignored = is_ignored_project_path
+
+    def include_foreign(self: Path, pattern: str) -> object:
+        if self == tmp_path and pattern == "*":
+            return (*original_rglob(self, pattern), foreign_path)
+        return original_rglob(self, pattern)
+
+    def allow_foreign(path: Path, *, root: Path) -> bool:
+        if path == foreign_path:
+            return False
+        return original_ignored(path, root=root)
+
+    monkeypatch.setattr(Path, "rglob", include_foreign)
+    monkeypatch.setattr(api_inventory, "is_ignored_project_path", allow_foreign)
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    source = next(source for source in packet.sources if source.kind == "conventional_openapi")
+    assert source.path == "openapi.yaml"
+    assert source.state == "missing"
+
+
 def test_api_inventory_counts_graphql_root_operations_without_leaking_names(
     tmp_path: Path,
 ) -> None:
@@ -1340,6 +1449,16 @@ def test_api_inventory_handles_empty_and_unsafe_configured_specs(
         assert len(packet.sources) == 1
         assert packet.sources[0].state == "unsafe"
         assert expected_summary in packet.sources[0].summary
+
+
+def test_api_inventory_normalizes_whitespace_only_project_name(
+    tmp_path: Path,
+) -> None:
+    _write_text(tmp_path / "qanstitution.yaml", 'project: "   "\ngates: []\n')
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    assert packet.project is None
 
 
 def test_api_inventory_marks_configured_openapi_source_safety_states(

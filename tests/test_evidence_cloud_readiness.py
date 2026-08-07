@@ -173,6 +173,69 @@ def test_evidence_cloud_readiness_marks_missing_invalid_and_unsafe_sources(
     assert "sk-proj" not in packet.model_dump_json()
 
 
+def test_evidence_cloud_readiness_public_source_path_errors_are_unsafe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_path(*_args: object, **_kwargs: object) -> Path | None:
+        raise ValueError("outside")
+
+    monkeypatch.setattr(readiness, "first_symlink_path_component", reject_path)
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert {source.state for source in packet.sources} == {"unsafe"}
+    assert all("project root" in source.summary for source in packet.sources)
+
+
+def test_evidence_cloud_readiness_public_source_symlink_escape_is_unsafe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = tmp_path.parent / "outside-team-readiness.json"
+    _write_json(
+        outside,
+        {
+            "schema_version": "entroping.team-evidence-readiness.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+    linked = tmp_path / "reports" / "team-evidence-readiness.json"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    linked.symlink_to(outside)
+    monkeypatch.setattr(
+        readiness,
+        "first_symlink_path_component",
+        lambda *_args, **_kwargs: None,
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    source = next(
+        source for source in packet.sources if source.id == "team_evidence_readiness"
+    )
+    assert source.state == "unsafe"
+    assert "project root" in source.summary
+
+
+def test_evidence_cloud_readiness_public_markdown_renders_missing_actions(
+    tmp_path: Path,
+) -> None:
+    result = run_evidence_cloud_readiness_report(project_root=tmp_path, output="md")
+
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Next Actions" in markdown
+    assert "Generate" in markdown or "Repair" in markdown
+
+
+def test_evidence_cloud_readiness_public_empty_project_is_insufficient(
+    tmp_path: Path,
+) -> None:
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert packet.summary.status == "insufficient"
+
+
 def test_evidence_cloud_readiness_dedupes_same_invalid_source_across_areas(
     tmp_path: Path,
 ) -> None:

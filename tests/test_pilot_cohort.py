@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.pilot_cohort as pilot_cohort
+from entroping.core.evidence.evidence_index import (
+    read_local_evidence_json_artifact_bytes,
+)
 from entroping.core.safe_write import SafeWriteError
 
 PILOT_COHORT_SCHEMA_VERSION = (
@@ -454,6 +457,33 @@ def test_pilot_cohort_marks_forbidden_outcome_path_unsafe(tmp_path: Path) -> Non
 
     assert packet.outcomes[0].state == "unsafe"
     assert packet.outcomes[0].summary == "path in forbidden directory"
+
+
+def test_pilot_cohort_public_loader_classifies_unexpected_read_error_as_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outcome_path = tmp_path / "reports" / "pilot.json"
+    _write_json(outcome_path, _pilot_outcome(project="checkout-api", status="ready"))
+    manifest = tmp_path / "reports" / "pilot-cohort-manifest.json"
+    _write_json(manifest, _manifest("reports/pilot.json"))
+    original_reader = read_local_evidence_json_artifact_bytes
+
+    def fail_outcome(path: Path, *, root: Path) -> tuple[bytes | None, str]:
+        if path == outcome_path:
+            return None, "unexpected read error"
+        return original_reader(path, root=root)
+
+    monkeypatch.setattr(
+        pilot_cohort,
+        "read_local_evidence_json_artifact_bytes",
+        fail_outcome,
+    )
+
+    packet = build_pilot_cohort_packet(project_root=tmp_path, manifest=manifest)
+
+    assert packet.outcomes[0].state == "invalid"
+    assert packet.outcomes[0].summary == "unexpected read error"
 
 
 def test_pilot_cohort_marks_symlinked_outcome_path_unsafe(tmp_path: Path) -> None:

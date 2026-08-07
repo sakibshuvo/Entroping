@@ -9,6 +9,7 @@ import entroping.core.readiness.observability_adapter_readiness as adapter_readi
 from entroping.core.evidence.evidence_index_report import EVIDENCE_INDEX_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.evidence.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.readiness.observability_adapter_readiness import (
     OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
     ObservabilityAdapterReadinessError,
@@ -392,6 +393,35 @@ def test_observability_adapter_readiness_source_path_resolution_failures_are_uns
     assert "path outside project" in {source.summary for source in packet.sources}
 
 
+def test_observability_adapter_readiness_public_source_escape_is_unsafe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = _write_json(
+        tmp_path.parent / "outside-observability-packet.json",
+        {
+            "schema_version": OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            "summary": {"status": "ready", "severity": "info"},
+        },
+    )
+    linked = tmp_path / "reports" / "observability-packet.json"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    linked.symlink_to(outside)
+    monkeypatch.setattr(
+        adapter_readiness,
+        "first_symlink_path_component",
+        lambda *_args, **_kwargs: None,
+    )
+
+    packet = build_observability_adapter_readiness_packet(project_root=tmp_path)
+
+    source = next(
+        source for source in packet.sources if source.id == "observability_packet"
+    )
+    assert source.state == "unsafe"
+    assert source.summary == "path outside project"
+
+
 def test_observability_adapter_readiness_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
 ) -> None:
@@ -431,6 +461,36 @@ def test_observability_adapter_readiness_rejects_symlinked_output_path(
             project_root=tmp_path,
             output="json",
             output_path=Path("linked-reports") / "observability-adapter-readiness.json",
+        )
+
+
+def test_observability_adapter_readiness_public_output_keeps_display_bounded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_reports = tmp_path / "real-reports"
+    real_reports.mkdir()
+    linked = tmp_path / "linked-reports"
+    linked.symlink_to(real_reports, target_is_directory=True)
+    output_path = linked / "observability-adapter-readiness.json"
+    outside_display = tmp_path.parent / "foreign-display"
+    original_first = first_symlink_path_component
+
+    def fake_first(path: Path, *, root: Path | None = None) -> Path | None:
+        if path == output_path:
+            return outside_display
+        return original_first(path, root=root)
+
+    monkeypatch.setattr(adapter_readiness, "first_symlink_path_component", fake_first)
+
+    with pytest.raises(
+        ObservabilityAdapterReadinessError,
+        match="symlinked component: foreign-display",
+    ):
+        run_observability_adapter_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=output_path,
         )
 
 

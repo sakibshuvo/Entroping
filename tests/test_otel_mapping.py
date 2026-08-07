@@ -9,6 +9,7 @@ import entroping.core.evidence.otel_mapping as otel_mapping
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError
 
@@ -337,6 +338,67 @@ def test_otel_mapping_source_path_resolution_failures_are_unsafe(
 
     assert {source.state for source in packet.sources} == {"unsafe"}
     assert "path outside project" in {source.summary for source in packet.sources}
+
+
+def test_otel_mapping_public_source_resolution_rejects_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = _write_json(
+        tmp_path.parent / "outside-observability.json",
+        {
+            "schema_version": OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            "summary": {"status": "ready", "severity": "info"},
+        },
+    )
+    linked = tmp_path / "reports" / "observability-packet.json"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    linked.symlink_to(outside)
+    monkeypatch.setattr(
+        otel_mapping,
+        "first_symlink_path_component",
+        lambda *_args, **_kwargs: None,
+    )
+
+    packet = build_otel_mapping_packet(project_root=tmp_path)
+
+    source = next(source for source in packet.sources if source.id == "observability_packet")
+    assert source.state == "unsafe"
+    assert source.summary == "path outside project"
+
+
+def test_otel_mapping_public_present_sources_preserve_info_severity(tmp_path: Path) -> None:
+    reports = tmp_path / "reports"
+    _write_json(
+        reports / "observability-packet.json",
+        {
+            "schema_version": OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            "summary": {"status": "ready", "severity": "info", "events_total": 1},
+        },
+    )
+    _write_json(
+        reports / "runtime-card.json",
+        {"schema_version": RUNTIME_CARD_SCHEMA_VERSION, "summary": {"status": "pass"}},
+    )
+    _write_json(
+        reports / "test-pyramid.json",
+        {
+            "schema_version": TEST_PYRAMID_REPORT_SCHEMA_VERSION,
+            "summary": {"status": "ready"},
+        },
+    )
+    _write_json(
+        reports / "external-test-evidence.json",
+        {
+            "schema_version": EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
+            "summary": {"status": "ready"},
+        },
+    )
+
+    packet = build_otel_mapping_packet(project_root=tmp_path)
+
+    assert packet.summary.status == "ready"
+    assert packet.summary.severity == "info"
 def test_otel_mapping_source_summaries_keep_unknown_counts_value_free(
     tmp_path: Path,
 ) -> None:
@@ -446,6 +508,33 @@ def test_otel_mapping_rejects_symlinked_output_path(tmp_path: Path) -> None:
             project_root=tmp_path,
             output="json",
             output_path=Path("linked-reports") / "otel-mapping.json",
+        )
+
+
+def test_otel_mapping_public_output_error_keeps_external_display_value_free(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_reports = tmp_path / "real-reports"
+    real_reports.mkdir()
+    linked = tmp_path / "linked-reports"
+    linked.symlink_to(real_reports, target_is_directory=True)
+    output_path = linked / "otel-mapping.json"
+    outside_display = tmp_path.parent / "foreign-display"
+    original_first = first_symlink_path_component
+
+    def fake_first(path: Path, *, root: Path | None = None) -> Path | None:
+        if path == output_path:
+            return outside_display
+        return original_first(path, root=root)
+
+    monkeypatch.setattr(otel_mapping, "first_symlink_path_component", fake_first)
+
+    with pytest.raises(OtelMappingError, match="symlinked component: foreign-display"):
+        run_otel_mapping_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=output_path,
         )
 
 
