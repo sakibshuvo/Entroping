@@ -198,6 +198,17 @@ def test_replay_evidence_advances_monotonically_and_idempotently(tmp_path: Path)
     )
     assert _target(root).read_bytes() == branch
 
+    assert (
+        advance_replay_evidence(root, identity, "remote-branch-deletion-attempted")
+        == "remote-branch-deletion-attempted"
+    )
+    remote = _target(root).read_bytes()
+    assert (
+        advance_replay_evidence(root, identity, "remote-branch-deletion-attempted")
+        == "remote-branch-deletion-attempted"
+    )
+    assert _target(root).read_bytes() == remote
+
     with pytest.raises(ReplayEvidenceError, match="invalid replay transition"):
         advance_replay_evidence(root, identity, "worktree-removal-attempted")
 

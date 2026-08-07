@@ -5,11 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 from script_safety import ScriptSafetyError, read_json_file, run_subprocess
+
+MAX_ISSUE_LIMIT = 1000
+MAX_WORKTREE_OUTPUT_BYTES = 262_144
+_ISSUE_WORKTREE = re.compile(r"^Entroping-issue-([1-9][0-9]*)$")
 
 
 def main() -> int:
@@ -25,16 +30,25 @@ def main() -> int:
         default="sakibshuvo/Entroping",
         help="GitHub repository for gh issue list mode.",
     )
-    parser.add_argument("--limit", type=int, default=200, help="Maximum open issues to inspect.")
+    parser.add_argument("--limit", type=int, default=200, help="Maximum issues to inspect.")
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        help="Repository root whose registered issue worktrees should be checked.",
+    )
     args = parser.parse_args()
 
     try:
         issues = _load_issues(args.input, repo=args.repo, limit=args.limit)
+        repo_root = args.repo_root
+        if repo_root is None and args.input is None:
+            repo_root = _git_root()
+        registered = _registered_issue_numbers(repo_root) if repo_root is not None else ()
     except ValueError as exc:
         print(f"Backlog health check failed: {exc}", file=sys.stderr)
         return 1
 
-    failures = _health_failures(issues)
+    failures = _health_failures(issues, registered_issue_numbers=registered)
     if failures:
         print("Backlog health failed:", file=sys.stderr)
         for failure in failures:
@@ -72,6 +86,8 @@ def _load_issues(input_path: Path | None, *, repo: str, limit: int) -> list[dict
 def _load_issues_from_gh(*, repo: str, limit: int) -> object:
     if limit <= 0:
         raise ValueError("--limit must be greater than zero")
+    if limit > MAX_ISSUE_LIMIT:
+        raise ValueError(f"--limit must not exceed {MAX_ISSUE_LIMIT}")
     command = [
         "gh",
         "issue",
@@ -79,11 +95,11 @@ def _load_issues_from_gh(*, repo: str, limit: int) -> object:
         "--repo",
         repo,
         "--state",
-        "open",
+        "all",
         "--limit",
         str(limit),
         "--json",
-        "number,title,url,labels,milestone",
+        "number,title,url,state,labels,milestone",
     ]
     try:
         completed = run_subprocess(command, check=False, timeout=30)
@@ -101,17 +117,73 @@ def _load_issues_from_gh(*, repo: str, limit: int) -> object:
         raise ValueError(f"gh issue list returned invalid JSON: {exc.msg}") from exc
 
 
-def _health_failures(issues: list[dict[str, Any]]) -> tuple[str, ...]:
+def _git_root() -> Path:
+    try:
+        result = run_subprocess(
+            ["git", "rev-parse", "--show-toplevel"],
+            timeout=30,
+            max_output_bytes=4096,
+        )
+    except ScriptSafetyError as exc:
+        raise ValueError("could not inspect the current repository root") from exc
+    if result.returncode != 0 or not result.stdout.strip():
+        raise ValueError("could not inspect the current repository root")
+    return Path(result.stdout.strip())
+
+
+def _registered_issue_numbers(repo_root: Path) -> tuple[int, ...]:
+    try:
+        result = run_subprocess(
+            ["git", "-C", repo_root, "worktree", "list", "--porcelain"],
+            timeout=30,
+            max_output_bytes=MAX_WORKTREE_OUTPUT_BYTES,
+        )
+    except ScriptSafetyError as exc:
+        raise ValueError("could not inspect registered issue worktrees") from exc
+    if result.returncode != 0:
+        raise ValueError("could not inspect registered issue worktrees")
+    numbers: set[int] = set()
+    for line in result.stdout.splitlines():
+        if not line.startswith("worktree "):
+            continue
+        match = _ISSUE_WORKTREE.fullmatch(Path(line.removeprefix("worktree ").strip()).name)
+        if match is not None:
+            numbers.add(int(match.group(1)))
+    return tuple(sorted(numbers))
+
+
+def _health_failures(
+    issues: list[dict[str, Any]],
+    *,
+    registered_issue_numbers: tuple[int, ...] = (),
+) -> tuple[str, ...]:
     failures: list[str] = []
-    for issue in issues:
+    registered = set(registered_issue_numbers)
+    ordered = sorted(issues, key=lambda issue: _issue_sort_key(issue.get("number")))
+    for issue in ordered:
         number = issue.get("number", "?")
         labels = _label_names(issue.get("labels"))
+        if issue.get("state") == "CLOSED":
+            for active in ("status:ready", "status:in-progress"):
+                if active in labels:
+                    failures.append(
+                        f"#{number}: closed issue retains active status label: {active}"
+                    )
+            if type(number) is int and number in registered:
+                failures.append(f"#{number}: closed issue retains registered issue worktree")
+            continue
         for prefix in ("type:", "priority:", "status:"):
             if not any(label.startswith(prefix) for label in labels):
                 failures.append(f"#{number}: missing {prefix}* label")
         if issue.get("milestone") is None:
             failures.append(f"#{number}: missing milestone")
     return tuple(failures)
+
+
+def _issue_sort_key(value: object) -> tuple[int, str]:
+    if type(value) is int:
+        return value, ""
+    return sys.maxsize, str(value)
 
 
 def _label_names(raw_labels: object) -> tuple[str, ...]:

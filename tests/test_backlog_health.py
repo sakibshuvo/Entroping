@@ -66,7 +66,7 @@ def test_backlog_health_accepts_well_labeled_issue_fixture(tmp_path: Path) -> No
                     "url": "https://github.com/sakibshuvo/Entroping/issues/281",
                     "labels": ["type:bug", "priority:p3", "status:blocked"],
                     "milestone": {"title": "v0.4.0-alpha integrations"},
-                }
+                },
             ]
         ),
         encoding="utf-8",
@@ -233,11 +233,11 @@ def test_backlog_health_decodes_github_cli_output_as_utf8(
         "--repo",
         "sakibshuvo/Entroping",
         "--state",
-        "open",
+        "all",
         "--limit",
         "200",
         "--json",
-        "number,title,url,labels,milestone",
+        "number,title,url,state,labels,milestone",
     ]
 
 
@@ -247,3 +247,82 @@ def test_backlog_health_help_documents_github_cli_mode() -> None:
     assert result.returncode == 0
     assert "gh issue list" in result.stdout
     assert "--input" in result.stdout
+
+
+def test_backlog_health_reports_closed_active_state_and_registered_worktree(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    (repo / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "fixture"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    worktree = tmp_path / "Entroping-issue-302"
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree), "-b", "feat/closed-302"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    fixture = tmp_path / "issues.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "number": 301,
+                    "title": "closed active status",
+                    "state": "CLOSED",
+                    "labels": [
+                        {"name": "type:bug"},
+                        {"name": "priority:p2"},
+                        {"name": "status:ready"},
+                    ],
+                    "milestone": {"title": "milestone"},
+                },
+                {
+                    "number": 302,
+                    "title": "closed retained worktree",
+                    "state": "CLOSED",
+                    "labels": [
+                        {"name": "type:bug"},
+                        {"name": "priority:p2"},
+                        {"name": "status:blocked"},
+                    ],
+                    "milestone": {"title": "milestone"},
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_backlog_health(
+        "--input",
+        str(fixture),
+        "--repo-root",
+        str(repo),
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.splitlines() == [
+        "Backlog health failed:",
+        "  #301: closed issue retains active status label: status:ready",
+        "  #302: closed issue retains registered issue worktree",
+    ]

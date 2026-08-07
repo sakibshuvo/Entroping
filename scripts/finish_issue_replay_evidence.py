@@ -19,8 +19,17 @@ from typing import Final, Literal, assert_never
 
 SCHEMA: Final = "entroping.finish-issue-replay.v1"
 MAX_BYTES: Final = 4096
-Stage = Literal["worktree-removal-attempted", "branch-deletion-attempted"]
-ReadStage = Literal["none", "worktree-removal-attempted", "branch-deletion-attempted"]
+Stage = Literal[
+    "worktree-removal-attempted",
+    "branch-deletion-attempted",
+    "remote-branch-deletion-attempted",
+]
+ReadStage = Literal[
+    "none",
+    "worktree-removal-attempted",
+    "branch-deletion-attempted",
+    "remote-branch-deletion-attempted",
+]
 JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 _HEAD: Final = re.compile(r"[0-9a-f]{40}\Z")
 _EXACT_KEYS: Final = {
@@ -256,6 +265,8 @@ def _stage(value: JsonValue) -> Stage:
             return value
         case "branch-deletion-attempted":
             return value
+        case "remote-branch-deletion-attempted":
+            return value
         case _:
             raise ReplayEvidenceError("invalid replay evidence")
 
@@ -401,9 +412,14 @@ def _allows(current: ReadStage, requested: Stage) -> bool:
         case "none":
             return requested == "worktree-removal-attempted"
         case "worktree-removal-attempted":
-            return True
+            return requested in {"worktree-removal-attempted", "branch-deletion-attempted"}
         case "branch-deletion-attempted":
-            return requested == "branch-deletion-attempted"
+            return requested in {
+                "branch-deletion-attempted",
+                "remote-branch-deletion-attempted",
+            }
+        case "remote-branch-deletion-attempted":
+            return requested == "remote-branch-deletion-attempted"
         case unreachable:
             assert_never(unreachable)
 
@@ -435,7 +451,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--worktree-path", required=True)
     parser.add_argument(
         "--stage",
-        choices=("worktree-removal-attempted", "branch-deletion-attempted"),
+        choices=(
+            "worktree-removal-attempted",
+            "branch-deletion-attempted",
+            "remote-branch-deletion-attempted",
+        ),
     )
     return parser
 
