@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,7 +17,19 @@ from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "entroping.opencode-readiness.v1"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.opencode_unattended_preflight import (  # noqa: E402
+    preflight_unattended_profile,
+)
+from scripts.opencode_unattended_profile import (  # noqa: E402
+    UnattendedProfileError,
+    build_unattended_profile,
+)
+
+SCHEMA_VERSION = "entroping.opencode-readiness.v2"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - workflow scripts support py3.9.
 DEFAULT_STALE_REPO_PATH = Path.home() / "Documents" / "Entroping"
 DEFAULT_EXPECTED_REPO_ROOT_PREFIX = Path.home() / "projects"
@@ -37,6 +50,8 @@ REQUIRED_WORKFLOW_FILES = (
     "scripts/architecture_integrity.sh",
     "scripts/agent_toolchain.py",
     "scripts/opencode_worker.py",
+    "scripts/opencode_unattended_preflight.py",
+    "scripts/opencode_unattended_profile.py",
     "scripts/deepseek_worker.py",
     "scripts/ai_jobs.py",
     "scripts/pr_body_check.py",
@@ -301,6 +316,7 @@ def _run_checks(
         _check_command_help_surfaces(repo_root),
         _check_agent_toolchain_policy(repo_root, mode=mode),
         _check_opencode_binary(repo_root, opencode_bin),
+        _check_opencode_unattended_capability(opencode_bin),
         _check_local_opencode_config(),
         _check_local_artifact_ignore_rules(repo_root),
         _check_tracked_local_artifacts(repo_root),
@@ -681,6 +697,7 @@ def _check_agent_toolchain_policy(repo_root: Path, *, mode: str) -> CheckResult:
 
 
 def _check_opencode_binary(repo_root: Path, opencode_bin: Path | None) -> CheckResult:
+    del repo_root
     if opencode_bin is None:
         return CheckResult(
             name="opencode_binary",
@@ -688,34 +705,67 @@ def _check_opencode_binary(repo_root: Path, opencode_bin: Path | None) -> CheckR
             message="opencode executable was not found on PATH",
             details={"path": None},
         )
-    if not opencode_bin.exists():
+    if opencode_bin.is_symlink() or not opencode_bin.is_file():
         return CheckResult(
             name="opencode_binary",
             status="fail",
-            message=f"configured opencode executable does not exist: {opencode_bin}",
+            message=(
+                "configured opencode executable must be a regular non-symlink file: "
+                f"{opencode_bin}"
+            ),
             details={"path": str(opencode_bin)},
         )
-
-    result = _run([str(opencode_bin), "--version"], cwd=repo_root, timeout=10)
-    if result.returncode != 0:
+    if not os.access(opencode_bin, os.X_OK):
         return CheckResult(
             name="opencode_binary",
             status="fail",
-            message=f"opencode --version failed for {opencode_bin}",
-            details={
-                "path": str(opencode_bin),
-                "returncode": result.returncode,
-                "stderr": result.stderr,
-                "error": result.error,
-            },
+            message=f"configured opencode file is not executable: {opencode_bin}",
+            details={"path": str(opencode_bin)},
         )
-    version = (result.stdout or result.stderr).strip().splitlines()[0:1]
-    version_text = version[0] if version else "version output empty"
     return CheckResult(
         name="opencode_binary",
         status="pass",
-        message=f"OpenCode binary is available: {version_text}",
-        details={"path": str(opencode_bin), "version": version_text},
+        message=(
+            "OpenCode binary path is a regular executable; version and CLI "
+            "capability are verified by the bounded unattended preflight"
+        ),
+        details={"path": str(opencode_bin), "executed": False},
+    )
+
+
+def _check_opencode_unattended_capability(
+    opencode_bin: Path | None,
+) -> CheckResult:
+    if opencode_bin is None:
+        return CheckResult(
+            name="opencode_unattended_capability",
+            status="fail",
+            message="OpenCode unattended capability cannot be checked without a binary",
+            details={"capability_proven": False, "raw_values_recorded": False},
+        )
+    with tempfile.TemporaryDirectory(prefix="entroping-opencode-readiness-") as root:
+        try:
+            profile = build_unattended_profile(
+                mode="review",
+                model="deepseek/deepseek-v4-pro",
+                executable=opencode_bin,
+                isolated_root=Path(root),
+                snapshot_paths=(),
+                inherited_environment={},
+            )
+            attestation = preflight_unattended_profile(profile)
+        except UnattendedProfileError as exc:
+            return CheckResult(
+                name="opencode_unattended_capability",
+                status="fail",
+                message=f"OpenCode unattended capability cannot be proven: {exc}",
+                details={"capability_proven": False, "raw_values_recorded": False},
+            )
+    return CheckResult(
+        name="opencode_unattended_capability",
+        status="pass",
+        message="OpenCode unattended isolation and deny-first profile are supported",
+        details=attestation.receipt_payload(),
     )
 
 

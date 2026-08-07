@@ -20,6 +20,11 @@ def _write_live_demo_fake_hurl(path: Path) -> None:
         """#!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == "--version" ]]; then
+  printf 'hurl 4.3.0\\n'
+  exit 0
+fi
+
 for arg in "$@"; do
   case "$arg" in
     *demo-cart-001*|*localhost:18080*|*127.0.0.1:18080*)
@@ -30,11 +35,17 @@ for arg in "$@"; do
 done
 
 vars_file=""
+hurl_path=""
 while (($#)); do
   case "$1" in
     --variables-file)
       shift
       vars_file="$1"
+      ;;
+    -*)
+      ;;
+    *)
+      hurl_path="$1"
       ;;
   esac
   shift || true
@@ -43,7 +54,39 @@ done
 test -n "$vars_file"
 grep -q "base_url=http://127.0.0.1:18080" "$vars_file"
 grep -q "cart_id=demo-cart-001" "$vars_file"
-echo "fake hurl ok"
+python3 - "$hurl_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+hurl_path = Path(sys.argv[1]).resolve()
+lines = hurl_path.read_text(encoding="utf-8").splitlines()
+asserts = [
+    {"line": index + 2, "success": True}
+    for index, line in enumerate(lines)
+    if line.startswith("# entroping-gate:")
+]
+capture_names = [
+    line.split(":", maxsplit=1)[0]
+    for line in lines
+    if line.startswith("__entroping_response_body_") and line.endswith(": bytes")
+]
+print(
+    json.dumps(
+        {
+            "filename": str(hurl_path),
+            "success": True,
+            "entries": [
+                {
+                    "asserts": asserts,
+                    "calls": [{"response": {"status": 200, "headers": []}}],
+                    "captures": [{"name": name, "value": ""} for name in capture_names],
+                },
+            ],
+        },
+    ),
+)
+PY
 """,
     )
 

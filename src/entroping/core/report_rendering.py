@@ -135,6 +135,23 @@ def render_junit_report(report: RunReport) -> bytes:
                             "value": ",".join(test.auth.produces),
                         },
                     )
+            for gate in test.gate_results:
+                prefix = f"entroping.gate.{gate.rule_id}"
+                _xml_sub_element(
+                    properties,
+                    "property",
+                    {"name": f"{prefix}.enforcement", "value": gate.enforcement},
+                )
+                _xml_sub_element(
+                    properties,
+                    "property",
+                    {"name": f"{prefix}.result", "value": gate.result},
+                )
+                _xml_sub_element(
+                    properties,
+                    "property",
+                    {"name": f"{prefix}.exit_code", "value": str(gate.exit_code)},
+                )
             for known_failure in test.known_failures:
                 _xml_sub_element(
                     properties,
@@ -367,6 +384,15 @@ def _html_test_row(test: RunTestReport) -> str:
 
 def _html_output(test: RunTestReport) -> str:
     parts: list[str] = []
+    if test.gate_results:
+        items = "".join(
+            "<li>"
+            f"{escape(gate.rule_id)}: enforcement={escape(gate.enforcement)}; "
+            f"result={escape(gate.result)}; exit_code={gate.exit_code}"
+            "</li>"
+            for gate in test.gate_results
+        )
+        parts.append(f"<strong>Gate results</strong><ul>{items}</ul>")
     if test.known_failures:
         items = "".join(
             f"<li>{escape(_known_failure_summary(known_failure))}</li>"
@@ -423,6 +449,14 @@ def _failure_text(test: RunTestReport) -> str:
             "known_failures: "
             + "; ".join(
                 _known_failure_summary(known_failure) for known_failure in test.known_failures
+            )
+        )
+    if test.gate_results:
+        parts.append(
+            "gate_results: "
+            + "; ".join(
+                f"{gate.rule_id}={gate.enforcement}/{gate.result}/{gate.exit_code}"
+                for gate in test.gate_results
             )
         )
     if test.retry.retry_count > 0 or test.retry.unstable:
@@ -523,17 +557,20 @@ def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:
 
 
 def _has_test_properties(test: RunTestReport) -> bool:
-    return (
-        test.timeout_ms > 0
-        or test.operation_id is not None
-        or test.source is not None
-        or test.negative_category is not None
-        or test.severity is not None
-        or test.auth is not None
-        or bool(test.known_failures)
-        or test.safety is not None
-        or test.retry.retry_count > 0
-        or test.retry.unstable
+    return any(
+        (
+            test.timeout_ms > 0,
+            test.operation_id is not None,
+            test.source is not None,
+            test.negative_category is not None,
+            test.severity is not None,
+            test.auth is not None,
+            bool(test.gate_results),
+            bool(test.known_failures),
+            test.safety is not None,
+            test.retry.retry_count > 0,
+            test.retry.unstable,
+        )
     )
 
 

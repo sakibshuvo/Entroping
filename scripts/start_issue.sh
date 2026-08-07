@@ -13,6 +13,7 @@ Options:
   --mode write|review    Session mode for the generated prompt. Default: write.
   --dry-run              Print the planned worktree and prompt without creating anything.
   --allow-closed         Allow prompt generation for a closed issue.
+  --base-commit SHA      Create from this exact local commit without pulling main.
   -h, --help             Show this help text.
 
 Environment:
@@ -151,6 +152,7 @@ shift 2
 mode="write"
 dry_run="0"
 allow_closed="0"
+base_commit=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -167,6 +169,11 @@ while [[ $# -gt 0 ]]; do
       allow_closed="1"
       shift
       ;;
+    --base-commit)
+      [[ $# -ge 2 ]] || die "--base-commit requires a full commit SHA"
+      base_commit="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -180,6 +187,8 @@ done
 [[ "$issue_number" =~ ^[1-9][0-9]*$ ]] || die "issue-number must be a positive integer"
 [[ "$mode" == "write" || "$mode" == "review" ]] || die "--mode must be write or review"
 [[ "$branch_name" != *" "* ]] || die "branch-name must not contain spaces"
+[[ -z "$base_commit" || "$base_commit" =~ ^[a-f0-9]{40}$ ]] \
+  || die "--base-commit must be a full lowercase commit SHA"
 command -v git >/dev/null 2>&1 || die "git is required"
 command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is required"
 command -v uv >/dev/null 2>&1 || die "uv is required"
@@ -218,9 +227,15 @@ if git -C "$repo_root" ls-remote --exit-code --heads origin "$branch_name" >/dev
   die "remote branch already exists on origin: $branch_name"
 fi
 
-git -C "$repo_root" pull --ff-only origin main
+if [[ -n "$base_commit" ]]; then
+  git -C "$repo_root" cat-file -e "${base_commit}^{commit}" 2>/dev/null \
+    || die "base commit is not available locally: $base_commit"
+else
+  git -C "$repo_root" pull --ff-only origin main
+  base_commit="main"
+fi
 mkdir -p "$worktree_parent"
-git -C "$repo_root" worktree add "$worktree_path" -b "$branch_name" main
+git -C "$repo_root" worktree add "$worktree_path" -b "$branch_name" "$base_commit"
 update_issue_tracking
 
 prompt_dir="$worktree_path/.entroping/session-prompts"

@@ -23,7 +23,7 @@ Use a small label system so the queue stays readable:
 
 | Group | Labels |
 | --- | --- |
-| Type | `type:bug`, `type:feature`, `type:regression`, `type:security`, `type:docs`, `type:architecture` |
+| Type | `type:bug`, `type:feature`, `type:regression`, `type:security`, `type:docs`, `type:architecture`, `type:tests` |
 | Priority | `priority:p0`, `priority:p1`, `priority:p2`, `priority:p3` |
 | Area | `area:cli`, `area:qanstitution`, `area:hurl-runner`, `area:reports`, `area:brain`, `area:eye`, `area:tests`, `area:docs` |
 | Status | `status:needs-triage`, `status:ready`, `status:blocked`, `status:in-progress` |
@@ -88,13 +88,13 @@ issue is not rejected from ordinary ready work solely for that reason.
 
 ### Deterministic selection precedence
 
-This contract defines precedence, not the complete selector safety boundary.
-Issue #1567 must first enforce its full fresh-state eligibility gates: complete
-issue contract, verification lane, autonomy ceiling, ownership, branch,
-worktree, PR, lease, overlap, and dependency checks. At minimum, a precedence
-candidate must also be open, have `status:ready`, have no other `status:*`
-label, and have no unresolved `Blocked by` dependency. Only after every #1567
-gate passes, select the first non-empty bucket:
+This contract defines precedence inside the selector safety boundary implemented
+by issue #1567. The selector first enforces complete, fresh GitHub state; the
+issue contract, milestone, verification lane, autonomy ceiling, ownership,
+active branch, worktree, PR, lease, explicit file scope, overlap, and dependency gates. A
+candidate must also be open, have exactly one `status:ready` label, and have no
+unresolved `Blocked by` dependency. Only after every eligibility gate passes,
+select the first non-empty bucket:
 
 1. issues with `priority:p0`;
 2. valid verified user evidence with `severity: blocker`;
@@ -212,6 +212,35 @@ The finish script:
 
 Use `--dry-run` first when cleaning up a batch of sessions.
 
+When several issue branches were integrated through one aggregate pull request,
+use only the tracked, schema-validated evidence manifest for that mapping. The
+repository contains the historical PR #1537 mapping at
+`docs/meta/aggregate-pr-1537-finish-evidence.json`; its field contract is
+`docs/technical/report-schemas/aggregate-pr-finish-evidence.v1.schema.json`.
+From a clean checkout after the aggregate PR is merged, verify each issue
+without mutation and then repeat the command without `--dry-run` only after
+reviewing its output:
+
+```bash
+scripts/finish_issue.sh <issue-number> \
+  --aggregate-evidence docs/meta/aggregate-pr-1537-finish-evidence.json \
+  --dry-run
+scripts/finish_issue.sh <issue-number> \
+  --aggregate-evidence docs/meta/aggregate-pr-1537-finish-evidence.json
+```
+
+Aggregate mode binds the repository, issue, source branch and exact clean
+source commit to the named merged PR. It independently verifies the PR's
+merged commit, passing checks, commit ancestry through current `main`, and
+stable patch equivalence before using the existing strict local cleanup path.
+It then observes the exact origin source ref, accepts a proven absence, or
+records a locked remote-deletion intent before the existing expected-value
+lease deletion and post-delete absence proof. It removes only the mapped issue
+worktree, local source branch, and mapped remote source branch; it never removes
+the aggregate PR branch or infers integration from manifest text alone.
+The option is intentionally unavailable through the pinned controller
+capability path.
+
 ## Backlog Health
 
 Before starting or ending a marathon, check that open issues still have the
@@ -228,9 +257,15 @@ a fixture exported from GitHub:
 python scripts/backlog_health.py --input /path/to/issues.json
 ```
 
-Open issues should have at least one `type:*`, one `priority:*`, one
-`status:*`, and a milestone. The script is intentionally about queue hygiene,
-not product priority judgment.
+The live query inspects the bounded open backlog, separately enumerates closed
+issues with `status:ready` or `status:in-progress`, and looks up every
+registered `Entroping-issue-<number>` worktree by exact issue number. Open
+issues should have at least one `type:*`, one `priority:*`, one `status:*`, and
+a milestone. Closed issues retaining an active status label or registered
+worktree are reported as cleanup drift even when they fall outside the open
+query limit. Use `--repo-root <path>` when checking a repository other than the
+current Git root. The script is intentionally about queue hygiene, not product
+priority judgment.
 
 ## Obsidian Boundary
 

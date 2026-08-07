@@ -3,7 +3,14 @@
 import json
 from pathlib import Path
 
+import pytest
+
 import entroping.core.report_writer as report_writer
+from entroping.core.report_gate_results import _to_gate_result
+from entroping.core.report_serialization import (
+    _require_gate_results,
+    _serialized_gate_results,
+)
 
 
 def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entries(
@@ -91,6 +98,53 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
     ] == [(1, "failed", 42, 20, False, True)]
     assert report.tests[1].retry.retry_count == 0
     assert not report.tests[1].retry.unstable
+
+
+@pytest.mark.parametrize(
+    ("raw_gate_results", "message"),
+    [
+        ({"rule_id": "latency"}, "must be a JSON array"),
+        ([None], "must be a JSON object"),
+        (
+            [{"rule_id": "", "enforcement": "block", "result": "passed", "exit_code": 0}],
+            "is invalid",
+        ),
+    ],
+)
+def test_gate_result_deserialization_rejects_invalid_shapes(
+    raw_gate_results: object,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _require_gate_results(
+            raw_gate_results,
+            path=Path("run-latest.json"),
+            test_index=0,
+        )
+
+
+def test_gate_result_deserialization_skips_invalid_serialized_items() -> None:
+    assert (
+        _serialized_gate_results(
+            [
+                None,
+                {"rule_id": "", "enforcement": "block", "result": "passed", "exit_code": 0},
+            ],
+        )
+        == ()
+    )
+
+
+def test_gate_result_conversion_rejects_invalid_mapping_without_assertions() -> None:
+    with pytest.raises(ValueError, match="invalid serialized gate result"):
+        _to_gate_result(
+            {
+                "rule_id": 7,
+                "enforcement": "block",
+                "result": "passed",
+                "exit_code": 0,
+            },
+        )
 
 
 def test_load_run_report_ignores_bool_optional_integer_fields(tmp_path: Path) -> None:

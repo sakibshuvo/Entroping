@@ -51,6 +51,30 @@ class _GovernedHealthHandler(http.server.BaseHTTPRequestHandler):
         """Keep pytest output focused on assertion failures."""
 
 
+class _PostCounterHandler(http.server.BaseHTTPRequestHandler):
+    """Local POST endpoint that exposes request replay through a counter."""
+
+    request_count = 0
+
+    def do_POST(self) -> None:
+        if self.path != "/submit":
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        content_length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(content_length)
+        type(self).request_count += 1
+        body = b'{"accepted":true}'
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("X-Request-Id", "entroping-post-e2e")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        """Keep pytest output focused on assertion failures."""
+
+
 @contextlib.contextmanager
 def _local_health_api() -> Iterator[int]:
     with contextlib.closing(socket.socket()) as sock:
@@ -62,6 +86,24 @@ def _local_health_api() -> Iterator[int]:
     thread.start()
     try:
         yield port
+    finally:
+        server.shutdown()
+        thread.join(timeout=2.0)
+        server.server_close()
+
+
+@contextlib.contextmanager
+def _local_post_counter_api() -> Iterator[tuple[int, type[_PostCounterHandler]]]:
+    _PostCounterHandler.request_count = 0
+    with contextlib.closing(socket.socket()) as sock:
+        sock.bind(("127.0.0.1", 0))
+        _, port = sock.getsockname()
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), _PostCounterHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield port, _PostCounterHandler
     finally:
         server.shutdown()
         thread.join(timeout=2.0)
@@ -110,6 +152,34 @@ def _set_qanstitution_timeout(project_root: Path, timeout_ms: int) -> None:
     config = config_path.read_text(encoding="utf-8")
     config_path.write_text(
         config.replace("timeout: 30000", f"timeout: {timeout_ms}"),
+        encoding="utf-8",
+    )
+
+
+def _write_nonblocking_policy(project_root: Path, *, block_gate: str) -> None:
+    (project_root / "qanstitution.yaml").write_text(
+        "\n".join(
+            [
+                "project: real-enforcement",
+                "settings:",
+                "  timeout: 2500",
+                "  parallel_workers: 1",
+                "gates:",
+                "  - id: block_gate",
+                '    condition: "true"',
+                f"    gate: {block_gate}",
+                "    enforcement: block",
+                "  - id: warn_gate",
+                '    condition: "true"',
+                '    gate: header "X-Missing-Warn" exists',
+                "    enforcement: warn",
+                "  - id: audit_gate",
+                '    condition: "true"',
+                '    gate: header "X-Missing-Audit" exists',
+                "    enforcement: audit_only",
+            ],
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -298,6 +368,142 @@ def test_installed_cli_init_to_run_reports_with_real_hurl(tmp_path: Path) -> Non
     assert testcase.attrib["classname"] == "tests"
     assert testcase.attrib["name"] == "health.hurl"
     assert testcase.find("failure") is None
+
+
+@pytest.mark.integration
+@pytest.mark.regression
+def test_real_hurl_nonblocking_gate_failures_are_reported_without_failing_run(
+    tmp_path: Path,
+) -> None:
+    _require_hurl_installed()
+    _init_minimal_project(tmp_path)
+    _write_nonblocking_policy(tmp_path, block_gate="status < 500")
+
+    with _local_health_api() as port:
+        source = tmp_path / "tests" / "health.hurl"
+        source_content = f"GET http://127.0.0.1:{port}/health\nHTTP 200\n"
+        source.write_text(source_content, encoding="utf-8")
+
+        run_result = _run_entroping(
+            tmp_path,
+            "run",
+            "--ci",
+            "--report",
+            "json",
+            "--report",
+            "junit",
+            "--report",
+            "html",
+        )
+
+    assert run_result.returncode == 0, run_result.stderr or run_result.stdout
+    report = _latest_report(tmp_path)
+    test = _first_report_test(report)
+    assert report["summary"] == {"total": 1, "passed": 1, "failed": 0, "exit_code": 0}
+    observed_gates = {
+        item["rule_id"]: (item["enforcement"], item["result"], item["exit_code"])
+        for item in test["gate_results"]
+    }
+    assert observed_gates["block_gate"] == ("block", "passed", 0)
+    assert observed_gates["warn_gate"][:2] == ("warn", "failed")
+    assert observed_gates["audit_gate"][:2] == ("audit_only", "failed")
+    assert observed_gates["warn_gate"][2] != 0
+    assert observed_gates["audit_gate"][2] != 0
+    junit_root = ElementTree.parse(tmp_path / "reports" / "junit.xml").getroot()
+    assert junit_root.attrib["failures"] == "0"
+    testcase = junit_root.find("testcase")
+    assert testcase is not None
+    assert testcase.find("failure") is None
+    junit_properties = testcase.find("properties")
+    assert junit_properties is not None
+    properties = {
+        property.attrib["name"]: property.attrib["value"]
+        for property in junit_properties
+    }
+    assert properties["entroping.gate.warn_gate.enforcement"] == "warn"
+    assert properties["entroping.gate.warn_gate.result"] == "failed"
+    html = (tmp_path / "reports" / "run-latest.html").read_text(encoding="utf-8")
+    assert "warn_gate" in html and "audit_gate" in html and "audit_only" in html
+    _assert_source_unchanged_and_temp_clean(tmp_path, source, source_content)
+
+
+@pytest.mark.integration
+@pytest.mark.regression
+def test_real_hurl_block_gate_failure_fails_run(tmp_path: Path) -> None:
+    _require_hurl_installed()
+    _init_minimal_project(tmp_path)
+    _write_nonblocking_policy(tmp_path, block_gate='header "X-Missing-Block" exists')
+
+    with _local_health_api() as port:
+        source = tmp_path / "tests" / "health.hurl"
+        source_content = f"GET http://127.0.0.1:{port}/health\nHTTP 200\n"
+        source.write_text(source_content, encoding="utf-8")
+
+        run_result = _run_entroping(tmp_path, "run", "--ci", "--report", "json")
+
+    assert run_result.returncode == 1
+    report = _latest_report(tmp_path)
+    test = _first_report_test(report)
+    assert report["summary"] == {"total": 1, "passed": 0, "failed": 1, "exit_code": 1}
+    assert test["status"] == "failed"
+    observed_gates = test["gate_results"]
+    assert [item["rule_id"] for item in observed_gates] == [
+        "block_gate",
+        "warn_gate",
+        "audit_gate",
+    ]
+    assert [(item["enforcement"], item["result"]) for item in observed_gates] == [
+        ("block", "failed"),
+        ("warn", "failed"),
+        ("audit_only", "failed"),
+    ]
+    assert all(item["exit_code"] != 0 for item in observed_gates)
+    _assert_source_unchanged_and_temp_clean(tmp_path, source, source_content)
+
+
+@pytest.mark.integration
+@pytest.mark.regression
+def test_real_hurl_evaluates_multiple_gates_without_replaying_post(
+    tmp_path: Path,
+) -> None:
+    _require_hurl_installed()
+    _init_minimal_project(tmp_path)
+    _write_nonblocking_policy(tmp_path, block_gate="status == 200")
+
+    with _local_post_counter_api() as (port, handler):
+        source = tmp_path / "tests" / "submit.hurl"
+        source_content = (
+            f"POST http://127.0.0.1:{port}/submit\n"
+            "Content-Type: application/json\n"
+            "{\n"
+            '  "amount": 1\n'
+            "}\n"
+            "HTTP 200\n"
+        )
+        source.write_text(source_content, encoding="utf-8")
+
+        run_result = _run_entroping(tmp_path, "run", "--ci", "--report", "json")
+
+        assert handler.request_count == 1
+
+    assert run_result.returncode == 0, run_result.stderr or run_result.stdout
+    report = _latest_report(tmp_path)
+    test = _first_report_test(report)
+    assert report["summary"] == {"total": 1, "passed": 1, "failed": 0, "exit_code": 0}
+    assert {
+        item["rule_id"]: (item["enforcement"], item["result"])
+        for item in test["gate_results"]
+    } == {
+        "block_gate": ("block", "passed"),
+        "warn_gate": ("warn", "failed"),
+        "audit_gate": ("audit_only", "failed"),
+    }
+    assert test["response"] == {
+        "status_code": 200,
+        "headers": {"content-type": "application/json"},
+        "body_shape": ["$:object", "$.accepted:boolean"],
+    }
+    _assert_source_unchanged_and_temp_clean(tmp_path, source, source_content)
 
 
 @pytest.mark.integration

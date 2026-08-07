@@ -25,9 +25,10 @@ The pack is written to stdout. Redirect it to a temp file when needed:
 
   scripts/context_pack.sh --mode implementation > /tmp/entroping-context.md
 
-Print only a JSON manifest with file inventory, byte counts, estimated tokens,
-budget status, and next-action guidance when an agent needs retrieval planning
-without loading the full context body:
+Print only a JSON manifest with file inventory, source/selected/omitted byte
+counts, estimated tokens, budget status, and next-action guidance when an agent
+needs retrieval planning without loading the full context body. Review mode
+marks its newest-first historical excerpts and points to each full source:
 
   scripts/context_pack.sh --mode implementation --manifest
 
@@ -198,6 +199,8 @@ esac
 branch="$(git branch --show-current 2>/dev/null || true)"
 status="$(git status --short 2>/dev/null || true)"
 status_line_limit=5
+review_changelog_selection_bytes=131072
+review_lessons_selection_bytes=65536
 
 mode_budget_bytes() {
   local default_budget
@@ -248,6 +251,58 @@ context_pack_bytes() {
     context_bytes=0
   fi
   printf '%s\n' "$context_bytes"
+}
+
+file_selection_limit() {
+  local path="$1"
+
+  if [[ "$mode" == "review" ]]; then
+    case "$path" in
+      .context/changelog.md)
+        printf '%s\n' "$review_changelog_selection_bytes"
+        return 0
+        ;;
+      .context/lessons-learned.md)
+        printf '%s\n' "$review_lessons_selection_bytes"
+        return 0
+        ;;
+    esac
+  fi
+  printf '0\n'
+}
+
+select_context_file() {
+  local path="$1"
+  local limit_bytes="$2"
+  local operation="$3"
+
+  python3 - "$path" "$limit_bytes" "$operation" <<'PY'
+import sys
+from pathlib import Path
+
+path, limit_raw, operation = sys.argv[1:]
+data = Path(path).read_bytes()
+limit = int(limit_raw)
+selected = data
+if limit > 0 and len(data) > limit:
+    boundary = data.rfind(b"\n", 0, limit + 1)
+    if boundary >= 0:
+        selected = data[: boundary + 1]
+    else:
+        selected = data[:limit].decode("utf-8", errors="ignore").encode("utf-8")
+
+if operation == "bytes":
+    print(len(selected))
+elif operation == "emit":
+    sys.stdout.buffer.write(selected)
+else:
+    raise SystemExit("unknown context selection operation")
+PY
+}
+
+file_bytes() {
+  local path="$1"
+  wc -c < "$path" | tr -d '[:space:]'
 }
 
 emit_git_status_block() {
@@ -369,6 +424,11 @@ file_reason() {
 }
 
 emit_context_pack() {
+  local limit_bytes
+  local path
+  local selected_bytes
+  local source_bytes
+
   printf '# Entroping Agent Context Pack\n\n'
   printf '%s\n' "- Mode: $mode"
   printf '%s\n' "- Repo: $repo_root"
@@ -416,8 +476,23 @@ EOF
     if [[ ! -f "$path" ]]; then
       die "required context file is missing: $path"
     fi
+    limit_bytes="$(file_selection_limit "$path")"
+    source_bytes="$(file_bytes "$path")"
+    selected_bytes="$source_bytes"
+    if ((limit_bytes > 0 && source_bytes > limit_bytes)); then
+      selected_bytes="$(select_context_file "$path" "$limit_bytes" bytes)"
+    fi
     printf '### %s\n\n' "$path"
-    sed 's/[[:space:]]*$//' "$path"
+    if ((selected_bytes < source_bytes)); then
+      printf '> Newest-first review excerpt: %s of %s source bytes selected. ' \
+        "$selected_bytes" "$source_bytes"
+      printf "Use \`%s\` or read \`%s\` directly for omitted history.\n\n" "rg" "$path"
+    fi
+    if ((selected_bytes < source_bytes)); then
+      select_context_file "$path" "$limit_bytes" emit | sed 's/[[:space:]]*$//'
+    else
+      sed 's/[[:space:]]*$//' "$path"
+    fi
     printf '\n\n'
   done
 }
@@ -428,6 +503,10 @@ emit_context_pack_manifest() {
   local manifest_args
   local path
   local reason
+  local limit_bytes
+  local selected_bytes
+  local selection
+  local source_bytes
 
   manifest_args=(
     "$mode"
@@ -439,7 +518,23 @@ emit_context_pack_manifest() {
   )
   for path in "${files[@]}"; do
     reason="$(file_reason "$path")"
-    manifest_args+=("$path" "$reason")
+    limit_bytes="$(file_selection_limit "$path")"
+    source_bytes="$(file_bytes "$path")"
+    selected_bytes="$source_bytes"
+    if ((limit_bytes > 0 && source_bytes > limit_bytes)); then
+      selected_bytes="$(select_context_file "$path" "$limit_bytes" bytes)"
+    fi
+    selection="full"
+    if ((selected_bytes < source_bytes)); then
+      selection="newest-first-byte-budget"
+    fi
+    manifest_args+=(
+      "$path"
+      "$reason"
+      "$source_bytes"
+      "$selected_bytes"
+      "$selection"
+    )
   done
 
   python3 - "${manifest_args[@]}" <<'PY'
@@ -447,23 +542,30 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
 mode, repo, branch, source_root, budget_raw, pack_file, *raw_files = sys.argv[1:]
 budget_bytes = int(budget_raw)
 context_bytes = os.path.getsize(pack_file)
 estimated_tokens = max(1, (context_bytes + 3) // 4)
 budget_status = "pass" if context_bytes <= budget_bytes else "fail"
+headroom_bytes = max(0, budget_bytes - context_bytes)
+overage_bytes = max(0, context_bytes - budget_bytes)
 
 files = []
-for index in range(0, len(raw_files), 2):
+for index in range(0, len(raw_files), 5):
     path = raw_files[index]
     reason = raw_files[index + 1]
-    file_path = Path(path)
+    source_bytes = int(raw_files[index + 2])
+    selected_bytes = int(raw_files[index + 3])
+    selection = raw_files[index + 4]
     files.append(
         {
             "path": path,
-            "bytes": file_path.stat().st_size,
+            "bytes": source_bytes,
+            "source_bytes": source_bytes,
+            "selected_bytes": selected_bytes,
+            "omitted_bytes": source_bytes - selected_bytes,
+            "selection": selection,
             "reason": reason,
         }
     )
@@ -484,12 +586,12 @@ else:
     recommended_next_action = {
         "action": "reduce_scope",
         "full_pack_allowed": False,
-        "reason": "Manifest exceeds the mode budget; do not load the full context pack.",
+        "reason": f"Manifest exceeds the mode budget by {overage_bytes} bytes; do not load the full context pack.",
         "steps": [
+            f"Reduce selected context by at least {overage_bytes} bytes before loading the full pack.",
             "Switch to a narrower mode or a smaller issue question.",
             "Read only files[].path entries that match the issue scope.",
             "Use rg for exact symbol or phrase lookup before broad file reads.",
-            "Record the budget failure in factory metrics or the worker handoff.",
         ],
     }
 
@@ -506,6 +608,8 @@ manifest = {
     "estimated_tokens": estimated_tokens,
     "budget_bytes": budget_bytes,
     "budget_status": budget_status,
+    "headroom_bytes": headroom_bytes,
+    "overage_bytes": overage_bytes,
     "recommended_next_action": recommended_next_action,
 }
 

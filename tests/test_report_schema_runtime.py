@@ -225,6 +225,9 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
 def test_run_report_v1_schema_contract_includes_fail_fast_summary_evidence() -> None:
     schema = json.loads((SCHEMA_DIR / "run-report.v1.schema.json").read_text())
     summary_properties = schema["properties"]["summary"]["properties"]
+    gate_properties = schema["properties"]["tests"]["items"]["properties"]["gate_results"][
+        "items"
+    ]["properties"]
     report = RunReport(
         project="checkout-api",
         environment="ci",
@@ -258,6 +261,10 @@ def test_run_report_v1_schema_contract_includes_fail_fast_summary_evidence() -> 
     assert summary_properties["executed"] == {"type": "integer", "minimum": 0}
     assert summary_properties["not_scheduled"] == {"type": "integer", "minimum": 0}
     assert summary_properties["fail_fast"] == {"type": "boolean"}
+    assert gate_properties["enforcement"] == {"enum": ["block", "warn", "audit_only"]}
+    assert gate_properties["result"] == {
+        "enum": ["passed", "failed", "timeout", "error", "blocked"]
+    }
 
 
 def test_run_plan_v1_schema_contract_is_versioned_and_stable() -> None:

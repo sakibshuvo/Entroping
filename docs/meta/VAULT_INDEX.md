@@ -36,6 +36,8 @@ Use these first. They are the control panel for current work:
 
 ## Technical Contract
 
+- [[decisions/ADR-0031-factory-tier-a-worktree-orchestration|ADR-0031]] - static-document-only Tier A worktree orchestration boundary.
+- [[decisions/ADR-0032-tier-a-pr-delivery-controller|ADR-0032]] - durable Tier A PR delivery and exact terminal replay boundary.
 - [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
 - [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]] - Eye freeze/map boundaries, tests, and implementation issue set.
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
@@ -149,6 +151,15 @@ instructions.
 - [[decisions/ADR-0021-core-flat-module-taxonomy|ADR-0021]]
 - [[decisions/ADR-0022-factory-cost-policy-contract|ADR-0022]]
 - [[decisions/ADR-0023-factory-artifact-retention|ADR-0023]]
+- [[decisions/ADR-0024-provider-capability-registry|ADR-0024]]
+- [[decisions/ADR-0025-factory-control-plane-protection|ADR-0025]]
+- [[decisions/ADR-0026-factory-budget-ledger|ADR-0026]]
+- [[decisions/ADR-0027-opencode-unattended-isolation|ADR-0027]]
+- [[decisions/ADR-0028-paid-cost-reservation-settlement|ADR-0028]]
+- [[decisions/ADR-0029-factory-scheduler-authority|ADR-0029]]
+- [[decisions/ADR-0030-factory-provider-quota-authorization|ADR-0030]]
+- [[decisions/ADR-0031-factory-tier-a-worktree-orchestration|ADR-0031]]
+- [[decisions/ADR-0032-tier-a-pr-delivery-controller|ADR-0032]]
 
 ## Working Loop
 

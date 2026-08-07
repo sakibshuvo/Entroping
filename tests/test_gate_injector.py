@@ -1,6 +1,7 @@
 """Adapter tests for temporary Hurl gate injection."""
 
 from datetime import date
+from hashlib import sha256
 from pathlib import Path
 from textwrap import dedent
 
@@ -96,6 +97,40 @@ def test_write_injected_execution_copy_never_mutates_source_hurl(tmp_path: Path)
     assert injected.count("duration < 500") == 2
     assert injected.count('header "Content-Type" exists') == 1
     assert injected.count("status < 500") == 1
+
+
+def test_write_injected_execution_copy_avoids_reserved_capture_name_collision(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "collision.hurl",
+        """
+        GET http://localhost:18080/health
+        HTTP 200
+        """,
+    )
+    collision_name = (
+        "__entroping_response_body_"
+        f"{sha256(f'{source.resolve()}#0'.encode()).hexdigest()[:16]}_0"
+    )
+    source.write_text(
+        source.read_text(encoding="utf-8")
+        + f"[Captures]\n{collision_name}: header \"X-Existing\"\n",
+        encoding="utf-8",
+    )
+    discovered = discover_hurl_tests([source])
+
+    execution = write_injected_execution_copy(
+        discovered[0],
+        [_gate("latency", "true", "duration < 2000")],
+        execution_root=tmp_path / ".entroping" / "run-1",
+    )
+
+    assert execution.response_capture_names == (f"{collision_name}_1",)
+    assert f"{collision_name}: header" in source.read_text(encoding="utf-8")
+    assert f"{collision_name}_1: bytes" in execution.execution_path.read_text(
+        encoding="utf-8",
+    )
 
 
 def test_write_injected_execution_copy_creates_asserts_block_when_missing(
@@ -201,6 +236,42 @@ def test_write_injected_execution_copy_inserts_after_response_headers(tmp_path: 
         "duration < 2000\n"
         "[Captures]"
     ) in execution.execution_path.read_text(encoding="utf-8")
+
+
+def test_write_injected_execution_copy_keeps_capture_before_following_asserts(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "capture_then_assert.hurl",
+        """
+        GET {{base_url}}/health
+        HTTP 200
+        [Captures]
+        csrf_token: jsonpath "$.csrf"
+        [Asserts]
+        jsonpath "$.status" == "ok"
+        """,
+    )
+    source_before = source.read_bytes()
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [_gate("global_latency", "true", "duration < 2000")],
+        execution_root=tmp_path / "execution",
+    )
+
+    injected = execution.execution_path.read_text(encoding="utf-8")
+    captures_index = injected.index("[Captures]")
+    asserts_index = injected.index("[Asserts]")
+    reserved_index = injected.index(" bytes", captures_index)
+    gate_line, gate = execution.injected_gate_lines[0]
+
+    assert source.read_bytes() == source_before
+    assert captures_index < reserved_index < asserts_index
+    assert gate.rule_id == "global_latency"
+    lines = injected.splitlines()
+    assert lines[gate_line - 2] == "# entroping-gate: global_latency enforcement=block"
+    assert lines[gate_line - 1] == "duration < 2000"
 
 
 @pytest.mark.security

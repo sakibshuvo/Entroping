@@ -348,6 +348,26 @@ supports `and`, `or`, `not`, and parentheses over Entroping metadata tags. It
 cannot be combined with repeatable `--tag`; use `--tag` for simple OR selection
 and `--tag-expression` for ad hoc boolean selection.
 
+For generated frozen traffic, use `--tag-expression "traffic and freeze"` so
+both generated tags are required. Keep `--ci` on promoted examples: zero
+selected tests must fail before a false-success report. The runtime emits `No Hurl tests matched` for a no-match. Local interactive runs remain exit 0; promoted CI examples fail on this condition.
+
+### Protected production smoke
+
+Production smoke is a named, protected suite rather than an ad hoc environment
+and tag combination. Commit `suites/prod-smoke.yaml` with `env: prod-smoke`,
+`protected: true`, `safety: read-only`, a smoke `tags` entry, root-bounded Hurl
+`paths`, and the required report formats. Provide the required Hurl variables,
+including `base_url`, through the deployment-managed `envs/prod-smoke.env`;
+never commit credentials. Run it with:
+
+```bash
+entroping run --suite prod-smoke --ci
+```
+
+The protected preflight rejects destructive or mutating fixtures before Hurl,
+and CI mode fails when the suite selects zero tests.
+
 `--operation-id` selects existing committed `.hurl` files by exact
 `# entroping: operation_id=<id>` metadata. It is repeatable, reports
 selected/skipped counts, records operation IDs in run reports, and cannot be
@@ -604,7 +624,7 @@ entroping run --tag smoke --report json --report junit
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
 entroping freeze --name checkout_flow --golden
-entroping run --env local --tag regression --report html
+entroping run --env local --tag-expression "traffic and freeze" --ci --report html
 ```
 
 ### CI Gate

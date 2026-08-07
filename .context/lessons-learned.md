@@ -1,5 +1,138 @@
 # Entroping Lessons Learned
 
+## 2026-08-03
+
+- An offline scheduler/proposal harness is not a live provider-running
+  controller. Keep scheduler and provider boundary observations separate;
+  record a simulated provider negative control without calling a provider, and
+  state that live GitHub selection, orchestration apply, and launchd are
+  excluded. For repeatable soak evidence, use fresh ignored receipt roots,
+  enforce a requested-versus-accepted iteration ceiling, and treat local
+  latency as telemetry rather than an admission threshold.
+
+- Generated source execution is not Tier A-safe without OS/container isolation.
+  Fail closed to a static Markdown envelope, persist selection and delivery
+  authority in the scheduler assignment, and derive every gate from the
+  validated target worktree rather than caller input or the primary checkout.
+- Bounded subprocess cleanup must kill the process group on normal leader exit
+  and every `BaseException`, not only timeout or ordinary callback failure;
+  descendants with closed output streams otherwise outlive the runner.
+- Provider scorecards need a separate strict evidence identity rather than a
+  legacy metrics-label join. Keep receipts value-free and exact, preserve an
+  accepted case when a later regression/revert appears, and use that later
+  outcome to lower confidence and manual-promotion eligibility instead of
+  rewriting history.
+- Permission checks for authority-bearing evidence must run on the same
+  no-follow descriptor that supplies the bytes, with parent-tree traversal and
+  post-read identity/mode revalidation. A path-level check followed by a separate
+  open leaves a permission and inode substitution window.
+
+- A helper named `readonly` may still create SQLite locks, journals, or
+  directories. Status/observability paths need physically noncreating seams:
+  candidates opened no-follow through validated descriptors, immutable
+  descriptor aliases for SQLite reads, rejected sidecars, bounded metadata-only
+  walks, and explicit fail-closed handling for path or snapshot ambiguity.
+- Descriptor aliases can become unstable after a pathname swap on some SQLite
+  platforms. Treat that instability as unsafe and never fall back to the
+  replaced pathname; the race test must accept only original content or
+  unsafe-without-a-connection.
+- A multi-store status view is not a distributed transaction. Use one
+  observation timestamp, explicit read transactions per store, and a bounded
+  second collection whose metadata fingerprints must agree before calling the
+  projection stable. Keep status as observation only; it cannot authorize
+  spending or dispatch.
+
+## 2026-08-02
+
+- Recovery evidence must distinguish a durable assignment identity from its
+  current execution authority. Keep assignment rows immutable, move the active
+  worker PID/start-token and epoch through a phase-version compare-and-swap,
+  and fence stale heartbeat and completion paths against that current row.
+- An operator assertion is not financial settlement authority. For paid
+  ambiguous or completed work, make the budget or quota ledger uncertain or
+  settled first, then let scheduler recovery verify that state without
+  releasing a hold or claiming a distributed transaction.
+- Idempotency must survive a replacement command process. Bind recovery request
+  replay to the logical owner id, evidence, and retry policy, not the transient
+  PID, process-start token, or wall-clock observation of a retried CLI process.
+  The replayed receipt conveys no heartbeat, phase-change, or completion
+  authority; those paths remain fenced by the stored PID/start token and epoch.
+- Caller-declared snapshot timestamps and digests are scheduling metadata, not
+  authenticated external authority. They may keep reconsideration waiting, but
+  only a future trusted orchestrator may acquire and revalidate GitHub,
+  provider, price, and quota truth before dispatch.
+- Paid terminalization is another cross-store authority boundary. Hold the
+  ledger writer guard through the scheduler commit, require the exact
+  completed-unsettled phase/version, and distinguish unused from launched quota
+  authority before reopening capacity.
+- Text timestamps used by SQLite ordering constraints need one canonical
+  precision. Mixing whole-second and fractional ISO strings can invert lexical
+  order inside the same second even though both values parse as valid UTC.
+- A global scheduler lease and per-execution lease metadata must advance as one
+  authority domain. Consecutive sibling recovery by the same process should
+  reuse its current epoch and renew every nonterminal sibling on that epoch;
+  otherwise only the last recovered execution remains heartbeat-renewable.
+- A read-only recovery plan should evaluate the real scheduler fence, bounded
+  metadata window, retry, and terminal decision while projecting the next phase
+  without migrating or mutating scheduler state.
+
+## 2026-07-29
+
+- Cash and provider quota cannot be safely admitted through separate
+  authorizing stores. Keep quota dimensions independent but commit cash, every
+  quota hold, top-up evidence, and job authorization in one ledger transaction.
+- Provider observation is not available capacity by itself, and timestamp
+  ordering cannot prove whether its usage total includes a local settlement.
+  Keep every overlapping settlement additive unless authenticated evidence
+  explicitly names its authorization id; an empty inclusion boundary is the
+  safe default. Continue adding active and uncertain holds even when a rolling
+  window shifts.
+- Schema validation and a caller-supplied digest do not make provider evidence
+  authoritative. Authenticate every authority-bearing field with a key outside
+  the worker and artifact boundary, accept only the protected default path, and
+  persist a computed envelope digest.
+- Scope active and uncertain quota holds to overlapping windows. This preserves
+  shifted rolling protection without falsely carrying an expired hold across a
+  real reset, while monotonic authenticated observation time prevents rollback.
+- Evidence-local window bounds are not a policy contract. Validate rolling
+  duration and exact calendar/subscription boundaries before those bounds can
+  key capacity accounting, and settle quota-only work independently from cash.
+- Provider launch validation must consume durable authority in the same writer
+  transaction. A read-only check followed by process start leaves an expiry,
+  release, or uncertainty race and allows the same authority to be reused.
+- Launch revalidation must include current cash thresholds, not only the
+  original reservation state. Terminal settlement also needs its own full usage
+  digest because a zero-hold authorization has no quota rows to prove replay.
+- Authorization event time is security state, not descriptive metadata. Check
+  every settlement, release, and uncertainty timestamp against the current
+  lifecycle high-water mark before changing quota holds, including cash-backed
+  paths that mutate both reservation and authorization state.
+- Keeping a coordinator-only key out of artifacts is insufficient when worker
+  wrappers inherit the coordinator environment. Build worker environments from
+  a small allowlist, pass only the selected provider credential, and reject the
+  authority key name as a configurable provider-key alias.
+- A positive emergency reserve makes the nominal 100 percent cash-cap state
+  unreachable through valid ledger writes. Test that earlier reserve boundary
+  explicitly, while testing reachable 80 and 90 percent transitions again at
+  launch rather than constructing an invalid zero-reserve period.
+
+- Validation across two SQLite authorities needs an explicit linearization
+  point, not an implied distributed transaction. Acquire the budget ledger
+  writer guard before the scheduler writer transaction, hold it through
+  scheduler commit, avoid mutating the ledger during the handoff, and revalidate
+  again at the eventual provider boundary.
+- Cash authority must cross the dispatch boundary before the provider process
+  does. Commit the reservation and durable job identity first, treat queue JSON
+  as a recoverable projection, and recover the ledger by job id when a crash
+  lands between those writes.
+- A token count is settlement evidence only when it is bound to the reserved
+  job, provider lane, requested and reported model, and hashed provider
+  session. Recompute integer cost from immutable stored price terms; do not
+  trust provider floats or interpret missing usage as zero.
+- A metered route needs a provable worst-case envelope before it can be
+  automated. A provider receipt after the fact cannot compensate for a host
+  that cannot cap requests or output before launch.
+
 ## 2026-07-28
 
 - Provider JSON streaming completion follows the provider's actual transport
@@ -738,3 +871,30 @@
   value for Entroping; keep curated Git-backed Markdown and deterministic repo
   discovery active, and leave generated graph/compression output as local
   discard or experiment evidence until a new scorecard proves otherwise.
+- Scheduler authority must resolve through Git's common directory, not the
+  current worktree, or sibling issue worktrees can each believe they own the
+  only paid or writer slot. Lease expiry is also insufficient recovery proof:
+  combine PID/start identity and epoch fencing, and require explicit recovery
+  whenever an expired dead owner still has active assignment evidence.
+- Proposal-to-worktree orchestration must bind the live scheduler owner and
+  completed-unsettled evidence digest to exact proposal bytes before mutation.
+  Hash Git diff bytes directly, delegate worktree creation only to the canonical
+  launcher, and terminalize any post-intent authority or checkout drift as
+  uncertain rather than manufacturing a failed or accepted receipt.
+- A selector report is candidate evidence, not delivery authority. Mint the
+  envelope only in scheduler admission from fresh independently computed state,
+  recheck it under the write transaction, bind the policy implementation at
+  canonical main, and verify that binding again at orchestration.
+- A commit hash does not bind the Python code actually executing. Derive the
+  transitive internal-import closure from fixed authority roots, require a
+  clean canonical-main checkout, compare every loaded closure module with its
+  commit-pinned blob, avoid ambient executable lookup, and carry occupied
+  writer scopes from persisted envelopes instead of mutable issue metadata.
+  Keep admission construction private and expose no admission input on generic
+  scheduler APIs; paid writer authority remains a separate existing path.
+- Offline evidence must install deny controls before production imports; an
+  in-process patch cannot revoke aliases cached earlier. Treat provider dispatch
+  as an injected port, snapshot receipts at the labeled observation boundary,
+  validate one strict serialized model, open every output ancestor
+  descriptor-relative with no-follow, and include bounded relevant untracked
+  bytes before claiming source stability.

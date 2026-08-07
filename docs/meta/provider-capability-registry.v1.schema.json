@@ -105,6 +105,21 @@
           "title": "Models",
           "type": "array"
         },
+        "policy_provider_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Provider Id"
+        },
         "provider_host": {
           "maxLength": 160,
           "minLength": 1,

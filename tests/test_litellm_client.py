@@ -329,6 +329,55 @@ def test_litellm_client_rejects_unsafe_prompt_before_provider_call(tmp_path: Pat
     assert "secret-like values" in message
 
 
+def test_litellm_client_rejects_short_credential_before_provider_call(tmp_path: Path) -> None:
+    raw_value = "otp-provider-probe"
+    calls: list[dict[str, object]] = []
+    package = _package(tmp_path).model_copy(
+        update={
+            "messages": (
+                PromptMessage(role="system", content="Build tests."),
+                PromptMessage(role="user", content=f'{{"OTP":"{raw_value}"}}'),
+            )
+        }
+    )
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok"}'}}]}
+
+    with pytest.raises(BrainProviderError) as exc_info:
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+    assert raw_value not in str(exc_info.value)
+    assert "secret-like values" in str(exc_info.value)
+
+
+def test_litellm_client_sends_redacted_short_credential_to_callback(tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+    sanitized_content = '{"OTP":"[REDACTED]","quantity":3}'
+    package = _package(tmp_path).model_copy(
+        update={
+            "messages": (
+                PromptMessage(role="system", content="Build tests."),
+                PromptMessage(role="user", content=sanitized_content),
+            )
+        }
+    )
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok"}'}}]}
+
+    LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls
+    assert calls[0]["messages"] == [
+        {"role": "system", "content": "Build tests."},
+        {"role": "user", "content": sanitized_content},
+    ]
+
+
 def test_litellm_client_rejects_control_prompt_before_provider_call(tmp_path: Path) -> None:
     calls: list[dict[str, object]] = []
     package = _package(tmp_path).model_copy(

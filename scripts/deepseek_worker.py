@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Run bounded direct DeepSeek API workers and capture local artifacts."""
+# noqa: SIZE_OK - standalone worker CLI; splitting its command surface is outside #1568.
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import subprocess  # nosec B404
@@ -29,6 +31,17 @@ from scripts.ai_worker_file_safety import (  # noqa: E402
     secret_like_content_reason,
     sensitive_selected_path_reason,
 )
+from scripts.deepseek_usage_receipt import (  # noqa: E402
+    sanitized_response_payload,
+    usage_receipt_payload,
+)
+from scripts.deepseek_worker_limits import (  # noqa: E402
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_REQUEST_BYTES,
+    DEFAULT_MAX_RESPONSE_BYTES,
+    DEFAULT_MAX_TOKENS,
+    MAX_TIMEOUT_SECONDS,
+)
 from scripts.worker_output import (  # noqa: E402
     ResponseReadError,
     atomic_write_text,
@@ -42,9 +55,6 @@ DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_API_KEY_ENV = "DEEPSEEK_API_KEY"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
-DEFAULT_MAX_TOKENS = 4096
-DEFAULT_MAX_FILE_BYTES = 64_000
-DEFAULT_MAX_RESPONSE_BYTES = 262_144
 CAPABILITY_CONTEXT_VERSION = "entroping.deepseek-capability-context.v1"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
@@ -67,6 +77,7 @@ class DirectWorkerConfig:
     timeout_seconds: float
     max_tokens: int
     max_file_bytes: int
+    max_request_bytes: int
     max_response_bytes: int
     thinking: ThinkingMode
     reasoning_effort: ReasoningEffort
@@ -77,6 +88,7 @@ class DirectWorkerConfig:
     record_factory_metrics: bool
     factory_role: str | None
     factory_metrics_ledger: Path | None
+    job_id: str | None
 
 
 @dataclass(frozen=True)
@@ -90,6 +102,7 @@ class DirectWorkerResult:
     stderr: str
     response_payload: dict[str, object] | None
     usage: dict[str, object] | None
+    request_dispatched: bool
 
 
 @dataclass(frozen=True)
@@ -119,6 +132,13 @@ def main() -> int:
     }
     if result.usage is not None:
         payload["usage"] = result.usage
+    payload["usage_receipt"] = usage_receipt_payload(
+        result.response_payload,
+        job_id=config.job_id,
+        requested_model=config.model,
+        run_id=result.artifact_dir.name,
+        request_dispatched=result.request_dispatched,
+    )
     if config.json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
@@ -160,6 +180,7 @@ def run_worker(config: DirectWorkerConfig) -> DirectWorkerResult:
             stderr="",
             response_payload=None,
             usage=None,
+            request_dispatched=False,
         )
         _write_metadata(config, result, endpoint)
         _record_factory_metrics(
@@ -198,6 +219,7 @@ def _parse_args() -> DirectWorkerConfig:
         help="Repo-local file to include in the worker scope; repeatable.",
     )
     parser.add_argument("--issue", help="Optional GitHub issue number or URL.")
+    parser.add_argument("--job-id", help="Queue job id bound to the usage receipt.")
     parser.add_argument(
         "--instruction",
         help="Optional task-specific instruction appended to the bounded prompt.",
@@ -245,13 +267,16 @@ def _parse_args() -> DirectWorkerConfig:
         ),
     )
     parser.add_argument(
+        "--max-request-bytes",
+        type=int,
+        default=DEFAULT_MAX_REQUEST_BYTES,
+        help=(f"Maximum encoded API request bytes. Default: {DEFAULT_MAX_REQUEST_BYTES}."),
+    )
+    parser.add_argument(
         "--max-response-bytes",
         type=int,
         default=DEFAULT_MAX_RESPONSE_BYTES,
-        help=(
-            "Maximum bytes read from one API response. "
-            f"Default: {DEFAULT_MAX_RESPONSE_BYTES}."
-        ),
+        help=(f"Maximum bytes read from one API response. Default: {DEFAULT_MAX_RESPONSE_BYTES}."),
     )
     parser.add_argument(
         "--thinking",
@@ -298,14 +323,21 @@ def _parse_args() -> DirectWorkerConfig:
     if not files:
         msg = "at least one --file is required"
         raise DirectWorkerInputError(msg)
-    if args.timeout_seconds <= 0:
-        msg = "--timeout-seconds must be greater than zero"
+    if (
+        not math.isfinite(args.timeout_seconds)
+        or args.timeout_seconds <= 0
+        or args.timeout_seconds > MAX_TIMEOUT_SECONDS
+    ):
+        msg = "--timeout-seconds must be finite and at most 86400 seconds"
         raise DirectWorkerInputError(msg)
     if args.max_tokens <= 0:
         msg = "--max-tokens must be greater than zero"
         raise DirectWorkerInputError(msg)
     if args.max_file_bytes <= 0:
         msg = "--max-file-bytes must be greater than zero"
+        raise DirectWorkerInputError(msg)
+    if args.max_request_bytes <= 0:
+        msg = "--max-request-bytes must be greater than zero"
         raise DirectWorkerInputError(msg)
     if args.max_response_bytes <= 0:
         msg = "--max-response-bytes must be greater than zero"
@@ -331,6 +363,7 @@ def _parse_args() -> DirectWorkerConfig:
         timeout_seconds=float(args.timeout_seconds),
         max_tokens=int(args.max_tokens),
         max_file_bytes=int(args.max_file_bytes),
+        max_request_bytes=int(args.max_request_bytes),
         max_response_bytes=int(args.max_response_bytes),
         thinking=thinking,
         reasoning_effort=reasoning_effort,
@@ -341,6 +374,7 @@ def _parse_args() -> DirectWorkerConfig:
         record_factory_metrics=bool(args.record_factory_metrics),
         factory_role=args.factory_role,
         factory_metrics_ledger=args.factory_metrics_ledger,
+        job_id=args.job_id,
     )
 
 
@@ -429,6 +463,9 @@ def _validate_env_name(raw_name: str) -> str:
     if not name or not name.replace("_", "A").isalnum() or name[0].isdigit():
         msg = "--api-key-env must be an environment variable name"
         raise DirectWorkerInputError(msg)
+    if name == "ENTROPING_FACTORY_PROVIDER_EVIDENCE_HMAC_KEY_V1":
+        msg = "--api-key-env must not use the provider evidence authentication key"
+        raise DirectWorkerInputError(msg)
     return name
 
 
@@ -454,10 +491,7 @@ def _validate_base_url(
             msg = "--allow-insecure-local-base-url only permits loopback http hosts"
             raise DirectWorkerInputError(msg)
         if not api_key_env.startswith("ENTROPING_TEST_"):
-            msg = (
-                "--allow-insecure-local-base-url requires an ENTROPING_TEST_ "
-                "api key env var"
-            )
+            msg = "--allow-insecure-local-base-url requires an ENTROPING_TEST_ api key env var"
             raise DirectWorkerInputError(msg)
     return url
 
@@ -512,25 +546,17 @@ def _prepare_context_files(config: DirectWorkerConfig) -> tuple[PreparedContextF
         try:
             content = raw_content.decode("utf-8")
         except UnicodeDecodeError as exc:
-            msg = (
-                "refusing to send selected file to DeepSeek: "
-                f"{relative_path} must be UTF-8 text"
-            )
+            msg = f"refusing to send selected file to DeepSeek: {relative_path} must be UTF-8 text"
             raise DirectWorkerInputError(msg) from exc
         _reject_secret_like_content(relative_path, content)
-        prepared_files.append(
-            PreparedContextFile(relative_path=relative_path, content=content)
-        )
+        prepared_files.append(PreparedContextFile(relative_path=relative_path, content=content))
     return tuple(prepared_files)
 
 
 def _reject_sensitive_path(relative_path: str) -> None:
     reason = sensitive_selected_path_reason(relative_path)
     if reason is not None:
-        msg = (
-            "refusing to send selected file to DeepSeek: "
-            f"{relative_path} {reason}"
-        )
+        msg = f"refusing to send selected file to DeepSeek: {relative_path} {reason}"
         raise DirectWorkerInputError(msg)
 
 
@@ -706,6 +732,17 @@ def _call_deepseek(
     artifact_dir: Path,
 ) -> DirectWorkerResult:
     encoded_body = json.dumps(request_body).encode("utf-8")
+    if len(encoded_body) > config.max_request_bytes:
+        return DirectWorkerResult(
+            status="failed",
+            artifact_dir=artifact_dir,
+            returncode=1,
+            stdout="",
+            stderr=(f"DeepSeek API request exceeded the {config.max_request_bytes}-byte limit."),
+            response_payload=None,
+            usage=None,
+            request_dispatched=False,
+        )
     http_request = request.Request(
         endpoint,
         data=encoded_body,
@@ -738,6 +775,7 @@ def _call_deepseek(
             stderr=f"DeepSeek worker timed out after {config.timeout_seconds} seconds.",
             response_payload=None,
             usage=None,
+            request_dispatched=True,
         )
     except error.HTTPError as exc:
         bounded_response = read_bounded_utf8(exc, config.max_response_bytes)
@@ -752,9 +790,10 @@ def _call_deepseek(
         if response_text:
             stderr = f"{stderr}\n{response_text}"
         response_payload = _json_object_or_none(response_text)
-        if response_payload is not None and serialized_json_payload(
-            response_payload, config.max_response_bytes
-        ) is None:
+        if (
+            response_payload is not None
+            and serialized_json_payload(response_payload, config.max_response_bytes) is None
+        ):
             return _response_read_error_result(config, artifact_dir, "too_large")
         return DirectWorkerResult(
             status="failed",
@@ -764,6 +803,7 @@ def _call_deepseek(
             stderr=stderr,
             response_payload=response_payload,
             usage=None,
+            request_dispatched=True,
         )
     except error.URLError as exc:
         return DirectWorkerResult(
@@ -774,6 +814,7 @@ def _call_deepseek(
             stderr=f"DeepSeek API request failed: {exc.reason}",
             response_payload=None,
             usage=None,
+            request_dispatched=True,
         )
 
     payload = _json_object_or_none(response_text)
@@ -786,6 +827,7 @@ def _call_deepseek(
             stderr="DeepSeek API returned non-object JSON.",
             response_payload=None,
             usage=None,
+            request_dispatched=True,
         )
     if serialized_json_payload(payload, config.max_response_bytes) is None:
         return _response_read_error_result(config, artifact_dir, "too_large")
@@ -801,6 +843,7 @@ def _call_deepseek(
         stderr="",
         response_payload=payload,
         usage=usage,
+        request_dispatched=True,
     )
 
 
@@ -810,9 +853,7 @@ def _response_read_error_result(
     error_code: ResponseReadError,
 ) -> DirectWorkerResult:
     if error_code == "too_large":
-        message = (
-            f"DeepSeek API response exceeded the {config.max_response_bytes}-byte limit."
-        )
+        message = f"DeepSeek API response exceeded the {config.max_response_bytes}-byte limit."
     else:
         message = "DeepSeek API returned invalid UTF-8."
     return DirectWorkerResult(
@@ -823,7 +864,9 @@ def _response_read_error_result(
         stderr=message,
         response_payload=None,
         usage=None,
+        request_dispatched=True,
     )
+
 
 def _json_object_or_none(text: str) -> dict[str, object] | None:
     if not text.strip():
@@ -882,10 +925,7 @@ def _classify_status(mode: Mode, output: str) -> Status:
 
 def _looks_like_unified_diff(output: str) -> bool:
     return (
-        "diff --git " in output
-        and "\n--- " in output
-        and "\n+++ " in output
-        and "\n@@" in output
+        "diff --git " in output and "\n--- " in output and "\n+++ " in output and "\n@@" in output
     )
 
 
@@ -918,14 +958,8 @@ def _withhold_secret_like_worker_output(
     stderr_reason = secret_like_content_reason(result.stderr)
     response_payload_reason = None
     if stdout_reason is None and stderr_reason is None:
-        response_payload_reason = _secret_like_response_payload_reason(
-            result.response_payload
-        )
-    if (
-        stdout_reason is None
-        and stderr_reason is None
-        and response_payload_reason is None
-    ):
+        response_payload_reason = _secret_like_response_payload_reason(result.response_payload)
+    if stdout_reason is None and stderr_reason is None and response_payload_reason is None:
         return result
 
     stdout = result.stdout
@@ -946,6 +980,7 @@ def _withhold_secret_like_worker_output(
         stderr=stderr,
         response_payload=None,
         usage=result.usage,
+        request_dispatched=result.request_dispatched,
     )
 
 
@@ -963,10 +998,7 @@ def _secret_like_response_payload_reason(
 
 
 def _withheld_output_message(stream_name: str, reason: str) -> str:
-    return (
-        f"DeepSeek {stream_name} withheld because it contained secret-like "
-        f"content ({reason}).\n"
-    )
+    return f"DeepSeek {stream_name} withheld because it contained secret-like content ({reason}).\n"
 
 
 def _write_execution_artifacts(
@@ -980,7 +1012,7 @@ def _write_execution_artifacts(
     atomic_write_text(result.artifact_dir / "stderr.txt", stderr)
     if result.response_payload is not None:
         response_json = serialized_json_payload(
-            result.response_payload,
+            sanitized_response_payload(result.response_payload),
             config.max_response_bytes,
         )
         if response_json is None:
@@ -1013,6 +1045,7 @@ def _write_metadata(
         "timeout_seconds": config.timeout_seconds,
         "max_tokens": config.max_tokens,
         "max_file_bytes": config.max_file_bytes,
+        "max_request_bytes": config.max_request_bytes,
         "max_response_bytes": config.max_response_bytes,
         "context_policy": "bounded-file-content-v1",
         "capability_context_version": CAPABILITY_CONTEXT_VERSION,

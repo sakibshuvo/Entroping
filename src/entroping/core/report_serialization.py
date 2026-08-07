@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Final, TypeGuard, cast
 
+from entroping.core import report_gate_results as _report_gate_results
 from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.report_fingerprint import (
     _has_control_character,
@@ -15,6 +16,7 @@ from entroping.core.report_fingerprint import (
 )
 from entroping.models.hurl import HURL_VARIABLE_NAME_RE
 from entroping.models.report import (
+    GateResultEvidence,
     KnownFailureEvidence,
     RunAttemptEvidence,
     RunAuthEvidence,
@@ -52,6 +54,23 @@ _AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _MAX_RUN_REPORT_BYTES: Final = 100 * 1024 * 1024
 
 
+def _require_gate_results(
+    raw_gate_results: object,
+    *,
+    path: Path,
+    test_index: int,
+) -> None:
+    _report_gate_results._require_gate_results(
+        raw_gate_results,
+        path=path,
+        test_index=test_index,
+    )
+
+
+def _serialized_gate_results(raw_gate_results: object) -> tuple[GateResultEvidence, ...]:
+    return _report_gate_results._serialized_gate_results(raw_gate_results)
+
+
 def load_run_report(path: Path) -> RunReport:
     """Load a previously written JSON run report."""
 
@@ -86,6 +105,7 @@ def load_run_report(path: Path) -> RunReport:
             response_headers=_serialized_response_headers(item.get("response")),
             response_body_shape=_serialized_response_body_shape(item.get("response")),
             known_failures=_serialized_known_failures(item.get("known_failures")),
+            gate_results=_serialized_gate_results(item.get("gate_results")),
             retry=_serialized_retry(item.get("retry")),
             safety=_serialized_safety(item.get("safety")),
             auth=_serialized_auth(item.get("auth")),
@@ -164,6 +184,7 @@ def _require_run_report_schema(data: object, *, path: Path) -> None:
                     "must be a non-empty string without control characters"
                 )
                 raise ValueError(msg)
+        _require_gate_results(item.get("gate_results"), path=path, test_index=index)
 
 
 def _require_json_string(
@@ -286,6 +307,7 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
             }
             for known_failure in test.known_failures
         ]
+    payload.update(_report_gate_results._gate_results_payload(test.gate_results))
     if test.safety is not None:
         payload["safety"] = _safety_to_dict(test.safety)
     if test.auth is not None:

@@ -1027,15 +1027,14 @@ def _next_actions(
 def _dedupe_actions(
     actions: Sequence[ExternalTestEvidenceNextAction],
 ) -> tuple[ExternalTestEvidenceNextAction, ...]:
-    seen: set[tuple[str, tuple[str, ...], tuple[str, ...]]] = set()
-    result: list[ExternalTestEvidenceNextAction] = []
+    unique: dict[
+        tuple[str, tuple[str, ...], tuple[str, ...]],
+        ExternalTestEvidenceNextAction,
+    ] = {}
     for action in actions:
         key = (action.action, action.source_ids, action.layer_ids)
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(action)
-    return tuple(result)
+        unique.setdefault(key, action)
+    return tuple(unique.values())
 
 
 def _source_counts(

@@ -137,8 +137,10 @@ also expose provider-qualified `cost_model_id` values under `cost_provider_id`;
 these are deterministic join metadata for the separate cost policy, never a
 price or spending authorization. Route resolution enforces the lane's
 `queue_dispatch` capability and autonomy ceiling before a queued job is
-written. Legacy factory-metrics provider/model labels remain noncanonical until
-issue #1573 binds them to job, diff, CI, merge, and regression evidence.
+written. Legacy factory-metrics provider/model labels remain noncanonical and
+are never joined by string shape. Issue #1573 adds a separate strict provider
+scorecard contract for exact lane/host/billing/model/autonomy evidence; it does
+not reinterpret or extend legacy events.
 
 OpenCode Go is the Kimi/Qwen/model-variety lane, not the default DeepSeek lane.
 Every worker artifact, metrics event, review note, or handoff should name the
@@ -153,6 +155,35 @@ OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 Patch mode never applies changes; Codex validates and applies any useful diff
 inside the issue worktree, then runs the normal gates.
 
+The maintainer-only `factoryctl orchestrate` adapter is the narrow handoff from
+a scheduler-owned Tier A patch proposal to its issue worktree. It requires the
+live exact lease owner and a `completed-unsettled` execution whose evidence
+digest equals the proposal bytes. Planning is non-mutating; explicit apply may
+create only through `scripts/start_issue.sh`, then applies in the exact clean
+registered worktree. Until OS/container isolation exists, apply is limited to
+regular `docs/product/*.md` and `docs/user/*.md` changes in the static docs
+lanes; all executable or control-plane surfaces escalate. Gates come only from
+the validated target worktree's exact repository allowlist. A
+revision-bound accepted receipt is evidence, not scheduler settlement, merge
+authority, paid authority, or permission to bypass PR CI and finish cleanup.
+Uncertain journal state or any authority/worktree/main/gate drift stops the
+lane for maintainer reconciliation.
+
+The delivery controller is mixed-risk work: Codex is the final architecture,
+integration, and merge authority. Its design does not grant helpers or cheap
+workers any mutation or merge authority; they remain bounded proposal or review
+participants under the existing Tier A/B/C controls.
+The preceding write assignment must come from scheduler-owned
+`factoryctl tick --select-live`: saved selector output remains non-authorizing,
+generic APIs expose no admission input, and the specialized free-local lane
+revalidates the same full result and active state inside assignment commit.
+Active writer scopes come from persisted immutable envelopes, not later issue
+edits; incomplete legacy authority blocks. Its canonical-main policy digest is
+derived from the transitive internal-import closure of fixed authority roots
+and checked against a clean main checkout plus every loaded closure module,
+then checked again before orchestration. Live `gh` and Git commands use fixed trusted
+absolute execution contracts rather than ambient PATH.
+
 The worker requests OpenCode JSON events, consumes stdout incrementally under
 the existing byte and timeout ceilings, and never persists raw JSONL. It writes
 a minimal `usage-receipt.json` with schema
@@ -166,20 +197,65 @@ Raw reasoning, tool payloads, provider errors, event fragments, and child
 stderr never enter the receipt, metadata, metrics, or queue record. Existing
 sanitized final-text review and patch classification remains unchanged.
 
+### Unattended OpenCode Isolation
+
+Every real direct or queued OpenCode worker run uses a private ephemeral `HOME`,
+`XDG_CONFIG_HOME`, data, state, cache, temporary, and working directory outside
+Git discovery. The worker invokes an active registered model with `--pure`, a
+fixed `--agent`, explicit `--dir`, and JSON format. It never uses auto approval,
+attach, continue, session reuse, sharing, or interactive mode. Review uses
+`entroping.opencode-unattended-review.v1`; patch mode uses
+`entroping.opencode-unattended-patch-proposal.v1` and may return only a textual
+unified diff that the harness does not apply.
+
+The inline configuration is deny-first, sets subagent depth zero, disables
+sharing, snapshots, LSP, plugins, MCP, instructions, and formatters, and denies
+every model-issued tool, including read, glob, and grep. The trusted CLI may
+ingest only explicit `--file` snapshots that the wrapper already validated as
+regular non-symlink files. Shell, edit/write, patch application, task/subagent,
+skill, web, external-directory, question, task-list, MCP, custom, and unknown
+tools are denied. Defense-in-depth flags include
+`OPENCODE_DISABLE_PROJECT_CONFIG=1` and disable Claude context, external skills,
+default plugins, model fetches, updates, and autocompaction. Inherited proxy,
+Exa, shell-startup, runtime-injection, arbitrary `OPENCODE_CONFIG*`, HOME/XDG,
+and non-allowlisted keys are scrubbed. A `deepseek/*` route may forward only the
+exact `DEEPSEEK_API_KEY` key to final attested dispatch; its value is never
+inspected or persisted.
+
+Before dispatch, the exact selected executable runs `--version`, `run --help`,
+and `--pure debug config` in the same isolated config environment but without
+any provider credential. The reviewed CLI
+version is pinned, and all four probes share a maximum 20-second budget with
+bounded output and process-group cleanup. The worker validates the typed,
+extra-forbidden effective deny-first profile and performs digest and version
+binding before rechecking the executable and profile immediately before the
+credential-bearing model process. Version, schema, config, output, or lifecycle drift fails closed. A successful
+run writes the value-free
+`entroping.opencode-unattended-capability-receipt.v1` contract with only names,
+digests, categories, and booleans. It never records environment or config
+values, raw prompts, raw config, tool arguments, raw events, or user-global
+paths; metadata replaces the prompt argument with a redacted placeholder.
+
+The trusted executable boundary is explicit. These controls do not provide OS
+or container isolation from a malicious same-UID executable and do not restrict
+unrestricted egress. Use a separate account, sandbox/container, and network
+policy when that threat matters. When `--opencode-bin` selects a wrapper, the
+receipt binds the wrapper, not any downstream binary it launches; pass a direct
+regular binary when downstream executable identity must also be bound.
+
 OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane. It may use
-OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
-GitHub integrations only when those capabilities are present in the active
-OpenCode host and permissioned there. Codex-native plugins, skills, Codex Security, Browser, Computer Use, thread tools, and Codex-specific MCP state are
-not automatically available unless the OpenCode host exposes equivalent
-capabilities. The `scripts/opencode_worker.py` prompt includes an OpenCode Host Capability Context that preserves this boundary, forbids
-`--dangerously-skip-permissions`, keeps selected-file snapshots as the worker's
-truth surface, and keeps `entroping run` deterministic, Hurl-backed,
-QAnstitution-governed, and provider-free.
+OpenCode's native provider route, but unattended runs do not inherit host
+agents, plugins, MCP servers, hooks, shell tools, GitHub integrations, or
+Codex-native capabilities. Interactive maintainer sessions remain a separate
+surface. The bounded prompt keeps selected-file snapshots as truth and keeps
+`entroping run` deterministic, Hurl-backed, QAnstitution-governed, and
+provider-free.
 Before an OpenCode Desktop or OpenCode CLI session edits files independently,
 run `uv run python scripts/opencode_readiness.py --mode implementation
 --require-clean --format json` from the issue worktree. For PR verification or
 read-only monitoring, use `--mode verification` or `--mode monitoring` instead.
-The preflight checks OpenCode availability, active repo path, branch/worktree
+The preflight checks OpenCode availability and unattended effective-profile
+capability, active repo path, branch/worktree
 state, prompt-library guardrails, required workflow command surfaces, ignored
 local OpenCode/Codex/artifact paths, and tracked local-state leaks without
 reading provider keys, MCP credentials, local config values, prompts,
@@ -290,6 +366,22 @@ The same script owns the context-tool scorecard protocol with schema
 promoting Obsidian/curated Markdown, Understand Anything, or any future
 context tool into the active agent workflow. Retired generated context tooling
 has been removed from the active workflow surface.
+The separate provider scorecard protocol uses
+`entroping.provider-scorecard-evidence.v1` and
+`entroping.provider-scorecard-report.v1`. Use
+`scripts/factory_metrics.py provider-scorecard validate --input <ignored-json>`
+before `provider-scorecard report --as-of <timezone-aware-ISO-8601> --format json`.
+It is maintainer-only, value-free correlation evidence: it requires trusted
+maintainer HMAC attestation with a dedicated local key, bounded owner-only
+files authorized and read from one stable descriptor through a no-follow parent
+tree, globally replay-unique work/receipt/cost identifiers, exact
+registry tuples, registry-derived nullable cost-provider/model identities, and
+identity-bound review, verification, CI, merge, and later
+outcomes. Its fixed manual-only policy requires at least three accepted samples,
+90-day recency, an accepted ratio of at least 0.80, terminal quality/security
+receipts without failures, and no regression, revert, or later inconclusive
+evidence; cost is secondary summary evidence only. It cannot spend, dispatch,
+merge, route, or automatically promote a provider or model.
 Recording from scripts is opt-in: use
 `scripts/context_pack.sh --mode implementation --record-factory-metrics` to
 measure context packs, use `uv run python scripts/ai_jobs.py run-next
