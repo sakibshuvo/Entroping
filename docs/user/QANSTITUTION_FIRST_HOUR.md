@@ -1,5 +1,6 @@
 ---
 title: QAnstitution First Hour
+description: "Create and understand a minimal QAnstitution policy before exploring the full reference."
 type: guide
 status: active
 tags:

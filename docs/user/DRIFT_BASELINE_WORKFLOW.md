@@ -1,5 +1,6 @@
 ---
 title: Drift Baseline Workflow
+description: "Review and promote sanitized drift candidates without letting runtime execution overwrite the active baseline."
 type: guide
 status: active
 tags:

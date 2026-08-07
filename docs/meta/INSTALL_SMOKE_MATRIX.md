@@ -1,5 +1,6 @@
 ---
 title: Install Smoke Matrix
+description: "Compare the operating-system install paths that CI proves with the manual evidence still required."
 type: runbook
 status: active
 tags:

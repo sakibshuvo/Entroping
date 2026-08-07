@@ -1,5 +1,6 @@
 ---
 title: Alpha Release Checklist
+description: "Apply the quality, security, evidence, packaging, and cleanup gates required for an alpha release."
 type: runbook
 status: active
 tags:

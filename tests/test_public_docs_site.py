@@ -26,6 +26,9 @@ SETUP_NODE_PIN = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
 CONFIGURE_PAGES_PIN = "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d"
 UPLOAD_PAGES_ARTIFACT_PIN = "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9"
 DEPLOY_PAGES_PIN = "actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"
+GENERIC_SITE_DESCRIPTION = (
+    "Local-first runtime governance for AI-assisted backend development."
+)
 
 
 def _manifest() -> PublicDocsManifest:
@@ -34,6 +37,18 @@ def _manifest() -> PublicDocsManifest:
         PublicDocsManifest,
         json.loads(PUBLIC_DOCS_MANIFEST.read_text(encoding="utf-8")),
     )
+
+
+def _frontmatter(source: str) -> dict[str, object]:
+    lines = (REPO_ROOT / source).read_text(encoding="utf-8").splitlines()
+    assert lines and lines[0] == "---", f"{source}: missing YAML frontmatter"
+    try:
+        closing_index = lines.index("---", 1)
+    except ValueError as exc:
+        raise AssertionError(f"{source}: unterminated YAML frontmatter") from exc
+    payload = yaml.safe_load("\n".join(lines[1:closing_index]))
+    assert isinstance(payload, dict), f"{source}: frontmatter must be a mapping"
+    return cast(dict[str, object], payload)
 
 
 def test_public_docs_manifest_uses_canonical_markdown() -> None:
@@ -46,6 +61,30 @@ def test_public_docs_manifest_uses_canonical_markdown() -> None:
     assert "docs/technical/TDS.md" in sources
     assert all((REPO_ROOT / source).is_file() for source in sources)
     assert len(sources) == len(set(sources))
+
+
+def test_public_docs_manifest_requires_page_specific_descriptions() -> None:
+    descriptions: dict[str, str] = {}
+
+    for source in public_doc_sources():
+        raw_description = _frontmatter(source).get("description")
+        assert isinstance(raw_description, str), f"{source}: missing description"
+        description = raw_description.strip()
+        assert description == raw_description, f"{source}: description has edge whitespace"
+        assert description, f"{source}: description is empty"
+        assert 40 <= len(description) <= 160, (
+            f"{source}: description must be a concise search snippet"
+        )
+        assert description != GENERIC_SITE_DESCRIPTION, (
+            f"{source}: description must be page-specific"
+        )
+        normalized = description.casefold()
+        assert normalized not in descriptions, (
+            f"{source}: duplicate description from {descriptions.get(normalized)}"
+        )
+        descriptions[normalized] = source
+
+    assert len(descriptions) == len(public_doc_sources())
 
 
 def test_public_docs_manifest_has_unique_url_safe_slugs() -> None:

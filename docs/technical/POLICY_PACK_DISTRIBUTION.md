@@ -1,5 +1,6 @@
 ---
 title: Policy Pack Distribution
+description: "Distribute inspectable QAnstitution packs without turning deterministic runs into registry clients."
 type: technical
 status: active
 tags:

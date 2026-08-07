@@ -1,5 +1,6 @@
 ---
 title: Entroping Use Cases
+description: "See how Entroping governs AI-generated APIs, drift, policy, CI, and reviewed runtime evidence."
 type: guide
 status: active
 tags:

@@ -1,5 +1,6 @@
 ---
 title: QAnstitution Reference
+description: "Use the complete qanstitution.yaml schema, rule semantics, conditions, imports, and runtime behavior."
 type: technical-reference
 status: active
 tags:

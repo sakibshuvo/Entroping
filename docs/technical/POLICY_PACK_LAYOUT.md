@@ -1,5 +1,6 @@
 ---
 title: Policy Pack Layout
+description: "Structure reusable local QAnstitution packs with explicit imports, provenance, and open-core boundaries."
 type: technical
 status: active
 tags:

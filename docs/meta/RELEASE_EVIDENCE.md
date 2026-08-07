@@ -1,5 +1,6 @@
 ---
 title: Release Evidence
+description: "Interpret the committed release ledger and validate stable-core claims against concrete evidence."
 type: runbook
 status: active
 tags:

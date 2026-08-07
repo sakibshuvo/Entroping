@@ -1,5 +1,6 @@
 ---
 title: PyPI Release Runbook
+description: "Publish through protected TestPyPI-first Trusted Publishing with reviewed artifacts and smoke evidence."
 type: runbook
 status: active
 tags:
