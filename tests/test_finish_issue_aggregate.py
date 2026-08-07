@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -198,17 +199,23 @@ def _write_fake_remote_python(
     fake_bin: Path,
     responses: tuple[tuple[str, int], ...],
 ) -> Path:
+    real_uv = shutil.which("uv")
+    assert real_uv is not None
     calls = fake_bin.parent / "remote-helper-calls"
     cases = "\n".join(
         f"  {index}) printf '%s\\n' {shlex.quote(response)}; exit {code} ;;"
         for index, (response, code) in enumerate(responses)
     )
-    wrapper = fake_bin / "python3"
+    wrapper = fake_bin / "uv"
     wrapper.write_text(
         "#!/bin/sh\n"
         "set -eu\n"
-        f"case \"$1\" in */finish_issue_remote_branch.py) ;; *) "
-        f"exec {shlex.quote(sys.executable)} \"$@\" ;; esac\n"
+        "if [ \"$1\" = run ] && [ \"$2\" = python ]; then\n"
+        "  case \"$3\" in */finish_issue_remote_branch.py) ;; *) "
+        f"exec {shlex.quote(real_uv)} \"$@\" ;; esac\n"
+        "else\n"
+        f"  exec {shlex.quote(real_uv)} \"$@\"\n"
+        "fi\n"
         f"count_file={shlex.quote(str(calls))}\n"
         "count=$(cat \"$count_file\" 2>/dev/null || printf '0')\n"
         "printf '%s' $((count + 1)) > \"$count_file\"\n"
@@ -219,6 +226,17 @@ def _write_fake_remote_python(
         encoding="utf-8",
     )
     wrapper.chmod(0o755)
+    ambient_python = fake_bin / "python3"
+    ambient_python.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        "case \"$1\" in\n"
+        "  */finish_issue_remote_branch.py) exit 91 ;;\n"
+        f"  *) exec {shlex.quote(sys.executable)} \"$@\" ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    ambient_python.chmod(0o755)
     return calls
 
 

@@ -99,7 +99,7 @@ finally:
     os.lseek(descriptor, 0, os.SEEK_SET)
 ' "${helper_path#/dev/fd/}" "$helper_name" "$@"
   else
-    python3 "$script_dir/$helper_name" "$@"
+    uv run python "$script_dir/$helper_name" "$@"
   fi
 }
 
