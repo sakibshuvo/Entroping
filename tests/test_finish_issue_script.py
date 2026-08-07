@@ -11,7 +11,6 @@ import subprocess
 import sys
 import time
 from contextlib import suppress
-from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -414,6 +413,18 @@ def seed_replay_stage(
     return identity
 
 
+def replay_proof_path(repo: Path, identity: ReplayIdentity) -> Path:
+    return (
+        repo
+        / ".entroping"
+        / "finish-issue-replay"
+        / (
+            f"issue-{identity.issue}-pr-{identity.pull_request}-"
+            f"{identity.expected_head}.json"
+        )
+    )
+
+
 def branch_exists(repo: Path) -> bool:
     return (
         subprocess.run(
@@ -784,18 +795,21 @@ def test_strict_rejects_invalid_replay_evidence_before_cleanup(
     repo, worktree = create_repo_with_worktree(tmp_path)
     head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
     fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    proof = replay_proof_path(repo, identity)
     if damage == "conflict":
-        conflicting = replace(replay_identity(repo, worktree, head), pull_request=124)
-        _ = advance_replay_evidence(repo, conflicting, "worktree-removal-attempted")
+        payload = cast(dict[str, object], json.loads(proof.read_text(encoding="utf-8")))
+        payload["pull_request"] = 124
+        proof.write_text(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    elif damage == "corrupt":
+        proof.write_text("not-json", encoding="utf-8")
     else:
-        _ = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
-        proof = repo / ".entroping" / "finish-issue-replay" / "issue-99.json"
-        if damage == "corrupt":
-            proof.write_text("not-json", encoding="utf-8")
-        else:
-            outside = tmp_path / "outside-proof.json"
-            proof.replace(outside)
-            proof.symlink_to(outside)
+        outside = tmp_path / "outside-proof.json"
+        proof.replace(outside)
+        proof.symlink_to(outside)
 
     result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
 

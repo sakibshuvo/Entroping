@@ -46,7 +46,20 @@ def _identity(root: Path) -> ReplayIdentity:
     )
 
 
-def _target(root: Path) -> Path:
+def _target(root: Path, identity: ReplayIdentity | None = None) -> Path:
+    selected = identity or _identity(root)
+    return (
+        root
+        / ".entroping"
+        / "finish-issue-replay"
+        / (
+            f"issue-{selected.issue}-pr-{selected.pull_request}-"
+            f"{selected.expected_head}.json"
+        )
+    )
+
+
+def _legacy_target(root: Path) -> Path:
     return root / ".entroping" / "finish-issue-replay" / "issue-1576.json"
 
 
@@ -69,11 +82,25 @@ def _payload(
     }
 
 
-def _write_payload(root: Path, payload: bytes) -> Path:
-    directory = _target(root).parent
+def _write_payload(
+    root: Path,
+    payload: bytes,
+    *,
+    target_identity: ReplayIdentity | None = None,
+) -> Path:
+    target = _target(root, target_identity)
+    directory = target.parent
     directory.mkdir(mode=0o700, parents=True)
     os.chmod(directory.parent, 0o700)
-    target = _target(root)
+    target.write_bytes(payload)
+    target.chmod(0o600)
+    return target
+
+
+def _write_legacy_payload(root: Path, payload: bytes) -> Path:
+    target = _legacy_target(root)
+    target.parent.mkdir(mode=0o700, parents=True)
+    os.chmod(target.parent.parent, 0o700)
     target.write_bytes(payload)
     target.chmod(0o600)
     return target
@@ -222,13 +249,95 @@ def test_replay_evidence_rejects_skipping_first_stage(tmp_path: Path) -> None:
     assert not _target(root).exists()
 
 
-def test_replay_evidence_rejects_identity_conflict(tmp_path: Path) -> None:
+def test_replay_evidence_isolates_reclosing_pull_request_identity(
+    tmp_path: Path,
+) -> None:
     root = _root(tmp_path)
     identity = _identity(root)
+    reclosing = replace(
+        identity,
+        pull_request=43,
+        expected_head="b" * 40,
+        expected_branch="issue/1576-reclosing-finish-replay",
+        merged_at="2026-08-07T19:00:00Z",
+    )
     advance_replay_evidence(root, identity, "worktree-removal-attempted")
 
+    assert read_replay_evidence(root, reclosing) == "none"
+    assert (
+        advance_replay_evidence(root, reclosing, "worktree-removal-attempted")
+        == "worktree-removal-attempted"
+    )
+    assert read_replay_evidence(root, identity) == "worktree-removal-attempted"
+    assert read_replay_evidence(root, reclosing) == "worktree-removal-attempted"
+
+
+def test_replay_evidence_rejects_identity_conflict_at_exact_identity_path(
+    tmp_path: Path,
+) -> None:
+    root = _root(tmp_path)
+    identity = _identity(root)
+    reclosing = replace(identity, pull_request=43, expected_head="b" * 40)
+    _write_payload(
+        root,
+        json.dumps(_payload(identity), sort_keys=True, separators=(",", ":")).encode(),
+        target_identity=reclosing,
+    )
+
     with pytest.raises(ReplayEvidenceError, match="conflicting replay evidence"):
-        read_replay_evidence(root, replace(identity, pull_request=43))
+        read_replay_evidence(root, reclosing)
+
+
+def test_replay_evidence_reads_and_migrates_exact_legacy_identity(
+    tmp_path: Path,
+) -> None:
+    root = _root(tmp_path)
+    identity = _identity(root)
+    _write_legacy_payload(
+        root,
+        json.dumps(_payload(identity), sort_keys=True, separators=(",", ":")).encode(),
+    )
+
+    assert read_replay_evidence(root, identity) == "worktree-removal-attempted"
+    assert (
+        advance_replay_evidence(root, identity, "branch-deletion-attempted")
+        == "branch-deletion-attempted"
+    )
+    assert _legacy_target(root).exists()
+    assert _target(root, identity).exists()
+    assert read_replay_evidence(root, identity) == "branch-deletion-attempted"
+
+
+def test_replay_evidence_preserves_but_ignores_different_legacy_identity(
+    tmp_path: Path,
+) -> None:
+    root = _root(tmp_path)
+    identity = _identity(root)
+    reclosing = replace(
+        identity,
+        pull_request=43,
+        expected_head="b" * 40,
+        expected_branch="issue/1576-reclosing-finish-replay",
+        merged_at="2026-08-07T19:00:00Z",
+    )
+    legacy = _write_legacy_payload(
+        root,
+        json.dumps(_payload(identity), sort_keys=True, separators=(",", ":")).encode(),
+    )
+
+    assert read_replay_evidence(root, reclosing) == "none"
+    assert legacy.exists()
+
+
+def test_replay_evidence_rejects_malformed_legacy_for_reclosing_identity(
+    tmp_path: Path,
+) -> None:
+    root = _root(tmp_path)
+    reclosing = replace(_identity(root), pull_request=43, expected_head="b" * 40)
+    _write_legacy_payload(root, b"not-json")
+
+    with pytest.raises(ReplayEvidenceError, match="invalid replay evidence"):
+        read_replay_evidence(root, reclosing)
 
 
 @pytest.mark.parametrize(
@@ -358,5 +467,5 @@ def test_replay_evidence_cli_uses_named_identity_and_fixed_errors(
     assert capsys.readouterr() == ("none\n", "")
     assert main([*_args(root, identity, "advance"), "--stage", "worktree-removal-attempted"]) == 0
     assert capsys.readouterr() == ("worktree-removal-attempted\n", "")
-    assert main([*_args(root, replace(identity, pull_request=43), "read")]) == 1
-    assert capsys.readouterr() == ("", "finish-issue replay evidence error\n")
+    assert main([*_args(root, replace(identity, pull_request=43), "read")]) == 0
+    assert capsys.readouterr() == ("none\n", "")

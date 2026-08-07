@@ -383,7 +383,12 @@ def test_aggregate_real_cleanup_removes_only_mapped_source_branch(tmp_path: Path
 
 
 def _aggregate_replay_stage(fixture: Fixture) -> str:
-    proof = fixture["repo"] / ".entroping" / "finish-issue-replay" / "issue-99.json"
+    proof = (
+        fixture["repo"]
+        / ".entroping"
+        / "finish-issue-replay"
+        / f"issue-99-pr-1537-{fixture['source_commit']}.json"
+    )
     payload = cast(dict[str, str], json.loads(proof.read_text(encoding="utf-8")))
     return payload["stage"]
 
