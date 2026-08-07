@@ -147,6 +147,7 @@ json_check_rollup_passed() {
   printf '%s' "$payload" | python3 -c '
 import json
 import sys
+from datetime import datetime
 
 data = json.load(sys.stdin)
 checks = data.get("statusCheckRollup") or []
@@ -154,9 +155,37 @@ if not checks:
     print("no CI checks found on closing PR", file=sys.stderr)
     raise SystemExit(1)
 
+latest_check_runs: dict[tuple[str, str], tuple[datetime, list[dict[str, object]]]] = {}
+current_checks: list[dict[str, object]] = []
+for check in checks:
+    if check.get("__typename") != "CheckRun":
+        current_checks.append(check)
+        continue
+    started_at = check.get("startedAt")
+    if not isinstance(started_at, str):
+        current_checks.append(check)
+        continue
+    try:
+        started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+    except ValueError:
+        current_checks.append(check)
+        continue
+    if started.tzinfo is None:
+        current_checks.append(check)
+        continue
+    key = (str(check.get("workflowName") or ""), str(check.get("name") or ""))
+    previous = latest_check_runs.get(key)
+    if previous is None or started > previous[0]:
+        latest_check_runs[key] = (started, [check])
+    elif started == previous[0]:
+        previous[1].append(check)
+
+for _started, latest in latest_check_runs.values():
+    current_checks.extend(latest)
+
 allowed_check_run_conclusions = {"SUCCESS", "SKIPPED", "NEUTRAL"}
 bad: list[str] = []
-for check in checks:
+for check in current_checks:
     name = str(check.get("name") or check.get("context") or "<unnamed>")
     kind = check.get("__typename", "")
     if kind == "CheckRun":
@@ -183,7 +212,7 @@ if bad:
         print(f"  {item}", file=sys.stderr)
     raise SystemExit(1)
 
-print(len(checks))
+print(len(current_checks))
 '
 }
 

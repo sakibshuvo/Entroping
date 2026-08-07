@@ -1372,6 +1372,105 @@ def test_finish_issue_accepts_unknown_passing_ci_rollup_entry(tmp_path: Path) ->
     assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip() == ""
 
 
+def test_finish_issue_accepts_latest_success_after_superseded_failure(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:24:55Z",
+                "completedAt": "2026-08-07T18:25:05Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            },
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "completedAt": "2026-08-07T18:36:00Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            },
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "CI checks verified: 1" in result.stdout
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_latest_failure_after_superseded_success(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "completedAt": "2026-08-07T18:36:00Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            },
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:24:55Z",
+                "completedAt": "2026-08-07T18:25:05Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            },
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 1
+    assert "checks (3.12): status=COMPLETED conclusion=FAILURE" in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_conflicting_check_runs_with_same_start_time(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "status": "COMPLETED",
+                "conclusion": conclusion,
+            }
+            for conclusion in ("FAILURE", "SUCCESS")
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 1
+    assert "checks (3.12): status=COMPLETED conclusion=FAILURE" in result.stderr
+    assert worktree.exists()
+
+
 def test_finish_issue_removes_clean_worktree_and_squash_merged_branch(tmp_path: Path) -> None:
     repo, worktree = create_repo_with_worktree(tmp_path)
     fake_bin = write_fake_gh(tmp_path)
