@@ -9,6 +9,7 @@ import yaml
 
 from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.yaml_safety import YamlSafetyError, load_yaml_bounded
 
 _MAX_OPENAPI_DOCUMENT_BYTES: Final = 100 * 1024 * 1024
 
@@ -85,7 +86,10 @@ def load_openapi_document_text(content: str, *, source_name: str) -> Mapping[str
     """Load an OpenAPI YAML or JSON document from already-read text."""
 
     try:
-        loaded: object = yaml.safe_load(content)
+        loaded = load_yaml_bounded(content)
+    except YamlSafetyError as exc:
+        msg = f"Unsafe OpenAPI YAML in {source_name}: {exc}"
+        raise OpenApiLoadError(msg) from exc
     except yaml.YAMLError as exc:
         msg = f"Invalid OpenAPI YAML in {source_name}: {exc}"
         raise OpenApiLoadError(msg) from exc
