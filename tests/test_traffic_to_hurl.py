@@ -73,6 +73,7 @@ def test_compile_traffic_session_generates_hurl_with_metadata_and_golden_asserti
 
     assert generated.relative_path == "tests/generated/checkout_flow.hurl"
     assert "# entroping: tags=traffic,freeze" in generated.content
+    assert parse_hurl_metadata(generated.content).tags == frozenset({"freeze", "traffic"})
     assert "# entroping: source=traffic" in generated.content
     assert "# entroping: session=checkout_flow" in generated.content
     assert "# entroping: target=https://api.example.test" in generated.content

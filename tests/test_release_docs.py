@@ -224,6 +224,29 @@ def test_canonical_specs_do_not_label_current_alpha_as_stable() -> None:
         assert "stable-core" in header
 
 
+def test_promoted_runbooks_declare_protected_smoke_and_generated_traffic_selection() -> None:
+    user_flows = (REPO_ROOT / "docs/user/USER_FLOWS.md").read_text(encoding="utf-8")
+    cheat_sheet = (
+        REPO_ROOT / "docs/technical/COMMAND_CHEAT_SHEET.md"
+    ).read_text(encoding="utf-8")
+    production_smoke = user_flows.split("## 11. Production Smoke", maxsplit=1)[1]
+    legacy_rescue = user_flows.split("## 5. Legacy Rescue", maxsplit=1)[1].split(
+        "## 6. Component Isolation", maxsplit=1
+    )[0]
+
+    assert "suites/prod-smoke.yaml" in production_smoke
+    assert "envs/prod-smoke.env" in production_smoke
+    assert "protected: true" in production_smoke
+    assert "safety: read-only" in production_smoke
+    assert "entroping run --suite prod-smoke --ci" in production_smoke
+    assert "--env prod-smoke --tag smoke" not in production_smoke
+    assert '--tag-expression "traffic and freeze"' in legacy_rescue
+    assert "--ci" in legacy_rescue
+    assert '--tag-expression "traffic and freeze"' in cheat_sheet
+    assert "No Hurl tests matched" in cheat_sheet
+    assert "entroping run --env local" in cheat_sheet
+
+
 def test_docs_distinguish_v41_contract_from_package_release_version() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     product_spec = (REPO_ROOT / "docs/product/PRODUCT_SPEC.md").read_text(

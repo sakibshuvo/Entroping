@@ -1296,6 +1296,129 @@ reports:
     assert "staging.example.test" not in json.dumps(report)
 
 
+def test_documented_prod_smoke_suite_blocks_destructive_fixture_before_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    Path("suites").mkdir(exist_ok=True)
+    Path("suites/prod-smoke.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: prod-smoke
+env: prod-smoke
+tags:
+  - smoke
+paths:
+  - tests/*.hurl
+protected: true
+safety: read-only
+reports:
+  - json
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("envs/prod-smoke.env").write_text(
+        "base_url=http://production.example.test\n",
+        encoding="utf-8",
+    )
+    Path("tests/destroy.hurl").write_text(
+        "# entroping: tags=smoke\n# entroping: safety=destructive\n\n"
+        "DELETE {{base_url}}/accounts/123\nHTTP 204\n",
+        encoding="utf-8",
+    )
+
+    def fail_hurl(*args: object, **kwargs: object) -> object:
+        _ = (args, kwargs)
+        raise AssertionError("production smoke safety must run before Hurl")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fail_hurl)
+
+    result = runner.invoke(app, ["run", "--suite", "prod-smoke", "--ci"])
+
+    assert result.exit_code == 1
+    report = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    safety = report["tests"][0]["safety"]
+    assert report["environment"] == "prod-smoke"
+    assert report["tests"][0]["status"] == "blocked"
+    assert safety["protected_environment"] is True
+    assert safety["safety"] == "destructive"
+    assert safety["blocked_reason"] == "destructive tests are blocked in protected environments"
+    assert "production.example.test" not in json.dumps(report)
+
+
+def test_documented_frozen_traffic_command_selects_and_runs_generated_tags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    Path("envs/local.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    generated = Path("tests/generated/checkout_flow.hurl")
+    generated.parent.mkdir(parents=True)
+    generated.write_text(
+        "# entroping: tags=traffic,freeze\n"
+        "# entroping: source=traffic\n"
+        "# entroping: session=checkout_flow\n\n"
+        "GET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    executed_args: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        executed_args.append(args)
+        stdout.write(b"HTTP 200\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--env",
+            "local",
+            "--tag-expression",
+            "traffic and freeze",
+            "--ci",
+            "--report",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Hurl selection: 1 selected, 0 skipped by tag expression" in result.output
+    assert "Hurl run: 1 passed, 0 failed" in result.output
+    assert len(executed_args) == 1
+    selected_event = next(
+        event for event in _read_run_events() if event["event"] == "test_selected"
+    )
+    selected_tags = selected_event["tags"]
+    assert isinstance(selected_tags, list)
+    assert set(selected_tags) == {"freeze", "traffic"}
+    completed_event = _read_run_events()[-1]
+    assert completed_event["status"] == "passed"
+    assert completed_event["total"] == 1
+
+
 def test_run_loads_named_suite_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
