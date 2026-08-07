@@ -27,6 +27,53 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _deep_yaml_mapping(*, depth: int, prefix: str) -> str:
+    lines = ["project: checkout-api", f"{prefix}:"]
+    lines.extend("  " * (index + 1) + f"level_{index}:" for index in range(depth))
+    lines.append("  " * (depth + 1) + "leaf: redacted")
+    return "\n".join(lines) + "\n"
+
+
+def _alias_expansion_yaml(*, prefix: str) -> str:
+    aliases = ", ".join(["*previous"] * 10)
+    lines = [
+        "project: checkout-api",
+        f"{prefix}:",
+        "  seed: &previous [a, b, c, d, e, f, g, h, i, j]",
+    ]
+    for index in range(3):
+        anchor = f"level_{index}"
+        lines.append(f"  {anchor}: &{anchor} [{aliases}]")
+        aliases = ", ".join([f"*{anchor}"] * 10)
+    lines.append(f"  expanded: [{aliases}]")
+    return "\n".join(lines) + "\n"
+
+
+def test_load_qanstitution_rejects_excessive_yaml_nesting_without_content(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "qanstitution.yaml"
+    write_yaml(config_path, _deep_yaml_mapping(depth=500, prefix="attacker_secret"))
+
+    with pytest.raises(QanstitutionLoadError, match="YAML nesting exceeds 128") as exc_info:
+        load_qanstitution(config_path)
+
+    assert "attacker_secret" not in str(exc_info.value)
+
+
+def test_load_qanstitution_rejects_yaml_alias_expansion_budget(tmp_path: Path) -> None:
+    config_path = tmp_path / "qanstitution.yaml"
+    write_yaml(config_path, _alias_expansion_yaml(prefix="attacker_secret"))
+
+    with pytest.raises(
+        QanstitutionLoadError,
+        match="YAML expansion exceeds 10000 nodes",
+    ) as exc_info:
+        load_qanstitution(config_path)
+
+    assert "attacker_secret" not in str(exc_info.value)
+
+
 def test_load_qanstitution_merges_local_imports_before_local_gates(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "rules" / "security.yaml",

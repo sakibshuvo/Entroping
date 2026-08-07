@@ -181,6 +181,23 @@ def test_gate_rule_normalizes_surrounding_gate_id_whitespace() -> None:
     assert gate.id == "global_latency"
 
 
+def test_qanstitution_model_rejects_invalid_enforcement() -> None:
+    with pytest.raises(ValidationError):
+        Qanstitution.model_validate(
+            {
+                "project": "checkout-api",
+                "gates": [
+                    {
+                        "id": "invalid_enforcement",
+                        "condition": "true",
+                        "gate": "status < 500",
+                        "enforcement": "observe",
+                    }
+                ],
+            }
+        )
+
+
 @pytest.mark.parametrize(
     ("assertion", "message"),
     [
@@ -605,6 +622,33 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     assert "`entroping doctor` remains the authoritative runtime validation" in readme
     assert "technical/qanstitution.schema.json" in docs_index
     assert "docs/technical/QANSTITUTION_REFERENCE.md" in public_doc_sources()
+
+
+def test_qanstitution_docs_preserve_hurl_enforcement_and_report_contract() -> None:
+    reference = (REPO_ROOT / "docs" / "technical" / "QANSTITUTION_REFERENCE.md").read_text(
+        encoding="utf-8"
+    )
+    mvp = (REPO_ROOT / "docs" / "product" / "MVP_PLAN.md").read_text(encoding="utf-8")
+    first_hour = (REPO_ROOT / "docs" / "user" / "QANSTITUTION_FIRST_HOUR.md").read_text(
+        encoding="utf-8"
+    )
+    product = (REPO_ROOT / "docs" / "product" / "PRODUCT_SPEC.md").read_text(encoding="utf-8")
+    tds = (REPO_ROOT / "docs" / "technical" / "TDS.md").read_text(encoding="utf-8")
+
+    for document in (reference, mvp, first_hour, product, tds):
+        assert "Hurl" in document
+        assert "warn" in document
+        assert "audit_only" in document
+        assert "JSON" in document
+        assert "JUnit" in document
+        assert "HTML" in document
+    for document in (reference, mvp, product, tds):
+        assert "evaluated" in document
+    assert "executes its Hurl assertion" in first_hour
+    assert "Only a failed `block` gate contributes to the run exit status." in " ".join(
+        tds.split()
+    )
+    assert "without affecting the run exit code" in first_hour
 
 
 def test_qanstitution_reference_marks_types_source_as_reserved_metadata() -> None:

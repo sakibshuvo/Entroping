@@ -63,8 +63,33 @@ def test_metered_routes_expose_qualified_cost_identity() -> None:
     direct_lane = registry.lanes[1]
 
     assert direct_lane.cost_provider_id == "deepseek"
+    assert direct_lane.policy_provider_id == "deepseek"
     assert direct_lane.models[0].cost_model_id == "deepseek/deepseek-v4-flash"
     assert direct_lane.models[1].cost_model_id == "deepseek/deepseek-v4-pro"
+
+
+@pytest.mark.parametrize("lane_index", [0, 3])
+def test_quota_backed_routes_require_policy_provider_identity(
+    tmp_path: Path,
+    lane_index: int,
+) -> None:
+    registry = load_provider_registry()
+    invalid_lane = registry.lanes[lane_index].model_copy(
+        update={"policy_provider_id": None}
+    )
+    invalid_registry = registry.model_copy(
+        update={
+            "lanes": (
+                *registry.lanes[:lane_index],
+                invalid_lane,
+                *registry.lanes[lane_index + 1 :],
+            )
+        }
+    )
+    candidate = _write_candidate(tmp_path, invalid_registry.model_dump_json())
+
+    with pytest.raises(ProviderRegistryError, match="policy provider identity"):
+        _ = load_provider_registry(candidate)
 
 
 def test_metered_model_requires_qualified_cost_identity(tmp_path: Path) -> None:

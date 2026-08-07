@@ -1,6 +1,180 @@
 # Entroping Changelog
 
+## 2026-08-07
+
+- Added the maintainer-only aggregate-PR finish path for #1549. A tracked,
+  strict evidence manifest binds each retained issue worktree to its source
+  branch/commit, integrated commit, and stable patch identity; live issue,
+  merged PR, CI, ancestry, and clean-worktree checks remain mandatory before
+  the existing exact local cleanup. Aggregate cleanup also verifies the exact
+  remote source ref, uses a persisted deletion intent plus expected-value
+  lease, and proves remote absence without touching the aggregate PR branch.
+  Dry-run is mutation-free, and backlog health now reports closed active issues
+  and registered issue worktrees.
+  Historical PR #1537 cleanup has not been run by this branch.
+- Implemented issue #1540's nonblocking QAnstitution enforcement contract:
+  block, warn, and audit_only gates share one temporary Hurl execution copy and
+  one Hurl invocation per attempt. Source and block failures remain blocking;
+  warn/audit_only failures remain visible with enforcement and result fields in
+  JSON, JUnit, and HTML without changing the run exit status. Bounded Hurl 4.3
+  structured evidence is scoped to gated paths, response fingerprints and
+  redaction are preserved, and source Hurl bytes plus normal ungated output stay
+  unchanged.
+
+## 2026-08-06
+
+- Local/unmerged issue-branch evidence for #1576 now covers exact terminal
+  receipt persistence/replay, exact local commit and PR/CI/merge-head binding,
+  strict finish partial replay, expected-value remote deletion with persisted
+  absence proof, scheduler owner/epoch/phase-version fencing with one cleanup
+  completion timestamp, post-lease completion without heartbeat or lease
+  extension, and bounded `factoryctl deliver` exits/output. This does not mark
+  #1576 done, merged, release-ready, or activated: full
+  `scripts/regression.sh --security`, `scripts/audit_quality.sh`, whole-branch
+  review/QA, PR/CI, merge, and finish cleanup remain pending. Launchd remains
+  disabled pending a separate explicit activation decision; the product
+  `entroping` CLI and provider boundary remain unchanged. #1575 remains offline
+  proposal-only and excludes live selection, provider dispatch, and launchd.
+
+## 2026-08-03
+
+- Hardened #1575's final offline acceptance proof: each labeled receipt now
+  snapshots its own scenario boundary; provider absence is observed through an
+  injected dispatch port; fresh children install network/process denial before
+  production imports; strict v1 receipts reject coercion and encoding drift;
+  descriptor-relative no-follow writes survive ancestor swaps; and source
+  manifests include bounded relevant untracked bytes. The final 20-test offline
+  pilot emitted 32 receipts in 9.37s and matched deterministic outcomes across
+  repeated/concurrent runs.
+
+- Recorded #1575's offline proposal-controller validation: the 15-test harness
+  emitted 27 schema-version-1 value-free receipts, including a requested
+  three-iteration soak that rejects requests above four. Source/Git state
+  stayed stable; local timing was 5.89s baseline and 6.134s repeated mean.
+  This intentionally separates scheduler and provider boundaries and is not a
+  live provider-running controller. It excludes live GitHub selection,
+  orchestration apply, provider dispatch, and launchd; #1576 still owns
+  PR/CI/merge-control and cleanup evidence.
+
+- Merged #1574 via PR #1600 at `ac5878a`: the plan-first maintainer Tier A
+  worktree orchestration binds strict request/proposal bytes to live scheduler
+  ownership and exact
+  `completed-unsettled` evidence, worktree/base/branch identity, allowed paths,
+  and verification lane. Explicit apply delegates creation only to
+  `scripts/start_issue.sh`, applies exact bytes, runs allowlisted bounded gates,
+  preserves main, and journals deterministic value-free terminal receipts;
+  interruption or authority/integrity drift fails uncertain. Scheduler
+  settlement and completion remain separate and this is not release evidence.
+  Delivery authority is minted only by scheduler-owned live selection for
+  free-local writes: fresh no-cache GitHub state and complete active ownership
+  are revalidated inside assignment commit, while saved selector output and
+  caller-created envelopes remain non-authorizing. Live selection now rejects
+  ambient PATH shadows, binds the AST-derived transitive import closure and
+  executed package initializers to small aggregate traversal budgets, compares
+  every loaded closure module with clean canonical main, preserves occupied
+  scopes from immutable active writer envelopes, and keeps admission minting
+  private. Generic scheduler/state/transaction APIs reject free-local writes
+  without exposing admission inputs, while paid reservation/authorization and
+  specialized writer-scope capacity behavior remain intact.
+
+- Completed #1573: added maintainer-attested scorecard evidence, replay protection, fresh-sample policy reporting, and split focused tests.
+  Strict bounded JSON input authorizes and reads one stable no-follow descriptor,
+  validates exact registry tuples, and rejects immutable identity or cross-kind
+  digest replay; reports are value-free, preserve historical
+  classifications, surface exact-model drift and later regressions/reverts, and
+  require manual promotion. Legacy factory metrics and product runtime remain
+  unchanged.
+
+- Documented issue #1572's maintainer-only status projection and pre-merge
+  state, now done; see `docs/meta/FACTORY_OPERATIONS.md` and `docs/technical/TDS.md` for
+  the strict v1, bounded read-only, and consistency contract. The product
+  `entroping` CLI remains unchanged.
+
+## 2026-08-02
+
+- Added issue #1571's scheduler crash and outage recovery contract. Scheduler
+  schema v3 keeps a versioned execution state for every immutable assignment
+  and append-only request-bound recovery receipts. Phase, process-start, and
+  epoch fencing prevent a replaced worker from heartbeating or completing;
+  legacy active assignments migrate to `uncertain` rather than reopening
+  capacity. Only durably never-dispatched scheduler state can enter
+  deterministic capped backoff, explicit provider retry hints remain bounded,
+  and stale caller-declared GitHub, provider, price, or quota metadata defers
+  reconsideration without being treated as authenticated dispatch authority.
+  Paid ambiguous or completed recovery holds and verifies the budget/quota
+  ledger state through scheduler commit and never releases uncertain holds.
+  Paid completion requires the exact completed-unsettled phase plus settled
+  ledger authority. The plan-first `factoryctl recover` command emits
+  value-free non-dispatching receipts, and focused crash-boundary, migration,
+  tamper, capacity, symlink, concurrency, heartbeat, ledger-race, and CLI replay
+  tests cover the new boundary. Consecutive sibling recoveries by one live
+  owner reuse the current epoch and renew every sibling execution lease, so a
+  later recovery cannot strand earlier work outside heartbeat renewal.
+  Scheduler UTC strings now always include
+  microseconds so sub-second heartbeats preserve lexical SQLite ordering.
+
 ## 2026-07-29
+
+- Added issue #1570's provider-quota admission contract. Ledger schema v3
+  atomically validates cash thresholds, every referenced quota, and fresh
+  disabled-top-up evidence before reserving optional cash and all quota holds.
+  Generic authorization supports all paid billing modes, complete-evidence
+  replay binding, monotonic clocks, durable lifecycle state, conservative
+  settlement, and single-use launch consumption. Scheduler schema v2 preserves
+  quota-only authorization identity and transactionally migrates v1 state.
+  Provider evidence is bound to declared rolling, UTC-month, and subscription
+  windows through a protected fixed path and HMAC-authenticated maintainer
+  envelope. Overlapping holds cannot be shifted away, real non-overlapping
+  resets do not inherit expired holds, older evidence cannot roll authority
+  backward, launch rechecks current cash thresholds, and terminal usage replay
+  remains exact even with zero quota rows. Included-quota OpenCode work now
+  authorizes and settles without a cash hold, and queued work defaults
+  conservatively to `experiment`. The coordinator now launches OpenCode and
+  DeepSeek wrappers with a strict environment allowlist that excludes the
+  provider-evidence HMAC key, and the worker, ledger, and scheduler facades are
+  split into bounded launch, quota, migration, and connection modules.
+  Settlement, release, and uncertainty now reject lifecycle-clock rollback
+  transactionally. Authenticated observations use an explicit signed inclusion
+  boundary instead of timestamp inference, so unconfirmed local settlements
+  remain charged while provider-confirmed inclusions are not double counted.
+
+- Added issue #1569's atomic scheduler authority. All sibling Git worktrees now
+  share one private scheduler database; serialized lease, concurrency, and
+  assignment decisions are fenced by process start identity and epoch. Paid
+  ticks hold the separate budget-ledger writer guard through scheduler commit,
+  without claiming a cross-store mutation. Plan-only ticks remain stateless,
+  unsafe or ambiguous takeover fails closed, and receipts never authorize
+  provider dispatch.
+
+- Added issue #1568's paid-work financial control. Ledger schema v2 atomically
+  reserves enforceable worst-case direct-worker usage against fresh immutable
+  prices, settles actual integer-microcent cost from strict identity-bound
+  receipts, and preserves ambiguous or interrupted holds until explicit
+  evidence-backed reconciliation. Queue recovery joins by job id across the
+  ledger-commit/queue-write crash window and never redispatches unresolved
+  work; metered OpenCode remains denied until it can enforce a usage ceiling.
+
+- Added issue #1566's unattended OpenCode isolation profiles. Direct and queued
+  real runs now use private ephemeral HOME/XDG/temp roots outside Git discovery,
+  pure fixed-agent commands, active registered models, a tool-free deny-first
+  profile, explicit file attachments, zero subagent depth, and typed
+  effective-config preflight. The
+  worker binds executable version/digest and the complete profile through
+  dispatch, scrubs hostile config/proxy/plugin/MCP/runtime environment input,
+  keeps provider credentials out of all preflight probes, injects the allowed
+  authentication key only into final attested dispatch, removes raw prompt persistence,
+  bounds preflight output and descendants, and
+  writes only a value-free capability receipt. Review and textual patch
+  proposals remain distinct while both deny
+  writes; the trusted-executable boundary explicitly leaves malicious same-UID
+  code and unrestricted egress to OS/container/network isolation.
+
+- Added issue #1567's read-only, deterministic selector for live ready GitHub
+  issues with fresh-state, issue-contract, autonomy, ownership, dependency, and
+  explicit file-overlap gates. Sanitized short-lived caching plus bounded local
+  branch, worktree, queue, and PR inspection fail closed on ambiguity. Selection remains
+  plan-only and always reports that paid work is not authorized; issue #1569
+  retains lease and concurrency authority without authorizing dispatch.
 
 - Added issue #1561's canonical autonomous control-plane protection. Exactly
   one maintainer-owned GitHub label now grants an issue's autonomy tier; issue
@@ -53,6 +227,22 @@
   of an import traceback.
 
 ## 2026-07-27
+
+- Added issue #1565's authoritative local factory budget ledger. A separate
+  ignored SQLite database now records immutable UTC-period cash evidence with
+  globally idempotent payload binding, fixed and provider charges, bounded
+  charge-linked refunds, explicit manual adjustments, and serialized cap and
+  reserve enforcement. Descriptor-safe initialization, strict schema and
+  integrity validation, immutable reviewed period authority, stable file
+  identity checks, global row limits, streaming timestamp validation,
+  signed-integer and file-size limits, retention locking, crash-safe
+  rollback-journal durability, and sanitized read-only summaries keep provider
+  settlement and scheduler authority outside this component.
+  Full ancestor-chain authority validation, shared-state compatibility, and
+  crash-window hard-link recovery prevent cross-account directory substitution
+  while recovering published initialization. A pre-connect header check rejects
+  WAL-mode drift without creating SQLite sidecars, and strict typed row adapters
+  reject malformed SQLite values without type-erasing escape hatches.
 
 - Added issue #1562's plan-first factory artifact retention. Bounded no-follow
   inventory now covers terminal jobs, reviews, rotated logs, verified finished

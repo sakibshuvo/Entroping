@@ -6,13 +6,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNBOOK = REPO_ROOT / "docs" / "meta" / "FACTORY_OPERATIONS.md"
-TEMPLATE = (
-    REPO_ROOT
-    / "docs"
-    / "meta"
-    / "templates"
-    / "com.entroping.factory-tick.plist"
-)
+TEMPLATE = REPO_ROOT / "docs" / "meta" / "templates" / "com.entroping.factory-tick.plist"
 
 
 def _section(document: str, heading: str, next_heading: str) -> str:
@@ -23,17 +17,68 @@ def _section(document: str, heading: str, next_heading: str) -> str:
 
 def test_factory_runbook_is_inactive_until_owned_safety_surfaces_exist() -> None:
     runbook = RUNBOOK.read_text(encoding="utf-8")
+    safety_state = _section(
+        runbook,
+        "## Current Safety State",
+        "## Provider Capability Registry",
+    )
+    scheduler = _section(
+        runbook,
+        "## Scheduler Lease and Assignment Authority",
+        "## OpenCode Usage Receipts",
+    )
 
     assert "template is inactive by default and must not be bootstrapped yet" in (
-        " ".join(runbook.split())
+        " ".join(safety_state.split())
     )
-    assert "`factoryctl tick`" in runbook
-    assert "tracked by issue #1569" in runbook
-    assert "`factoryctl status`" in runbook
-    assert "tracked by issue #1572" in runbook
-    assert "retention implemented by issue #1562" in " ".join(runbook.split())
-    assert "factory_tick_runner" in runbook
-    assert "never receive factory output" in runbook
+    assert "crash/outage recovery" in safety_state
+    assert "uv run python scripts/factoryctl.py status" in runbook
+    assert "bounded offline proposal-controller evidence only" in safety_state
+    assert "`scripts/factoryctl.py tick`" in scheduler
+    assert ".entroping/factory-scheduler/scheduler.sqlite3" in scheduler
+    assert "budget ledger writer guard" in scheduler
+    assert "held through the scheduler transaction commit" in scheduler
+    assert "paid_work_authorized: false" in scheduler
+    launchd = _section(runbook, "## Contract", "## Render and Validate")
+    assert "scheduler lease and idempotency contract is the guard" in " ".join(launchd.split())
+
+
+def test_factory_runbook_documents_maintainer_delivery_controller_contract() -> None:
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+    normalized = " ".join(runbook.split())
+
+    required = [
+        (
+            "uv run python scripts/factoryctl.py deliver "
+            "--request <owner-only-delivery-request.json> --json"
+        ),
+        "reads and validates by default",
+        "`--apply` is the explicit mutation boundary",
+        "completed terminal receipt replays exactly across fresh processes",
+        "final fresh issue eligibility",
+        "exact PR body, base, head, and CI rollup",
+        "expected head",
+        "exact merged-head and closure proof",
+        "response is lost",
+        "exact live or local evidence",
+        "otherwise it marks the state uncertain and does not repeat proven earlier effects",
+        "Strict finish cleanup is identity-bound and partial-replay safe",
+        "expected-value lease",
+        "persists an absence proof",
+        "accepted after cleanup remains valid after lease expiry",
+        "without extending the heartbeat or lease",
+        (
+            "Exit `0` means completed, `1` means safe pending, blocked, or "
+            "failed, and `2` means invalid, unsafe, or uncertain"
+        ),
+        "#1575 now has bounded offline proposal-controller evidence only",
+        "launchd template remains disabled",
+        "does not activate the controller",
+    ]
+
+    for term in required:
+        assert term in normalized
+    assert "#1576 remains blocking" not in runbook
 
 
 def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
@@ -41,11 +86,10 @@ def test_factory_runbook_orders_stop_after_status_and_settlement() -> None:
     install = _section(runbook, "## Future Install", "## Status and Logs")
     lifecycle = _section(runbook, "## Disable, Restart", "## Recovery Boundaries")
 
-    assert install.index("factoryctl status") < install.index("launchctl bootout")
-    assert install.index("terminal tick and settled budget") < install.index(
-        "launchctl bootout"
-    )
-    assert lifecycle.index("factoryctl status") < lifecycle.index("launchctl bootout")
+    command = "uv run python scripts/factoryctl.py status"
+    assert install.index(command) < install.index("launchctl bootout")
+    assert install.index("terminal tick and settled budget") < install.index("launchctl bootout")
+    assert lifecycle.index(command) < lifecycle.index("launchctl bootout")
     assert lifecycle.index("terminal and its reservation/cost settlement") < (
         lifecycle.index("launchctl bootout")
     )
@@ -66,7 +110,7 @@ def test_factory_runbook_commands_avoid_destructive_restart_and_shell_placeholde
     commands = "\n".join(command_blocks)
 
     for block in command_blocks:
-        if "factoryctl status" in block:
+        if "scripts/factoryctl.py status" in block:
             assert "launchctl bootout" not in block
     assert "launchctl kickstart -k" not in commands
     assert "launchctl load" not in commands
@@ -113,9 +157,7 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
             "/opt/entroping/repository/.entroping/factory-logs",
         ],
         "WorkingDirectory": "/opt/entroping/repository",
-        "EnvironmentVariables": {
-            "PATH": "/opt/entroping:/usr/bin:/bin:/usr/sbin:/sbin"
-        },
+        "EnvironmentVariables": {"PATH": "/opt/entroping:/usr/bin:/bin:/usr/sbin:/sbin"},
         "RunAtLoad": False,
         "KeepAlive": False,
         "StartInterval": 300,
@@ -127,8 +169,60 @@ def test_factory_tick_launchd_template_parses_to_the_safe_contract() -> None:
 
 
 def test_factory_runbook_is_linked_from_the_vault_index() -> None:
-    index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(
-        encoding="utf-8"
-    )
+    index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "[[docs/meta/FACTORY_OPERATIONS|FACTORY_OPERATIONS]]" in index
+
+
+def test_factory_runbook_documents_authoritative_budget_ledger_boundaries() -> None:
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+    normalized = " ".join(runbook.split())
+
+    required = [
+        ".entroping/factory-budget/ledger.sqlite3",
+        "python -m scripts.factory_budget_ledger summary",
+        "python -m scripts.factory_budget_ledger balance",
+        "BEGIN IMMEDIATE",
+        "journal_mode=DELETE",
+        "synchronous=EXTRA",
+        "read-only",
+        "global idempotency",
+        "refund",
+        "manual adjustment",
+        "non-spendable reserve",
+        "reserves the route's worst-case enforceable usage",
+        "Direct DeepSeek is currently the only supported metered queue lane",
+        "Metered OpenCode remains blocked",
+        "the hold stays `uncertain`",
+        "do not call providers from product runtime",
+    ]
+
+    for term in required:
+        assert term in normalized
+
+
+def test_factory_runbook_documents_unattended_opencode_preflight_and_receipt() -> None:
+    runbook = RUNBOOK.read_text(encoding="utf-8")
+    normalized = " ".join(runbook.split())
+
+    required = [
+        "## Unattended OpenCode Isolation",
+        "scripts/opencode_readiness.py --mode verification --format json",
+        "scripts/opencode_worker.py --mode review",
+        "capability-receipt.json",
+        "value-free",
+        "private ephemeral `HOME`",
+        "`OPENCODE_CONFIG_CONTENT`",
+        "no model-issued tools",
+        "wrapper-validated explicit `--file` snapshots",
+        "20 seconds total",
+        "credential-free",
+        "`DEEPSEEK_API_KEY`",
+        "never persists its value",
+        "textual unified-diff proposal",
+        "does not apply it",
+        "trusted executable",
+        "OS or container isolation",
+    ]
+    for term in required:
+        assert term in normalized

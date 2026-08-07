@@ -19,8 +19,10 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     (
         "budget-governor",
         (
+            "scripts/factory_budget_ledger*.py",
             "scripts/factory_cost_policy*.py",
             "scripts/update_factory_cost_policy_schema.py",
+            "tests/test_factory_budget_ledger*.py",
             "tests/test_factory_cost_policy*.py",
             "docs/meta/FACTORY_COST_POLICY*",
             "docs/meta/factory-cost-policy*.json",
@@ -42,6 +44,9 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     (
         "factory-scheduler",
         (
+            "scripts/factory_scheduler*.py",
+            "scripts/factoryctl.py",
+            "scripts/factory_issue_selector*.py",
             "scripts/ai_jobs.py",
             "scripts/ai_job_*.py",
             "scripts/ai_job_*/*",
@@ -49,6 +54,9 @@ _PROTECTED_SURFACES: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "tests/test_ai_jobs*.py",
             "tests/test_ai_job_*.py",
             "tests/test_factory_tick_runner.py",
+            "tests/test_factory_scheduler*.py",
+            "tests/test_factoryctl.py",
+            "tests/test_factory_issue_selector*.py",
         ),
     ),
     (
@@ -155,10 +163,7 @@ def normalize_repo_path(raw_path: str) -> str | None:
         or candidate.startswith("/")
         or candidate.startswith("//")
         or _WINDOWS_ABSOLUTE_RE.match(candidate)
-        or any(
-            unicodedata.category(character) in {"Cc", "Cf", "Cs"}
-            for character in candidate
-        )
+        or any(unicodedata.category(character) in {"Cc", "Cf", "Cs"} for character in candidate)
     ):
         return None
     parts = candidate.split("/")
@@ -199,6 +204,18 @@ def protected_paths(
             normalized = normalize_repo_path(raw_path) or raw_path
             violations.append((normalized, reason))
     return list(dict.fromkeys(violations))
+
+
+def static_tier_a_doc_scope(raw_path: str, *, repo_root: Path | None = None) -> bool:
+    """Return whether one canonical Markdown scope is safe for Tier A delivery."""
+
+    normalized = normalize_repo_path(raw_path)
+    return (
+        normalized == raw_path
+        and normalized.endswith(".md")
+        and normalized.startswith(("docs/product/", "docs/user/"))
+        and protected_surface_reason(normalized, repo_root=repo_root) is None
+    )
 
 
 def autonomy_tier_from_labels(labels: object) -> str:

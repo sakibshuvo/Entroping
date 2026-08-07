@@ -1108,12 +1108,15 @@ def test_post_claim_running_directory_swap_cannot_substitute_worker_job(
     )
 
     payload, returncode = ai_jobs._run_next(
-        SimpleNamespace(artifact_root=tmp_path / "artifacts"),
+        SimpleNamespace(
+            artifact_root=tmp_path / "artifacts",
+            worker_dry_run=True,
+        ),
         REPO_ROOT,
         job_root,
     )
 
-    assert returncode == 0
+    assert returncode == 0, payload
     assert payload["status"] == "completed"
     assert worker_job_ids == ["safe-tier-a"]
     assert (outside / "safe-tier-a.json").read_bytes() == external_bytes

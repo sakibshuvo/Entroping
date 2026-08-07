@@ -28,14 +28,33 @@ def load_readiness_module() -> ModuleType:
     return module
 
 
-def write_fake_opencode(path: Path) -> Path:
+def write_fake_opencode(
+    path: Path, *, credential_marker: Path | None = None
+) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     binary = path / "opencode"
+    credential_guard = (
+        f"if [[ -n \"${{DEEPSEEK_API_KEY:-}}\" ]]; then "
+        f"touch {json.dumps(str(credential_marker))}; fi\n"
+        if credential_marker is not None
+        else ""
+    )
     binary.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
+        + credential_guard
+        +
         "if [[ \"${1:-}\" == '--version' ]]; then\n"
-        "  printf '%s\\n' 'opencode 1.17.3'\n"
+        "  printf '%s\\n' 'opencode 1.18.4'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-} ${2:-}\" == 'run --help' ]]; then\n"
+        "  printf '%s\\n' '--pure --agent --dir --format json --model --file "
+        "--auto --attach --continue --session --share --interactive dangerous'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-} ${2:-} ${3:-}\" == '--pure debug config' ]]; then\n"
+        "  printf '%s\\n' \"$OPENCODE_CONFIG_CONTENT\"\n"
         "  exit 0\n"
         "fi\n"
         "printf '%s\\n' \"unexpected opencode args: $*\" >&2\n"
@@ -101,12 +120,23 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     payload = json.loads(result.stdout)
     checks = checks_by_name(payload)
 
-    assert payload["schema_version"] == "entroping.opencode-readiness.v1"
+    assert payload["schema_version"] == "entroping.opencode-readiness.v2"
     assert payload["overall_status"] in {"pass", "warn"}
     assert checks["active_repo_path"]["status"] == "pass"
     assert checks["git_repository"]["status"] == "pass"
     assert checks["opencode_binary"]["status"] == "pass"
-    assert "1.17.3" in checks["opencode_binary"]["message"]
+    assert checks["opencode_binary"]["details"]["executed"] is False
+    capability = checks["opencode_unattended_capability"]
+    assert capability["status"] == "pass"
+    assert capability["details"]["executable_version"] == "1.18.4"
+    assert capability["details"]["profile_id"] == (
+        "entroping.opencode-unattended-review.v1"
+    )
+    assert capability["details"]["pure_mode"] is True
+    assert capability["details"]["raw_values_recorded"] is False
+    assert "OPENCODE_CONFIG_CONTENT" in capability["details"][
+        "sanitized_environment_keys"
+    ]
     assert checks["required_workflow_files"]["status"] == "pass"
     assert checks["prompt_library_guardrails"]["status"] == "pass"
     assert checks["command_help_surfaces"]["status"] == "pass"
@@ -123,7 +153,30 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     assert checks["agent_toolchain_policy"]["details"]["network_execution"] is False
     assert checks["local_artifact_ignore_rules"]["status"] == "pass"
     assert checks["tracked_local_artifacts"]["status"] == "pass"
-    assert "DEEPSEEK_API_KEY" not in result.stdout
+    assert "provider keys, MCP credentials" not in result.stdout
+
+
+def test_opencode_readiness_reports_missing_unattended_capability_without_values(
+    tmp_path: Path,
+) -> None:
+    module = load_readiness_module()
+    fake_opencode = tmp_path / "opencode"
+    secret = "secret-help-poison-must-not-appear"
+    fake_opencode.write_text(
+        "#!/bin/bash\n"
+        "if [[ \"${1:-}\" == '--version' ]]; then echo '1.18.4'; exit 0; fi\n"
+        f"if [[ \"${{1:-}} ${{2:-}}\" == 'run --help' ]]; then echo {secret!r}; exit 0; fi\n"
+        "exit 90\n",
+        encoding="utf-8",
+    )
+    fake_opencode.chmod(fake_opencode.stat().st_mode | stat.S_IXUSR)
+
+    result = module._check_opencode_unattended_capability(fake_opencode)
+
+    assert result.status == "fail"
+    assert "cannot prove" in result.message
+    assert "--pure" in result.message
+    assert secret not in json.dumps(result.details)
 
 
 def test_opencode_readiness_requires_architecture_integrity_gate_script(
@@ -144,6 +197,8 @@ def test_opencode_readiness_requires_architecture_integrity_gate_script(
         "scripts/context_pack.sh",
         "scripts/agent_toolchain.py",
         "scripts/opencode_worker.py",
+        "scripts/opencode_unattended_preflight.py",
+        "scripts/opencode_unattended_profile.py",
         "scripts/deepseek_worker.py",
         "scripts/ai_jobs.py",
         "scripts/pr_body_check.py",
@@ -251,7 +306,10 @@ def test_opencode_readiness_fails_for_stale_documents_repo_path(
 def test_opencode_readiness_does_not_emit_local_config_secret_values(
     tmp_path: Path,
 ) -> None:
-    fake_opencode = write_fake_opencode(tmp_path / "bin")
+    credential_seen = tmp_path / "credential-seen"
+    fake_opencode = write_fake_opencode(
+        tmp_path / "bin", credential_marker=credential_seen
+    )
     home = tmp_path / "home"
     config = home / ".config" / "opencode" / "opencode.json"
     config.parent.mkdir(parents=True)
@@ -287,3 +345,4 @@ def test_opencode_readiness_does_not_emit_local_config_secret_values(
     assert "sk-env-secret" not in result.stdout
     assert secret_value not in result.stderr
     assert "sk-env-secret" not in result.stderr
+    assert not credential_seen.exists()

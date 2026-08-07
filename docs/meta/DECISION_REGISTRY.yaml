@@ -43,17 +43,23 @@ decisions:
     summary: >
       CLI namespaces and flags should remain constrained to the product spec and
       command cheat sheet. New commands require explicit product and technical
-      documentation before implementation.
+      documentation before implementation. Experimental report growth is
+      governed by a tracked repository policy and test guard, not by shipped CLI
+      runtime code.
     tags: [cli, compatibility, product-contract]
     source_links:
       - path: decisions/ADR-0002-locked-command-surface.md
         role: adr
       - path: docs/technical/COMMAND_CHEAT_SHEET.md
         role: command-contract
+      - path: docs/technical/CLI_COMPATIBILITY_AUDIT.md
+        role: compatibility-audit
+      - path: docs/meta/experimental-report-growth-policy.json
+        role: governance-policy
     related_docs:
       - docs/product/MVP_PLAN.md
       - docs/user/USER_GUIDE.md
-    related_issues: ["#1", "#347"]
+    related_issues: ["#1", "#347", "#1503", "#1547"]
     supersedes: []
     superseded_by: null
 
@@ -589,5 +595,168 @@ decisions:
       - docs/meta/FACTORY_OPERATIONS.md
       - docs/meta/prompt-library/model-output-acceptance-gate.md
     related_issues: ["#1561"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0026
+    title: Transactional factory budget ledger
+    status: accepted
+    date: "2026-07-27"
+    summary: >
+      Separate fail-closed SQLite cash authority with globally idempotent,
+      immutable entries and serialized cap enforcement.
+    tags: [factory, budget, sqlite, security, reliability]
+    source_links:
+      - path: decisions/ADR-0026-factory-budget-ledger.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1565"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0027
+    title: Unattended OpenCode uses isolated deny-first execution profiles
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Review and textual patch-proposal workers use private ephemeral HOME/XDG
+      roots, pure fixed-agent commands, parsed effective-config preflight, and
+      executable/profile digest binding. Receipts are value-free; the trusted
+      executable boundary does not replace OS/container or egress isolation.
+    tags: [factory, opencode, security, isolation, providers]
+    source_links:
+      - path: decisions/ADR-0027-opencode-unattended-isolation.md
+        role: adr
+      - path: scripts/opencode_unattended_profile.py
+        role: execution-profile
+      - path: scripts/opencode_unattended_preflight.py
+        role: capability-preflight
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - docs/meta/AGENT_CONTROL_PLANE.md
+      - docs/meta/FACTORY_OPERATIONS.md
+    related_issues: ["#1566"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0028
+    title: Paid factory work requires reservation and identity-bound settlement
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Metered direct workers reserve worst-case cost before launch, settle only
+      from strict receipts, and preserve ambiguous or interrupted holds until
+      evidence-backed reconciliation.
+    tags: [factory, budget, providers, security, reliability]
+    source_links:
+      - path: decisions/ADR-0028-paid-cost-reservation-settlement.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1568"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0029
+    title: Scheduler authority is shared, fenced, and non-dispatching
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      One Git-common-root SQLite scheduler authority serializes lease, capacity,
+      assignment, execution-phase, and recovery decisions. Paid ticks hold the
+      separate budget ledger writer guard through scheduler commit; paid
+      recovery trusts ledger-first settlement state. Process identity, phase
+      version, and epoch fencing prevent unsafe takeover, and receipts never
+      authorize provider dispatch.
+    tags: [factory, scheduler, sqlite, concurrency, security, reliability]
+    source_links:
+      - path: decisions/ADR-0029-factory-scheduler-authority.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_scheduler.py
+        role: scheduler-facade
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1569", "#1571"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0030
+    title: Provider quotas and cash authorize dispatch in one ledger transaction
+    status: accepted
+    date: "2026-07-29"
+    summary: >
+      Ledger schema v3 atomically validates cash thresholds, every referenced
+      provider quota, and HMAC-authenticated disabled-top-up evidence before
+      reserving all holds; timestamp order never implies provider coverage, so
+      only signed explicit included-authorization ids avoid adding overlapping
+      local settlements. Immutable authority fields, durable lifecycle state,
+      exact terminal usage replay, scheduler persistence, and threshold-aware
+      single-use provider launch close replay and check-to-use gaps.
+    tags: [factory, quota, budget, providers, sqlite, security, reliability]
+    source_links:
+      - path: decisions/ADR-0030-factory-provider-quota-authorization.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_quota_authorization.py
+        role: dispatch-authorization
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md]
+    related_issues: ["#1570"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0031
+    title: Tier A proposals integrate through exact worktree orchestration
+    status: accepted
+    date: "2026-08-03"
+    summary: >
+      A maintainer-only plan-first adapter binds live scheduler ownership and
+      scheduler-persisted delivery authority plus completed-unsettled evidence
+      to exact proposal bytes, canonical local-main and issue-worktree identity,
+      a static Markdown-only scope, target-worktree allowlisted gates, raw Git
+      revision hashes, and a separate private fail-closed lifecycle journal.
+      Exact terminal receipts replay after lease expiry, while ambiguous active
+      work becomes uncertain; acceptance grants no scheduler settlement, paid,
+      PR, CI, merge, or cleanup authority.
+    tags: [factory, orchestration, worktree, scheduler, sqlite, security, reliability]
+    source_links:
+      - path: decisions/ADR-0031-factory-tier-a-worktree-orchestration.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_orchestration_service.py
+        role: orchestration-adapter
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md, docs/meta/AGENT_CONTROL_PLANE.md]
+    related_issues: ["#1574"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0032
+    title: Tier A PR delivery uses durable exact-effect replay
+    status: accepted
+    date: "2026-08-06"
+    summary: >
+      A disabled maintainer-only plan-first factoryctl deliver adapter extends
+      ADR-0031's owner-only worktree authority with exact local commit, push,
+      PR, CI, merge, cleanup, and scheduler-completion evidence. Private
+      journal intent and canonical terminal receipts replay proven effects
+      exactly; ambiguity fails closed. Strict cleanup and expected-value remote
+      deletion are identity-bound, and scheduler completion retains fencing
+      while preserving an expired worker heartbeat and lease.
+    tags: [factory, delivery, github, scheduler, sqlite, cleanup, reliability]
+    source_links:
+      - path: decisions/ADR-0032-tier-a-pr-delivery-controller.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: scripts/factory_pr_delivery_service.py
+        role: delivery-adapter
+    related_docs: [docs/meta/FACTORY_OPERATIONS.md, docs/meta/AGENT_CONTROL_PLANE.md]
+    related_issues: ["#1576"]
     supersedes: []
     superseded_by: null

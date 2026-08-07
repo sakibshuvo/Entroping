@@ -1,6 +1,9 @@
 """Pure report models for deterministic Entroping runs."""
 
 from dataclasses import dataclass, field
+from typing import Literal
+
+from entroping.models.qanstitution import Enforcement
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,19 @@ def build_run_auth_evidence(
     return RunAuthEvidence(flow=flow, requires=requires, produces=produces)
 
 
+GateResult = Literal["passed", "failed", "timeout", "error", "blocked"]
+
+
+@dataclass(frozen=True)
+class GateResultEvidence:
+    """Report-safe result for one executable QAnstitution gate."""
+
+    rule_id: str
+    enforcement: Enforcement
+    result: GateResult
+    exit_code: int
+
+
 @dataclass(frozen=True)
 class RunTestReport:
     """Report row for one source Hurl test."""
@@ -97,6 +113,7 @@ class RunTestReport:
     rule_ids: tuple[str, ...]
     stdout: str
     stderr: str
+    gate_results: tuple[GateResultEvidence, ...] = ()
     timeout_ms: int = 0
     operation_id: str | None = None
     source: str | None = None

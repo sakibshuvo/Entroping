@@ -103,6 +103,177 @@ read-only metadata. Issue bodies, comments, and self-consistent PR text cannot
 grant Tier A autonomous merge authority, and protected, sensitive, or
 release/quality guardrail diffs remain ineligible for that authority.
 
+The maintainer factory's issue selector is a separate read-only adapter under
+`scripts/factory_issue_selector*.py`. A pure selection core consumes sanitized,
+typed GitHub snapshot and active-state records; GitHub, cache, worktree, queue,
+and CLI modules remain boundary adapters. The snapshot cache persists only
+allowlisted parsed metadata under ignored `.entroping/` state with a bounded
+TTL and owner-only, no-follow filesystem handling. Selection requires explicit
+issue file scopes and complete lease input, fails closed on stale or ambiguous
+state, and emits a non-authorizing plan with `paid_work_authorized: false`.
+It has no import or call path into provider workers or the AI job dispatcher.
+The CLI owns the current UTC freshness clock. Local ownership joins checked-out
+issue worktrees, explicitly issue-numbered unmerged branches, open PR changed
+files, immutable queued/running file receipts, and caller-declared leases.
+File-scope overlap is case-insensitive for portable safety; missing association,
+unsafe symlink aliases, or incomplete state blocks.
+The downstream scheduler is a separate maintainer adapter under
+`scripts/factory_scheduler*.py`, exposed by plan-first `scripts/factoryctl.py`.
+Its private SQLite authority is rooted at the Git common directory so sibling
+worktrees share one lease and concurrency ledger. Scheduler `BEGIN IMMEDIATE`,
+partial unique indexes, immutable assignment identities, monotonic UTC
+evidence, and owner PID/start-token plus epoch fencing make lease acquisition,
+capacity checks, and assignment insertion one serialized decision. For a paid
+tick, the separate budget ledger writer guard is acquired first and held
+through scheduler commit. Its empty transaction is rolled back after the
+scheduler decision, so the lock-coupled validation is not represented as a
+cross-database mutation or reservation claim.
+The initial limits are one paid assignment, one free/local read-only review,
+and one writer per issue/worktree scope. Expiry permits takeover only when the
+recorded process is dead. Schema v3 adds a one-to-one execution state beside
+each immutable assignment plus append-only recovery receipts. Phase-version
+compare-and-swap, per-execution lease expiry, mutable owner/epoch fencing, and
+heartbeat propagation make
+crash recovery explicit across never-dispatched, dispatch-intent, dispatched,
+completed-unsettled, retry-wait, uncertain, completed, and failed work. Only
+scheduler state that durably remains never-dispatched can return to
+reconsideration through bounded deterministic backoff.
+Ambiguous work retains concurrency and financial holds; paid uncertain or
+settled transitions require the separate ledger to prove that state first.
+Caller-declared snapshot metadata is bounded and time-checked but is not fetched
+or authenticated by the scheduler; it can defer reconsideration but cannot
+authorize provider work. Plan-only recovery is read-only, and recovery never
+performs provider dispatch.
+Receipts are value-free and always keep `paid_work_authorized: false`; the
+scheduler has no provider, GitHub-selection, queue-mutation, or product-runtime
+call path. Issue #1571 therefore supplies recovery authority and operator/API
+primitives only; #1574 owns orchestration integration and #1575 owns the
+restart/duplicate-tick end-to-end proof.
+Paid candidates must reference an authoritative `dispatching` budget
+reservation, and the eventual dispatch boundary must revalidate it.
+
+The Tier A worktree orchestrator is a separate maintainer adapter under
+`scripts/factory_orchestration_*.py`, exposed only through plan-first
+`scripts/factoryctl.py orchestrate`; it is not part of the product CLI. Its
+strict frozen request joins one live scheduler assignment and lease owner
+(logical id, PID, process-start token, and epoch) to the exact
+`completed-unsettled` execution whose evidence digest equals the proposal
+SHA-256. It also binds the issue/worktree identity, canonical registered path,
+common Git directory, non-main branch, base commit, sorted allowed scopes, and
+verification lane, and must match the scheduler-persisted selector/selection,
+tier, lane, scope, and scope-digest delivery envelope. Worktree creation is delegated only to
+`scripts/start_issue.sh`; reuse requires that exact clean checkout. Apply uses
+bounded stdin with `/usr/bin/git apply --check` followed by `git apply`, then
+hashes the exact full-index binary diff and status bytes without text
+round-tripping. Main checkout identity is checked before terminalization.
+
+Until OS/container isolation exists, Tier A apply is limited to regular
+Markdown under `docs/product/` and `docs/user/` in `tiny-docs` or
+`docs-guardrail`. Executable source, tests, scripts, configuration, workflows,
+and machine-consumed control documents require Tier B/C or manual isolation.
+Only the exact gate command identifiers derived from the validated target
+worktree may run; no architecture-test or caller-supplied command fallback exists.
+Bounded output, timeout, cancellation with process-group cleanup, and
+pre/post-gate scheduler plus worktree integrity checks prevent a gate from
+self-promoting drift. A separate owner-only orchestration SQLite journal binds
+request identity and lifecycle; parent/database identity checks, no-follow
+authorization, bounded file/page size, exact schema validation, and hot-sidecar
+rejection reduce same-UID pathname replacement risk within Python SQLite's
+pathname API. Active replay or ambiguous mutation becomes `uncertain`; exact
+terminal replay returns the stored value-free receipt. Acceptance does not
+settle or complete scheduler execution and grants no merge, provider, or paid
+authority.
+
+The downstream Tier A PR delivery controller is a distinct maintainer-only,
+disabled-by-default `factoryctl deliver` adapter under
+`scripts/factory_pr_delivery_service.py`; it is plan-first/read-only until
+explicit `--apply`, and the product `entroping` CLI remains unchanged. Its
+strict owner-only request admits no caller-supplied repository, issue, branch,
+base, title, command, snapshot, provider, CI, merge, force, admin, SSH,
+credential, or cleanup authority. Private journal modules persist intent before
+exact local commit/diff, push, PR, CI, merge, cleanup, and scheduler effects;
+canonical terminal value-free receipts replay exactly across fresh service
+instances without repeated effects. Final PR body/base/head/rollup eligibility
+is bound to recorded evidence, while drift or ambiguity becomes safe pending,
+blocked, failed, or uncertain. Strict cleanup and
+`factory_pr_delivery_terminal_completion.py` are identity-bound and
+partial-replay safe; `factory_pr_delivery_ssh.py` deletes only the recorded
+remote branch/head under an expected-value lease and persists absence proof.
+Scheduler completion consumes the persisted owner/epoch/phase and one stored
+completion timestamp after cleanup proof. The terminal scheduler transaction
+keeps worker heartbeat and lease unchanged after expiry while retaining exact
+authority, CAS, and fencing checks.
+
+Delivery-envelope construction belongs only to the public specialized
+`tick_selected_delivery` entrypoint, exposed as `factoryctl tick --select-live`;
+selector JSON, orchestration requests, and generic `tick` cannot inject it. This
+free-local write lane directly fetches a fresh complete GitHub snapshot without
+selector-cache I/O, derives the full non-authorizing result, and on apply
+repeats local plus active-scheduler selection inside assignment commit before
+atomically persisting the derived envelope. Its selector digest binds the
+AST-derived transitive internal-import closure from fixed authority roots at
+canonical main. Existing parent package initializers are included in Python
+import order and their imports are closed recursively. Small fixed ceilings on
+indexed paths, closure loads, cumulative source bytes, AST nodes, and import
+depth fail closed before unbounded traversal. The closure includes selector parsing/core, GitHub decoding/freshness,
+active-state queries, protected-scope policy, and scheduler
+admission/transaction code. Its selection digest binds the full canonical
+result. Orchestration rechecks the policy digest against authorized main/base.
+The live adapter resolves `gh` only from fixed trusted system/Homebrew
+directories, invokes canonical Git as `/usr/bin/git`, and passes a minimal
+environment. Policy mint/revalidation requires clean canonical main plus
+byte-for-byte equality between each loaded closure module and its
+commit-pinned blob. The transaction derives occupied issue numbers and exact
+scopes from active persisted writer envelopes; missing or malformed authority
+makes active state incomplete. Admission snapshots and their mint/revalidation
+helpers remain private; public generic scheduler/state/transaction APIs expose
+no snapshot or admission parameter and reject free-local writes. Paid writes
+continue through their existing reservation or authorization authority model.
+
+The provider scorecard is a separate maintainer-only report adapter under
+`scripts/factory_metrics_modules/provider_scorecard*.py`, exposed only through
+`scripts/factory_metrics.py provider-scorecard validate|report`. Its strict
+value-free evidence/report schemas bind exact registry lane/host/billing/model/
+autonomy and registry-derived cost-provider/model identity to review,
+verification, CI, merge, and later outcomes. It
+does not import or change product runtime behavior, authorize spending, select
+or dispatch work, create or merge pull requests, mutate routing, or permit
+automatic (including Tier C) promotion; every promotion remains manual.
+The envelope is HMAC-SHA256 attested by a trusted maintainer with a dedicated
+local key, bounded owner-only storage opened through a no-follow parent tree,
+with authorization and bytes bound to one stable descriptor. Replay rejection
+is global for work, reservation, CI/PR, job/correlation, receipt, and cost
+identifiers, including cross-kind digest reuse. Cohorts use
+task, lane, exact model, autonomy tier, and verification lane; freshness is per
+case observation rather than later outcome. Manual eligibility is deliberately
+conservative: at least three fresh accepted samples, 90-day recency, at least 0.80 accepted ratio, terminal passing
+quality/security for every case, and no regression, revert, or unresolved later
+outcome. Cost summaries are secondary evidence only.
+
+The maintainer-only status projection is a separate read adapter under
+`scripts/factory_status*.py`, exposed by `scripts/factoryctl.py status`; the
+product `entroping` CLI remains unchanged. It projects only trusted local
+policy and provider-registry files, existing budget and scheduler SQLite
+state, and bounded queue/retention metadata. Shared-worktree root discovery is
+the sole subprocess exception: a bounded read-only `/usr/bin/git rev-parse`
+call uses fixed arguments, a minimal environment, a five-second timeout, and a
+4 KiB output ceiling. It has no provider, network, test-runner, gate, worker,
+mutation, migration, recovery, raw-payload, or dispatch-authorization path.
+SQLite candidates are opened no-follow through validated descriptors; SQLite
+reads use immutable descriptor aliases, with hot sidecars rejected. Alias or
+pathname instability fails unsafe without falling back to a replaced pathname.
+Queue and retention reads inspect bounded metadata only and never consume raw
+artifact contents or untrusted identifiers. Each store uses its own explicit
+read transaction; the collector takes two passes at one observation timestamp
+and compares immutable metadata fingerprints. A changed fingerprint is unsafe,
+and this deliberately does not claim global transactional atomicity across
+stores. The strict `entroping.factory-status.v1` projection orders overall
+state as `unsafe > paused > healthy` and maps those states to exits `2/1/0`.
+Persisted 80% and 90% cash thresholds remain observable stop boundaries; 100%
+is a prospective paid-authorization backstop because the positive reserve means
+no valid persisted authority can reach the raw cap. Status is observation only:
+it never grants spending or dispatch authority.
+
 The maintainer-only OpenCode worker consumes `opencode run --format json`
 incrementally through the shared bounded subprocess adapter. Raw JSON events,
 reasoning, tool payloads, provider errors, and child stderr do not cross into
@@ -113,6 +284,30 @@ session id, and emits the local
 malformed, conflicting, partial, timed-out, or over-limit evidence remains
 explicitly unaccounted and cannot authorize future paid automation. This
 maintainer evidence path does not change Brain, LiteLLM, or `entroping run`.
+
+The worker process adapter builds one of two typed unattended profiles:
+`entroping.opencode-unattended-review.v1` or
+`entroping.opencode-unattended-patch-proposal.v1`. A private ephemeral `HOME`
+and XDG/config/data/state/cache/temp surface keeps user-global and project
+configuration outside the child. The command fixes `--pure`, `--agent`,
+`--dir`, JSON output, and an active registered model. The config is deny-first,
+sets subagent depth zero, disables plugin/MCP/instruction/share/snapshot/LSP
+surfaces, and denies every model-issued tool. Explicit `--file` snapshots cross
+only the trusted, wrapper-validated CLI attachment boundary.
+
+The same selected executable and isolated config environment perform process-group-
+cleaned, output-bounded version, `run --help`, and `--pure debug config` probes
+without provider credentials and within a 20-second maximum. Only the final
+attested dispatch receives the allowlisted authentication key. The supported CLI version and typed,
+extra-forbidden effective configuration, profile digest, executable digest, and version must remain bound through
+dispatch. The value-free
+`entroping.opencode-unattended-capability-receipt.v1` records names, digests,
+categories, and booleans, never raw prompts, config or environment values, tool
+arguments, events, or user-global paths. Patch output remains a textual proposal
+only. The selected executable is trusted after digest and version binding; this
+does not replace OS or container isolation against malicious same-UID code or
+unrestricted egress. A wrapper digest binds the wrapper rather than a downstream
+binary.
 
 Current Brain foundation modules:
 
@@ -439,6 +634,15 @@ Gate injection should write temporary execution copies or feed Hurl through safe
 6. Invoke `hurl`.
 7. Parse outputs and enforcement levels.
 8. Write reports and exit with deterministic status.
+
+All matching gates for a selected source are evaluated by Hurl in one bounded
+temporary execution copy and one Hurl invocation per attempt; no enforcement mode
+causes an extra request sequence. The source `.hurl` bytes are never rewritten,
+and each attempt runs the source request sequence once. The run records each gate's
+rule ID, enforcement, result, and exit evidence in JSON, JUnit, and HTML. Only a
+failed `block` gate contributes to the run exit status. `warn` and `audit_only`
+failures remain observable and do not change that status. Invalid enforcement
+values fail during typed policy loading before Hurl execution.
 
 ## 8. Hurl Metadata Conventions
 
@@ -2306,6 +2510,128 @@ serialized provenance metadata fits the 64 KiB reader bound before copying any
 destination ledger. Reports expose only artifact identifiers,
 classes, states, timestamps, relative paths, reason codes, counts, and byte
 totals; artifact contents are never rendered.
+
+### 17.2 Factory Budget Ledger and Paid Dispatch
+
+Factory cash authority is isolated from the product traffic store in the
+ignored `.entroping/factory-budget/ledger.sqlite3` database. Version 3 of the
+versioned
+SQLite schema records UTC cash periods, their reviewed USD cap and positive
+reserve, immutable reserve allocations, fixed subscription and provider debits,
+charge-bound refunds, explicit manual debit or credit adjustments, immutable
+paid-work reservations and price terms, provider quota observations and holds,
+disabled-top-up attestations, immutable dispatch-authorization authority with
+durable lifecycle state, and
+append-only settlement events. Raw
+idempotency keys are never persisted: a globally unique SHA-256 digest is bound
+to the normalized entry payload, so exact retries are harmless and conflicting
+reuse fails closed.
+
+Period initialization, entry recording, reservation, settlement, and explicit
+reconciliation open bounded connections and enclose
+idempotency, reference, refund, period, entry-count, cash-cap, insert, and
+cached-balance checks in `BEGIN IMMEDIATE`. One-time schema bootstrap uses
+`BEGIN EXCLUSIVE`. SQLite therefore admits only one successful writer at the
+decision boundary. `journal_mode=DELETE` with `synchronous=EXTRA`
+supports crash-safe rollback-journal commits and genuinely read-only summary
+connections without creating WAL state. A pre-connect, no-follow database-header
+check rejects WAL-mode drift before SQLite can create sidecars. Initialization
+publishes a fully validated temporary database by same-directory hard link and
+directory sync;
+unpublished partial initialization is discarded before retry.
+SQLite result rows cross a dedicated strict typed-adapter boundary before
+financial, schema, or integrity code consumes them.
+
+Descriptor-based path validation walks every no-follow repository ancestor and
+rejects parent rename authority unless the parent is root/user-owned and any
+cross-account write bits are constrained by sticky-directory protection for a
+root/user-owned child. The repository root and shared `.entroping` state are
+effective-user-owned and non-group/other-writable; existing owner-controlled
+0755 shared state is compatible, while the ledger directory is 0700. Stable
+pre/post-open file identity checks, non-creating URI opens, shared retention
+locking, 0600 owner-only files, strict tables, foreign keys, immutable-entry and
+immutable-period-authority triggers, exact schema validation, integrity checks,
+signed 64-bit arithmetic, a 512 MiB database ceiling, a 100,000-entry global
+ceiling, a 600-period global ceiling, and a 100,000-entry period ceiling bound
+the storage surface. Retry safely removes the reserved initialization name when
+a crash leaves it hard-linked to the published validated inode.
+Timestamp validation streams in fixed batches. Malformed, partial, future, or
+drifted schemas are rejected and preserved for inspection. The local trust
+boundary excludes noncooperating same-UID mutation; exact
+descriptor-to-SQLite binding would require OS isolation or a custom/native VFS.
+The cached active-reservation total is validated against nonterminal rows and
+is subtracted from paid availability. A reservation binds one job to its
+provider lane, provider/model cost identities, worker model, reviewed policy,
+fresh immutable price terms, and enforceable usage envelope. Concurrent
+reservation decisions serialize in `BEGIN IMMEDIATE`, preventing two jobs from
+spending the same remainder. Actual settlement recomputes integer-microcent
+cost from the stored terms; a complete identity-bound receipt posts at most one
+debit and releases the verified remainder atomically. Interrupted, partial,
+malformed, conflicting, mismatched, or over-ceiling evidence preserves the
+hold as `uncertain`. Explicit no-charge evidence or a bounded manual debit is
+required for reconciliation.
+
+One dispatch-authorization transaction validates prospective 80/90/100 cash
+thresholds, every referenced quota as an independent AND constraint, and fresh
+disabled-top-up evidence before reserving optional cash and all quota holds.
+Provider evidence crosses only through the fixed owner-controlled
+`.entroping/factory-provider-evidence.json` path. A closed HMAC-SHA-256
+maintainer envelope uses one code-allowlisted v1 key id and a 32-byte
+supervisor-injected key that is absent from jobs, workers, artifacts, Git, and
+the ledger. Constant-time verification covers every authority-bearing field;
+the ledger binds a computed unsigned-envelope digest. Missing keys, invalid
+MACs, unsafe permissions, symlinks, or production path substitution fail before
+mutation.
+The coordinator starts both worker wrappers with a small explicit environment
+allowlist and only the selected provider credential. The evidence-key variable
+is a forbidden provider-credential alias, so wrapper descendants cannot regain
+that authority through inherited process state.
+
+Provider used units, every overlapping local settlement not named by the
+authenticated observation's canonical inclusion boundary, and overlapping
+active or uncertain holds scoped to provider lane and quota identity prevent
+observation refresh or shifted rolling bounds from minting capacity. The HMAC
+covers the sorted inclusion ids; their identity, settled lifecycle, window,
+count, digest, and unit total are validated transactionally. Timestamp ordering
+does not imply provider coverage, and an omitted boundary includes nothing.
+Non-overlapping expired-cycle holds do not cross a true reset, and older
+authenticated observations cannot roll authority backward. Rolling windows must match the
+policy duration; UTC-month and declared subscription-renewal windows must match
+their exact deterministic half-open boundaries. A persisted decision clock and
+exclusive observation, window, top-up, and authorization expiry reject
+rollback, stale, future, uncertain, or mismatched evidence.
+Settlement, release, and uncertainty also compare their event time with the
+current authorization lifecycle time inside the ledger writer transaction;
+backdated events cannot roll lifecycle authority backward.
+
+Verified settlement replaces quota holds with actual use and stores a complete
+usage digest for exact terminal replay, including authorizations with zero
+quota rows. Ambiguous evidence preserves holds, verified no-charge releases
+active or uncertain holds, and manual cash correction does not restore quota.
+Scheduler receipts remain non-dispatching and
+`paid_work_authorized: false`; scheduler handoff persists either cash-reservation
+or quota-authorization identity. Existing scheduler state migrates
+transactionally from schema v1 or v2 to v3; prior active assignments become
+`uncertain` instead of being guessed never-dispatched. Provider launch
+atomically revalidates
+current 80/90/100 cash thresholds, quota, top-up, and expiry before consuming
+the generic authorization and starting network execution; consumed authority
+cannot launch twice.
+
+Queue JSON is a recoverable projection. Stale recovery queries the ledger by
+job id, including a crash after reservation commit but before queue rewrite;
+unresolved work is never redispatched and already settled work terminalizes
+without a second charge. Schema versions 1 and 2 require an explicit,
+transactional migration to version 3. Sanitized summary, balance, and migration
+commands are value-bounded; reservation and settlement remain Python
+control-plane APIs. Failure preserves the prior schema and authority.
+
+Paid queue coordination stays outside product runtime. Direct DeepSeek is the
+first supported metered route because its request and completion ceilings are
+enforceable and its provider receipt binds job, model, usage, and a hashed
+session. Metered OpenCode fails closed until it has the same guarantees.
+Provider calls, account scraping, automatic top-up, recovery/backoff, and
+status aggregation are not ledger responsibilities.
 
 ## 18. Testing Strategy
 

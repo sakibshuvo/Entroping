@@ -20,8 +20,17 @@ patch_inspection = importlib.import_module("scripts.factory_patch_inspection")
     ("path", "reason"),
     [
         ("scripts/factory_cost_policy.py", "budget-governor"),
+        ("scripts/factory_budget_ledger.py", "budget-governor"),
+        ("tests/test_factory_budget_ledger_safety.py", "budget-governor"),
         ("./scripts//ai_jobs.py", "factory-scheduler"),
         ("SCRIPTS/AI_JOBS.PY", "factory-scheduler"),
+        ("scripts/factory_issue_selector.py", "factory-scheduler"),
+        ("scripts/factory_scheduler.py", "factory-scheduler"),
+        ("scripts/factoryctl.py", "factory-scheduler"),
+        ("scripts/opencode_unattended_profile.py", "provider-routing"),
+        ("tests/test_opencode_unattended_profile.py", "provider-routing"),
+        ("tests/test_factory_issue_selector_io.py", "factory-scheduler"),
+        ("tests/test_factory_scheduler.py", "factory-scheduler"),
         ("src/entroping/core/hurl_runner.py", "runtime-security"),
         ("src/entroping/core/redaction.py", "runtime-security"),
         (".git/config", "repository-authority"),
@@ -45,10 +54,7 @@ def test_protected_surface_policy_denies_direct_and_normalized_aliases(
 
 
 def test_protected_surface_policy_fails_closed_on_parent_alias() -> None:
-    assert (
-        control_plane_policy.protected_surface_reason("docs/../AGENTS.md")
-        == "invalid-path"
-    )
+    assert control_plane_policy.protected_surface_reason("docs/../AGENTS.md") == "invalid-path"
 
 
 @pytest.mark.parametrize("character", ["\x7f", "\x85", "\u202e", "\udcff"])
@@ -56,8 +62,7 @@ def test_protected_surface_policy_fails_closed_on_unsafe_unicode(
     character: str,
 ) -> None:
     assert (
-        control_plane_policy.protected_surface_reason(f"docs/{character}alias.md")
-        == "invalid-path"
+        control_plane_policy.protected_surface_reason(f"docs/{character}alias.md") == "invalid-path"
     )
 
 

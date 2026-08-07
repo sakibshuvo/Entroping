@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 
@@ -123,6 +123,50 @@ def test_capture_addon_redacts_before_persisting_flow(tmp_path: Path) -> None:
     assert "header-secret" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
     assert "body-secret" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
     assert "response-token" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
+
+
+def test_capture_addon_redacts_short_credentials_before_persisting_flow(
+    tmp_path: Path,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    addon = traffic_proxy.TrafficCaptureAddon(store=store, target_url="https://api.example.test")
+    flow = _flow()
+    flow = replace(
+        flow,
+        request=replace(
+            flow.request,
+            content=(
+                b'{"OTP":"otp-proxy-probe","nested":{"verificationCode":'
+                b'"verification-proxy-probe"},"quantity":3}'
+            ),
+        ),
+        response=replace(
+            flow.response,
+            content=b'{"pin-code":"pin-proxy-probe","status_code":200}',
+        ),
+    )
+
+    event_id = addon.response(flow)
+    loaded = store.list_exchanges()
+
+    assert event_id == 1
+    assert len(loaded) == 1
+    exchange = loaded[0]
+    assert exchange.request.body is not None
+    assert exchange.request.body.text == (
+        '{"OTP":"[REDACTED]","nested":{"verificationCode":"[REDACTED]"},'
+        '"quantity":3}'
+    )
+    assert exchange.response is not None
+    assert exchange.response.body is not None
+    assert exchange.response.body.text == '{"pin-code":"[REDACTED]","status_code":200}'
+    database_text = store.db_path.read_text(encoding="utf-8", errors="ignore")
+    for raw_value in (
+        "otp-proxy-probe",
+        "verification-proxy-probe",
+        "pin-proxy-probe",
+    ):
+        assert raw_value not in database_text
 
 
 def test_capture_addon_redacts_body_before_truncating_boundary_crossing_secret(
@@ -532,6 +576,18 @@ def test_mitmproxy_runtime_rejects_vulnerable_msgpack_version() -> None:
         traffic_proxy.load_mitmproxy_runtime(
             import_module=fake_import, package_version=package_version
         )
+
+
+def test_installed_mitmproxy_runtime_imports_with_patched_crypto_stack() -> None:
+    try:
+        importlib_metadata.version("mitmproxy")
+    except importlib_metadata.PackageNotFoundError:
+        pytest.skip("requires the optional proxy dependency group")
+
+    runtime = traffic_proxy.load_mitmproxy_runtime()
+
+    assert callable(runtime.options_factory)
+    assert callable(runtime.dump_master_factory)
 
 
 def test_mitmproxy_runtime_rejects_missing_msgpack_package() -> None:

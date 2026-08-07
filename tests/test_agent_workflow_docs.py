@@ -521,13 +521,13 @@ def test_user_evidence_contract_is_closed_consistent_and_fail_closed() -> None:
     normalized_issue_tracking = " ".join(issue_tracking.split())
     assert "exactly one YAML block" in normalized_issue_tracking
     assert "unknown or repeated fields are invalid" in normalized_issue_tracking
-    assert "Issue #1567 must first enforce its full fresh-state eligibility gates" in (
+    assert "selector safety boundary implemented by issue #1567" in (
         normalized_issue_tracking
     )
-    assert "ownership, branch, worktree, PR, lease, overlap" in (
+    assert "ownership, active branch, worktree, PR, lease, explicit file scope" in (
         normalized_issue_tracking
     )
-    assert "have no other `status:*` label" in normalized_issue_tracking
+    assert "exactly one `status:ready` label" in normalized_issue_tracking
     assert "have no unresolved `Blocked by` dependency" in normalized_issue_tracking
     assert "must fail closed from user-evidence priority" in normalized_issue_tracking
     assert "20 most recent counted receipts" in normalized_issue_tracking
@@ -1594,6 +1594,49 @@ def test_agent_control_plane_routes_opencode_through_bounded_worker() -> None:
     assert "raw `opencode run`" in doc
 
 
+def test_unattended_opencode_isolation_decision_and_control_plane_are_indexed() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    tds = (REPO_ROOT / "docs" / "technical" / "TDS.md").read_text(
+        encoding="utf-8"
+    )
+    registry = (REPO_ROOT / "docs" / "meta" / "DECISION_REGISTRY.yaml").read_text(
+        encoding="utf-8"
+    )
+    adr = (
+        REPO_ROOT / "decisions" / "ADR-0027-opencode-unattended-isolation.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(f"{control_plane}\n{tds}\n{registry}\n{adr}".split())
+
+    required_terms = [
+        "ENT-DEC-0027",
+        "entroping.opencode-unattended-review.v1",
+        "entroping.opencode-unattended-patch-proposal.v1",
+        "entroping.opencode-unattended-capability-receipt.v1",
+        "private ephemeral `HOME`",
+        "`XDG_CONFIG_HOME`",
+        "`OPENCODE_DISABLE_PROJECT_CONFIG=1`",
+        "`--pure`",
+        "`--agent`",
+        "`--dir`",
+        "deny-first",
+        "denies every model-issued tool",
+        "explicit `--file` snapshots",
+        "subagent depth zero",
+        "20-second",
+        "without any provider credential",
+        "raw prompts",
+        "trusted executable",
+        "digest and version binding",
+        "OS or container isolation",
+        "same-UID",
+        "unrestricted egress",
+    ]
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_factory_metrics_docs_wire_opt_in_script_recording() -> None:
     context_doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
         encoding="utf-8"
@@ -1708,11 +1751,12 @@ def test_agent_control_plane_documents_opencode_hosted_deepseek_tool_lane() -> N
     normalized = " ".join(doc.split())
 
     assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in doc
-    assert "OpenCode-configured agents, plugins, MCP servers, hooks" in doc
-    assert "Codex-native plugins, skills, Codex Security, Browser, Computer Use" in doc
-    assert "unless the OpenCode host exposes equivalent capabilities" in normalized
-    assert "--dangerously-skip-permissions" in doc
-    assert "OpenCode Host Capability Context" in doc
+    assert "unattended runs do not inherit host agents, plugins, MCP servers" in (
+        normalized
+    )
+    assert "Interactive maintainer sessions remain a separate surface" in normalized
+    assert "`OPENCODE_DISABLE_PROJECT_CONFIG=1`" in doc
+    assert "`--pure debug config`" in doc
 
 
 def test_agent_control_plane_distinguishes_provider_host_billing_model_lanes() -> None:
