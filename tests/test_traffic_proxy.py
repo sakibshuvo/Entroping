@@ -535,6 +535,11 @@ def test_mitmproxy_runtime_rejects_vulnerable_msgpack_version() -> None:
 
 
 def test_installed_mitmproxy_runtime_imports_with_patched_crypto_stack() -> None:
+    try:
+        importlib_metadata.version("mitmproxy")
+    except importlib_metadata.PackageNotFoundError:
+        pytest.skip("requires the optional proxy dependency group")
+
     runtime = traffic_proxy.load_mitmproxy_runtime()
 
     assert callable(runtime.options_factory)
