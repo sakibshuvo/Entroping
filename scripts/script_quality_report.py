@@ -21,11 +21,14 @@ SCRIPT_TEST_PATTERNS = (
     "test_factory_inbox.py",
     "test_factory_review_packet.py",
     "test_package_index_readiness.py",
+    "test_pytest_collection_manifest.py",
     "test_release_evidence.py",
+    "test_source_maintainability_ratchet.py",
 )
 SCRIPT_SOURCE_MAX_BYTES = 1_000_000
 JSON_MAX_BYTES = 10_000_000
 PYTEST_TIMEOUT_SECONDS = 300
+SCRIPT_COVERAGE_CONFIG = Path("docs/meta/script-coverage.ini")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -135,6 +138,7 @@ def _run_script_coverage(
         "-m",
         "pytest",
         "--cov=scripts",
+        f"--cov-config={(root / SCRIPT_COVERAGE_CONFIG).as_posix()}",
         f"--cov-report=json:{coverage_output.as_posix()}",
         "--cov-report=term-missing",
         *(str(path) for path in script_tests),
@@ -326,11 +330,30 @@ def _baseline_script_paths(payload: dict[str, object]) -> tuple[str, ...] | None
     return tuple(dict.fromkeys(paths))
 
 
+def _baseline_deferred_script_paths(payload: dict[str, object]) -> tuple[str, ...]:
+    raw_paths = payload.get("deferred_subprocess_covered_scripts", [])
+    if not isinstance(raw_paths, list):
+        raise RuntimeError("baseline report has invalid deferred_subprocess_covered_scripts")
+    paths: list[str] = []
+    for raw_path in raw_paths:
+        if not isinstance(raw_path, str) or raw_path.strip() == "":
+            raise RuntimeError("baseline report has invalid deferred_subprocess_covered_scripts")
+        paths.append(raw_path)
+    return tuple(dict.fromkeys(paths))
+
+
 def _int_metric(payload: dict[str, object], key: str) -> int:
     value = payload.get(key)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 0
     return int(value)
+
+
+def _float_metric(payload: dict[str, object], key: str) -> float:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0.0
+    return float(value)
 
 
 def _file_metrics_by_path(report: dict[str, object], section: str) -> dict[str, dict[str, object]]:
@@ -409,6 +432,46 @@ def _typing_for_script_paths(
     }
 
 
+def _coverage_file_deltas(
+    report: dict[str, object],
+    baseline: dict[str, object],
+    script_paths: tuple[str, ...],
+) -> tuple[list[dict[str, object]], list[str]]:
+    if not _has_file_metrics(baseline, "coverage"):
+        return [], []
+
+    current_files = _file_metrics_by_path(report, "coverage")
+    baseline_files = _file_metrics_by_path(baseline, "coverage")
+    missing_paths = [
+        path for path in script_paths if path not in current_files or path not in baseline_files
+    ]
+    if missing_paths:
+        raise RuntimeError(
+            "script quality ratchet path missing from per-file coverage: "
+            + ", ".join(missing_paths)
+        )
+
+    deltas: list[dict[str, object]] = []
+    regressed_paths: list[str] = []
+    for path in script_paths:
+        current_percent = _float_metric(current_files[path], "percent_covered")
+        baseline_percent = _float_metric(baseline_files[path], "percent_covered")
+        delta = round(current_percent - baseline_percent, 2)
+        status = "regressed" if delta < 0 else "passed"
+        if status == "regressed":
+            regressed_paths.append(path)
+        deltas.append(
+            {
+                "path": path,
+                "baseline_percent_covered": round(baseline_percent, 2),
+                "current_percent_covered": round(current_percent, 2),
+                "coverage_delta": delta,
+                "status": status,
+            }
+        )
+    return deltas, regressed_paths
+
+
 def _run_ratchet(
     report: dict[str, object],
     baseline_path: Path | None,
@@ -424,11 +487,21 @@ def _run_ratchet(
 
     baseline_payload = _read_json(baseline_path)
     script_paths = _baseline_script_paths(baseline_payload)
+    deferred_script_paths = _baseline_deferred_script_paths(baseline_payload)
+    if script_paths is not None:
+        overlap = sorted(set(script_paths) & set(deferred_script_paths))
+        if overlap:
+            raise RuntimeError(
+                "baseline report classifies scripts as both selected and deferred: "
+                + ", ".join(overlap)
+            )
     scope = "all_scripts"
     current_coverage_summary: dict[str, object] | None = None
     current_typing_summary: dict[str, object] | None = None
     baseline_coverage_summary: dict[str, object] | None = None
     baseline_typing_summary: dict[str, object] | None = None
+    coverage_files: list[dict[str, object]] = []
+    regressed_script_paths: list[str] = []
     if script_paths is None:
         current_coverage = _baseline_value(report, "coverage", "percent_covered")
         current_typing = _baseline_value(
@@ -444,6 +517,11 @@ def _run_ratchet(
             baseline_coverage_summary = _coverage_for_script_paths(baseline_payload, script_paths)
         if _has_file_metrics(baseline_payload, "typing"):
             baseline_typing_summary = _typing_for_script_paths(baseline_payload, script_paths)
+        coverage_files, regressed_script_paths = _coverage_file_deltas(
+            report,
+            baseline_payload,
+            script_paths,
+        )
         current_coverage = _baseline_value(current_coverage_summary, "percent_covered")
         current_typing = _baseline_value(
             current_typing_summary,
@@ -483,7 +561,11 @@ def _run_ratchet(
     )
 
     status = "passed"
-    if coverage_delta < 0 or (typing_delta is not None and typing_delta < 0):
+    if (
+        coverage_delta < 0
+        or regressed_script_paths
+        or (typing_delta is not None and typing_delta < 0)
+    ):
         status = "regressed"
 
     return {
@@ -492,10 +574,48 @@ def _run_ratchet(
         "baseline_path": str(baseline_path),
         "scope": scope,
         "script_paths": list(script_paths) if script_paths is not None else None,
+        "deferred_script_paths": list(deferred_script_paths),
         "coverage": current_coverage_summary,
+        "coverage_files": coverage_files,
+        "regressed_script_paths": regressed_script_paths,
         "typing": current_typing_summary,
         "coverage_delta": coverage_delta,
         "typing_delta": typing_delta,
+    }
+
+
+def _build_governance_populations(report: dict[str, object]) -> dict[str, object]:
+    ratchet = report.get("ratchet")
+    if not isinstance(ratchet, dict):
+        raise RuntimeError("script quality report missing ratchet section")
+    raw_selected = ratchet.get("script_paths")
+    raw_deferred = ratchet.get("deferred_script_paths")
+    selected_paths = [path for path in raw_selected or [] if isinstance(path, str)]
+    deferred_paths = [path for path in raw_deferred or [] if isinstance(path, str)]
+
+    coverage_files = _file_metrics_by_path(report, "coverage")
+    aggregate_paths = list(coverage_files)
+    classified_paths = [*selected_paths, *deferred_paths]
+    missing_paths = [path for path in classified_paths if path not in coverage_files]
+    if missing_paths:
+        raise RuntimeError(
+            "script quality governance path missing from aggregate inventory: "
+            + ", ".join(missing_paths)
+        )
+    covered_paths = [
+        path
+        for path, metrics in coverage_files.items()
+        if _int_metric(metrics, "covered_lines") > 0
+    ]
+
+    def population(paths: list[str]) -> dict[str, object]:
+        return {"count": len(paths), "script_paths": paths}
+
+    return {
+        "selected": population(selected_paths),
+        "deferred": population(deferred_paths),
+        "covered": population(covered_paths),
+        "aggregate": population(aggregate_paths),
     }
 
 
@@ -506,11 +626,12 @@ def _build_report(
     baseline_path: Path | None,
 ) -> dict[str, object]:
     inventory = _collect_script_inventory(root)
-    script_files = tuple(
-        root / item["path"]
-        for item in inventory
-        if item.get("kind") == "importable" and isinstance(item.get("path"), str)
-    )
+    script_file_list: list[Path] = []
+    for item in inventory:
+        path = item.get("path")
+        if item.get("kind") == "importable" and isinstance(path, str):
+            script_file_list.append(root / path)
+    script_files = tuple(script_file_list)
     importable = [item for item in inventory if item.get("kind") == "importable"]
     non_importable = [item for item in inventory if item.get("kind") != "importable"]
 
@@ -531,6 +652,7 @@ def _build_report(
         "non_importable_scripts": non_importable,
     }
     report["ratchet"] = _run_ratchet(report=report, baseline_path=baseline_path)
+    report["governance"] = _build_governance_populations(report)
     return report
 
 
@@ -554,6 +676,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  repository root: {root}")
         print(f"  output: {output}")
         print(f"  script coverage output: {coverage_output}")
+        print(f"  subprocess coverage config: {root / SCRIPT_COVERAGE_CONFIG}")
         print(f"  baseline: {baseline_path if baseline_path is not None else 'not configured'}")
         print(f"  discovered script tests: {len(script_tests)}")
         if script_tests:
@@ -599,9 +722,35 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Wrote script quality report: {output}")
     print(
-        "Script coverage:",
+        "Aggregate script coverage:",
         f"{coverage['percent_covered']}%",
         f"({coverage['covered_lines']}/{coverage['statements']} statements)",
+    )
+    selected_coverage = ratchet.get("coverage")
+    if isinstance(selected_coverage, dict):
+        print(
+            "Selected ratchet coverage:",
+            f"{selected_coverage['percent_covered']}%",
+            (
+                f"({selected_coverage['covered_lines']}/"
+                f"{selected_coverage['statements']} statements)"
+            ),
+        )
+    governance = report.get("governance")
+    if not isinstance(governance, dict):
+        raise RuntimeError("script quality report missing governance section")
+    population_counts: dict[str, int] = {}
+    for name in ("selected", "deferred", "covered", "aggregate"):
+        value = governance.get(name)
+        if not isinstance(value, dict):
+            raise RuntimeError(f"script quality report missing {name} population")
+        population_counts[name] = _int_metric(value, "count")
+    print(
+        "Script governance populations:",
+        f"selected={population_counts['selected']}",
+        f"deferred={population_counts['deferred']}",
+        f"covered={population_counts['covered']}",
+        f"aggregate={population_counts['aggregate']}",
     )
     print(
         "Function typing visibility:",

@@ -1,10 +1,18 @@
+import configparser
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "script_quality_report.py"
+ANALYZER_SCRIPT_PATHS = (
+    "scripts/pytest_collection_manifest.py",
+    "scripts/test_taxonomy.py",
+    "scripts/source_maintainability_ratchet.py",
+)
 
 
 def _run_script_quality(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -201,6 +209,82 @@ def _write_selected_regression_coverage_json(path: Path) -> None:
     )
 
 
+def _prepare_governed_repo(root: Path) -> None:
+    scripts = root / "scripts"
+    scripts.mkdir()
+    for script_path in (*ANALYZER_SCRIPT_PATHS, "scripts/deferred.py"):
+        path = root / script_path
+        path.write_text(
+            "def governed(value: int) -> int:\n    return value + 1\n",
+            encoding="utf-8",
+        )
+
+
+def _write_governance_baseline(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.script-quality-ratchet-baseline.v1",
+                "script_paths": list(ANALYZER_SCRIPT_PATHS),
+                "deferred_subprocess_covered_scripts": ["scripts/deferred.py"],
+                "coverage": {
+                    "statements": 6,
+                    "covered_lines": 3,
+                    "missing_lines": 3,
+                    "percent_covered": 50.0,
+                    "files": [
+                        {
+                            "path": script_path,
+                            "statements": 2,
+                            "covered_lines": 1,
+                            "missing_lines": 1,
+                            "percent_covered": 50.0,
+                        }
+                        for script_path in ANALYZER_SCRIPT_PATHS
+                    ],
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_governance_coverage_json(
+    path: Path,
+    *,
+    regressed_path: str | None = None,
+) -> None:
+    covered_by_path = {script_path: 1 for script_path in ANALYZER_SCRIPT_PATHS}
+    if regressed_path is not None:
+        regressed_index = ANALYZER_SCRIPT_PATHS.index(regressed_path)
+        compensating_path = ANALYZER_SCRIPT_PATHS[
+            (regressed_index + 1) % len(ANALYZER_SCRIPT_PATHS)
+        ]
+        covered_by_path[regressed_path] = 0
+        covered_by_path[compensating_path] = 2
+
+    files: dict[str, object] = {}
+    for script_path, covered_lines in covered_by_path.items():
+        files[script_path] = {
+            "summary": {
+                "num_statements": 2,
+                "covered_lines": covered_lines,
+                "missing_lines": 2 - covered_lines,
+                "percent_covered": covered_lines * 50.0,
+            }
+        }
+    files["scripts/deferred.py"] = {
+        "summary": {
+            "num_statements": 2,
+            "covered_lines": 0,
+            "missing_lines": 2,
+            "percent_covered": 0.0,
+        }
+    }
+    path.write_text(json.dumps({"files": files}, sort_keys=True), encoding="utf-8")
+
+
 def test_script_quality_report_help_exposes_inputs() -> None:
     result = _run_script_quality("--help")
 
@@ -225,6 +309,7 @@ def test_script_quality_report_dry_run_lists_planned_actions(tmp_path: Path) -> 
 
     assert result.returncode == 0
     assert "Script quality report dry run:" in result.stdout
+    assert "subprocess coverage config:" in result.stdout
     assert "Would run pytest --cov=scripts for script-focused test files." in result.stdout
     assert "Would write machine-readable JSON report under reports/." in result.stdout
     assert not output.exists()
@@ -356,3 +441,96 @@ def test_script_quality_report_generated_selected_baseline_uses_selected_metrics
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["ratchet"]["status"] == "regressed"
     assert payload["ratchet"]["coverage_delta"] == -50.0
+
+
+def test_release_analyzers_are_selected_for_subprocess_coverage_governance() -> None:
+    baseline = json.loads(
+        (REPO_ROOT / "docs/meta/script-quality-ratchet-baseline.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    selected = set(baseline["script_paths"])
+    deferred = set(baseline["deferred_subprocess_covered_scripts"])
+
+    assert set(ANALYZER_SCRIPT_PATHS) <= selected
+    assert not set(ANALYZER_SCRIPT_PATHS) & deferred
+
+
+def test_coverage_configuration_enables_subprocess_measurement() -> None:
+    parser = configparser.ConfigParser()
+    config_path = REPO_ROOT / "docs/meta/script-coverage.ini"
+    parser.read(config_path, encoding="utf-8")
+
+    assert parser["run"].get("patch", "").split() == ["subprocess"]
+
+
+def test_script_quality_report_names_governance_populations(tmp_path: Path) -> None:
+    _prepare_governed_repo(tmp_path)
+    coverage_json = tmp_path / "script-coverage.json"
+    _write_governance_coverage_json(coverage_json)
+    baseline_path = tmp_path / "ratchet-baseline.json"
+    _write_governance_baseline(baseline_path)
+    output = tmp_path / "reports" / "governance.json"
+
+    result = _run_script_quality(
+        "--repo-root",
+        str(tmp_path),
+        "--coverage-json",
+        str(coverage_json),
+        "--baseline",
+        str(baseline_path),
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["governance"]["selected"] == {
+        "count": 3,
+        "script_paths": list(ANALYZER_SCRIPT_PATHS),
+    }
+    assert payload["governance"]["deferred"] == {
+        "count": 1,
+        "script_paths": ["scripts/deferred.py"],
+    }
+    assert payload["governance"]["covered"]["count"] == 3
+    assert set(payload["governance"]["covered"]["script_paths"]) == set(
+        ANALYZER_SCRIPT_PATHS
+    )
+    assert payload["governance"]["aggregate"]["count"] == 4
+    assert "Selected ratchet coverage: 50.0% (3/6 statements)" in result.stdout
+    assert "Aggregate script coverage: 37.5% (3/8 statements)" in result.stdout
+    assert (
+        "Script governance populations: selected=3 deferred=1 covered=3 aggregate=4"
+        in result.stdout
+    )
+
+
+@pytest.mark.parametrize("regressed_path", ANALYZER_SCRIPT_PATHS)
+def test_each_governed_analyzer_regression_fails_without_aggregate_loss(
+    tmp_path: Path,
+    regressed_path: str,
+) -> None:
+    _prepare_governed_repo(tmp_path)
+    coverage_json = tmp_path / "script-coverage.json"
+    _write_governance_coverage_json(coverage_json, regressed_path=regressed_path)
+    baseline_path = tmp_path / "ratchet-baseline.json"
+    _write_governance_baseline(baseline_path)
+    output = tmp_path / "reports" / "regression.json"
+
+    result = _run_script_quality(
+        "--repo-root",
+        str(tmp_path),
+        "--coverage-json",
+        str(coverage_json),
+        "--baseline",
+        str(baseline_path),
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["ratchet"]["coverage_delta"] == 0.0
+    assert payload["ratchet"]["regressed_script_paths"] == [regressed_path]
+    assert "ratchet failed" in result.stderr.lower()
