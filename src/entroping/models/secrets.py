@@ -1,6 +1,7 @@
 """Pure credential detection and redaction helpers."""
 
 import re
+from typing import Final
 
 REDACTED = "[REDACTED]"
 
@@ -59,6 +60,25 @@ _SENSITIVE_KEY_PARTS = (
     "session",
     "token",
 )
+_SHORT_CREDENTIAL_KEY_NAMES: Final[frozenset[str]] = frozenset(
+    {
+        "otp",
+        "otp_code",
+        "pin",
+        "pin_code",
+        "passcode",
+        "verification_code",
+        "recovery_code",
+    }
+)
+_SHORT_CREDENTIAL_COMPACT_NAMES: Final[frozenset[str]] = frozenset(
+    name.replace("_", "") for name in _SHORT_CREDENTIAL_KEY_NAMES
+)
+_SHORT_CREDENTIAL_TEXT_KEY_PATTERN: Final[str] = (
+    r"otp(?:[\s_.-]*code)?|pin(?:[\s_.-]*code)?|"
+    r"pass[\s_.-]*code|verification[\s_.-]*code|"
+    r"recovery[\s_.-]*code"
+)
 _HEADER_SECRET_RE = re.compile(
     r"(?im)\b("
     r"authorization|proxy-authorization|cookie|set-cookie|x-api-key|x-auth-token|"
@@ -66,14 +86,17 @@ _HEADER_SECRET_RE = re.compile(
     r")\s*:\s*([^\r\n]+)"
 )
 _KEY_VALUE_SECRET_RE = re.compile(
-    r"(?i)\b("
-    r"access_token|api[_-]?key|authorization|client_secret|cookie|csrf[_-]?token|"
-    r"jwt|password|passwd|refresh_token|secret|session[_-]?id|token"
-    r")(\s*[:=]\s*)([^\s&;,\"]+)"
+    "(?i)\\b("
+    "access_token|api[_-]?key|authorization|client_secret|cookie|csrf[_-]?token|"
+    "jwt|password|passwd|refresh_token|secret|session[_-]?id|token|"
+    + _SHORT_CREDENTIAL_TEXT_KEY_PATTERN
+    + r")(\s*[:=]\s*)([^\s&;,\"]+)"
 )
 _JSON_PAIR_SECRET_RE = re.compile(
     r'(?i)("(?:access_token|api[_-]?key|authorization|client_secret|cookie|jwt|'
-    r'password|passwd|refresh_token|secret|session[_-]?id|csrf[_-]?token|token)"\s*:\s*)"[^"]*"'
+    r'password|passwd|refresh_token|secret|session[_-]?id|csrf[_-]?token|token|'
+    + _SHORT_CREDENTIAL_TEXT_KEY_PATTERN
+    + r')"\s*:\s*)(?:"([^"]*)"|([+-]?(?:\d+(?:\.\d*)?|\.\d+)))'
 )
 _AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+([A-Za-z0-9._~+/=-]{10,})")
 
@@ -87,6 +110,11 @@ def contains_secret_like_value(value: str) -> bool:
     if _contains_sensitive_data_shape(value):
         return True
     if any(_header_value_is_secret(match.group(2)) for match in _HEADER_SECRET_RE.finditer(value)):
+        return True
+    if any(
+        _secret_value_is_literal(_json_pair_match_value(match))
+        for match in _JSON_PAIR_SECRET_RE.finditer(value)
+    ):
         return True
     return any(
         _key_value_match_is_secret(match)
@@ -108,7 +136,7 @@ def redact_secret_like_values(value: str) -> str:
     redacted = _HEADER_SECRET_RE.sub(_redact_header_secret, redacted)
     redacted = _AUTH_VALUE_RE.sub(lambda match: f"{match.group(1)} {REDACTED}", redacted)
     redacted = _KEY_VALUE_SECRET_RE.sub(_redact_key_value_secret, redacted)
-    return _JSON_PAIR_SECRET_RE.sub(lambda match: f'{match.group(1)}"{REDACTED}"', redacted)
+    return _JSON_PAIR_SECRET_RE.sub(_redact_json_pair_secret, redacted)
 
 
 def is_sensitive_header_name(name: str) -> bool:
@@ -122,7 +150,9 @@ def is_sensitive_key(key: str) -> bool:
     """Return true when a structured key name normally carries credentials."""
 
     normalized = key.lower().replace("-", "_")
-    return any(part in normalized for part in _SENSITIVE_KEY_PARTS)
+    return _is_short_credential_key(key) or any(
+        part in normalized for part in _SENSITIVE_KEY_PARTS
+    )
 
 
 def has_disallowed_control(value: str) -> bool:
@@ -140,6 +170,23 @@ def _contains_sensitive_data_shape(value: str) -> bool:
         or _SSN_RE.search(value) is not None
         or _EMAIL_RE.search(value) is not None
     )
+
+
+def _is_short_credential_key(key: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
+    return normalized in _SHORT_CREDENTIAL_KEY_NAMES or normalized.replace(
+        "_", ""
+    ) in _SHORT_CREDENTIAL_COMPACT_NAMES
+
+
+def _json_pair_match_value(match: re.Match[str]) -> str:
+    return match.group(2) or match.group(3) or ""
+
+
+def _redact_json_pair_secret(match: re.Match[str]) -> str:
+    if not _secret_value_is_literal(_json_pair_match_value(match)):
+        return match.group(0)
+    return f'{match.group(1)}"{REDACTED}"'
 
 
 def _redact_sensitive_data_shapes(value: str) -> str:
