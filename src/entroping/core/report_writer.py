@@ -30,6 +30,7 @@ from entroping.core.report_serialization import (
 )
 from entroping.core.safe_write import SafeWriteError, safe_write_bytes, safe_write_text
 from entroping.models.report import (
+    GateResultEvidence,
     KnownFailureEvidence,
     RunAttemptEvidence,
     RunReport,
@@ -69,6 +70,7 @@ def build_run_report(
     suite: HurlSuiteResult,
     project_root: Path,
     safety_evidence_by_source_path: Mapping[Path, RunSafetyEvidence] | None = None,
+    gate_results_by_source_path: Mapping[Path, Sequence[GateResultEvidence]] | None = None,
 ) -> RunReport:
     """Build a serializable report from Hurl execution copies and results."""
 
@@ -87,6 +89,10 @@ def build_run_report(
         path.expanduser().resolve(): evidence
         for path, evidence in (safety_evidence_by_source_path or {}).items()
     }
+    gate_results = {
+        path.expanduser().resolve(): tuple(results)
+        for path, results in (gate_results_by_source_path or {}).items()
+    }
     tests: list[RunTestReport] = []
     for result in suite.results:
         execution_copy = execution_copies_by_path.get(result.path.expanduser().resolve())
@@ -98,6 +104,10 @@ def build_run_report(
         response_status_code, response_headers, response_body_shape = _extract_response_fingerprint(
             stdout
         )
+        source_gate_results = gate_results.get(
+            execution_copy.source_path.expanduser().resolve(),
+            (),
+        )
         tests.append(
             RunTestReport(
                 path=_display_path(execution_copy.source_path, root),
@@ -105,9 +115,13 @@ def build_run_report(
                 status=result.status,
                 exit_code=result.exit_code,
                 duration_ms=result.duration_ms,
-                rule_ids=tuple(gate.rule_id for gate in execution_copy.injected_gates),
+                rule_ids=(
+                    tuple(item.rule_id for item in source_gate_results)
+                    or tuple(gate.rule_id for gate in execution_copy.injected_gates)
+                ),
                 stdout=stdout,
                 stderr=stderr,
+                gate_results=source_gate_results,
                 timeout_ms=result.timeout_ms,
                 operation_id=execution_copy.operation_id,
                 source=execution_copy.source,

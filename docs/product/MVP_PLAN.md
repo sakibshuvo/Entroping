@@ -68,7 +68,11 @@ Exit criteria:
 - Source `.hurl` files are not mutated by run.
 - Gates are injected into execution copies.
 - Blocking gates produce non-zero exit.
-- `warn` gates appear in reports without failing the run.
+- All matching gates for a selected source are evaluated in one bounded Hurl
+  execution copy and share one Hurl invocation per attempt; no enforcement mode
+  adds a request sequence, and each attempt runs the source request sequence once.
+- `warn` and `audit_only` failures appear with enforcement and result in JSON,
+  JUnit, and HTML reports without failing the run.
 
 ### Phase 3: Reports and CI
 

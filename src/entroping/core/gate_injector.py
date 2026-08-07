@@ -8,6 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 
 from entroping.bridge.policy_to_hurl import HurlGateAssertion, compile_matching_gates
+from entroping.core.gate_injector_capture import build_gate_capture_plan
 from entroping.core.known_failures import normalize_known_failure_test
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
@@ -48,6 +49,8 @@ class HurlExecutionCopy:
     execution_path: Path
     injected_gates: tuple[HurlGateAssertion, ...]
     known_failures: tuple[AppliedKnownFailure, ...] = ()
+    injected_gate_lines: tuple[tuple[int, HurlGateAssertion], ...] = ()
+    response_capture_names: tuple[str, ...] = ()
     operation_id: str | None = None
     source: str | None = None
     negative_category: str | None = None
@@ -60,8 +63,10 @@ class HurlExecutionCopy:
 @dataclass(frozen=True)
 class _ResponseBlock:
     exchange: HurlExchange
-    insert_at: int
+    assert_insert_at: int
     has_asserts: bool
+    capture_insert_at: int
+    has_captures: bool
 
 
 def write_injected_execution_copy(
@@ -96,7 +101,13 @@ def write_injected_execution_copy(
         metadata=hurl_test.metadata,
         exchanges=parse_hurl_exchanges(content),
     )
-    injected_content, injected_gates, applied_known_failures = _inject_gate_assertions(
+    (
+        injected_content,
+        injected_gates,
+        applied_known_failures,
+        injected_gate_lines,
+        response_capture_names,
+    ) = _inject_gate_assertions(
         content,
         parsed_test,
         gates,
@@ -118,6 +129,8 @@ def write_injected_execution_copy(
         execution_path=execution_path,
         injected_gates=injected_gates,
         known_failures=applied_known_failures,
+        injected_gate_lines=injected_gate_lines,
+        response_capture_names=response_capture_names,
         operation_id=parsed_test.metadata.operation_id,
         source=parsed_test.metadata.meta.get("source"),
         negative_category=parsed_test.metadata.meta.get("negative_category"),
@@ -135,7 +148,13 @@ def inject_gate_assertions(
 ) -> tuple[str, tuple[HurlGateAssertion, ...]]:
     """Return Hurl content with matching gate assertions injected."""
 
-    injected_content, injected_gates, _applied_known_failures = _inject_gate_assertions(
+    (
+        injected_content,
+        injected_gates,
+        _applied_known_failures,
+        _injected_gate_lines,
+        _response_capture_names,
+    ) = _inject_gate_assertions(
         content,
         hurl_test,
         gates,
@@ -152,11 +171,17 @@ def _inject_gate_assertions(
     *,
     known_failures: Sequence[KnownFailure],
     project_root: Path | None,
-) -> tuple[str, tuple[HurlGateAssertion, ...], tuple[AppliedKnownFailure, ...]]:
+) -> tuple[
+    str,
+    tuple[HurlGateAssertion, ...],
+    tuple[AppliedKnownFailure, ...],
+    tuple[tuple[int, HurlGateAssertion], ...],
+    tuple[str, ...],
+]:
     """Return Hurl content with matching active known-failure gates omitted."""
 
     if not gates:
-        return content, (), ()
+        return content, (), (), (), ()
 
     lines = content.splitlines()
     response_blocks = _find_response_blocks(lines, hurl_test.exchanges)
@@ -164,16 +189,16 @@ def _inject_gate_assertions(
         msg = f"No Hurl response sections found in {hurl_test.path}"
         raise GateInjectionError(msg)
 
-    output: list[str] = []
-    cursor = 0
     injected_by_id: dict[str, HurlGateAssertion] = {}
     applied_by_rule_id: dict[str, AppliedKnownFailure] = {}
+    injected_gate_lines: list[tuple[int, HurlGateAssertion]] = []
     active_known_failures = _matching_known_failures_by_rule_id(
         source_path=hurl_test.path,
         project_root=project_root,
         known_failures=known_failures,
     )
 
+    gates_by_block: list[tuple[HurlGateAssertion, ...]] = []
     for block in response_blocks:
         matching_gates = compile_matching_gates(gates, hurl_test, exchange=block.exchange)
         injectable_gates: list[HurlGateAssertion] = []
@@ -185,27 +210,59 @@ def _inject_gate_assertions(
             applied_by_rule_id.setdefault(gate.rule_id, _to_applied_known_failure(known_failure))
 
         matching_gates = tuple(injectable_gates)
-        if not matching_gates:
-            continue
-
-        if block.has_asserts:
-            output.extend(lines[cursor : block.insert_at])
-            output.extend(_render_gate_lines(matching_gates))
-            cursor = block.insert_at
-        else:
-            output.extend(lines[cursor : block.insert_at])
-            output.append("[Asserts]")
-            output.extend(_render_gate_lines(matching_gates))
-            cursor = block.insert_at
-
+        gates_by_block.append(matching_gates)
         for gate in matching_gates:
             injected_by_id.setdefault(gate.rule_id, gate)
 
+    (
+        gate_insertions,
+        has_asserts_by_position,
+        response_capture_names,
+        capture_insertions,
+    ) = build_gate_capture_plan(
+        tuple(
+            (
+                block.assert_insert_at,
+                block.has_asserts,
+                block.capture_insert_at,
+                block.has_captures,
+            )
+            for block in response_blocks
+        ),
+        gates_by_block,
+        tuple(injected_by_id.values()),
+        source_path=hurl_test.path,
+        source_content=content,
+    )
+
+    output: list[str] = []
+    cursor = 0
+    insertion_positions = sorted(set(gate_insertions) | set(capture_insertions))
+    for position in insertion_positions:
+        output.extend(lines[cursor:position])
+        inserted_gates = gate_insertions.get(position)
+        if inserted_gates is not None:
+            if not has_asserts_by_position[position]:
+                output.append("[Asserts]")
+            _append_gate_lines(output, inserted_gates, injected_gate_lines)
+        capture = capture_insertions.get(position)
+        if capture is not None:
+            capture_name, add_section = capture
+            if add_section:
+                output.append("[Captures]")
+            output.append(f"{capture_name}: bytes")
+        cursor = position
     output.extend(lines[cursor:])
     rendered = "\n".join(output)
     if content.endswith("\n"):
         rendered += "\n"
-    return rendered, tuple(injected_by_id.values()), tuple(applied_by_rule_id.values())
+    return (
+        rendered,
+        tuple(injected_by_id.values()),
+        tuple(applied_by_rule_id.values()),
+        tuple(injected_gate_lines),
+        tuple(response_capture_names),
+    )
 
 
 def _matching_known_failures_by_rule_id(
@@ -317,12 +374,25 @@ def _find_response_blocks(
 
         start = response_starts[0]
         end = _next_request_start_after(request_starts, start) or len(lines)
-        insert_at, has_asserts = _find_insert_position(lines, start=start, end=end)
+        assert_insert_at, has_asserts = _find_section_insert_position(
+            lines,
+            start=start,
+            end=end,
+            section="[Asserts]",
+        )
+        capture_insert_at, has_captures = _find_section_insert_position(
+            lines,
+            start=start,
+            end=end,
+            section="[Captures]",
+        )
         blocks.append(
             _ResponseBlock(
                 exchange=exchange,
-                insert_at=insert_at,
+                assert_insert_at=assert_insert_at,
                 has_asserts=has_asserts,
+                capture_insert_at=capture_insert_at,
+                has_captures=has_captures,
             ),
         )
 
@@ -336,9 +406,15 @@ def _next_request_start_after(request_starts: Sequence[int], index: int) -> int 
     return None
 
 
-def _find_insert_position(lines: Sequence[str], *, start: int, end: int) -> tuple[int, bool]:
+def _find_section_insert_position(
+    lines: Sequence[str],
+    *,
+    start: int,
+    end: int,
+    section: str,
+) -> tuple[int, bool]:
     for index in range(start + 1, end):
-        if lines[index].strip() != "[Asserts]":
+        if lines[index].strip() != section:
             continue
 
         section_end = index + 1
@@ -351,7 +427,7 @@ def _find_insert_position(lines: Sequence[str], *, start: int, end: int) -> tupl
 
 def _is_new_section(line: str) -> bool:
     stripped = line.strip()
-    return stripped.startswith("[") and stripped.endswith("]") and stripped != "[Asserts]"
+    return stripped.startswith("[") and stripped.endswith("]")
 
 
 def _without_trailing_blank_lines(lines: Sequence[str], *, start: int, end: int) -> int:
@@ -361,9 +437,14 @@ def _without_trailing_blank_lines(lines: Sequence[str], *, start: int, end: int)
     return insert_at
 
 
-def _render_gate_lines(gates: Sequence[HurlGateAssertion]) -> list[str]:
-    rendered: list[str] = []
+def _append_gate_lines(
+    output: list[str],
+    gates: Sequence[HurlGateAssertion],
+    line_metadata: list[tuple[int, HurlGateAssertion]],
+) -> None:
+    """Append generated gate metadata/assertions and record assertion line numbers."""
+
     for gate in gates:
-        rendered.append(f"# entroping-gate: {gate.rule_id} enforcement={gate.enforcement}")
-        rendered.append(gate.assertion)
-    return rendered
+        output.append(f"# entroping-gate: {gate.rule_id} enforcement={gate.enforcement}")
+        output.append(gate.assertion)
+        line_metadata.append((len(output), gate))

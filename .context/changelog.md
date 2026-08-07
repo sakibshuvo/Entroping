@@ -1,5 +1,16 @@
 # Entroping Changelog
 
+## 2026-08-07
+
+- Implemented issue #1540's nonblocking QAnstitution enforcement contract:
+  block, warn, and audit_only gates share one temporary Hurl execution copy and
+  one Hurl invocation per attempt. Source and block failures remain blocking;
+  warn/audit_only failures remain visible with enforcement and result fields in
+  JSON, JUnit, and HTML without changing the run exit status. Bounded Hurl 4.3
+  structured evidence is scoped to gated paths, response fingerprints and
+  redaction are preserved, and source Hurl bytes plus normal ungated output stay
+  unchanged.
+
 ## 2026-08-06
 
 - Local/unmerged issue-branch evidence for #1576 now covers exact terminal

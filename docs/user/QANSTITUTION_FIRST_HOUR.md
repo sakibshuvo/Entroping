@@ -78,11 +78,19 @@ Plain meaning:
 - `id` is the stable name shown in reports.
 - `description` is for humans reviewing the policy.
 - `condition: "true"` means this applies to every Hurl response.
-- `gate` is the Hurl assertion Entroping injects into execution copies.
+- `gate` is the Hurl assertion Entroping injects into one temporary execution
+  copy per selected source file; all matching gates run with that source once.
 - `enforcement: "block"` means a failure makes the run fail.
 
 `enforcement: "warn"` still records the result, but it does not fail the run.
 That is useful while introducing a new policy such as `X-Request-Id` headers.
+
+`enforcement: "audit_only"` also executes its Hurl assertion and records the
+result without affecting the run exit code. JSON, JUnit, and HTML reports show
+the rule ID, enforcement level, result, and Hurl exit evidence for all three
+levels. The starter policy above keeps its two reliability rules blocking and
+its request-ID rule warning, so a missing request ID is visible without making
+the first-hour run fail.
 
 ## Safe First Edits
 
