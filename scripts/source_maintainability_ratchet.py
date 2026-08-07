@@ -31,7 +31,7 @@ from scripts.script_safety import (  # noqa: E402
     write_json_file,
 )
 
-REPORT_SCHEMA: Final = "entroping.source-maintainability-ratchet-report.v1"
+REPORT_SCHEMA: Final = "entroping.source-maintainability-ratchet-report.v2"
 TRACKED_BASELINE: Final = PurePosixPath("docs/meta/source-maintainability-ratchet-baseline.json")
 RANKS: Final[tuple[Rank, ...]] = ("A", "B", "C", "D", "E", "F")
 PROTECTED_RANKS: Final[tuple[Rank, ...]] = ("D", "E", "F")
@@ -109,11 +109,24 @@ class MetricFamily(StrictModel):
 class HotspotMetric(StrictModel):
     threshold_lines: PositiveInt
     count: NonNegativeInt
+    files: dict[str, PositiveInt]
 
     @model_validator(mode="after")
-    def validate_threshold(self) -> Self:
+    def validate_hotspots(self) -> Self:
         if self.threshold_lines != 500:
             raise MaintainabilityInputError("source hotspot threshold must remain 500")
+        if self.count != len(self.files):
+            raise MaintainabilityInputError("source hotspot count must match recorded files")
+        for raw_path, lines in self.files.items():
+            relative = _relative_path(raw_path, label="source hotspot path")
+            if relative.suffix != ".py" or not relative.parts or relative.parts[0] != "src":
+                raise MaintainabilityInputError(
+                    f"source hotspot path is outside the allowed scope: {raw_path}"
+                )
+            if lines < self.threshold_lines:
+                raise MaintainabilityInputError(
+                    f"source hotspot line count is below {self.threshold_lines}: {raw_path}"
+                )
         return self
 
 
@@ -139,7 +152,7 @@ class BaselineEvidence(StrictModel):
 
 
 class Baseline(StrictModel):
-    schema_version: Literal["entroping.source-maintainability-ratchet-baseline.v1"]
+    schema_version: Literal["entroping.source-maintainability-ratchet-baseline.v2"]
     revision: PositiveInt
     owner: Annotated[str, Field(strict=True, min_length=1)]
     reviewed_on: ReviewDate
@@ -199,7 +212,7 @@ class RebaseValidation(StrictModel):
 
 
 class RatchetReport(StrictModel):
-    schema_version: Literal["entroping.source-maintainability-ratchet-report.v1"]
+    schema_version: Literal["entroping.source-maintainability-ratchet-report.v2"]
     baseline_revision: PositiveInt
     status: Status
     baseline: Metrics
@@ -596,7 +609,14 @@ def _hotspot_metrics(
         )
         for path, lines in hotspots[:MAX_CONTRIBUTORS]
     )
-    return HotspotMetric(threshold_lines=500, count=len(hotspots)), contributors
+    return (
+        HotspotMetric(
+            threshold_lines=500,
+            count=len(hotspots),
+            files={path.relative_to(root).as_posix(): lines for path, lines in hotspots},
+        ),
+        contributors,
+    )
 
 
 def _current_metrics(
@@ -655,6 +675,16 @@ def _violations(baseline: Metrics, current: Metrics) -> tuple[str, ...]:
             "source_hotspots count increased: "
             f"{baseline.source_hotspots.count} -> {current.source_hotspots.count}"
         )
+    for path, current_lines in sorted(current.source_hotspots.files.items()):
+        baseline_lines = baseline.source_hotspots.files.get(path)
+        if baseline_lines is None:
+            violations.append(
+                f"source_hotspots new file: {path} untracked -> {current_lines} lines"
+            )
+        elif current_lines > baseline_lines:
+            violations.append(
+                f"source_hotspots file grew: {path} {baseline_lines} -> {current_lines} lines"
+            )
     return tuple(violations)
 
 
