@@ -534,6 +534,13 @@ def test_mitmproxy_runtime_rejects_vulnerable_msgpack_version() -> None:
         )
 
 
+def test_installed_mitmproxy_runtime_imports_with_patched_crypto_stack() -> None:
+    runtime = traffic_proxy.load_mitmproxy_runtime()
+
+    assert callable(runtime.options_factory)
+    assert callable(runtime.dump_master_factory)
+
+
 def test_mitmproxy_runtime_rejects_missing_msgpack_package() -> None:
     class OptionsModule:
         @staticmethod
