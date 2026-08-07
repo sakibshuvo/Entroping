@@ -9,6 +9,7 @@ import yaml
 from pydantic import ValidationError
 
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.yaml_safety import YamlSafetyError, load_yaml_bounded
 from entroping.models.qanstitution import (
     GateRule,
     Qanstitution,
@@ -152,8 +153,11 @@ def _read_yaml_mapping(path: Path) -> tuple[dict[str, object], str]:
     try:
         content = path.read_bytes()
         text = content.decode("utf-8")
-        loaded: object = yaml.safe_load(text)
+        loaded = load_yaml_bounded(text)
         source_sha256 = hashlib.sha256(content).hexdigest()
+    except YamlSafetyError as exc:
+        msg = f"Unsafe YAML structure in {path}: {exc}"
+        raise QanstitutionLoadError(msg) from exc
     except yaml.YAMLError as exc:
         msg = f"Invalid YAML in {path}: {exc}"
         raise QanstitutionLoadError(msg) from exc
