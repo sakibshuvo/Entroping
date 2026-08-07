@@ -373,16 +373,6 @@ def render_observability_adapter_readiness_markdown(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_packet_content(
-    packet: ObservabilityAdapterReadinessPacket,
-    *,
-    output: ObservabilityAdapterReadinessOutput,
-) -> str:
-    if output == "json":
-        return json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
-    return render_observability_adapter_readiness_markdown(packet)
-
-
 def _sources() -> tuple[_SourceDefinition, ...]:
     return (
         _SourceDefinition(

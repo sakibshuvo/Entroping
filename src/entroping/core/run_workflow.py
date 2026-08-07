@@ -4,7 +4,7 @@ import json
 import tempfile
 import time
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
@@ -16,6 +16,7 @@ from entroping.bridge.traffic_to_graph import (
     TrafficGraphCompilationError,
     compile_traffic_dependency_graph,
 )
+from entroping.core import run_gate_results as _run_gate_results
 from entroping.core.config_loader import load_qanstitution
 from entroping.core.drift_report import (
     DriftBaselineNotFoundError,
@@ -36,6 +37,7 @@ from entroping.core.hurl_discovery import (
     normalize_operation_id_filters,
 )
 from entroping.core.hurl_runner import (
+    HurlAssertionPolicy,
     HurlAttemptEvidence,
     HurlFileResult,
     HurlRunOptions,
@@ -65,11 +67,15 @@ from entroping.models.drift import DependencyDriftRoute, DriftReport
 from entroping.models.hurl import HurlTest
 from entroping.models.qanstitution import KnownFailure, Qanstitution
 from entroping.models.report import (
+    GateResultEvidence,
     RunAuthEvidence,
     RunReport,
     RunSafetyEvidence,
     build_run_auth_evidence,
 )
+
+_apply_gate_result = _run_gate_results.apply_gate_result
+_gate_results_for_result = _run_gate_results.gate_results_for_result
 
 __all__ = [
     "DependencyDriftObservationError",
@@ -286,6 +292,32 @@ def _prepare_run_execution_context(
     )
 
 
+def _apply_gate_results(
+    suite: HurlSuiteResult,
+    *,
+    execution_copies: Sequence[HurlExecutionCopy],
+) -> tuple[HurlSuiteResult, dict[Path, tuple[GateResultEvidence, ...]]]:
+    """Classify injected gates without issuing a second Hurl request."""
+
+    copies_by_execution_path = {
+        copy.execution_path.expanduser().resolve(): copy for copy in execution_copies
+    }
+    aggregate_results: list[HurlFileResult] = []
+    results_by_source: dict[Path, tuple[GateResultEvidence, ...]] = {}
+    for result in suite.results:
+        copy = copies_by_execution_path.get(result.path.expanduser().resolve())
+        if copy is None:
+            raise RunWorkflowError("Hurl result path does not match an execution copy")
+        if not copy.injected_gates:
+            aggregate_results.append(result)
+            continue
+
+        result, gate_results = _apply_gate_result(copy, result)
+        results_by_source[copy.source_path.expanduser().resolve()] = gate_results
+        aggregate_results.append(result)
+    return replace(suite, results=tuple(aggregate_results)), results_by_source
+
+
 def execute_run_workflow(
     *,
     project_root: Path,
@@ -466,15 +498,37 @@ def execute_run_workflow(
                 variables=env_variables,
                 project_root=root,
             )
+            options = HurlRunOptions(
+                timeout_ms=law.settings.timeout,
+                retry=law.settings.retry,
+                variables=env_variables,
+                capture_assertions=any(copy.injected_gates for copy in execution_copies),
+                assertion_policies={
+                    copy.execution_path.expanduser().resolve(): tuple(
+                        HurlAssertionPolicy(
+                            line=line,
+                            blocking=gate.enforcement == "block",
+                        )
+                        for line, gate in copy.injected_gate_lines
+                    )
+                    for copy in execution_copies
+                    if copy.injected_gates
+                },
+                response_capture_names={
+                    copy.execution_path.expanduser().resolve(): copy.response_capture_names
+                    for copy in execution_copies
+                    if copy.injected_gates
+                },
+            )
             suite = run_hurl_files(
                 [execution.execution_path for execution in execution_copies],
-                HurlRunOptions(
-                    timeout_ms=law.settings.timeout,
-                    retry=law.settings.retry,
-                    variables=env_variables,
-                ),
+                options,
                 max_workers=hurl_workers,
                 fail_fast=fail_fast,
+            )
+            suite, gate_results_by_source_path = _apply_gate_results(
+                suite,
+                execution_copies=execution_copies,
             )
             run_report = build_run_report(
                 project=law.project,
@@ -483,6 +537,7 @@ def execute_run_workflow(
                 suite=suite,
                 project_root=root,
                 safety_evidence_by_source_path=safety.evidence_by_path,
+                gate_results_by_source_path=gate_results_by_source_path,
             )
             for test in run_report.tests:
                 event_log.record_test_result(

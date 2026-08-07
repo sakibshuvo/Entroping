@@ -141,9 +141,14 @@ An API lacks reliable tests or complete specs.
 entroping watch --port 8080 --target http://localhost:3000
 entroping report redaction --output md
 entroping freeze --name checkout_flow --golden --include-host api.example.test --exclude-path "/assets/*"
-entroping run --env local --tag regression --report html
+entroping run --env local --tag-expression "traffic and freeze" --ci --report html
 entroping map --export mermaid --include-host api.example.test
 ```
+
+The `freeze` command writes generated Hurl with `traffic,freeze` metadata. The
+boolean selector requires both generated tags, and `--ci` makes zero selected
+tests fail instead of allowing an interactive local no-match run to look
+successful.
 
 ### Success Criteria
 
@@ -310,19 +315,43 @@ An SRE or platform team wants minimal confidence after deploy.
 
 ### Steps
 
-1. Maintain a small `smoke` tag suite.
-2. Use prod-safe variables.
-3. Run with CI mode.
-4. Block dangerous operations through policy.
+1. Maintain a small smoke suite in `suites/prod-smoke.yaml`.
+2. Set `env: prod-smoke`, `protected: true`, and `safety: read-only` in that
+   suite; keep only smoke-tagged, read-only Hurl paths in its `paths` list.
+3. Provide required Hurl variables, including `base_url`, in the
+   deployment-managed `envs/prod-smoke.env`; do not commit credentials.
+4. Run the named suite with CI mode.
+5. Block dangerous operations through policy before Hurl starts.
+
+The minimum suite policy is explicit and reviewable:
+
+```yaml
+# suites/prod-smoke.yaml
+version: entroping.suite.v1
+name: prod-smoke
+env: prod-smoke
+tags:
+  - smoke
+paths:
+  - tests/smoke/**/*.hurl
+protected: true
+safety: read-only
+reports:
+  - junit
+  - json
+```
 
 ### Command
 
 ```bash
-entroping run --env prod-smoke --tag smoke --ci --report junit
+entroping run --suite prod-smoke --ci
 ```
 
 ### Success Criteria
 
 - Suite is fast.
 - Suite is safe.
+- At least one smoke test is selected; CI fails when no tests match.
+- The run report records `protected_environment: true`.
+- Destructive or mutating fixtures are blocked before Hurl starts.
 - Failure points to a specific endpoint or gate.

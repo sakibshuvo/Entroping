@@ -23,10 +23,69 @@ from cli_test_support import (
     subprocess,
 )
 
+from entroping.core.hurl_runner import HurlAssertionEvidence
 from entroping.core.rerun_failures import RerunFailuresError
 from entroping.core.run_event_log import RunEventLogError
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _write_fake_hurl_report(
+    stdout: BinaryIO,
+    args: list[str],
+    *,
+    success: bool,
+) -> None:
+    """Provide bounded structured assertion evidence for fake Hurl calls."""
+
+    execution_path = Path(args[-1]).resolve()
+    lines = execution_path.read_text(encoding="utf-8").splitlines()
+    asserts = [
+        {"line": index + 2, "success": success}
+        for index, line in enumerate(lines)
+        if line.startswith("# entroping-gate:")
+    ]
+    capture_name = next(
+        line.split(":", maxsplit=1)[0]
+        for line in lines
+        if line.startswith("__entroping_response_body_") and line.endswith(": bytes")
+    )
+    stdout.write(
+        json.dumps(
+            {
+                "filename": str(execution_path),
+                "success": success,
+                "entries": [
+                    {
+                        "asserts": asserts,
+                        "calls": [
+                            {
+                                "response": {
+                                    "status": 200,
+                                    "headers": [
+                                        {"name": "Content-Type", "value": "application/json"},
+                                    ],
+                                },
+                            },
+                        ],
+                        "captures": [{"name": capture_name, "value": "e30="}],
+                    },
+                ],
+            },
+        ).encode("utf-8"),
+    )
+
+
+def _fake_assertion_evidence(
+    path: Path,
+    *,
+    success: bool,
+) -> tuple[HurlAssertionEvidence, ...]:
+    return tuple(
+        HurlAssertionEvidence(line=index + 2, success=success)
+        for index, line in enumerate(path.read_text(encoding="utf-8").splitlines())
+        if line.startswith("# entroping-gate:")
+    )
 
 
 def _read_run_events() -> list[dict[str, object]]:
@@ -69,8 +128,9 @@ def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
         executed_paths.append(executed_path)
         assert executed_path != source.resolve()
         assert ".entroping" in executed_path.parts
-        assert "duration < 2000" in executed_path.read_text(encoding="utf-8")
-        stdout.write(b"ok\n")
+        content = executed_path.read_text(encoding="utf-8")
+        assert "# entroping-gate:" in content
+        _write_fake_hurl_report(stdout, args, success=True)
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     def fail_provider(self: object, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
@@ -85,7 +145,7 @@ def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
 
     assert result.exit_code == 0
     assert "Hurl run: 1 passed, 0 failed" in result.output
-    assert executed_paths
+    assert len(executed_paths) == 1
     assert not executed_paths[0].exists()
     assert not list(Path(".entroping").glob("run-*"))
     assert "# entroping-gate:" not in source.read_text(encoding="utf-8")
@@ -116,6 +176,7 @@ def test_run_returns_non_zero_when_hurl_execution_fails(
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, timeout, check, shell)
         stderr.write(b"Authorization: Bearer live-secret\nassert failed\n")
+        _write_fake_hurl_report(stdout, args, success=False)
         return subprocess.CompletedProcess(args=args, returncode=1)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -201,7 +262,7 @@ def test_run_writes_json_junit_reports_and_latest_state(
         assert variables_file.read_text(encoding="utf-8") == (
             "base_url=http://localhost:18080\ncart_id=demo-cart-001\n"
         )
-        stdout.write(b"Authorization: Bearer live-secret\nbase_url=http://localhost:18080\n")
+        _write_fake_hurl_report(stdout, args, success=True)
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -281,7 +342,7 @@ def test_run_writes_sanitized_execution_event_log(
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (args, stderr, timeout, check, env, shell)
-        stdout.write(b"Authorization: Bearer live-secret\nbase_url=http://localhost:18080\n")
+        _write_fake_hurl_report(stdout, args, success=True)
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -352,6 +413,7 @@ def test_run_report_drift_writes_missing_baseline_artifact(
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, timeout, check, shell)
+        _write_fake_hurl_report(stdout, args, success=True)
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -377,6 +439,11 @@ def test_run_report_drift_writes_missing_baseline_artifact(
         "exit_code": 0,
         "path": "tests/health.hurl",
         "rule_ids": ["no_server_errors", "global_latency", "request_id_header"],
+        "response": {
+            "body_shape": ["$:object"],
+            "headers": {"content-type": "application/json"},
+            "status_code": 200,
+        },
         "status": "passed",
     }
     assert not (Path(".entroping") / "drift-baseline.json").exists()
@@ -424,6 +491,7 @@ def test_run_drift_check_fails_when_current_run_differs_from_baseline(
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, timeout, check, shell)
+        _write_fake_hurl_report(stdout, args, success=True)
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -487,6 +555,7 @@ def test_run_parallel_uses_qanstitution_worker_limit(
                     stdout_truncated=False,
                     stderr_truncated=False,
                     duration_ms=1,
+                    assertion_evidence=_fake_assertion_evidence(path, success=True),
                 )
                 for path in paths
             )
@@ -538,9 +607,11 @@ def test_run_fail_fast_stops_after_first_failure_and_reports_not_scheduled(
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, timeout, check, env, shell)
         hurl_file_name = Path(args[-1]).name
+        return_code = 1 if hurl_file_name.startswith("second-") else 0
+        _write_fake_hurl_report(stdout, args, success=return_code == 0)
         return subprocess.CompletedProcess(
             args=args,
-            returncode=1 if hurl_file_name.startswith("second-") else 0,
+            returncode=return_code,
         )
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -604,6 +675,7 @@ def test_run_selects_by_tag_expression_and_prints_selection_counts(
                     stdout_truncated=False,
                     stderr_truncated=False,
                     duration_ms=1,
+                    assertion_evidence=_fake_assertion_evidence(path, success=True),
                 )
                 for path in paths
             )
@@ -651,6 +723,7 @@ def test_run_tag_expression_prints_zero_skipped_selection_counts(
                     stdout_truncated=False,
                     stderr_truncated=False,
                     duration_ms=1,
+                    assertion_evidence=_fake_assertion_evidence(path, success=True),
                 )
                 for path in paths
             )
@@ -1296,6 +1369,129 @@ reports:
     assert "staging.example.test" not in json.dumps(report)
 
 
+def test_documented_prod_smoke_suite_blocks_destructive_fixture_before_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    Path("suites").mkdir(exist_ok=True)
+    Path("suites/prod-smoke.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: prod-smoke
+env: prod-smoke
+tags:
+  - smoke
+paths:
+  - tests/*.hurl
+protected: true
+safety: read-only
+reports:
+  - json
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("envs/prod-smoke.env").write_text(
+        "base_url=http://production.example.test\n",
+        encoding="utf-8",
+    )
+    Path("tests/destroy.hurl").write_text(
+        "# entroping: tags=smoke\n# entroping: safety=destructive\n\n"
+        "DELETE {{base_url}}/accounts/123\nHTTP 204\n",
+        encoding="utf-8",
+    )
+
+    def fail_hurl(*args: object, **kwargs: object) -> object:
+        _ = (args, kwargs)
+        raise AssertionError("production smoke safety must run before Hurl")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fail_hurl)
+
+    result = runner.invoke(app, ["run", "--suite", "prod-smoke", "--ci"])
+
+    assert result.exit_code == 1
+    report = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    safety = report["tests"][0]["safety"]
+    assert report["environment"] == "prod-smoke"
+    assert report["tests"][0]["status"] == "blocked"
+    assert safety["protected_environment"] is True
+    assert safety["safety"] == "destructive"
+    assert safety["blocked_reason"] == "destructive tests are blocked in protected environments"
+    assert "production.example.test" not in json.dumps(report)
+
+
+def test_documented_frozen_traffic_command_selects_and_runs_generated_tags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    Path("envs/local.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    generated = Path("tests/generated/checkout_flow.hurl")
+    generated.parent.mkdir(parents=True)
+    generated.write_text(
+        "# entroping: tags=traffic,freeze\n"
+        "# entroping: source=traffic\n"
+        "# entroping: session=checkout_flow\n\n"
+        "GET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    executed_args: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        executed_args.append(args)
+        _write_fake_hurl_report(stdout, args, success=True)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--env",
+            "local",
+            "--tag-expression",
+            "traffic and freeze",
+            "--ci",
+            "--report",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Hurl selection: 1 selected, 0 skipped by tag expression" in result.output
+    assert "Hurl run: 1 passed, 0 failed" in result.output
+    assert len(executed_args) == 1
+    selected_event = next(
+        event for event in _read_run_events() if event["event"] == "test_selected"
+    )
+    selected_tags = selected_event["tags"]
+    assert isinstance(selected_tags, list)
+    assert set(selected_tags) == {"freeze", "traffic"}
+    completed_event = _read_run_events()[-1]
+    assert completed_event["status"] == "passed"
+    assert completed_event["total"] == 1
+
+
 def test_run_loads_named_suite_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1483,8 +1679,9 @@ def test_run_rerun_failures_executes_failed_paths_from_latest_report(
         executed_path = Path(args[-1])
         executed_paths.append(executed_path)
         assert executed_path != source.resolve()
-        assert "duration < 2000" in executed_path.read_text(encoding="utf-8")
-        stdout.write(b'HTTP 200\n\n{"ok": true}\n')
+        content = executed_path.read_text(encoding="utf-8")
+        assert "# entroping-gate:" in content
+        _write_fake_hurl_report(stdout, args, success=True)
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")

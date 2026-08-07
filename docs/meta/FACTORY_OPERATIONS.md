@@ -13,17 +13,108 @@ tags:
 
 ## Current Safety State
 
-This runbook defines the future local macOS scheduler contract. The tracked
-template is inactive by default and must not be bootstrapped yet. Activation is
-blocked until all of these repository-owned dependencies exist:
-
-- the `factoryctl tick` scheduler surface, lease, and duplicate-tick guard
-  tracked by issue #1569;
-- the read-only `factoryctl status` diagnostics tracked by issue #1572;
-- bounded artifact and stream-log retention implemented by issue #1562.
+This runbook defines the current maintainer-local macOS scheduler contract. The
+tracked template is inactive by default and must not be bootstrapped yet. Issue
+#1569 supplies the
+`uv run python scripts/factoryctl.py tick` lease and duplicate-tick guard, issue
+#1562 supplies bounded artifact and stream-log retention, and issue #1571 is merged
+via PR #1597 at commit `b78c551a`. Issue #1572's status projection is done.
+Activation remains blocked pending a later explicit launchd enablement decision.
+Issue #1576 has focused local issue-branch evidence but still awaits full release
+gates, GitHub review/merge, and does not activate the controller. Issue #1574 is
+merged, while #1575 now
+has bounded offline proposal-controller evidence only; it is not
+live-selection, provider, or launchd evidence. Issue #1571 supplies recovery
+authority, including crash/outage recovery, and the plan/apply command; it does
+not wire `ai_jobs`, select queue work, or perform automatic restart
+orchestration.
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
+
+## Maintainer Delivery Controller
+
+`factoryctl deliver` is a maintainer-only adapter, not a product `entroping`
+CLI command, provider dispatcher, or public/user command. Supply only the
+owner-only request artifact:
+
+```text
+uv run python scripts/factoryctl.py deliver --request <owner-only-delivery-request.json> --json
+```
+
+It reads and validates by default; `--apply` is the explicit mutation boundary.
+The caller cannot supply repository, issue, branch, base, title, commands,
+snapshots, provider, CI, merge, force, admin, SSH, credential, or cleanup
+authority. Durable private SQLite intent and evidence are recorded before each
+effect. A completed terminal receipt replays exactly across fresh processes
+without repeating proven effects; invalid or uncertain state stops for
+reconciliation.
+
+Apply binds the exact local diff, pushed head, PR, CI rollup, and merge head.
+Before merge it re-fetches final fresh issue eligibility and requires the exact
+PR body, base, head, and CI rollup; merge is allowed only under the expected
+head. After merge it requires exact merged-head and closure proof. If a mutation
+response is lost, it advances only from exact live or local evidence; otherwise
+it marks the state uncertain and does not repeat proven earlier effects. Strict
+finish cleanup is identity-bound and partial-replay safe; remote deletion
+uses an expected-value lease for the authorized head and persists an absence
+proof. Scheduler completion follows cleanup with persisted owner, epoch, and
+phase-version plus one stored timestamp. A completion accepted after cleanup
+remains valid after lease expiry without extending the heartbeat or lease.
+
+Exit `0` means completed, `1` means safe pending, blocked, or failed, and `2`
+means invalid, unsafe, or uncertain. Outputs are deterministic, bounded, and
+value-free. The launchd template remains disabled; activation needs a separate
+explicit decision. This controller grants no provider dispatch, broad automation
+authority, or new product CLI surface.
+
+## Maintainer Status Projection
+
+`status` is a maintainer-only `scripts/factoryctl.py` command. It does not add
+or change the product `entroping` CLI surface:
+
+```text
+uv run python scripts/factoryctl.py status
+uv run python scripts/factoryctl.py status --json
+```
+
+The default view is a bounded human summary. `--json` emits the strict
+`entroping.factory-status.v1` projection. Exit codes are ordered by safety:
+`0` means `healthy`, `1` means `paused`, and `2` means `unsafe`; callers must
+not treat a nonzero result as a dispatch decision.
+
+The projection observes only trusted local policy and registry files, existing
+budget and scheduler SQLite state, and bounded queue/retention metadata. It
+uses one bounded read-only `/usr/bin/git rev-parse` subprocess with fixed
+arguments, a minimal environment, a five-second timeout, and a 4 KiB output
+ceiling solely to resolve shared-worktree authority. Beyond that exception, it
+does not call providers or the network; invoke tests, gates, or workers; read
+raw queue or artifact payloads; create directories or locks; mutate state;
+migrate databases; recover work; or authorize spending/dispatch. SQLite
+candidates are opened no-follow through validated descriptors; SQLite reads use
+immutable descriptor aliases, hot sidecars are rejected, and alias or pathname
+instability fails unsafe without falling back to a replaced pathname. Queue and
+retention walks are metadata-only and bounded; ambiguous paths or snapshots
+fail closed without reading or rendering raw artifact contents or untrusted
+identifiers.
+
+Each store is read in its own explicit read-only transaction at one observation
+timestamp, then collected a second time. `snapshot_consistency: stable` means
+the bounded fingerprints agreed; `changed` is unsafe and `unavailable` means a
+safe projection could not be established. This is not global transactional
+atomicity across stores. Use launchd state and factory status together: launchd
+describes process/service state, while status describes the local factory
+projection, and neither is sufficient alone.
+
+Interpret `paused` as a stop or incomplete-authority signal, not permission to
+work. Threshold reasons expose persisted 80% (stop experiments) and 90%
+(subscription/included-quota only) boundaries; 100% is a prospective paid
+dispatch backstop. Because the policy requires a positive reserve, no valid
+persisted authority can reach the raw cap. `unsafe` or an
+`*_authority-uncertain`, stale, changed, or malformed reason requires stopping
+operator changes and preserving evidence; use the recovery procedure rather
+than editing state by hand. Reason codes are value-free diagnostics, never
+authorization tokens.
 
 ## Provider Capability Registry
 
@@ -64,8 +155,32 @@ paid scheduling.
 
 The current factory metrics `provider` and `model` fields are legacy labels,
 not canonical registry or cost-policy join keys. Do not combine them by string
-shape. Issue #1573 owns evidence-bound migration to explicit lane, invocation,
-and cost identities.
+shape. The dedicated #1573 provider-scorecard evidence contract instead binds
+exact lane, host, billing path, model, autonomy tier, registry-derived nullable
+cost-provider/model identity, job/reservation, commit, diff, review,
+verification, CI, merge, and later-outcome identities. It is
+read-only maintainer evidence under `.entroping/factory-metrics/`; it does not
+spend, dispatch, merge, route, or auto-promote. Run
+`scripts/factory_metrics.py provider-scorecard validate --input <ignored-json>`
+and then `provider-scorecard report --as-of <timezone-aware-ISO-8601> --format json`.
+The final unmerged v1 envelope is accepted only after a trusted maintainer signs
+canonical unsigned JSON with the dedicated
+`ENTROPING_FACTORY_SCORECARD_EVIDENCE_HMAC_KEY_V1` key; this local attestation
+does not prove an external provider outcome. Reads open the complete parent tree
+without following symlinks, authorize owner and mode on the same file descriptor
+that supplies the bounded bytes, and fail closed if descriptor/path identity or
+authorization changes before the read completes. Replayed work
+(issue/base/head/diff), reservation, CI run, merged PR, job/correlation, or any
+receipt/cost digest is rejected globally, including cross-kind reuse. Cohorts include task,
+provider lane, exact model, autonomy tier, and verification lane. Recency is
+per case's `observed_at` (the exact 90-day boundary is fresh); later outcomes
+never refresh work, but regressions, reverts, and inconclusive outcomes still
+block confidence. A metered numeric cost needs its reservation and
+identity-bound cost receipt; non-metered evidence forbids `cost_usd`, while
+unknown cost remains allowed. Manual eligibility needs at least three fresh
+accepted samples, a fresh ratio of at least 0.80, terminal passing
+quality/security for every case, and no regression, revert, or unresolved later
+outcome. Cost is secondary evidence only and never authorizes promotion.
 
 ## Autonomous Control-Plane Protection
 
@@ -95,6 +210,306 @@ For a policy change, use a Tier C issue worktree, update the canonical policy,
 tests, CODEOWNERS if ownership changes, ADR/decision registry when authority
 changes, and run the `release-ci-architecture` verification lane. CODEOWNERS is
 an ownership map, not proof that branch protection requires an approval.
+
+## Live Issue Selection
+
+`scripts/factory_issue_selector.py` is a read-only planning adapter. It selects
+at most one GitHub issue and always emits `paid_work_authorized: false`; it does
+not create jobs, acquire leases, invoke providers, edit issues, or dispatch
+workers. Its validated candidate can cross into the scheduler boundary
+implemented by issue #1569, but selection alone grants no lease or dispatch
+authority.
+
+Run it only after supplying a complete snapshot of external leases:
+
+```text
+uv run python scripts/factory_issue_selector.py \
+  --active-state-complete \
+  --autonomy-ceiling tier-a
+```
+
+Repeat `--active-issue` and `--active-file` for every externally held lease.
+Omitting `--active-state-complete` intentionally returns a blocked result.
+The adapter also reads local queued/running jobs and issue-scoped worktrees,
+then combines those with open-PR ownership and supplied leases before checking
+file-scope overlap.
+
+The command owns its current UTC freshness clock; callers cannot replay an old
+cache by supplying a historical time. Unmerged local branches without a
+worktree must contain an `issue-<number>` segment, otherwise branch ownership is
+ambiguous and selection blocks. Worktree paths follow the existing
+`Entroping-issue-<number>` convention. Human-authored PRs require a GitHub
+closing-issue association; bot-authored dependency PRs may instead contribute
+their complete changed-file scopes. Queued and running jobs contribute their
+immutable submitted `files` receipt, not only mutable current issue metadata.
+
+Eligibility requires one maintainer-owned type, priority, ready-status, and
+autonomy label; a milestone; every required issue section; one declared
+verification lane; no assignee or active owner; resolved dependencies; and an
+explicit machine-readable file scope. Declare scopes as bullets under
+`## Allowed files` or as `allowed_files` in a YAML issue packet. The selector
+accepts exact paths, recursive `directory/**` scopes, and final-component file
+families such as `scripts/factory_issue_selector*.py`. Existing symlink aliases
+are unsafe, and overlap comparison is case-insensitive for portable safety on
+case-preserving filesystems. The selector does not infer scope from titles,
+area labels, or prose.
+
+GitHub issue and pull-request state is refreshed through bounded GitHub CLI
+subprocesses (`gh api` and `gh pr list`) and cached for at most 300 seconds at
+`.entroping/factory-selector/github-snapshot.v1.json`. The cache contains only
+parsed allowlisted fields, uses owner-only permissions, and never stores issue
+bodies, comments, raw user evidence, provider output, or credentials. Stale,
+future-dated, incomplete, malformed, rate-limited, unsafe, or failed refresh
+state cannot select or authorize work. A failed refresh never falls back to a
+stale cache.
+
+Selection is deterministic for the same complete snapshot: P0 issues first,
+then verified user blockers, then verified P1 issues, then ordinary eligible
+work; ties use priority and ascending issue number. Every rejected issue emits
+a stable reason code so operators can repair metadata instead of guessing.
+
+## Scheduler Lease and Assignment Authority
+
+`scripts/factoryctl.py tick` is a maintainer control-plane surface. It plans by
+default and does not create `.entroping/` state, dispatch a provider, mutate a
+queue job, or authorize paid work. Inspect its complete input contract with:
+
+```text
+uv run python scripts/factoryctl.py tick --help
+```
+
+`--apply` requires a complete validated candidate and `--owner-id`. The
+scheduler derives the current PID/start identity, then serializes lease
+acquisition, capacity checks, clock advancement, and assignment insert in its
+private SQLite transaction before emitting a bounded value-free receipt. The
+shared authority lives under the Git common root at
+`.entroping/factory-scheduler/scheduler.sqlite3`, so sibling issue worktrees do
+not acquire independent concurrency slots.
+
+The initial ceiling is one paid assignment globally, one optional free/local
+read-only review globally, and one writer per issue/worktree scope. Paid apply
+also requires a matching `dispatching` reservation from the authoritative
+budget ledger. The scheduler acquires the budget ledger writer guard first and
+keeps it held through the scheduler transaction commit. The guard uses an empty
+`BEGIN IMMEDIATE` transaction that rolls back after the scheduler decision, so
+the two database files are not presented as one cross-store transaction and no
+financial state is mutated by the handoff. This prevents another ledger writer
+from invalidating the checked reservation during assignment. An assignment
+receipt still reports
+`paid_work_authorized: false`: the scheduler never launches a provider, and a
+later dispatch adapter must revalidate budget and provider authority.
+
+Lease expiry alone never transfers authority. A different owner can advance
+the epoch only after the previous process identity is proven dead. A healthy or
+unknown owner blocks takeover. An expired dead owner with active work returns
+`recovery-required`; use the recovery workflow below instead of editing or
+deleting scheduler rows.
+
+### Tier A worktree orchestration
+
+Delivery authority is minted only by scheduler admission, never by a saved
+selector report or caller-supplied digest/scope fields. A complete free-local
+write candidate uses `factoryctl tick --select-live`; the scheduler fetches a
+fresh GitHub snapshot without selector-cache I/O, recomputes complete local and
+active-scheduler ownership, and derives the Tier A static-doc lane and scopes.
+Apply re-runs the same selection under the scheduler transaction before
+inserting the assignment and envelope; plan mode writes no scheduler or cache
+state. The selector digest binds the AST-derived transitive internal-import
+closure from fixed authority roots at canonical main for selection, GitHub
+freshness/decoding, active state, protected scope, and scheduler admission.
+Existing parent package initializers and their recursive imports participate;
+fixed path, module-load, source-byte, AST-node, and import-depth ceilings fail
+closed. The
+selection digest binds the full canonical
+selection result including snapshot metadata. Generic `tick` rejects injected
+delivery envelopes, and this lane never admits paid candidates.
+
+The live lane resolves `gh` once from fixed trusted system/Homebrew locations,
+uses absolute `/usr/bin/git` for canonical local queries, and supplies a minimal
+child environment; a PATH-shadowed tool cannot participate and missing trusted
+`gh` blocks selection. Minting also requires a clean canonical-main checkout
+and loaded policy-closure modules whose bytes match the pinned main commit.
+Inside the assignment transaction, occupied issue numbers and exact scopes are
+read from every active writer's persisted delivery envelope, not reconstructed
+from mutable issue text. Missing or malformed writer authority blocks as
+incomplete. `tick_selected_delivery` is the sole public admission entrypoint
+and fetches fresh state internally. Direct generic scheduler, state, and
+transaction APIs expose no admission parameter and reject free-local writes;
+paid writes retain their reservation or authorization authority path.
+
+```text
+uv run python scripts/factoryctl.py tick --select-live --request-id <id> \
+  --job-id <id> --issue <n> --worktree-id <wt_id> \
+  --worker-class free-local --access-mode write --json
+```
+
+`factoryctl orchestrate` is a maintainer-only bridge from an already completed
+worker proposal to deterministic local verification of static documentation.
+Until an OS/container isolation boundary exists, Tier A apply accepts only
+regular Markdown under `docs/product/` or `docs/user/` and only the
+`tiny-docs` or `docs-guardrail` lane. Source, tests, scripts, configuration,
+workflows, machine-consumed control documents, and every protected path require
+Tier B/C review or manual isolated execution. It plans by default:
+
+```text
+uv run python scripts/factoryctl.py orchestrate --request <owner-only-request.json> --json
+```
+
+Review the value-free plan before adding `--apply`. The request must name the
+current scheduler assignment, owner id/PID/process-start token/epoch, exact
+active lease, `completed-unsettled` execution, and proposal digest. The
+scheduler assignment must persist the matching delivery-authority envelope:
+selector and selection digests, tier, lane, scopes, and scope digest. The
+request also binds the canonical issue worktree path/id, common Git directory,
+non-main branch, base commit, sorted allowed scopes, and verification lane. Both request
+and proposal must be regular owner-only files; changed bytes fail closed.
+
+Apply creates a missing worktree only through the exact
+`scripts/start_issue.sh <issue> <branch> --base-commit <commit>` contract. An existing worktree is
+never repaired: it must be the sole matching registered checkout, clean, on
+the exact branch/base/common directory, and free of active Git operations.
+Protected or out-of-scope paths, binary/symlink/gitlink/mode/rename patch
+shapes, stale authority, and proposal drift are rejected before mutation. The
+exact bytes pass `git apply --check` and `git apply`; only the exact static-doc
+gate allowlist derived from the validated target worktree runs. There is no
+architecture-test or caller-supplied command fallback. Cancellation and normal
+leader exit both clean the bounded gate process group.
+
+Receipts contain public identities, hashes, path counts, gate command ids, raw-output
+digests, timestamps, and normalized exit/signal states, never proposal or gate
+output values, scheduler PID, or process-start token. The separate private journal supports exact terminal replay.
+If apply, gate, scheduler authority, worktree integrity, or main-checkout truth
+is ambiguous, lifecycle becomes `uncertain`; preserve the journal and worktree,
+disable further orchestration, and reconcile evidence manually. Do not delete
+or edit rows. Acceptance deliberately leaves the scheduler execution
+`completed-unsettled`; a later trusted settlement/completion step owns that
+transition and all PR/CI/merge authority. Git identity protects tracked and
+relevant untracked checkout state; ignored `.entroping/` control state is
+validated by its own scheduler/journal storage contracts, not claimed as Git bytes.
+
+### Offline proposal-controller pilot (#1575)
+
+The #1575 proof is an offline validation harness, not one live
+provider-running controller. It intentionally keeps the scheduler and provider
+boundaries separate through an injected provider-dispatch port: accepted paths
+use a counted fake worker without invoking that port, while one negative-control
+scenario traverses it once to prove that `no-provider` is derived from
+observation. It does not select live GitHub
+work, read provider configuration, invoke a provider, or apply orchestration.
+
+Repeat this bounded local soak with a fresh ignored receipt directory:
+
+```text
+evidence_parent="$PWD/.omo/evidence" && test ! -L "$PWD/.omo" && test ! -L "$evidence_parent" &&
+mkdir -p "$evidence_parent" && test ! -L "$PWD/.omo" && test ! -L "$evidence_parent" &&
+run_dir="$(mktemp -d "$evidence_parent/issue-1575-offline-soak.XXXXXX")" &&
+ENTROPING_PROPOSAL_RECEIPTS_DIR="$run_dir/receipts" uv run --offline pytest -o addopts='' tests/test_factory_proposal_controller_e2e.py tests/test_factory_proposal_controller_round3.py -q
+```
+
+Do not add `--select-live` or `--apply` to this command. The included
+`offline-soak` scenario requests exactly three iterations and rejects every
+request above its accepted maximum of four. Each composed scenario runs in a
+fresh child whose deny boundary installs before production imports and rejects
+cached network, subprocess, and OS-spawn aliases. Separately, each scenario
+compares a bounded read-only source/Git manifest, including relevant untracked
+bytes and metadata, before and after execution. The
+setup rejects symlinked `.omo` or `.omo/evidence` parents before creating the
+ignored evidence root, and `uv run --offline` prevents dependency resolution
+over the network before those test boundaries activate.
+
+The final 2026-08-03 pilot produced 32 strict schema-version-1 receipts in the
+20-test suite: CLI status/plan/recovery, free and paid assignment,
+replay and overlapping ticks/settlement, restart boundaries, authority,
+cash/quota and uncertain settlement, retention/path escapes, and the bounded
+soak, plus startup-boundary and repeated/concurrent determinism probes. Each
+labeled receipt snapshots its own observation boundary. Receipt output uses
+descriptor-relative, no-follow ancestor traversal, and the strict contract
+forbids extras, coercion, malformed digests, unbounded counts/durations, and
+payload/encoding drift. The receipt contract passed: all scenarios carried `offline` and
+`no-source-mutation`; `no-worker` and `no-provider` matched their observed
+counts. Thirty-one receipts recorded zero provider-boundary calls and one
+simulated negative control recorded one; 25 recorded zero fake-worker calls
+and seven accepted-path receipts recorded one. Repeated and concurrent runs
+matched scenario outcomes, counts, changed categories, totals, and invariants;
+artifact paths and generated-identifier-derived state digests are allowed to
+vary. This is harness evidence, never a live
+provider call claim.
+
+On the local pilot host, the final stronger 20-test pilot completed in 9.37
+seconds. This is local telemetry, not a pass/fail threshold or a production
+performance promise. The source manifest remained unchanged during every
+scenario.
+
+Remaining enablement blockers are explicit: the offline soak excludes live
+GitHub selection, and #1576 still owns PR, CI, merge-control, and cleanup
+evidence. The launchd template remains disabled; this pilot does not authorize
+bootstrap, provider dispatch, or autonomous delivery.
+
+### Scheduler recovery
+
+Scheduler schema v4 keeps one mutable, versioned execution row beside each
+immutable assignment. Its phases distinguish `never-dispatched`,
+`dispatch-intent`, `dispatched`, `completed-unsettled`, `retry-wait`,
+`uncertain`, `completed`, and `failed`. Worker heartbeat and recovery authority
+move with the current PID/start-token and epoch, so an old process cannot
+heartbeat, complete, or change execution state after recovery fences it.
+Each execution also retains its own expiry, allowing sibling assignments from
+one crashed coordinator to be recovered separately without granting ambiguous
+work to the replacement process.
+
+Inspect the complete recovery contract before an incident:
+
+```text
+uv run python scripts/factoryctl.py recover --help
+```
+
+Recovery is plan-only unless `--apply` and a new `--owner-id` are present. The
+command requires the immutable assignment id, expected epoch, dispatch and
+settlement observations, a bounded failure classification, and caller-declared
+snapshot metadata. Repeat `--snapshot` as
+`SOURCE,OBSERVED,EXPIRES,DIGEST`; free/local retry reconsideration requires
+GitHub and provider-capability entries, while paid reconsideration also
+requires price and quota entries. The scheduler validates only their closed
+shape, time window, source uniqueness, and bounds. It does not fetch,
+authenticate, or resolve these digests against GitHub, provider, price, or
+quota authorities. Snapshot bodies, provider output, prices, balances, and
+credentials never enter the scheduler receipt.
+
+Use this incident order:
+
+1. Disable future scheduling and preserve the assignment, queue, worker, and
+   ledger evidence. Do not delete a lease or reservation.
+2. Confirm lease expiry and prove the recorded process identity is dead. A
+   healthy or unknown process must remain blocked.
+3. For paid work that may have crossed the provider boundary, make the budget
+   or quota ledger authoritative first. Missing, active, or conflicting ledger
+   state blocks an `uncertain` or `settled` scheduler transition; never infer
+   zero cost or release a hold from scheduler evidence.
+4. Run the exact recovery command without `--apply`. Review its value-free
+   projected phase, reason, attempt count, retry deadline, and epoch.
+5. Re-run that exact request with `--apply --owner-id <logical-owner>`. Reusing
+   the same request id, logical owner, metadata, and retry policy replays the
+   immutable receipt even from a replacement CLI process. Replay returns only
+   the prior value-free decision: it does not transfer the stored PID/start
+   execution authority to that replacement process. Changed metadata or intent
+   requires a new request id.
+6. Treat `uncertain` as capacity-consuming until explicit financial
+   reconciliation. `resumed` means only that the execution returned to
+   `never-dispatched` for later reconsideration; it does not prove external
+   freshness or launch a provider. The #1574 static-document orchestrator does
+   not dispatch providers; #1575 has completed bounded offline
+   proposal-controller evidence only, not live-selection, provider, or launchd
+   authorization. #1576 has focused local issue-branch evidence but still awaits
+   full release gates and GitHub review/merge; it does not activate the
+   controller.
+
+Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
+deadlines use deterministic jitter, honor bounded provider hints, and never
+sleep inside the command. Stale GitHub, provider, price, or quota evidence
+keeps work in `retry-wait`; retry-count or elapsed-time exhaustion durably
+terminalizes it as `failed`. These timestamps and digests are caller-declared
+metadata, not external authority. Ambiguous dispatch never reopens capacity, never
+releases financial holds, and always emits `paid_work_authorized: false`.
 
 ## OpenCode Usage Receipts
 
@@ -132,6 +547,51 @@ every `unaccounted` receipt as ineligible. An `accounted` receipt supplies usage
 evidence only and does not itself authorize spending, patch application, or
 merge.
 
+## Unattended OpenCode Isolation
+
+Before enabling a real OpenCode queue route, check the installed executable
+without making a provider call:
+
+```text
+uv run python scripts/opencode_readiness.py --mode verification --format json
+```
+
+The `opencode_unattended_capability` check runs version, help, and resolved
+configuration probes under the same isolated environment used for dispatch.
+It must pass before this example review is eligible to contact a provider:
+
+```text
+uv run python scripts/opencode_worker.py --mode review \
+  --file README.md --opencode-bin /absolute/path/to/opencode --json
+```
+
+Each real invocation creates a private ephemeral `HOME`, isolated XDG roots and
+temporary directory outside Git discovery, then deletes them after every
+success, failure, timeout, or output-limit result. The child receives
+deterministic `OPENCODE_CONFIG_CONTENT`, fixed pure/agent/directory/model flags,
+and a deny-first profile with no model-issued tools. The trusted CLI ingests only
+wrapper-validated explicit `--file` snapshots. Project and global config,
+plugins, MCP, instructions, read/glob/grep, shell/edit/task/web/custom tools,
+nested agents, sharing, snapshots, and LSP do not enter the unattended
+capability surface. Version/help/config/version probes are output-bounded,
+process-group-cleaned, credential-free, and capped at 20 seconds total.
+
+For `deepseek/*`, the allowlist may forward the exact `DEEPSEEK_API_KEY` key so
+the final attested dispatch can authenticate, but capability probes never
+receive it and the worker never persists its value. All
+other provider/config/proxy/runtime injection variables are scrubbed. Inspect
+`capability-receipt.json` for the value-free profile id, executable and profile
+digests, capability names, isolated categories, environment key names, and
+booleans. It contains no values, prompt, raw config, tool arguments, events, or
+user paths.
+
+Patch mode uses a distinct profile and may emit a textual unified-diff proposal;
+the worker does not apply it. The selected trusted executable is bound by digest
+and version. This profile is defense in depth, not OS or container isolation
+from a malicious same-UID executable or unrestricted egress. If the selected
+path is a wrapper, the receipt binds only that wrapper; pass the direct regular
+binary for direct executable identity assurance.
+
 ## Cost Policy Preflight
 
 The factory's concrete cost policy belongs at
@@ -163,7 +623,7 @@ Version 1 has these fixed semantics:
   100,000,000 microcents. The approved $200 cap is 20,000,000,000 microcents;
   the $20 emergency reserve is 2,000,000,000 microcents.
 - Cash months and renewal dates use UTC. The reserve is a non-spendable floor
-  inside the cap, not another charge.
+  inside the cap, not another charge, and must be positive.
   Experiments stop at 80%, only subscription/included-quota work remains at
   90%, and paid dispatch stops at 100%; validation rejects a reserve too large
   for the 90% transition to protect.
@@ -174,6 +634,9 @@ Version 1 has these fixed semantics:
 - Provider quotas are independent of cash. Rolling five-hour (18,000-second),
   rolling weekly (604,800-second), UTC calendar-month, and subscription-cycle
   windows do not add cash or reset the cash ledger.
+- Every paid or quota-backed provider-registry lane declares a
+  `policy_provider_id` that joins the route to policy and quota evidence.
+  Unknown or unmapped provider identities fail closed.
 - Automatic top-up is always `disabled`. Unknown cost blocks paid dispatch;
   unknown quota blocks only the affected paid lane. Safe offline work remains
   outside this policy surface.
@@ -188,9 +651,180 @@ overflowing integers, zero charges, duplicate identifiers/references, broken
 provider references, naive or reversed timestamps, stale policies/prices,
 secret-like content, oversized or invalid UTF-8 files, non-regular files, and
 symlinked path components. Validation success proves only that the declaration
-is structurally safe and current at `--as-of`; the authoritative ledger,
-reservation, settlement, and quota-observation behavior remains in downstream
-factory issues.
+is structurally safe and current at `--as-of`; the ledger and paid-dispatch
+coordinator enforce cash reservation and settlement separately. Quota
+observation remains downstream.
+
+## Authoritative Budget Ledger and Paid Dispatch
+
+The ignored `.entroping/factory-budget/ledger.sqlite3` database is the
+authoritative local record of factory cash activity. Dashboard metrics and
+worker receipts may summarize it, but they are not spending authority. Version
+3 uses USD integer microcents at exactly 100,000,000 microcents per USD and UTC
+calendar months. A period records the reviewed cash cap and an emergency
+reserve allocation; that allocation is a non-spendable reserve inside the cap,
+not a cash charge.
+
+Ledger schema version 3 uses a global idempotency key whose SHA-256 digest is stored and
+bound to the complete normalized payload. An exact replay is a no-op; reuse
+with different evidence fails closed. Fixed subscription and provider charges
+are debits. A refund is a credit linked to its original charge, must match its
+currency and source, and cannot make cumulative refunds exceed that charge. A
+cross-month refund reduces net spend in the month it is received. A manual
+adjustment must explicitly select debit or credit. Credits may make net spend
+negative, but the reported immediately available paid balance never exceeds
+the period's paid limit after the reserve.
+
+Each write serializes the idempotency lookup, period and cap checks, immutable
+entry insert, and cached balance update with `BEGIN IMMEDIATE`. The database
+uses `journal_mode=DELETE`, `synchronous=EXTRA`, foreign keys, strict tables,
+immutable-entry triggers, and a bounded busy timeout. The rollback journal was
+chosen so reporting can use a genuinely read-only connection without creating
+WAL sidecars. A no-follow header check rejects WAL-mode state before SQLite can
+open it or create `-wal`/`-shm` files. Initialization builds and validates a
+private temporary database,
+syncs it, links it into place atomically, and syncs the containing directory.
+Incomplete initialization state is never authoritative.
+
+The ledger descriptor-walks the full repository path. Every ancestor must be
+root-owned or owned by the effective user; a group/other-writable ancestor is
+accepted only when sticky-directory protection covers a root/user-owned child.
+The repository root and shared `.entroping` directory must be owned by the
+effective user and not group/other writable. Existing owner-controlled 0755
+shared state remains valid, while `.entroping/factory-budget/` is private 0700.
+The ledger shares the factory retention lock and rejects symlinked, non-owner,
+unsafe-writable, or special state, unsafe sidecars, persistent leaf replacement
+during open, files above 512 MiB, malformed databases, schema drift, future or
+partial schemas, more than 100,000 total entries, more than 600 periods, and
+periods above 100,000 entries. A retry completes the narrow crash window where
+the validated database inode was published but its reserved initialization hard
+link was not yet removed. Integrity timestamp reads stream in bounded batches.
+Rejected or corrupt state is preserved for operator inspection instead of
+migrated or rewritten automatically. Entry values and cached balances remain
+inside signed 64-bit bounds.
+
+Ledger files and locks must remain owned by the effective user at mode 0600 in
+the private mode-0700 ledger directory. The retention and ledger locks
+coordinate Entroping processes. A noncooperating process already running as
+that same user can race ordinary-file replacement because Python's standard
+SQLite wrapper cannot open the main database from a previously validated file
+descriptor. Same-UID host compromise is outside this maintainer-only local
+trust boundary; use OS account or sandbox isolation where that threat applies.
+
+Only sanitized read-only summaries are exposed on the command line:
+
+```text
+uv run python -m scripts.factory_budget_ledger summary \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+uv run python -m scripts.factory_budget_ledger balance \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+```
+
+Before remote queue work launches, the coordinator loads the
+reviewed local cost policy, requires an enabled lane with fresh price terms,
+initializes the matching UTC period, and uses one `BEGIN IMMEDIATE` transaction
+to validate cash thresholds, every referenced quota observation, and fresh
+provider/lane/policy disabled-top-up evidence before reserving all holds. The
+durable `dispatch_authorization_id` is authoritative; `reservation_id` exists
+only for metered cash. Included-quota and fixed-subscription routes do not
+create cash holds, and quota never grants cash authority. For metered routes,
+this transaction reserves the route's worst-case enforceable usage. Worker dry
+runs remain value-free.
+
+The maintainer-only queue adapter reads provider evidence only from
+`.entroping/factory-provider-evidence.json`; production has no path override.
+The parent directory and file must be owned by the current user and must not be
+group- or world-writable. The bounded UTF-8 JSON document is strict and closed,
+rejects symlinks and secret-like content, and carries only identity-bound
+top-up attestations and quota observations.
+
+The document is an HMAC-SHA-256 maintainer attestation with key id
+`maintainer-local-v1`. Provision exactly 32 random key bytes as lowercase hex
+through `ENTROPING_FACTORY_PROVIDER_EVIDENCE_HMAC_KEY_V1` in the trusted
+coordinator environment. Keep that variable out of worker environments,
+repository files, queue state, logs, and artifacts. A trusted provider adapter
+may use `provider_evidence_signature()` to produce the envelope; raw unsigned,
+modified, or differently keyed JSON is non-authoritative and blocks dispatch.
+Rotation requires a reviewed new key id and supervisor secret. Raw evidence and
+the key are never copied into queue jobs, worker artifacts, or the ledger; the
+ledger stores only a computed envelope digest and bounded authority fields.
+The queue supervisor enforces this boundary with an explicit worker-environment
+allowlist and passes only the configured provider API-key variable. It rejects
+the evidence HMAC variable when named as a worker provider credential.
+
+Every new queue job records `work_purpose` explicitly. The conservative default
+is `experiment`; maintainers must opt into `essential` at submission. A blocked
+`ai_jobs run-next` result includes a stable `decision_code` and sanitized
+`decision_detail`, so the 80%, 90%, 100%, quota, policy, and evidence boundary
+remains observable without copying provider artifacts. The maintainer-only
+status projection above provides the corresponding bounded budget and quota
+aggregation; it remains observation rather than authorization.
+
+Observation and authorization expiry are exclusive. Unknown, stale, future,
+regressing, or identity-mismatched quota evidence blocks only the affected
+remote lane; offline/read-only work is unaffected. Scheduler receipts remain
+`paid_work_authorized: false`. Provider launch atomically revalidates and
+consumes the authorization immediately before execution, so expiry, release,
+or uncertainty cannot make the same authority launchable twice. Rolling
+evidence must match the declared duration exactly,
+UTC-month evidence must use the exact calendar boundary, and subscription
+evidence must match the declared renewal boundary. Authenticated observation
+timestamps do not imply that provider usage includes a local settlement.
+Every overlapping settlement remains charged unless the signed observation
+explicitly lists its authorization id in a canonical inclusion boundary.
+Missing or empty inclusion evidence therefore fails conservatively without
+double counting confirmed inclusions. Overlapping active or uncertain holds
+remain charged, while non-overlapping expired-cycle holds do not leak across a
+real reset. Older authenticated observations cannot roll a lane backward.
+Subscription cycle ids use
+`<subscription-id>-YYYY-MM-DD` for the UTC cycle start.
+Settlement, release, and uncertainty timestamps must not precede the current
+authorization lifecycle timestamp. A backdated transition fails atomically and
+preserves both the existing authorization state and its quota holds.
+
+The provider launch transaction rechecks the current experiment, metered, and
+all-in cash thresholds immediately before consuming authority. Terminal
+quota-only settlement binds the complete usage envelope even when no quota
+dimension created a hold.
+
+Direct DeepSeek is currently the only supported metered queue lane. Its request
+bytes and completion tokens are bounded before the network call, and a strict
+receipt binds job id, requested and reported model, token counts, local run, and
+the SHA-256 digest of the provider session. The raw provider session is not
+stored in queue metadata or persisted response JSON. Metered OpenCode remains
+blocked because its current host contract cannot enforce a worst-case usage
+ceiling. The registered OpenCode flash-free route uses the included-quota
+authorization, single-use launch, and quota-settlement boundary; choose that
+route or direct DeepSeek with a reviewed policy instead.
+
+Version 1 and version 2 ledgers do not migrate implicitly. Run the explicit
+transactional migration to version 3 once, then inspect the sanitized balance:
+
+```text
+uv run python -m scripts.factory_budget_ledger migrate \
+  --repo /absolute/path/to/Entroping
+uv run python -m scripts.factory_budget_ledger balance \
+  --repo /absolute/path/to/Entroping --period 2026-07-01
+```
+
+For included-quota work, verified OpenCode usage settles quota holds without a
+cash reservation. A verified pre-network authorization failure releases the
+quota hold; ambiguous post-launch usage leaves it uncertain.
+
+If a provider call is interrupted or its receipt is missing, malformed,
+partial, conflicting, mismatched, or above the reserved ceiling, the hold stays
+`uncertain`. Do not edit the SQLite database or infer zero cost. Preserve the
+job and review artifacts, obtain value-free provider evidence, and use the
+`FactoryBudgetLedger.reconcile_no_charge` or
+`FactoryBudgetLedger.reconcile_manual_debit` Python API with a new idempotency
+key, SHA-256 evidence digest, and offset-aware timestamp. A manual debit cannot
+exceed the original hold. Stale queue recovery finds the reservation by job id
+and will not redispatch unresolved work; an already settled job terminalizes
+without a second debit.
+
+The ledger and queue control paid maintainer workers only. They do not call
+providers from product runtime, scrape provider balances, observe quota, or
+enable automatic top-up.
 
 ## Artifact and Log Retention
 
@@ -266,7 +900,8 @@ The source template is
 `StartInterval` requests one short idempotent tick. launchd does not start a
 second copy when the previous interval is still running, but that is not a
 replacement for the repository lease and idempotency contract. A separate
-operator or duplicate service can still race without issue #1569's guard.
+operator or duplicate service can still race; the repository scheduler lease
+and idempotency contract is the guard.
 
 launchd's `StandardOutPath` and `StandardErrorPath` never receive factory output.
 The runner captures each stream with a 256 KiB per-tick ceiling, terminates a
@@ -303,7 +938,7 @@ so lint the rendered file, not the source template.
 
 ## Future Install and First Tick
 
-Run this section only after issues #1569 and #1572 are merged and this retention
+Run this section only after issue #1569 is merged and this retention
 contract's acceptance gate passes.
 
 1. Create the log directory with mode `0700` and install its bounded retention
@@ -311,8 +946,9 @@ contract's acceptance gate passes.
 2. Copy the reviewed rendered plist to
    `~/Library/LaunchAgents/com.entroping.factory-tick.plist` with mode `0600`.
 3. Validate the installed file again with `plutil -lint`.
-4. Inspect both launchd state and `factoryctl status`. If an old service is
-   loaded, disable it, wait for a terminal tick and settled budget evidence,
+4. Inspect both launchd state and
+   `uv run python scripts/factoryctl.py status`. If an old service is loaded,
+   disable it, wait for a terminal tick and settled budget evidence,
    then boot it out. Do not terminate an active or uncertain tick.
 5. Enable the label, bootstrap it into the current GUI domain, and inspect its
    state before requesting the first tick.
@@ -320,14 +956,14 @@ contract's acceptance gate passes.
 ```text
 launchctl print-disabled gui/$UID
 launchctl print gui/$UID/com.entroping.factory-tick
-factoryctl status
+uv run python scripts/factoryctl.py status
 ```
 
 If the old label is loaded, disable future ticks and inspect status again:
 
 ```text
 launchctl disable gui/$UID/com.entroping.factory-tick
-factoryctl status
+uv run python scripts/factoryctl.py status
 ```
 
 Stop here until the tick is terminal and reservation/cost settlement is
@@ -356,13 +992,13 @@ enable` stores an external override that can persist across boots. Always use
 
 ## Status and Logs
 
-Use both launchd state and the future factory status CLI. Neither is sufficient
+Use both launchd state and the current factory status CLI. Neither is sufficient
 alone.
 
 ```text
 launchctl print-disabled gui/$UID
 launchctl print gui/$UID/com.entroping.factory-tick
-factoryctl status
+uv run python scripts/factoryctl.py status
 tail -n 100 "/absolute/path/to/logs/factory-tick.out.log"
 tail -n 100 "/absolute/path/to/logs/factory-tick.err.log"
 ```
@@ -379,7 +1015,7 @@ Disable future scheduling, then inspect the current tick:
 ```text
 launchctl disable gui/$UID/com.entroping.factory-tick
 launchctl print-disabled gui/$UID
-factoryctl status
+uv run python scripts/factoryctl.py status
 ```
 
 Wait until the tick is terminal and its reservation/cost settlement is
@@ -413,7 +1049,8 @@ are satisfied; uninstall must not erase evidence automatically.
   during sleep are not replayed on wake.
 - If a tick is still running when an interval fires, that firing is skipped.
 - A user LaunchAgent becomes available only after its user session is active;
-  after reboot or login, inspect `launchctl print` and `factoryctl status`.
+  inspect `launchctl print` and `uv run python scripts/factoryctl.py status`
+  following reboot or login.
 - Treat large clock changes as an operator event. Confirm the last settled tick
   and budget window before manually requesting another tick.
 
@@ -440,10 +1077,12 @@ are satisfied; uninstall must not erase evidence automatically.
 
 ### Stale lease or duplicate tick
 
-- Inspect `factoryctl status` before changing launchd state.
+- Inspect `uv run python scripts/factoryctl.py status` before changing launchd
+  state.
 - Do not delete a lease by hand. Disable future scheduling, verify whether the
-  recorded process is still healthy, and use the scheduler's documented
-  recovery command after issue #1571 is implemented. Boot out only after that
-  process is terminal or the recovery procedure records uncertain settlement.
+  recorded process is still healthy, and use
+  `uv run python scripts/factoryctl.py recover` through the plan-first
+  procedure above. Boot out only after that process is terminal or the
+  recovery procedure records uncertain settlement.
 - Re-enable only when the prior tick is terminal and budget settlement is
   reconciled.

@@ -38,17 +38,26 @@ def _metrics(
     cc: dict[str, int],
     mi: dict[str, int],
     hotspots: int = 0,
+    hotspot_files: dict[str, int] | None = None,
 ) -> dict[str, object]:
+    if hotspot_files is None:
+        hotspot_files = {
+            f"src/package/hotspot_{index}.py": 500 for index in range(hotspots)
+        }
     return {
         "cyclomatic_complexity": _metric_family(cc),
         "maintainability_index": _metric_family(mi),
-        "source_hotspots": {"threshold_lines": 500, "count": hotspots},
+        "source_hotspots": {
+            "threshold_lines": 500,
+            "count": hotspots,
+            "files": hotspot_files,
+        },
     }
 
 
 def _baseline_payload(metrics: dict[str, object]) -> dict[str, object]:
     return {
-        "schema_version": "entroping.source-maintainability-ratchet-baseline.v1",
+        "schema_version": "entroping.source-maintainability-ratchet-baseline.v2",
         "revision": 1,
         "owner": "Entroping maintainers",
         "reviewed_on": "2026-07-17",
@@ -80,7 +89,7 @@ def _report_payload(
     current: dict[str, object],
 ) -> dict[str, object]:
     return {
-        "schema_version": "entroping.source-maintainability-ratchet-report.v1",
+        "schema_version": "entroping.source-maintainability-ratchet-report.v2",
         "baseline_revision": 1,
         "status": "passed",
         "baseline": baseline,
@@ -177,6 +186,26 @@ def _prepare_repo(
     )
 
 
+def _prepare_hotspot_repo(root: Path, line_counts: dict[str, int]) -> None:
+    cc_payload: dict[str, object] = {}
+    mi_payload: dict[str, object] = {}
+    for index, (relative, line_count) in enumerate(sorted(line_counts.items()), start=1):
+        source = root / relative
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(
+            f"def source_{index}(): return {index}\n" + "# filler\n" * (line_count - 1),
+            encoding="utf-8",
+        )
+        cc_payload[relative] = [_cc_entry("A", name=f"source_{index}")]
+        mi_payload[relative] = _mi_entry("A")
+    test = root / "tests" / "test_module.py"
+    test.parent.mkdir(parents=True)
+    test.write_text("def test_value() -> None:\n    assert True\n", encoding="utf-8")
+    cc_payload["tests/test_module.py"] = [_cc_entry("F", name="excluded_test")]
+    _write_json(root / "reports" / "radon-cc.json", cc_payload)
+    _write_json(root / "reports" / "radon-mi.json", mi_payload)
+
+
 def _run_ratchet(
     root: Path,
     *,
@@ -252,17 +281,24 @@ def test_quality_audit_dry_run_declares_source_maintainability_ratchet() -> None
 def test_tracked_baseline_records_the_accepted_source_only_anchor() -> None:
     payload = json.loads(BASELINE.read_text(encoding="utf-8"))
 
-    assert payload["schema_version"] == ("entroping.source-maintainability-ratchet-baseline.v1")
+    assert payload["schema_version"] == ("entroping.source-maintainability-ratchet-baseline.v2")
+    assert payload["revision"] == 2
     assert payload["owner"] == "Entroping maintainers"
-    assert payload["reviewed_on"] == "2026-07-17"
+    assert payload["reviewed_on"] == "2026-08-07"
     assert payload["weights"] == WEIGHTS
-    assert payload["evidence"]["issue_url"].endswith("/issues/1504")
-    assert payload["evidence"]["through_commit"] == ("c0ed9ddfe672fc72d5428e79d66e30a34cf760b8")
-    assert payload["metrics"] == _metrics(
-        cc=_rank_counts(A=2840, B=486, C=139, D=10),
-        mi=_rank_counts(A=188, B=27, C=24),
-        hotspots=60,
+    assert payload["evidence"]["issue_url"].endswith("/issues/1546")
+    assert payload["evidence"]["through_commit"] == ("f7515cc918d99ee9c288877456e33a38a69d73ca")
+    assert payload["metrics"]["cyclomatic_complexity"] == _metric_family(
+        _rank_counts(A=2959, B=485, C=139, D=10)
     )
+    assert payload["metrics"]["maintainability_index"] == _metric_family(
+        _rank_counts(A=196, B=27, C=24)
+    )
+    hotspots = payload["metrics"]["source_hotspots"]
+    assert hotspots["threshold_lines"] == 500
+    assert hotspots["count"] == len(hotspots["files"]) == 60
+    assert hotspots["files"]["src/entroping/bridge/openapi_to_hurl/compiler.py"] == 1557
+    assert hotspots["files"]["src/entroping/core/demo_runner.py"] == 505
 
 
 def test_source_maintainability_ratchet_passes_unchanged_source_only_metrics(
@@ -334,6 +370,113 @@ def test_source_maintainability_ratchet_passes_independent_improvements(
     assert payload["current"]["cyclomatic_complexity"]["weighted_score"] == 1
     assert payload["current"]["maintainability_index"]["weighted_score"] == 1
     assert payload["current"]["source_hotspots"]["count"] == 0
+
+
+def test_source_hotspot_growth_fails_when_count_is_unchanged(tmp_path: Path) -> None:
+    relative = "src/package/module.py"
+    _prepare_hotspot_repo(tmp_path, {relative: 501})
+    _write_json(
+        tmp_path / "docs" / "meta" / "source-maintainability-ratchet-baseline.json",
+        _baseline_payload(
+            _metrics(
+                cc=_rank_counts(A=1),
+                mi=_rank_counts(A=1),
+                hotspots=1,
+                hotspot_files={relative: 500},
+            )
+        ),
+    )
+
+    result = _run_ratchet(tmp_path)
+
+    assert result.returncode == 1
+    assert "source_hotspots count increased" not in result.stderr
+    assert f"source_hotspots file grew: {relative} 500 -> 501 lines" in result.stderr
+
+
+def test_source_hotspot_shrink_does_not_mask_growth_in_another_file(tmp_path: Path) -> None:
+    shrinking = "src/package/shrinking.py"
+    growing = "src/package/growing.py"
+    _prepare_hotspot_repo(tmp_path, {shrinking: 500, growing: 501})
+    _write_json(
+        tmp_path / "docs" / "meta" / "source-maintainability-ratchet-baseline.json",
+        _baseline_payload(
+            _metrics(
+                cc=_rank_counts(A=2),
+                mi=_rank_counts(A=2),
+                hotspots=2,
+                hotspot_files={shrinking: 501, growing: 500},
+            )
+        ),
+    )
+
+    result = _run_ratchet(tmp_path)
+
+    assert result.returncode == 1
+    assert "source_hotspots count increased" not in result.stderr
+    assert f"source_hotspots file grew: {growing} 500 -> 501 lines" in result.stderr
+    assert f"source_hotspots file grew: {shrinking}" not in result.stderr
+
+
+def test_source_hotspot_shrink_and_removal_pass(tmp_path: Path) -> None:
+    retained = "src/package/retained.py"
+    removed = "src/package/removed.py"
+    _prepare_hotspot_repo(tmp_path, {retained: 500})
+    _write_json(
+        tmp_path / "docs" / "meta" / "source-maintainability-ratchet-baseline.json",
+        _baseline_payload(
+            _metrics(
+                cc=_rank_counts(A=1),
+                mi=_rank_counts(A=1),
+                hotspots=2,
+                hotspot_files={retained: 501, removed: 500},
+            )
+        ),
+    )
+
+    result = _run_ratchet(tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(
+        (tmp_path / "reports" / "source-maintainability-ratchet.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["current"]["source_hotspots"]["files"] == {retained: 500}
+
+
+@pytest.mark.parametrize(
+    ("hotspots", "hotspot_files", "expected_message"),
+    [
+        (0, {"src/package/module.py": 500}, "count must match recorded files"),
+        (1, {"tests/test_module.py": 500}, "outside the allowed scope"),
+        (1, {"src/package/../module.py": 500}, "forbidden path alias"),
+        (1, {"src/package/module.py": 499}, "line count is below 500"),
+    ],
+)
+def test_source_hotspot_baseline_rejects_inconsistent_file_evidence(
+    tmp_path: Path,
+    hotspots: int,
+    hotspot_files: dict[str, int],
+    expected_message: str,
+) -> None:
+    _prepare_repo(tmp_path)
+    _write_json(
+        tmp_path / "docs" / "meta" / "source-maintainability-ratchet-baseline.json",
+        _baseline_payload(
+            _metrics(
+                cc=_rank_counts(B=1),
+                mi=_rank_counts(A=1),
+                hotspots=hotspots,
+                hotspot_files=hotspot_files,
+            )
+        ),
+    )
+
+    result = _run_ratchet(tmp_path)
+
+    assert result.returncode == 2
+    assert expected_message in result.stderr
 
 
 @pytest.mark.parametrize(

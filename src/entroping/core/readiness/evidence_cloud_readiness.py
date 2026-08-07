@@ -790,7 +790,6 @@ def _area(
             label=label,
             status=status,
             source_ids=source_ids,
-            blockers=blockers,
         ),
     )
 
@@ -904,14 +903,11 @@ def _area_next_action(
     label: str,
     status: EvidenceCloudAreaStatus,
     source_ids: tuple[EvidenceCloudSourceId, ...],
-    blockers: tuple[str, ...],
 ) -> str:
     if status == "ready":
         return f"{label} evidence is ready for local Evidence Cloud pilot review."
     commands = tuple(_NEXT_COMMANDS_BY_SOURCE[source_id] for source_id in source_ids)
-    if blockers:
-        return f"Resolve {label} blockers, then run: {'; '.join(commands)}."
-    return f"Generate {label} evidence with: {'; '.join(commands)}."
+    return f"Resolve {label} blockers, then run: {'; '.join(commands)}."
 
 
 def _next_actions(
@@ -965,15 +961,14 @@ def _next_actions(
 def _dedupe_actions(
     actions: list[EvidenceCloudNextAction],
 ) -> tuple[EvidenceCloudNextAction, ...]:
-    seen: set[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = set()
-    result: list[EvidenceCloudNextAction] = []
+    unique: dict[
+        tuple[str, str, tuple[str, ...], tuple[str, ...]],
+        EvidenceCloudNextAction,
+    ] = {}
     for action in actions:
         key = (action.priority, action.action, action.source_ids, action.area_ids)
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(action)
-    return tuple(result)
+        unique.setdefault(key, action)
+    return tuple(unique.values())
 
 
 def _summary(

@@ -129,6 +129,41 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert len(progress.splitlines()) <= 150
 
 
+def test_issue_1576_status_handoff_stays_local_and_release_gated() -> None:
+    progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
+        encoding="utf-8"
+    )
+    plan = (REPO_ROOT / ".context" / "plan.md").read_text(encoding="utf-8")
+    changelog = (REPO_ROOT / ".context" / "changelog.md").read_text(encoding="utf-8")
+    current_changelog = changelog.split("## 2026-08-03", maxsplit=1)[0]
+    normalized = " ".join(f"{progress} {plan} {current_changelog}".split())
+
+    required = [
+        "Focused local evidence; release gates pending",
+        "focused local unmerged issue-branch evidence",
+        "Local/unmerged issue-branch evidence for #1576",
+        "scripts/regression.sh --security",
+        "scripts/audit_quality.sh",
+        "Launchd remains disabled pending a separate explicit activation decision",
+        (
+            "#1575 remains offline proposal-only and excludes live selection, "
+            "provider dispatch, and launchd"
+        ),
+    ]
+    for term in required:
+        assert term in normalized
+
+    stale = [
+        "#1576 remains the PR/CI/merge-control blocker",
+        "#1576 still owns PR/CI/merge-control and cleanup evidence",
+        "#1576 is merged",
+        "#1576 is done",
+        "#1576 is activated",
+    ]
+    for term in stale:
+        assert term not in normalized
+
+
 def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     stable_core_blockers = roadmap.split(
@@ -187,6 +222,29 @@ def test_canonical_specs_do_not_label_current_alpha_as_stable() -> None:
         assert "4.1 Stable" not in text
         assert "Alpha" in header
         assert "stable-core" in header
+
+
+def test_promoted_runbooks_declare_protected_smoke_and_generated_traffic_selection() -> None:
+    user_flows = (REPO_ROOT / "docs/user/USER_FLOWS.md").read_text(encoding="utf-8")
+    cheat_sheet = (
+        REPO_ROOT / "docs/technical/COMMAND_CHEAT_SHEET.md"
+    ).read_text(encoding="utf-8")
+    production_smoke = user_flows.split("## 11. Production Smoke", maxsplit=1)[1]
+    legacy_rescue = user_flows.split("## 5. Legacy Rescue", maxsplit=1)[1].split(
+        "## 6. Component Isolation", maxsplit=1
+    )[0]
+
+    assert "suites/prod-smoke.yaml" in production_smoke
+    assert "envs/prod-smoke.env" in production_smoke
+    assert "protected: true" in production_smoke
+    assert "safety: read-only" in production_smoke
+    assert "entroping run --suite prod-smoke --ci" in production_smoke
+    assert "--env prod-smoke --tag smoke" not in production_smoke
+    assert '--tag-expression "traffic and freeze"' in legacy_rescue
+    assert "--ci" in legacy_rescue
+    assert '--tag-expression "traffic and freeze"' in cheat_sheet
+    assert "No Hurl tests matched" in cheat_sheet
+    assert "entroping run --env local" in cheat_sheet
 
 
 def test_docs_distinguish_v41_contract_from_package_release_version() -> None:

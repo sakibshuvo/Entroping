@@ -11,6 +11,8 @@ from typing import Final
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "context_pack.sh"
 MINIMUM_STRESS_HEADROOM_BYTES: Final = 256
+MINIMUM_REVIEW_HEADROOM_BYTES: Final = 32 * 1024
+REVIEW_BUDGET_BYTES: Final = 405_000
 
 
 def run_context_pack(
@@ -94,6 +96,82 @@ def test_context_pack_manifest_reports_budgeted_file_inventory_without_pack_body
     assert "Required Agent Rules" not in result.stdout
     assert "Current Git Status" not in result.stdout
     assert "content" not in manifest["files"][0]
+
+
+def test_context_pack_review_manifest_reports_bounded_historical_sources() -> None:
+    result = run_context_pack("--mode", "review", "--manifest", "--strict-budget")
+
+    assert result.returncode == 0, result.stderr
+    manifest = json.loads(result.stdout)
+    assert manifest["budget_bytes"] == REVIEW_BUDGET_BYTES
+    assert manifest["budget_status"] == "pass"
+    assert manifest["headroom_bytes"] >= MINIMUM_REVIEW_HEADROOM_BYTES
+    assert manifest["overage_bytes"] == 0
+
+    by_path = {entry["path"]: entry for entry in manifest["files"]}
+    for path in (".context/changelog.md", ".context/lessons-learned.md"):
+        entry = by_path[path]
+        assert entry["bytes"] == entry["source_bytes"]
+        assert 0 < entry["selected_bytes"] < entry["source_bytes"]
+        assert entry["omitted_bytes"] == entry["source_bytes"] - entry["selected_bytes"]
+        assert entry["selection"] == "newest-first-byte-budget"
+
+    assert by_path["AGENTS.md"]["selected_bytes"] == by_path["AGENTS.md"]["source_bytes"]
+    assert by_path["AGENTS.md"]["omitted_bytes"] == 0
+    assert by_path["AGENTS.md"]["selection"] == "full"
+
+
+def test_context_pack_review_mode_survives_long_dirty_path_metadata() -> None:
+    marker = f"context-pack-review-{'x' * 180}-{uuid.uuid4().hex}"
+    paths = [REPO_ROOT / f".{marker}-{index}.tmp" for index in range(6)]
+    try:
+        for path in paths:
+            path.write_text("temporary review status fixture\n", encoding="utf-8")
+
+        result = run_context_pack("--mode", "review", "--manifest", "--strict-budget")
+
+        assert result.returncode == 0, result.stderr
+        manifest = json.loads(result.stdout)
+        assert manifest["budget_status"] == "pass"
+        assert manifest["headroom_bytes"] >= MINIMUM_REVIEW_HEADROOM_BYTES
+    finally:
+        for path in paths:
+            path.unlink(missing_ok=True)
+
+
+def test_context_pack_manifest_reports_exact_actionable_overage() -> None:
+    result = run_context_pack(
+        "--mode",
+        "review",
+        "--manifest",
+        "--strict-budget",
+        env={"ENTROPING_CONTEXT_PACK_BUDGET_REVIEW": "1"},
+    )
+
+    assert result.returncode == 2
+    manifest = json.loads(result.stdout)
+    assert manifest["overage_bytes"] == manifest["context_bytes"] - 1
+    assert manifest["headroom_bytes"] == 0
+    assert str(manifest["overage_bytes"]) in manifest["recommended_next_action"]["reason"]
+    assert str(manifest["overage_bytes"]) in manifest["recommended_next_action"]["steps"][0]
+
+
+def test_context_pack_budget_override_cannot_persist() -> None:
+    script_before = SCRIPT.read_bytes()
+
+    overridden = run_context_pack(
+        "--mode",
+        "review",
+        "--manifest",
+        env={"ENTROPING_CONTEXT_PACK_BUDGET_REVIEW": "1"},
+    )
+    defaulted = run_context_pack("--mode", "review", "--manifest")
+
+    assert overridden.returncode == 0, overridden.stderr
+    assert defaulted.returncode == 0, defaulted.stderr
+    assert json.loads(overridden.stdout)["budget_bytes"] == 1
+    assert json.loads(defaulted.stdout)["budget_bytes"] == REVIEW_BUDGET_BYTES
+    assert SCRIPT.read_bytes() == script_before
 
 
 def test_context_pack_manifest_uses_python39_compatible_datetime_api() -> None:
@@ -207,15 +285,22 @@ def test_context_pack_strict_budget_rejects_over_budget_override() -> None:
     manifest = json.loads(result.stdout)
     assert manifest["budget_bytes"] == 1
     assert manifest["budget_status"] == "fail"
+    overage_bytes = manifest["context_bytes"] - 1
     assert manifest["recommended_next_action"] == {
         "action": "reduce_scope",
         "full_pack_allowed": False,
-        "reason": "Manifest exceeds the mode budget; do not load the full context pack.",
+        "reason": (
+            f"Manifest exceeds the mode budget by {overage_bytes} bytes; "
+            "do not load the full context pack."
+        ),
         "steps": [
+            (
+                f"Reduce selected context by at least {overage_bytes} bytes "
+                "before loading the full pack."
+            ),
             "Switch to a narrower mode or a smaller issue question.",
             "Read only files[].path entries that match the issue scope.",
             "Use rg for exact symbol or phrase lookup before broad file reads.",
-            "Record the budget failure in factory metrics or the worker handoff.",
         ],
     }
 

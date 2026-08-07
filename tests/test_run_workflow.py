@@ -1,13 +1,22 @@
 """Unit tests for the deterministic run workflow use case."""
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
+from xml.etree import ElementTree
 
 import pytest
 
-from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
+from entroping.bridge.policy_to_hurl import HurlGateAssertion
+from entroping.core.gate_injector import HurlExecutionCopy
+from entroping.core.hurl_runner import (
+    HurlAssertionEvidence,
+    HurlFileResult,
+    HurlRunOptions,
+    HurlSuiteResult,
+)
 from entroping.core.run_event_log import read_run_events
 from entroping.core.run_workflow import (
     DependencyDriftObservationError,
@@ -15,7 +24,9 @@ from entroping.core.run_workflow import (
     NoHurlTestsMatchedError,
     RunExecutionPlan,
     RunWorkflowError,
+    _apply_gate_results,
     _display_path,
+    _gate_results_for_result,
     _known_failure_source_key,
     execute_run_workflow,
     plan_run_workflow,
@@ -24,6 +35,7 @@ from entroping.core.run_workflow import (
 )
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.models.qanstitution import Enforcement
 from entroping.models.traffic import TrafficExchange, TrafficRequest, TrafficResponse
 
 
@@ -53,7 +65,13 @@ def _write_project(tmp_path: Path) -> None:
     )
 
 
-def _passed_result(path: Path) -> HurlFileResult:
+def _passed_result(
+    path: Path,
+    *,
+    assertion_evidence: tuple[HurlAssertionEvidence, ...] | None = None,
+) -> HurlFileResult:
+    if assertion_evidence is None:
+        assertion_evidence = _gate_assertion_evidence(path, success=True)
     return HurlFileResult(
         path=path,
         command=("hurl", str(path)),
@@ -64,6 +82,7 @@ def _passed_result(path: Path) -> HurlFileResult:
         stdout_truncated=False,
         stderr_truncated=False,
         duration_ms=12,
+        assertion_evidence=assertion_evidence,
     )
 
 
@@ -78,7 +97,315 @@ def _failed_result(path: Path) -> HurlFileResult:
         stdout_truncated=False,
         stderr_truncated=False,
         duration_ms=12,
+        assertion_evidence=_gate_assertion_evidence(path, success=False),
     )
+
+
+def _gate_assertion_evidence(
+    path: Path,
+    *,
+    success: bool,
+) -> tuple[HurlAssertionEvidence, ...]:
+    return tuple(
+        HurlAssertionEvidence(line=index + 2, success=success)
+        for index, line in enumerate(path.read_text(encoding="utf-8").splitlines())
+        if line.startswith("# entroping-gate:")
+    )
+
+
+def _workflow_gate(
+    *,
+    rule_id: str = "gate",
+    enforcement: Enforcement = "block",
+) -> HurlGateAssertion:
+    return HurlGateAssertion(
+        rule_id=rule_id,
+        assertion="status == 200",
+        enforcement=enforcement,
+        condition="true",
+    )
+
+
+def _workflow_execution_copy(
+    source: Path,
+    execution: Path,
+    *,
+    gates: tuple[HurlGateAssertion, ...],
+    gate_lines: tuple[tuple[int, HurlGateAssertion], ...] = (),
+) -> HurlExecutionCopy:
+    return HurlExecutionCopy(
+        source_path=source,
+        execution_path=execution,
+        injected_gates=gates,
+        injected_gate_lines=gate_lines,
+    )
+
+
+def _write_enforcement_project(project_root: Path, *, block_gate: str) -> Path:
+    policy_path = project_root / "qanstitution.yaml"
+    policy_path.write_text(
+        "\n".join(
+            [
+                "project: enforcement-project",
+                "settings:",
+                "  timeout: 2500",
+                "  parallel_workers: 1",
+                "gates:",
+                "  - id: block_gate",
+                '    condition: "true"',
+                f"    gate: {block_gate}",
+                "    enforcement: block",
+                "  - id: warn_gate",
+                '    condition: "true"',
+                '    gate: header "X-Missing-Warn" exists',
+                "    enforcement: warn",
+                "  - id: audit_gate",
+                '    condition: "true"',
+                '    gate: header "X-Missing-Audit" exists',
+                "    enforcement: audit_only",
+            ],
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tests_dir = project_root / "tests"
+    tests_dir.mkdir(exist_ok=True)
+    source_path = tests_dir / "health.hurl"
+    source_path.write_text(
+        "GET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    return source_path
+
+
+def _assert_gate_report_fields(
+    report_path: Path,
+    expected: dict[str, tuple[str, str, int]],
+) -> None:
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert isinstance(report, dict)
+    tests = report["tests"]
+    assert isinstance(tests, list)
+    test = tests[0]
+    assert isinstance(test, dict)
+    gate_results = test["gate_results"]
+    assert isinstance(gate_results, list)
+    assert {
+        item["rule_id"]: (item["enforcement"], item["result"], item["exit_code"])
+        for item in gate_results
+    } == expected
+
+
+def test_execute_run_workflow_reports_nonblocking_gate_failures_without_failing_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = _write_enforcement_project(tmp_path, block_gate="status < 500")
+    source_before = source_path.read_bytes()
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        del options, max_workers, fail_fast
+        results = []
+        for path in paths:
+            evidence = tuple(
+                HurlAssertionEvidence(
+                    line=index + 2,
+                    success=line.split()[2] == "block_gate",
+                )
+                for index, line in enumerate(path.read_text(encoding="utf-8").splitlines())
+                if line.startswith("# entroping-gate:")
+            )
+            results.append(_passed_result(path, assertion_evidence=evidence))
+        return HurlSuiteResult(results=tuple(results))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        report_formats=("json", "junit", "html"),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 0
+    latest = json.loads((tmp_path / ".entroping" / "latest-run.json").read_text(encoding="utf-8"))
+    assert latest["summary"]["exit_code"] == 0
+    assert latest["summary"]["failed"] == 0
+    expected = {
+        "block_gate": ("block", "passed", 0),
+        "warn_gate": ("warn", "failed", 1),
+        "audit_gate": ("audit_only", "failed", 1),
+    }
+    _assert_gate_report_fields(tmp_path / "reports" / "run-latest.json", expected)
+    junit = ElementTree.parse(tmp_path / "reports" / "junit.xml")
+    junit_properties = junit.getroot().find("testcase/properties")
+    assert junit_properties is not None
+    properties = {
+        property.attrib["name"]: property.attrib["value"]
+        for property in junit_properties
+    }
+    assert properties["entroping.gate.warn_gate.enforcement"] == "warn"
+    assert properties["entroping.gate.warn_gate.result"] == "failed"
+    assert properties["entroping.gate.audit_gate.enforcement"] == "audit_only"
+    html = (tmp_path / "reports" / "run-latest.html").read_text(encoding="utf-8")
+    assert "warn_gate" in html and "audit_gate" in html and "audit_only" in html
+    assert source_path.read_bytes() == source_before
+    assert not list((tmp_path / ".entroping").glob("run-*"))
+
+
+def test_execute_run_workflow_block_gate_failure_fails_run_and_is_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_enforcement_project(tmp_path, block_gate='header "X-Missing-Block" exists')
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        del options, max_workers, fail_fast
+        return HurlSuiteResult(results=tuple(_failed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 1
+    _assert_gate_report_fields(
+        tmp_path / "reports" / "run-latest.json",
+        {
+            "block_gate": ("block", "failed", 3),
+            "warn_gate": ("warn", "failed", 3),
+            "audit_gate": ("audit_only", "failed", 3),
+        },
+    )
+
+
+def test_gate_results_reject_missing_and_duplicate_assertion_evidence(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.hurl"
+    execution = tmp_path / "execution.hurl"
+    gate = _workflow_gate()
+    copy_without_lines = _workflow_execution_copy(
+        source,
+        execution,
+        gates=(gate,),
+    )
+    execution.write_text("", encoding="utf-8")
+    invalid_results, invalid = _gate_results_for_result(
+        copy_without_lines,
+        _passed_result(execution, assertion_evidence=()),
+    )
+
+    assert invalid is True
+    assert invalid_results[0].result == "error"
+
+    missing_results, missing = _gate_results_for_result(
+        copy_without_lines,
+        replace(_passed_result(execution), assertion_evidence=None),
+    )
+
+    assert missing is True
+    assert missing_results[0].result == "error"
+
+    copy_with_line = _workflow_execution_copy(
+        source,
+        execution,
+        gates=(gate,),
+        gate_lines=((2, gate),),
+    )
+    duplicate_results, duplicate = _gate_results_for_result(
+        copy_with_line,
+        _passed_result(
+            execution,
+            assertion_evidence=(
+                HurlAssertionEvidence(line=2, success=True),
+                HurlAssertionEvidence(line=2, success=True),
+            ),
+        ),
+    )
+
+    assert duplicate is True
+    assert duplicate_results[0].result == "error"
+
+
+def test_apply_gate_results_rejects_path_mismatch_and_block_evidence_drift(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.hurl"
+    execution = tmp_path / "execution.hurl"
+    gate = _workflow_gate()
+    copy_with_missing_lines = _workflow_execution_copy(
+        source,
+        execution,
+        gates=(gate,),
+    )
+
+    with pytest.raises(RunWorkflowError, match="does not match"):
+        _apply_gate_results(
+            HurlSuiteResult(
+                results=(_passed_result(tmp_path / "other.hurl", assertion_evidence=()),),
+            ),
+            execution_copies=(copy_with_missing_lines,),
+        )
+
+    updated_suite, results_by_source = _apply_gate_results(
+        HurlSuiteResult(results=(_passed_result(execution, assertion_evidence=()),)),
+        execution_copies=(copy_with_missing_lines,),
+    )
+
+    assert updated_suite.results[0].status == "error"
+    assert updated_suite.results[0].exit_code == 126
+    assert results_by_source[source.resolve()][0].result == "error"
+
+    copy_with_failed_block = _workflow_execution_copy(
+        source,
+        execution,
+        gates=(gate,),
+        gate_lines=((2, gate),),
+    )
+    failed_suite, _failed_results = _apply_gate_results(
+        HurlSuiteResult(
+            results=(
+                _passed_result(
+                    execution,
+                    assertion_evidence=(HurlAssertionEvidence(line=2, success=False),),
+                ),
+            ),
+        ),
+        execution_copies=(copy_with_failed_block,),
+    )
+
+    assert failed_suite.results[0].status == "failed"
+    assert failed_suite.results[0].exit_code == 1
+
+    no_gate_copy = _workflow_execution_copy(source, execution, gates=())
+    unchanged_suite, no_gate_results = _apply_gate_results(
+        HurlSuiteResult(results=(_passed_result(execution, assertion_evidence=()),)),
+        execution_copies=(no_gate_copy,),
+    )
+
+    assert unchanged_suite.results[0].status == "passed"
+    assert no_gate_results == {}
 
 
 def test_known_failure_source_key_keeps_external_absolute_path(tmp_path: Path) -> None:
@@ -151,8 +478,8 @@ def test_execute_run_workflow_writes_reports_and_cleans_execution_state(
         captured_paths.extend(paths)
         captured_options.append(options)
         captured_workers.append(max_workers)
-        for path in paths:
-            assert "duration < 2000" in path.read_text(encoding="utf-8")
+        contents = [path.read_text(encoding="utf-8") for path in paths]
+        assert all("duration < 2000" in content for content in contents)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
 
     monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
@@ -231,6 +558,7 @@ def test_execute_run_workflow_loads_auth_variables_without_reporting_values(
                     stderr_truncated=False,
                     duration_ms=12,
                     timeout_ms=options.timeout_ms,
+                    assertion_evidence=_gate_assertion_evidence(paths[0], success=False),
                 ),
             ),
         )
@@ -305,10 +633,9 @@ def test_execute_run_workflow_applies_known_failure_gate_exceptions(
         fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
-        for path in paths:
-            content = path.read_text(encoding="utf-8")
-            assert "duration < 2000" not in content
-            assert "status < 500" in content
+        contents = [path.read_text(encoding="utf-8") for path in paths]
+        assert all("duration < 2000" not in content for content in contents)
+        assert all("status < 500" in content for content in contents)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
 
     monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)

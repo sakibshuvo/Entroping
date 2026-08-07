@@ -72,6 +72,14 @@ Entroping's core positioning is to make backend/API behavior deterministic and t
 - **Evidence-first operations.** PRs and releases stay on explicit JSON/JUnit/HTML/sarif artifacts instead of implicit model confidence scores.
 - **Runtime determinism first.** `entroping run` and report generation remain the enforcement boundary; provider calls do not alter pass/fail decisions.
 
+QAnstitution enforcement is evaluated at the Hurl boundary: all matching gates
+for a selected source are injected into one bounded temporary copy and share one
+Hurl invocation per attempt; no enforcement mode adds a request sequence. JSON,
+JUnit, and HTML preserve their
+rule ID, enforcement, result, and exit evidence. A failed `block` gate makes the
+run fail; failed `warn` and `audit_only` gates remain observable without changing
+the run exit status.
+
 ## 5. Operating Principles
 
 1. **QAnstitution is Law:** Governance rules live in versioned YAML and are injected into every relevant run.
@@ -155,11 +163,12 @@ AI-generated change quality is managed as a seeded evidence loop before any repa
   A GitHub issue may receive verified-user scheduling priority only when its
   closed `entroping.user-evidence.v1` metadata includes the matching digest of
   that sanitized local artifact and a maintainer has applied the
-  `evidence:user-verified` label. After the complete fresh-state, contract,
-  ownership, overlap, lease, and autonomy gates tracked by issue #1567 pass,
-  precedence is `priority:p0`, verified user blockers, verified user-evidence
-  `priority:p1`, then other ready work. Raw feedback and private conversations
-  never enter GitHub or provider prompts. This prioritization is
+  `evidence:user-verified` label. After the complete fresh-state, issue contract,
+  milestone, verification, autonomy, ownership, active unmerged branch, PR,
+  lease, explicit-file-scope, overlap, and dependency gates implemented by
+  issue #1567 pass, precedence is `priority:p0`, verified user blockers,
+  verified user-evidence `priority:p1`, then other ready work. Raw feedback and
+  private conversations never enter GitHub or provider prompts. This prioritization is
   product-learning policy, not proof of market validation; the exact
   issue-body contract, fail-closed rules, and non-quota work-mix receipt
   semantics live in `docs/meta/ISSUE_TRACKING.md`.

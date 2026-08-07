@@ -4,6 +4,8 @@ import fcntl
 import hashlib
 import json
 import os
+import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -22,8 +24,79 @@ from scripts.factory_metrics_archive import (  # noqa: E402
     FactoryMetricsArchiveError,
     preserve_archive,
 )
+from scripts.finish_issue_replay_evidence import (  # noqa: E402
+    ReplayIdentity,
+    advance_replay_evidence,
+    read_replay_evidence,
+)
 
 SCRIPT = REPO_ROOT / "scripts" / "finish_issue.sh"
+
+
+@pytest.mark.parametrize(
+    "internal_environment",
+    [
+        {"ENTROPING_FINISH_SCRIPT_DIR": "/dev/fd/3"},
+        {"ENTROPING_FINISH_PROJECT_LIB": "/dev/fd/3"},
+        {
+            "ENTROPING_FINISH_PROJECT_LIB": "/dev/fd/not-a-descriptor",
+            "ENTROPING_FINISH_METRICS_HELPER": "/dev/fd/4",
+            "ENTROPING_FINISH_REPLAY_HELPER": "/dev/fd/5",
+        },
+    ],
+)
+def test_finish_issue_rejects_invalid_internal_helper_capabilities(
+    internal_environment: dict[str, str],
+) -> None:
+    environment = dict(os.environ)
+    environment.update(internal_environment)
+
+    result = subprocess.run(
+        ["/bin/bash", str(SCRIPT), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    assert result.returncode == 1
+    assert "internal finish helper capabilities are invalid" in result.stderr
+
+
+def test_finish_issue_uses_pinned_internal_helper_capabilities() -> None:
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    scripts_fd = os.open(REPO_ROOT / "scripts", directory_flags)
+    names = (
+        "finish_issue.sh",
+        "_project_board_lib.sh",
+        "factory_metrics_archive.py",
+        "finish_issue_replay_evidence.py",
+    )
+    descriptors = tuple(os.open(name, os.O_RDONLY, dir_fd=scripts_fd) for name in names)
+    try:
+        environment = dict(os.environ)
+        environment.update(
+            {
+                "ENTROPING_FINISH_PROJECT_LIB": f"/dev/fd/{descriptors[1]}",
+                "ENTROPING_FINISH_METRICS_HELPER": f"/dev/fd/{descriptors[2]}",
+                "ENTROPING_FINISH_REPLAY_HELPER": f"/dev/fd/{descriptors[3]}",
+            }
+        )
+        result = subprocess.run(
+            ["/bin/bash", f"/dev/fd/{descriptors[0]}", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+            pass_fds=descriptors,
+        )
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+        os.close(scripts_fd)
+
+    assert result.returncode == 0
+    assert result.stderr == ""
 
 
 def run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -65,12 +138,25 @@ def write_fake_gh(
     issue_state: str = "CLOSED",
     pr_state: str = "MERGED",
     checks_json: str | None = None,
+    head_sha: str | None = None,
+    closing_pr_numbers: tuple[int, ...] = (123,),
 ) -> Path:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir(exist_ok=True)
     fake_gh = fake_bin / "gh"
+    mutation_marker = shlex.quote(str(tmp_path / "finish-mutation"))
     checks = checks_json or (
         '[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
+    )
+    closing_refs = json.dumps(
+        [
+            {
+                "number": number,
+                "url": f"https://github.com/sakibshuvo/Entroping/pull/{number}",
+            }
+            for number in closing_pr_numbers
+        ],
+        separators=(",", ":"),
     )
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
@@ -81,7 +167,7 @@ def write_fake_gh(
         "{"
         f'"title":"Dry run feature","url":"https://github.com/sakibshuvo/Entroping/issues/{issue_number}",'
         f'"state":"{issue_state}",'
-        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
+        f'"closedByPullRequestsReferences":{closing_refs}'
         "}\n"
         "JSON\n"
         "  exit 0\n"
@@ -91,13 +177,16 @@ def write_fake_gh(
         "  cat <<'JSON'\n"
         "{"
         '"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123",'
-        f'"state":"{pr_state}","headRefName":"{branch_name}","mergedAt":"2026-05-30T00:00:00Z",'
+        f'"state":"{pr_state}","headRefName":"{branch_name}",'
+        + (f'"headRefOid":"{head_sha}",' if head_sha is not None else "")
+        + '"mergedAt":"2026-05-30T00:00:00Z",'
         f'"statusCheckRollup":{checks}'
         "}\n"
         "JSON\n"
         "  exit 0\n"
         "fi\n"
         'if [[ "$1 $2" == "issue edit" ]]; then\n'
+        f"  touch {mutation_marker}\n"
         "  exit 0\n"
         "fi\n"
         'if [[ "$1 $2" == "project view" ]]; then\n'
@@ -116,6 +205,7 @@ def write_fake_gh(
         "  exit 0\n"
         "fi\n"
         'if [[ "$1 $2" == "project item-edit" ]]; then\n'
+        f"  touch {mutation_marker}\n"
         "  exit 0\n"
         "fi\n"
         'echo "unexpected gh args: $*" >&2\n'
@@ -219,18 +309,565 @@ def run_finish_issue(
     fake_bin: Path,
     tmp_path: Path,
     *args: str,
+    controller_fds: tuple[int, int, int, int] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
     env["ENTROPING_WORKTREE_PARENT"] = str(tmp_path)
+    script = str(SCRIPT)
+    pass_fds: tuple[int, ...] = ()
+    if controller_fds is not None:
+        script_fd, project_lib_fd, metrics_fd, replay_fd = controller_fds
+        script = f"/dev/fd/{script_fd}"
+        pass_fds = controller_fds
+        env["PYTHONPATH"] = str(REPO_ROOT)
+        env.update(
+            {
+                "ENTROPING_FINISH_PROJECT_LIB": f"/dev/fd/{project_lib_fd}",
+                "ENTROPING_FINISH_METRICS_HELPER": f"/dev/fd/{metrics_fd}",
+                "ENTROPING_FINISH_REPLAY_HELPER": f"/dev/fd/{replay_fd}",
+            }
+        )
+    command = [script, *args]
+    if controller_fds is not None:
+        command = ["/bin/bash", script, *args]
     return subprocess.run(
-        [str(SCRIPT), *args],
+        command,
         check=False,
         cwd=repo,
         capture_output=True,
         text=True,
         env=env,
+        pass_fds=pass_fds,
     )
+
+
+def open_finish_controller_fds() -> tuple[int, int, int, int]:
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    scripts_fd = os.open(REPO_ROOT / "scripts", directory_flags)
+    try:
+        return (
+            os.open("finish_issue.sh", os.O_RDONLY, dir_fd=scripts_fd),
+            os.open("_project_board_lib.sh", os.O_RDONLY, dir_fd=scripts_fd),
+            os.open("factory_metrics_archive.py", os.O_RDONLY, dir_fd=scripts_fd),
+            os.open(
+                "finish_issue_replay_evidence.py", os.O_RDONLY, dir_fd=scripts_fd
+            ),
+        )
+    finally:
+        os.close(scripts_fd)
+
+
+def write_fake_git(
+    fake_bin: Path,
+    *,
+    fail_worktree_list: bool = False,
+    fail_show_ref: bool = False,
+) -> None:
+    real_git = shutil.which("git")
+    assert real_git is not None
+    worktree_failure = (
+        'if [[ "$*" == *"worktree list --porcelain"* ]]; then exit 2; fi\n'
+        if fail_worktree_list
+        else ""
+    )
+    show_ref_failure = (
+        'if [[ "$*" == *"show-ref --verify --quiet refs/heads/feat/dry-run"* ]]; '
+        "then exit 2; fi\n"
+        if fail_show_ref
+        else ""
+    )
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        f"{worktree_failure}"
+        f"{show_ref_failure}"
+        f"exec {shlex.quote(real_git)} \"$@\"\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(fake_git.stat().st_mode | stat.S_IXUSR)
+
+
+def replay_identity(repo: Path, worktree: Path, head: str) -> ReplayIdentity:
+    return ReplayIdentity(
+        issue=99,
+        pull_request=123,
+        expected_head=head,
+        expected_branch="feat/dry-run",
+        merged_at="2026-05-30T00:00:00Z",
+        worktree_path=str(worktree.resolve()),
+    )
+
+
+def seed_replay_stage(
+    repo: Path,
+    worktree: Path,
+    head: str,
+    stage: str,
+) -> ReplayIdentity:
+    identity = replay_identity(repo, worktree, head)
+    _ = advance_replay_evidence(repo, identity, "worktree-removal-attempted")
+    if stage == "branch-deletion-attempted":
+        _ = advance_replay_evidence(repo, identity, "branch-deletion-attempted")
+    return identity
+
+
+def replay_proof_path(repo: Path, identity: ReplayIdentity) -> Path:
+    return (
+        repo
+        / ".entroping"
+        / "finish-issue-replay"
+        / (
+            f"issue-{identity.issue}-pr-{identity.pull_request}-"
+            f"{identity.expected_head}.json"
+        )
+    )
+
+
+def branch_exists(repo: Path) -> bool:
+    return (
+        subprocess.run(
+            ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feat/dry-run"],
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+
+def strict_args(head: str) -> tuple[str, ...]:
+    return (
+        "99",
+        "--expected-pr",
+        "123",
+        "--expected-head",
+        head,
+        "--expected-branch",
+        "feat/dry-run",
+    )
+
+
+def test_strict_expected_identity_checks_exact_pr_head_branch_and_worktree(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+
+    result = run_finish_issue(
+        repo,
+        fake_bin,
+        tmp_path,
+        "99",
+        "--dry-run",
+        "--expected-pr",
+        "123",
+        "--expected-head",
+        head,
+        "--expected-branch",
+        "feat/dry-run",
+    )
+
+    assert result.returncode == 0
+    assert "DRY RUN" in result.stdout
+    assert read_replay_evidence(repo, replay_identity(repo, worktree, head)) == "none"
+
+
+def test_strict_expected_identity_selects_expected_reclosing_pr(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(
+        tmp_path,
+        head_sha=head,
+        closing_pr_numbers=(122, 123),
+    )
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head), "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "PR: #123" in result.stdout
+
+
+def test_strict_expected_identity_rejects_missing_expected_closing_pr(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(
+        tmp_path,
+        head_sha=head,
+        closing_pr_numbers=(122,),
+    )
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head), "--dry-run")
+
+    assert result.returncode == 1
+    assert "closing PR identity does not match expected PR" in result.stderr
+
+
+def test_strict_expected_identity_idempotent_replay_real_cleanup(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+
+    args = strict_args(head)
+    first_result = run_finish_issue(repo, fake_bin, tmp_path, *args)
+    assert first_result.returncode == 0
+    assert not worktree.exists()
+    assert (
+        subprocess.run(
+            ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feat/dry-run"],
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 1
+    )
+
+    second_result = run_finish_issue(repo, fake_bin, tmp_path, *args)
+    assert second_result.returncode == 0
+    assert not worktree.exists()
+    assert not branch_exists(repo)
+    assert (
+        read_replay_evidence(repo, replay_identity(repo, worktree, head))
+        == "branch-deletion-attempted"
+    )
+
+
+def test_strict_controller_reuses_pinned_replay_helper(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    controller_fds = open_finish_controller_fds()
+    try:
+        result = run_finish_issue(
+            repo,
+            fake_bin,
+            tmp_path,
+            *strict_args(head),
+            controller_fds=controller_fds,
+        )
+    finally:
+        for descriptor in reversed(controller_fds):
+            os.close(descriptor)
+
+    assert result.returncode == 0
+    assert not worktree.exists()
+    assert not branch_exists(repo)
+    assert (
+        read_replay_evidence(repo, replay_identity(repo, worktree, head))
+        == "branch-deletion-attempted"
+    )
+
+
+def test_strict_first_attempt_rejects_absent_worktree_and_branch(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    assert run_git(repo, "worktree", "remove", str(worktree), "--force").returncode == 0
+    run_git(repo, "branch", "-D", "feat/dry-run")
+    identity = replay_identity(repo, worktree, head)
+
+    result = run_finish_issue(
+        repo,
+        fake_bin,
+        tmp_path,
+        "99",
+        "--expected-pr",
+        "123",
+        "--expected-head",
+        head,
+        "--expected-branch",
+        "feat/dry-run",
+    )
+
+    assert result.returncode == 1
+    assert "strict cleanup requires" in result.stderr
+    assert not worktree.exists()
+    assert not branch_exists(repo)
+    assert read_replay_evidence(repo, identity) == "none"
+
+
+def test_strict_first_attempt_rejects_absent_worktree_with_present_branch(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    run_git(repo, "worktree", "remove", str(worktree), "--force")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert branch_exists(repo)
+
+
+def test_strict_first_attempt_rejects_absent_branch_with_present_worktree(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    run_git(worktree, "switch", "--detach")
+    run_git(repo, "branch", "-D", "feat/dry-run")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert worktree.exists()
+    assert not branch_exists(repo)
+
+
+@pytest.mark.parametrize(
+    ("proof_exists", "dangling"),
+    [(False, False), (True, True)],
+)
+def test_strict_rejects_symlink_worktree_before_ref_or_project_cleanup(
+    tmp_path: Path,
+    proof_exists: bool,
+    dangling: bool,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    link = tmp_path / "strict-worktree-link"
+    target = worktree
+    if dangling:
+        run_git(repo, "worktree", "remove", str(worktree), "--force")
+        target = tmp_path / "missing-worktree-target"
+    link.symlink_to(target, target_is_directory=True)
+    identity = ReplayIdentity(
+        issue=99,
+        pull_request=123,
+        expected_head=head,
+        expected_branch="feat/dry-run",
+        merged_at="2026-05-30T00:00:00Z",
+        worktree_path=str(target.resolve()),
+    )
+    if proof_exists:
+        _ = advance_replay_evidence(repo, identity, "worktree-removal-attempted")
+
+    result = run_finish_issue(
+        repo,
+        fake_bin,
+        tmp_path,
+        *strict_args(head),
+        "--worktree",
+        str(link),
+    )
+
+    assert result.returncode == 1
+    assert "worktree path must not be a symlink" in result.stderr
+    assert branch_exists(repo)
+    assert not (tmp_path / "finish-mutation").exists()
+    expected_stage = "worktree-removal-attempted" if proof_exists else "none"
+    assert read_replay_evidence(repo, identity) == expected_stage
+
+
+def test_strict_expected_identity_requires_all_three_arguments(tmp_path: Path) -> None:
+    _repo, _worktree = create_repo_with_worktree(tmp_path)
+    fake_bin = write_fake_gh(tmp_path)
+    result = run_finish_issue(
+        _repo,
+        fake_bin,
+        tmp_path,
+        "99",
+        "--dry-run",
+        "--expected-pr",
+        "123",
+    )
+
+    assert result.returncode == 1
+    assert "must be supplied together" in result.stderr
+
+
+def test_strict_worktree_stage_retries_present_worktree_cleanup(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 0
+    assert not worktree.exists()
+    assert not branch_exists(repo)
+    assert read_replay_evidence(repo, identity) == "branch-deletion-attempted"
+
+
+def test_strict_worktree_stage_deletes_exact_present_branch(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    run_git(repo, "worktree", "remove", str(worktree), "--force")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 0
+    assert not branch_exists(repo)
+    assert read_replay_evidence(repo, identity) == "branch-deletion-attempted"
+
+
+def test_strict_worktree_probe_failure_preserves_branch_and_proof(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    run_git(repo, "worktree", "remove", str(worktree), "--force")
+    write_fake_git(fake_bin, fail_worktree_list=True)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert "worktree registration probe failed" in result.stderr
+    assert branch_exists(repo)
+    assert read_replay_evidence(repo, identity) == "worktree-removal-attempted"
+    assert not (tmp_path / "finish-mutation").exists()
+
+
+def test_strict_show_ref_probe_failure_preserves_objects_and_proof(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    write_fake_git(fake_bin, fail_show_ref=True)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert "local branch probe failed" in result.stderr
+    assert worktree.exists()
+    assert branch_exists(repo)
+    assert read_replay_evidence(repo, identity) == "worktree-removal-attempted"
+    assert not (tmp_path / "finish-mutation").exists()
+
+
+def test_strict_worktree_stage_rejects_both_objects_absent(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    run_git(repo, "worktree", "remove", str(worktree), "--force")
+    run_git(repo, "branch", "-D", "feat/dry-run")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert read_replay_evidence(repo, identity) == "worktree-removal-attempted"
+
+
+def test_strict_branch_stage_accepts_both_objects_absent(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "branch-deletion-attempted")
+    run_git(repo, "worktree", "remove", str(worktree), "--force")
+    run_git(repo, "branch", "-D", "feat/dry-run")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 0
+    assert read_replay_evidence(repo, identity) == "branch-deletion-attempted"
+
+
+def test_strict_branch_stage_rejects_reappeared_worktree(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "branch-deletion-attempted")
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert worktree.exists()
+    assert branch_exists(repo)
+    assert read_replay_evidence(repo, identity) == "branch-deletion-attempted"
+
+
+@pytest.mark.parametrize("damage", ["conflict", "corrupt", "symlink"])
+def test_strict_rejects_invalid_replay_evidence_before_cleanup(
+    tmp_path: Path,
+    damage: str,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    proof = replay_proof_path(repo, identity)
+    if damage == "conflict":
+        payload = cast(dict[str, object], json.loads(proof.read_text(encoding="utf-8")))
+        payload["pull_request"] = 124
+        proof.write_text(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    elif damage == "corrupt":
+        proof.write_text("not-json", encoding="utf-8")
+    else:
+        outside = tmp_path / "outside-proof.json"
+        proof.replace(outside)
+        proof.symlink_to(outside)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
+
+    assert result.returncode == 1
+    assert "strict cleanup replay evidence is invalid or unsafe" in result.stderr
+    assert worktree.exists()
+    assert branch_exists(repo)
+
+
+def test_strict_expected_identity_rejects_mismatched_local_head(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    expected_head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    run_git(worktree, "commit", "--allow-empty", "-m", "simulate divergent local branch")
+    mismatched_head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    assert mismatched_head != expected_head
+    identity = seed_replay_stage(
+        repo,
+        worktree,
+        expected_head,
+        "worktree-removal-attempted",
+    )
+    assert run_git(repo, "worktree", "remove", str(worktree), "--force").returncode == 0
+    assert not worktree.exists()
+    assert read_replay_evidence(repo, identity) == "worktree-removal-attempted"
+
+    fake_bin = write_fake_gh(tmp_path, head_sha=expected_head)
+    result = run_finish_issue(
+        repo,
+        fake_bin,
+        tmp_path,
+        "99",
+        "--expected-pr",
+        "123",
+        "--expected-head",
+        expected_head,
+        "--expected-branch",
+        "feat/dry-run",
+    )
+
+    assert result.returncode == 1
+    assert "local branch does not match expected head" in result.stderr
+    assert subprocess.run(
+        ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feat/dry-run"],
+        check=False,
+        capture_output=True,
+    ).returncode == 0
+    assert (
+        subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "refs/heads/feat/dry-run"],
+            check=False,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        == mismatched_head
+    )
+    assert not worktree.exists()
 
 
 def write_factory_metrics_fixture(worktree: Path) -> tuple[Path, Path]:
@@ -747,6 +1384,105 @@ def test_finish_issue_accepts_unknown_passing_ci_rollup_entry(tmp_path: Path) ->
     assert "CI checks verified: 1" in result.stdout
     assert not worktree.exists()
     assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip() == ""
+
+
+def test_finish_issue_accepts_latest_success_after_superseded_failure(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:24:55Z",
+                "completedAt": "2026-08-07T18:25:05Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            },
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "completedAt": "2026-08-07T18:36:00Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            },
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "CI checks verified: 1" in result.stdout
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_latest_failure_after_superseded_success(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "completedAt": "2026-08-07T18:36:00Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            },
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:24:55Z",
+                "completedAt": "2026-08-07T18:25:05Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            },
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 1
+    assert "checks (3.12): status=COMPLETED conclusion=FAILURE" in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_conflicting_check_runs_with_same_start_time(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "status": "COMPLETED",
+                "conclusion": conclusion,
+            }
+            for conclusion in ("FAILURE", "SUCCESS")
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 1
+    assert "checks (3.12): status=COMPLETED conclusion=FAILURE" in result.stderr
+    assert worktree.exists()
 
 
 def test_finish_issue_removes_clean_worktree_and_squash_merged_branch(tmp_path: Path) -> None:

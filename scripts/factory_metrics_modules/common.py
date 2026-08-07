@@ -38,6 +38,10 @@ def contains_secret_like(value: str) -> bool:
     return _contains_secret_like(value)
 
 
+def markdown_cell(value: object) -> str:
+    return _markdown_cell(value)
+
+
 def _contains_control_character(value: str) -> bool:
     return CONTROL_CHARACTER_PATTERN.search(value) is not None
 
@@ -118,6 +122,20 @@ def _safe_context_scorecard_input_path(repo_root: Path, raw_input: str) -> Path:
     return resolved
 
 
+def _safe_provider_scorecard_input_path(repo_root: Path, raw_input: str) -> Path:
+    """Resolve a scorecard input only inside ignored factory-metrics storage."""
+
+    return _safe_factory_metrics_path(
+        repo_root,
+        Path(raw_input).expanduser(),
+        "provider scorecard input",
+    )
+
+
+def safe_provider_scorecard_input_path(repo_root: Path, raw_input: str) -> Path:
+    return _safe_provider_scorecard_input_path(repo_root, raw_input)
+
+
 def _resolve_context_file(repo_root: Path, path: str | None) -> Path | None:
     if not path:
         return None
@@ -161,6 +179,14 @@ def _write_report_output(path: Path, content: str) -> None:
     replace_bounded(path, content.encode("utf-8"))
 
 
+def write_report_output(path: Path, content: str) -> None:
+    _write_report_output(path, content)
+
+
+def safe_report_path(repo_root: Path, output: str) -> Path:
+    return _safe_report_path(repo_root, output)
+
+
 def _print_payload(payload: dict[str, Any], as_json: bool) -> None:
     if as_json:
         print(json.dumps(payload, sort_keys=True))
@@ -168,3 +194,7 @@ def _print_payload(payload: dict[str, Any], as_json: bool) -> None:
 
     for key, value in payload.items():
         print(f"{key}: {value}")
+
+
+def print_payload(payload: dict[str, Any], as_json: bool) -> None:
+    _print_payload(payload, as_json)
