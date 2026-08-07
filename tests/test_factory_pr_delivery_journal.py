@@ -1542,7 +1542,7 @@ def test_journal_storage_abuse_fails_closed(tmp_path: Path, abuse: str) -> None:
                 "CREATE TRIGGER attacker AFTER UPDATE ON delivery_lifecycle BEGIN SELECT 1; END"
             )
     elif abuse == "mode":
-        os.chmod(database, 0o644)
+        os.chmod(database, 0o640)
     else:
         database.unlink()
         target = tmp_path / "foreign.sqlite3"

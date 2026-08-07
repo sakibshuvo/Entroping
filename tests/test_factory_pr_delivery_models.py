@@ -89,11 +89,11 @@ def test_load_rejects_nonfinite_constants(tmp_path: Path) -> None:
 
 
 def test_load_rejects_non_private_referenced_artifact(tmp_path: Path) -> None:
-    # Given: a world-readable body.
+    # Given: a non-private body.
     _main, _worktree, payload = accepted_artifacts(tmp_path)
     body = Path(str(payload["pr_body_path"]))
     body.write_text("public", encoding="utf-8")
-    os.chmod(body, 0o644)
+    os.chmod(body, 0o640)
     request_path = tmp_path / "private/delivery-request.json"
     write_delivery_request(request_path, payload)
 
