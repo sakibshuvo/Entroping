@@ -105,8 +105,9 @@ def _write_fake_gh(
         '{"fields":[{"name":"Status","id":"field-id",'
         '"options":[{"name":"Done","id":"done-id"}]}]}'
     )
-    items_payload = shlex.quote(
-        '{"items":[{"id":"item-id","content":{"number":99}}]}'
+    project_items_payload = shlex.quote(
+        '{"data":{"repository":{"issue":{"projectItems":{"nodes":['
+        '{"id":"item-id","project":{"id":"project-id"}}]}}}}}'
     )
     fake.write_text(
         "#!/bin/sh\n"
@@ -115,11 +116,11 @@ def _write_fake_gh(
         'case "$1 $2" in\n'
         f"  'issue view') printf '%s' {issue_payload} ;;\n"
         f"  'pr view') printf '%s' {pr_payload} ;;\n"
-        "  'api') printf '%s\\n' '999' ;;\n"
+        "  'api rate_limit') printf '%s\\n' '999' ;;\n"
+        f"  'api graphql') printf '%s\\n' {project_items_payload} ;;\n"
         "  'issue edit'|'project item-edit') : ;;\n"
         "  'project view') printf '%s\\n' '{\"id\":\"project-id\"}' ;;\n"
         f"  'project field-list') printf '%s\\n' {fields_payload} ;;\n"
-        f"  'project item-list') printf '%s\\n' {items_payload} ;;\n"
         '  *) echo "unexpected gh command" >&2; exit 2 ;;\n'
         "esac\n",
         encoding="utf-8",

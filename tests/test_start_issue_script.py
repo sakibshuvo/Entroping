@@ -308,20 +308,25 @@ def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
         '"options":[{"name":"In Progress","id":"in-progress-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        'if [[ "$1 $2" == "project item-list" ]]; then\n'
+        'if [[ "$1 $2" == "api graphql" ]]; then\n'
+        '  printf \'api graphql %s\\n\' "$*" >> "$calls"\n'
         '  if [[ -f "$state_dir/project-added" ]]; then\n'
-        '    count_file="$state_dir/item-list-after-add-count"\n'
+        '    count_file="$state_dir/graphql-after-add-count"\n'
         "    count=0\n"
         '    [[ -f "$count_file" ]] && count=$(cat "$count_file")\n'
         "    count=$((count + 1))\n"
         '    printf \'%s\\n\' "$count" > "$count_file"\n'
         "    if ((count >= 2)); then\n"
-        '      printf \'%s\\n\' \'{"items":[{"id":"item-id","content":{"number":99}}]}\'\n'
+        "      printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":["
+        "{\"id\":\"item-id\",\"project\":{\"id\":\"project-id\"}}]}}}}}'\n"
         "    else\n"
-        "      printf '%s\\n' '{\"items\":[]}'\n"
+        "      printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":[]}}}}}'\n"
         "    fi\n"
         "  else\n"
-        "    printf '%s\\n' '{\"items\":[]}'\n"
+        "    printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":[]}}}}}'\n"
         "  fi\n"
         "  exit 0\n"
         "fi\n"
@@ -365,7 +370,7 @@ def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
     assert (worktree_parent / "Entroping-issue-99").is_dir()
 
 
-def test_start_issue_finds_existing_project_item_beyond_first_200(
+def test_start_issue_targets_current_issue_project_item_without_listing_board(
     tmp_path: Path,
 ) -> None:
     repo = create_start_issue_fixture_repo(tmp_path)
@@ -398,19 +403,12 @@ def test_start_issue_finds_existing_project_item_beyond_first_200(
         '"options":[{"name":"In Progress","id":"in-progress-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        'if [[ "$1 $2" == "project item-list" ]]; then\n'
-        '  printf \'project item-list %s\\n\' "$*" >> "$calls"\n'
-        "  limit=0\n"
-        "  previous=''\n"
-        '  for arg in "$@"; do\n'
-        '    if [[ "$previous" == \'--limit\' ]]; then limit="$arg"; fi\n'
-        '    previous="$arg"\n'
-        "  done\n"
-        "  if ((limit > 200)); then\n"
-        '    printf \'%s\\n\' \'{"items":[{"id":"late-item-id","content":{"number":99}}]}\'\n'
-        "  else\n"
-        "    printf '%s\\n' '{\"items\":[]}'\n"
-        "  fi\n"
+        'if [[ "$1 $2" == "api graphql" ]]; then\n'
+        '  printf \'api graphql %s\\n\' "$*" >> "$calls"\n'
+        "  printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":["
+        "{\"id\":\"wrong-item-id\",\"project\":{\"id\":\"other-project-id\"}},"
+        "{\"id\":\"target-item-id\",\"project\":{\"id\":\"project-id\"}}]}}}}}'\n"
         "  exit 0\n"
         "fi\n"
         'if [[ "$1 $2" == "project item-add" ]]; then\n'
@@ -443,10 +441,15 @@ def test_start_issue_finds_existing_project_item_beyond_first_200(
 
     assert result.returncode == 0, result.stderr
     calls = (fake_state / "calls.log").read_text(encoding="utf-8")
-    assert "project item-list" in calls
+    assert "api graphql" in calls
+    assert "-F owner=sakibshuvo" in calls
+    assert "-F name=Entroping" in calls
+    assert "-F number=99" in calls
+    assert "project item-list" not in calls
     assert "project item-add" not in calls
     assert "project item-edit" in calls
-    assert "late-item-id" in calls
+    assert "target-item-id" in calls
+    assert "wrong-item-id" not in calls
     assert (worktree_parent / "Entroping-issue-99").is_dir()
 
 

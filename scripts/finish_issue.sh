@@ -27,8 +27,6 @@ Environment:
   ENTROPING_REPO             GitHub repo. Default: sakibshuvo/Entroping
   ENTROPING_PROJECT_OWNER    GitHub project owner. Default: sakibshuvo
   ENTROPING_PROJECT_NUMBER   GitHub project number. Default: 1
-  ENTROPING_PROJECT_ITEM_LIST_LIMIT
-                            Project item lookup window. Default: 1000
   ENTROPING_WORKTREE_PARENT  Parent directory for issue worktrees.
 USAGE
 }
@@ -307,10 +305,8 @@ move_project_done() {
   local ids
   local status_field_id
   local done_option_id
-  local items_json
   local item_id
   local item_lookup_status
-  local item_list_limit
 
   project_graphql_quota_allows_update || return 0
 
@@ -331,18 +327,20 @@ move_project_done() {
   status_field_id=$(printf '%s\n' "$ids" | sed -n '1p')
   done_option_id=$(printf '%s\n' "$ids" | sed -n '2p')
 
-  item_list_limit=$(project_item_list_limit)
-  if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit "$item_list_limit" --format json 2>/dev/null); then
-    warn "could not read GitHub Project items"
+  item_lookup_status=0
+  item_id=$(project_item_id_for_issue "$repo" "$project_id" "$issue_number") \
+    || item_lookup_status=$?
+  if [[ "$item_lookup_status" == "2" ]]; then
+    warn "could not read current issue's GitHub Project items"
     return 0
   fi
-  if ! item_id=$(json_project_item_id "$items_json" "$issue_number"); then
+  if [[ "$item_lookup_status" != "0" ]]; then
     if ! gh project item-add "$project_number" --owner "$project_owner" --url "$issue_url" >/dev/null 2>&1; then
       warn "issue #$issue_number is not on the GitHub Project board and could not be added"
       return 0
     fi
     item_lookup_status=0
-    item_id=$(retry_project_item_id "$project_number" "$project_owner" "$issue_number") \
+    item_id=$(retry_project_item_id "$repo" "$project_id" "$issue_number") \
       || item_lookup_status=$?
     if [[ "$item_lookup_status" == "2" ]]; then
       warn "added issue #$issue_number to the GitHub Project board but could not reread items"
