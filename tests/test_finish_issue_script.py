@@ -140,6 +140,7 @@ def write_fake_gh(
     pr_state: str = "MERGED",
     checks_json: str | None = None,
     head_sha: str | None = None,
+    closing_pr_numbers: tuple[int, ...] = (123,),
 ) -> Path:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir(exist_ok=True)
@@ -147,6 +148,16 @@ def write_fake_gh(
     mutation_marker = shlex.quote(str(tmp_path / "finish-mutation"))
     checks = checks_json or (
         '[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
+    )
+    closing_refs = json.dumps(
+        [
+            {
+                "number": number,
+                "url": f"https://github.com/sakibshuvo/Entroping/pull/{number}",
+            }
+            for number in closing_pr_numbers
+        ],
+        separators=(",", ":"),
     )
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
@@ -157,7 +168,7 @@ def write_fake_gh(
         "{"
         f'"title":"Dry run feature","url":"https://github.com/sakibshuvo/Entroping/issues/{issue_number}",'
         f'"state":"{issue_state}",'
-        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
+        f'"closedByPullRequestsReferences":{closing_refs}'
         "}\n"
         "JSON\n"
         "  exit 0\n"
@@ -450,6 +461,38 @@ def test_strict_expected_identity_checks_exact_pr_head_branch_and_worktree(
     assert result.returncode == 0
     assert "DRY RUN" in result.stdout
     assert read_replay_evidence(repo, replay_identity(repo, worktree, head)) == "none"
+
+
+def test_strict_expected_identity_selects_expected_reclosing_pr(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(
+        tmp_path,
+        head_sha=head,
+        closing_pr_numbers=(122, 123),
+    )
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head), "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "PR: #123" in result.stdout
+
+
+def test_strict_expected_identity_rejects_missing_expected_closing_pr(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(
+        tmp_path,
+        head_sha=head,
+        closing_pr_numbers=(122,),
+    )
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head), "--dry-run")
+
+    assert result.returncode == 1
+    assert "closing PR identity does not match expected PR" in result.stderr
 
 
 def test_strict_expected_identity_idempotent_replay_real_cleanup(tmp_path: Path) -> None:
