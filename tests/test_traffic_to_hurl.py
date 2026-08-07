@@ -13,6 +13,7 @@ from entroping.bridge.traffic_to_hurl import (
     TrafficHurlCompilationError,
     compile_traffic_session_to_hurl,
 )
+from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.models.hurl import parse_hurl_exchanges, parse_hurl_metadata
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
@@ -87,6 +88,32 @@ def test_compile_traffic_session_generates_hurl_with_metadata_and_golden_asserti
     assert "$.id" not in generated.content
     assert "$.token" not in generated.content
     assert "ord_123" not in generated.content
+
+
+def test_compile_traffic_session_uses_redacted_short_credentials() -> None:
+    raw_otp = "otp-hurl-probe"
+    raw_verification = "verification-hurl-probe"
+    raw_exchange = _exchange(
+        request_body=f'{{"OTP":"{raw_otp}","quantity":3}}',
+        response_body=(
+            f'{{"verificationCode":"{raw_verification}","status":"accepted"}}'
+        ),
+        redacted=False,
+    )
+    redacted_exchange = redact_traffic_exchange(raw_exchange)
+    session = build_traffic_session_candidate(
+        [redacted_exchange],
+        name="semantic_credentials",
+        target_url="https://api.example.test",
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=True)
+
+    assert raw_otp not in generated.content
+    assert raw_verification not in generated.content
+    assert '"OTP":"[REDACTED]"' in generated.content
+    assert "$.verificationCode" not in generated.content
+    assert 'jsonpath "$.status" == "accepted"' in generated.content
 
 
 def test_compile_traffic_session_separates_multiple_records() -> None:
