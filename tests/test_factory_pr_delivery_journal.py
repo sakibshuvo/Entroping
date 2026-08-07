@@ -1542,6 +1542,8 @@ def test_journal_storage_abuse_fails_closed(tmp_path: Path, abuse: str) -> None:
                 "CREATE TRIGGER attacker AFTER UPDATE ON delivery_lifecycle BEGIN SELECT 1; END"
             )
     elif abuse == "mode":
+        # Deliberately non-private: the test asserts that journal reuse fails closed.
+        # codeql[py/overly-permissive-file]
         os.chmod(database, 0o640)
     else:
         database.unlink()
