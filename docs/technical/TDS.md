@@ -184,6 +184,26 @@ terminal replay returns the stored value-free receipt. Acceptance does not
 settle or complete scheduler execution and grants no merge, provider, or paid
 authority.
 
+The downstream Tier A PR delivery controller is a distinct maintainer-only,
+disabled-by-default `factoryctl deliver` adapter under
+`scripts/factory_pr_delivery_service.py`; it is plan-first/read-only until
+explicit `--apply`, and the product `entroping` CLI remains unchanged. Its
+strict owner-only request admits no caller-supplied repository, issue, branch,
+base, title, command, snapshot, provider, CI, merge, force, admin, SSH,
+credential, or cleanup authority. Private journal modules persist intent before
+exact local commit/diff, push, PR, CI, merge, cleanup, and scheduler effects;
+canonical terminal value-free receipts replay exactly across fresh service
+instances without repeated effects. Final PR body/base/head/rollup eligibility
+is bound to recorded evidence, while drift or ambiguity becomes safe pending,
+blocked, failed, or uncertain. Strict cleanup and
+`factory_pr_delivery_terminal_completion.py` are identity-bound and
+partial-replay safe; `factory_pr_delivery_ssh.py` deletes only the recorded
+remote branch/head under an expected-value lease and persists absence proof.
+Scheduler completion consumes the persisted owner/epoch/phase and one stored
+completion timestamp after cleanup proof. The terminal scheduler transaction
+keeps worker heartbeat and lease unchanged after expiry while retaining exact
+authority, CAS, and fencing checks.
+
 Delivery-envelope construction belongs only to the public specialized
 `tick_selected_delivery` entrypoint, exposed as `factoryctl tick --select-live`;
 selector JSON, orchestration requests, and generic `tick` cannot inject it. This

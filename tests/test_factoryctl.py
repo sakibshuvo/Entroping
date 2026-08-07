@@ -1,16 +1,27 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
+import pytest
 from factory_scheduler_test_support import dead, owner, request, scheduler
 from factory_status_test_support import initialize_status_period, write_status_policy
 
+from scripts import factoryctl  # noqa: E402
 from scripts.factory_budget_ledger import LedgerEntryInput  # noqa: E402
+from scripts.factory_pr_delivery_github_contracts import GitHubDeliveryError  # noqa: E402
+from scripts.factory_pr_delivery_receipts import (  # noqa: E402
+    DeliveryReceipt,
+    DeliveryReceiptLifecycle,
+    DeliveryReceiptReason,
+)
+from scripts.factoryctl_parser import build_parser  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
@@ -60,6 +71,183 @@ def test_factoryctl_help_documents_safe_tick_modes(tmp_path: Path) -> None:
     assert "--authorization-id" in result.stdout
     assert "plan-only" in result.stdout
     assert "does not dispatch providers" in result.stdout
+
+
+def test_factoryctl_help_exposes_plan_first_delivery_command(tmp_path: Path) -> None:
+    result = _run(tmp_path, "--help")
+
+    assert result.returncode == 0
+    assert "deliver" in result.stdout
+    assert "accepted proposal delivery" in result.stdout
+
+
+def _delivery_receipt(
+    lifecycle: DeliveryReceiptLifecycle,
+    reason: DeliveryReceiptReason,
+) -> DeliveryReceipt:
+    timestamp = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
+    values: dict[str, object] = {
+        "request_id": "delivery_" + "1" * 64,
+        "lifecycle": lifecycle,
+        "reason": reason,
+        "authoritative": lifecycle != "blocked",
+        "accepted_local_head": "a" * 40,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    if lifecycle == "completed":
+        values.update(
+            {
+                "committed_head": "b" * 40,
+                "remote_head": "b" * 40,
+                "pr_number": 42,
+                "ci_digest": "c" * 64,
+                "merge_head": "b" * 40,
+            }
+        )
+    return DeliveryReceipt.model_validate(values)
+
+
+def _patch_delivery(
+    monkeypatch: pytest.MonkeyPatch,
+    root: Path,
+    receipt: DeliveryReceipt,
+) -> tuple[list[tuple[Path, bool]], list[Path]]:
+    calls: list[tuple[Path, bool]] = []
+    port_roots: list[Path] = []
+
+    class FakePort:
+        def __init__(self, *, cwd: Path) -> None:
+            port_roots.append(cwd)
+
+    class FakeDeliveryService:
+        def __init__(self, repo_root: Path, *, github: FakePort) -> None:
+            assert repo_root == root
+            assert isinstance(github, FakePort)
+
+        def deliver(self, request_path: Path, *, apply: bool) -> DeliveryReceipt:
+            calls.append((request_path, apply))
+            return receipt
+
+    monkeypatch.setattr(factoryctl, "GhGitHubDeliveryPort", FakePort)
+    monkeypatch.setattr(factoryctl, "DeliveryService", FakeDeliveryService)
+    return calls, port_roots
+
+
+def test_factoryctl_deliver_parser_has_only_bounded_inputs() -> None:
+    parser = build_parser()
+    subparsers = next(
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+    )
+    deliver = subparsers.choices["deliver"]
+    options = {option for action in deliver._actions for option in action.option_strings}
+    positional = [action.dest for action in parser._actions if not action.option_strings]
+
+    assert positional == ["command"]
+    assert options == {"-h", "--help", "--request", "--apply", "--json"}
+    request = next(action for action in deliver._actions if action.dest == "request")
+    assert request.required is True
+
+
+@pytest.mark.parametrize(
+    ("lifecycle", "reason", "expected_exit"),
+    [
+        ("completed", "completed", 0),
+        ("blocked", "ci-pending", 1),
+        ("uncertain", "uncertain", 2),
+    ],
+)
+def test_factoryctl_deliver_maps_lifecycle_to_exit_code(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    lifecycle: Literal["completed", "blocked", "uncertain"],
+    reason: Literal["completed", "ci-pending", "uncertain"],
+    expected_exit: int,
+) -> None:
+    request_path = tmp_path / "delivery.json"
+    calls, port_roots = _patch_delivery(
+        monkeypatch, tmp_path, _delivery_receipt(lifecycle, reason)
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert factoryctl.main(["deliver", "--request", str(request_path)]) == expected_exit
+    assert calls == [(request_path, False)]
+    assert port_roots == [tmp_path]
+
+
+@pytest.mark.parametrize(
+    ("argv", "apply"),
+    [
+        (("deliver", "--request", "request.json"), False),
+        (("deliver", "--request", "request.json", "--apply"), True),
+    ],
+)
+def test_factoryctl_deliver_passes_exact_request_and_apply_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    argv: tuple[str, ...],
+    apply: bool,
+) -> None:
+    calls, _ = _patch_delivery(
+        monkeypatch, tmp_path, _delivery_receipt("completed", "completed")
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert factoryctl.main(list(argv)) == 0
+    assert calls == [(Path("request.json"), apply)]
+
+
+def test_factoryctl_deliver_sanitizes_github_port_constructor_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    constructor_calls: list[Path] = []
+
+    class UnavailablePort:
+        def __init__(self, *, cwd: Path) -> None:
+            constructor_calls.append(cwd)
+            raise GitHubDeliveryError("tool-unavailable")
+
+    monkeypatch.setattr(factoryctl, "GhGitHubDeliveryPort", UnavailablePort)
+    monkeypatch.chdir(tmp_path)
+
+    assert factoryctl.main(["deliver", "--request", "request.json"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "factoryctl: tool-unavailable\n"
+    assert constructor_calls == [tmp_path]
+
+
+def test_factoryctl_deliver_renders_canonical_json_and_value_free_human_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    completed = _delivery_receipt("completed", "completed")
+    calls, _ = _patch_delivery(monkeypatch, tmp_path, completed)
+    monkeypatch.chdir(tmp_path)
+
+    assert factoryctl.main(["deliver", "--request", "request.json", "--json"]) == 0
+    assert capsys.readouterr().out == json.dumps(
+        completed.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+    ) + "\n"
+    assert calls == [(Path("request.json"), False)]
+
+    assert factoryctl.main(["deliver", "--request", "request.json"]) == 0
+    assert capsys.readouterr().out == (
+        "Factory delivery: completed (completed)\n"
+        "Mode: authoritative\n"
+        "PR: #42\n"
+        f"Head: {'b' * 40}\n"
+    )
+    assert calls == [(Path("request.json"), False)] * 2
+    blocked = _delivery_receipt("blocked", "ci-pending")
+    calls, _ = _patch_delivery(monkeypatch, tmp_path, blocked)
+
+    assert factoryctl.main(["deliver", "--request", "request.json"]) == 1
+    assert capsys.readouterr().out == "Factory delivery: blocked (ci-pending)\nMode: plan-only\n"
+    assert calls == [(Path("request.json"), False)]
 
 
 def test_factoryctl_status_empty_state_is_paused_and_creates_nothing(

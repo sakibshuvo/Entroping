@@ -88,6 +88,7 @@ def update_execution_row(
     owner: LeaseOwner | None = None,
     epoch: int | None = None,
     lease_expires_at: datetime | None = None,
+    worker_heartbeat_at: datetime | None = None,
     attempt_count: int | None = None,
     retry_not_before: datetime | None = None,
     failure_code: str | None = None,
@@ -103,6 +104,9 @@ def update_execution_row(
     effective_epoch = execution.lease_epoch if epoch is None else epoch
     effective_expiration = (
         execution.lease_expires_at if lease_expires_at is None else lease_expires_at
+    )
+    effective_heartbeat = aware_utc(
+        observed_at if worker_heartbeat_at is None else worker_heartbeat_at
     )
     effective_attempts = execution.attempt_count if attempt_count is None else attempt_count
     version = execution.phase_version + 1
@@ -124,7 +128,7 @@ def update_execution_row(
             effective_epoch,
             iso_utc(observed_at),
             iso_utc(effective_expiration),
-            iso_utc(observed_at),
+            iso_utc(effective_heartbeat),
             None if retry_not_before is None else iso_utc(retry_not_before),
             failure_code,
             terminal_outcome,

@@ -19,8 +19,10 @@ tracked template is inactive by default and must not be bootstrapped yet. Issue
 `uv run python scripts/factoryctl.py tick` lease and duplicate-tick guard, issue
 #1562 supplies bounded artifact and stream-log retention, and issue #1571 is merged
 via PR #1597 at commit `b78c551a`. Issue #1572's status projection is done.
-Activation remains blocked pending PR/CI/merge cleanup (#1576) and a later
-explicit launchd enablement decision. Issue #1574 is merged, while #1575 now
+Activation remains blocked pending a later explicit launchd enablement decision.
+Issue #1576 has focused local issue-branch evidence but still awaits full release
+gates, GitHub review/merge, and does not activate the controller. Issue #1574 is
+merged, while #1575 now
 has bounded offline proposal-controller evidence only; it is not
 live-selection, provider, or launchd evidence. Issue #1571 supplies recovery
 authority, including crash/outage recovery, and the plan/apply command; it does
@@ -29,6 +31,42 @@ orchestration.
 
 The template contains no credentials and performs no automatic installation.
 Tests parse rendered template data only; they never invoke `launchctl`.
+
+## Maintainer Delivery Controller
+
+`factoryctl deliver` is a maintainer-only adapter, not a product `entroping`
+CLI command, provider dispatcher, or public/user command. Supply only the
+owner-only request artifact:
+
+```text
+uv run python scripts/factoryctl.py deliver --request <owner-only-delivery-request.json> --json
+```
+
+It reads and validates by default; `--apply` is the explicit mutation boundary.
+The caller cannot supply repository, issue, branch, base, title, commands,
+snapshots, provider, CI, merge, force, admin, SSH, credential, or cleanup
+authority. Durable private SQLite intent and evidence are recorded before each
+effect. A completed terminal receipt replays exactly across fresh processes
+without repeating proven effects; invalid or uncertain state stops for
+reconciliation.
+
+Apply binds the exact local diff, pushed head, PR, CI rollup, and merge head.
+Before merge it re-fetches final fresh issue eligibility and requires the exact
+PR body, base, head, and CI rollup; merge is allowed only under the expected
+head. After merge it requires exact merged-head and closure proof. If a mutation
+response is lost, it advances only from exact live or local evidence; otherwise
+it marks the state uncertain and does not repeat proven earlier effects. Strict
+finish cleanup is identity-bound and partial-replay safe; remote deletion
+uses an expected-value lease for the authorized head and persists an absence
+proof. Scheduler completion follows cleanup with persisted owner, epoch, and
+phase-version plus one stored timestamp. A completion accepted after cleanup
+remains valid after lease expiry without extending the heartbeat or lease.
+
+Exit `0` means completed, `1` means safe pending, blocked, or failed, and `2`
+means invalid, unsafe, or uncertain. Outputs are deterministic, bounded, and
+value-free. The launchd template remains disabled; activation needs a separate
+explicit decision. This controller grants no provider dispatch, broad automation
+authority, or new product CLI surface.
 
 ## Maintainer Status Projection
 
@@ -461,7 +499,9 @@ Use this incident order:
    freshness or launch a provider. The #1574 static-document orchestrator does
    not dispatch providers; #1575 has completed bounded offline
    proposal-controller evidence only, not live-selection, provider, or launchd
-   authorization, and #1576 remains blocking.
+   authorization. #1576 has focused local issue-branch evidence but still awaits
+   full release gates and GitHub review/merge; it does not activate the
+   controller.
 
 Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
 deadlines use deterministic jitter, honor bounded provider hints, and never
