@@ -49,6 +49,16 @@ ApiStyle = Literal[
     "postman_collection",
     "unknown_http",
 ]
+ApiSchemaStyle = Literal[
+    "graphql",
+    "soap_xml",
+    "grpc_proto",
+    "asyncapi",
+    "webhook_event",
+    "websocket_realtime",
+    "bruno_collection",
+    "postman_collection",
+]
 ApiSourceKind = Literal[
     "configured_openapi",
     "conventional_openapi",
@@ -78,7 +88,7 @@ _OPENAPI_FILENAMES: Final[frozenset[str]] = frozenset(
         "swagger.yml",
     }
 )
-_SCHEMA_EXTENSIONS: Final[dict[str, ApiStyle]] = {
+_SCHEMA_EXTENSIONS: Final[dict[str, ApiSchemaStyle]] = {
     ".graphql": "graphql",
     ".graphqls": "graphql",
     ".gql": "graphql",
@@ -673,7 +683,9 @@ def _load_hurl_source(*, root: Path, raw_path: Path) -> ApiInventorySource:
     )
 
 
-def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiInventorySource:
+def _load_schema_source(
+    *, root: Path, raw_path: Path, style: ApiSchemaStyle
+) -> ApiInventorySource:
     path_text = raw_path.as_posix()
     resolved = _resolve_source_path(raw_path, root=root)
     if isinstance(resolved, ApiInventorySource):
@@ -872,57 +884,47 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             operations=0,
             summary="Bruno collection manifest.",
         )
-    if style == "postman_collection":
-        document = _load_yaml_document(
-            raw_text,
-            kind="schema_file",
-            style=style,
-            path=path_text,
-            label="Postman collection",
-        )
-        if isinstance(document, ApiInventorySource):
-            return document
-        if not isinstance(document, dict):
-            return _source(
-                kind="schema_file",
-                style=style,
-                path=path_text,
-                state="invalid",
-                sha256=None,
-                operations=0,
-                summary="Postman collection document must be an object.",
-            )
-        postman_operations = _postman_operation_count(document)
-        if postman_operations is None:
-            return _source(
-                kind="schema_file",
-                style=style,
-                path=path_text,
-                state="invalid",
-                sha256=None,
-                operations=0,
-                summary="Postman collection document must contain an item list.",
-            )
+    document = _load_yaml_document(
+        raw_text,
+        kind="schema_file",
+        style="postman_collection",
+        path=path_text,
+        label="Postman collection",
+    )
+    if isinstance(document, ApiInventorySource):
+        return document
+    if not isinstance(document, dict):
         return _source(
             kind="schema_file",
-            style=style,
+            style="postman_collection",
             path=path_text,
-            state="present",
-            sha256=hashlib.sha256(raw_bytes).hexdigest(),
-            operations=postman_operations,
-            summary=(
-                f"{postman_operations} Postman request "
-                f"{'entry' if postman_operations == 1 else 'entries'}."
-            ),
+            state="invalid",
+            sha256=None,
+            operations=0,
+            summary="Postman collection document must be an object.",
+        )
+    postman_operations = _postman_operation_count(document)
+    if postman_operations is None:
+        return _source(
+            kind="schema_file",
+            style="postman_collection",
+            path=path_text,
+            state="invalid",
+            sha256=None,
+            operations=0,
+            summary="Postman collection document must contain an item list.",
         )
     return _source(
         kind="schema_file",
-        style=style,
+        style="postman_collection",
         path=path_text,
         state="present",
         sha256=hashlib.sha256(raw_bytes).hexdigest(),
-        operations=0,
-        summary=f"{_STYLE_LABELS[style]} schema file.",
+        operations=postman_operations,
+        summary=(
+            f"{postman_operations} Postman request "
+            f"{'entry' if postman_operations == 1 else 'entries'}."
+        ),
     )
 
 
@@ -1255,7 +1257,7 @@ def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
     return None
 
 
-def _schema_style_for_path(path: Path) -> ApiStyle | None:
+def _schema_style_for_path(path: Path) -> ApiSchemaStyle | None:
     name = path.name.lower()
     if name in _ASYNCAPI_FILENAMES or name.endswith(_ASYNCAPI_SUFFIXES):
         return "asyncapi"
@@ -1275,7 +1277,7 @@ def _schema_style_for_path(path: Path) -> ApiStyle | None:
 
 def _schema_style_from_postman_probe(
     *, path: Path, root: Path
-) -> ApiStyle | None:
+) -> ApiSchemaStyle | None:
     lower_name = path.name.lower()
     if any(hint in lower_name for hint in _POSTMAN_COLLECTION_JSON_NAME_HINTS):
         return "postman_collection"
@@ -1374,7 +1376,8 @@ def _project_name(*, root: Path) -> str | None:
         law = load_qanstitution(root / "qanstitution.yaml")
     except QanstitutionLoadError:
         return None
-    return _safe_optional_text(law.project)
+    project = _safe_text(law.project)
+    return project or None
 
 
 def _iter_candidate_files(*, root: Path) -> tuple[Path, ...]:
@@ -1386,10 +1389,6 @@ def _iter_candidate_files(*, root: Path) -> tuple[Path, ...]:
             continue
         paths.append(path)
     return tuple(sorted(paths, key=lambda candidate: _relative_path(candidate, root=root)))
-
-
-def _ignored(path: Path, *, root: Path) -> bool:
-    return is_ignored_project_path(path, root=root)
 
 
 def _reject_unsafe_relative_reference(value: str) -> str | None:
@@ -1462,13 +1461,6 @@ def _relative_path(path: Path, *, root: Path) -> str:
         return path.relative_to(root).as_posix()
     except ValueError:
         return _safe_text(path.name)
-
-
-def _safe_optional_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-    safe = _safe_text(value)
-    return safe or None
 
 
 def _safe_text(value: object) -> str:
