@@ -1,6 +1,6 @@
 {
   "coverage": {
-    "covered_lines": 114,
+    "covered_lines": 1989,
     "files": [
       {
         "covered_lines": 31,
@@ -10,16 +10,37 @@
         "statements": 32
       },
       {
-        "covered_lines": 83,
-        "missing_lines": 19,
+        "covered_lines": 84,
+        "missing_lines": 18,
         "path": "scripts/script_safety.py",
-        "percent_covered": 81.37,
+        "percent_covered": 82.35,
         "statements": 102
+      },
+      {
+        "covered_lines": 782,
+        "missing_lines": 132,
+        "path": "scripts/pytest_collection_manifest.py",
+        "percent_covered": 85.56,
+        "statements": 914
+      },
+      {
+        "covered_lines": 642,
+        "missing_lines": 66,
+        "path": "scripts/test_taxonomy.py",
+        "percent_covered": 90.68,
+        "statements": 708
+      },
+      {
+        "covered_lines": 450,
+        "missing_lines": 52,
+        "path": "scripts/source_maintainability_ratchet.py",
+        "percent_covered": 89.64,
+        "statements": 502
       }
     ],
-    "missing_lines": 20,
-    "percent_covered": 85.07,
-    "statements": 134
+    "missing_lines": 269,
+    "percent_covered": 88.09,
+    "statements": 2258
   },
   "deferred_subprocess_covered_scripts": [
     "scripts/factory_inbox.py",
@@ -31,11 +52,14 @@
     "scripts/pr_body_check.py",
     "scripts/release_evidence.py"
   ],
-  "description": "Release-critical Python script coverage ratchet for scripts with in-process coverage visibility. Subprocess-heavy release/factory scripts stay visible in script-quality reports and should graduate into script_paths once coverage can observe their tests.",
+  "description": "Release-critical Python script coverage ratchet with subprocess visibility and per-script regression enforcement. Additional release and factory scripts remain explicitly deferred from the selected ratchet while staying visible in the aggregate report.",
   "schema_version": "entroping.script-quality-ratchet-baseline.v1",
   "script_paths": [
     "scripts/optional_extras_smoke.py",
-    "scripts/script_safety.py"
+    "scripts/script_safety.py",
+    "scripts/pytest_collection_manifest.py",
+    "scripts/test_taxonomy.py",
+    "scripts/source_maintainability_ratchet.py"
   ],
   "typing": {
     "files": [
@@ -48,10 +72,25 @@
         "path": "scripts/script_safety.py",
         "total_functions": 8,
         "typed_functions": 8
+      },
+      {
+        "path": "scripts/pytest_collection_manifest.py",
+        "total_functions": 78,
+        "typed_functions": 78
+      },
+      {
+        "path": "scripts/test_taxonomy.py",
+        "total_functions": 58,
+        "typed_functions": 58
+      },
+      {
+        "path": "scripts/source_maintainability_ratchet.py",
+        "total_functions": 30,
+        "typed_functions": 30
       }
     ],
     "function_annotation_coverage_percent": 100.0,
-    "total_functions": 10,
-    "typed_functions": 10
+    "total_functions": 176,
+    "typed_functions": 176
   }
 }
