@@ -119,6 +119,7 @@ json_key() {
 
 json_closing_pr_number() {
   local payload="$1"
+  local expected_pr="${2:-}"
   printf '%s' "$payload" | python3 -c '
 import json
 import sys
@@ -127,11 +128,18 @@ data = json.load(sys.stdin)
 refs = data.get("closedByPullRequestsReferences") or []
 if not refs:
     raise SystemExit(1)
-number = refs[0].get("number")
+expected = sys.argv[1]
+if expected:
+    matches = [ref for ref in refs if ref.get("number") == int(expected)]
+    if len(matches) != 1:
+        raise SystemExit(1)
+    number = matches[0].get("number")
+else:
+    number = refs[0].get("number")
 if not isinstance(number, int):
     raise SystemExit(1)
 print(number)
-'
+' "$expected_pr"
 }
 
 json_check_rollup_passed() {
@@ -459,7 +467,10 @@ else
   issue_state=$(json_key "$issue_json" "state")
   [[ "$issue_state" == "CLOSED" ]] || die "issue #$issue_number is $issue_state; wait for merge/close before cleanup"
 
-  if ! pr_number=$(json_closing_pr_number "$issue_json"); then
+  if ! pr_number=$(json_closing_pr_number "$issue_json" "$expected_pr"); then
+    if [[ "$strict_cleanup" == "1" ]]; then
+      die "closing PR identity does not match expected PR"
+    fi
     die "issue #$issue_number has no closing pull request reference"
   fi
   pr_json=$(gh pr view "$pr_number" --repo "$repo" \
@@ -476,12 +487,6 @@ else
     [[ "$branch_name" == "$expected_branch" ]] || die "closing PR branch does not match expected branch"
     [[ "$(json_key "$pr_json" "headRefOid")" == "$expected_head" ]] \
       || die "closing PR head does not match expected head"
-    closing_count=$(printf '%s' "$issue_json" | python3 -c '
-import json, sys
-refs = json.load(sys.stdin).get("closedByPullRequestsReferences") or []
-print(len(refs))
-    ')
-    [[ "$closing_count" == "1" ]] || die "issue must have exactly one closing pull request"
   fi
   if ! check_count=$(json_check_rollup_passed "$pr_json"); then
     die "closing PR #$pr_number checks have not all passed"
