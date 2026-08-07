@@ -70,6 +70,20 @@
             "type": "array",
             "items": {"type": "string"}
           },
+          "gate_results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["rule_id", "enforcement", "result", "exit_code"],
+              "properties": {
+                "rule_id": {"type": "string", "minLength": 1},
+                "enforcement": {"enum": ["block", "warn", "audit_only"]},
+                "result": {"enum": ["passed", "failed", "timeout", "error", "blocked"]},
+                "exit_code": {"type": "integer"}
+              }
+            }
+          },
           "stdout": {"type": "string"},
           "stderr": {"type": "string"},
           "retry": {

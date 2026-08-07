@@ -72,6 +72,14 @@ Entroping's core positioning is to make backend/API behavior deterministic and t
 - **Evidence-first operations.** PRs and releases stay on explicit JSON/JUnit/HTML/sarif artifacts instead of implicit model confidence scores.
 - **Runtime determinism first.** `entroping run` and report generation remain the enforcement boundary; provider calls do not alter pass/fail decisions.
 
+QAnstitution enforcement is evaluated at the Hurl boundary: all matching gates
+for a selected source are injected into one bounded temporary copy and share one
+Hurl invocation per attempt; no enforcement mode adds a request sequence. JSON,
+JUnit, and HTML preserve their
+rule ID, enforcement, result, and exit evidence. A failed `block` gate makes the
+run fail; failed `warn` and `audit_only` gates remain observable without changing
+the run exit status.
+
 ## 5. Operating Principles
 
 1. **QAnstitution is Law:** Governance rules live in versioned YAML and are injected into every relevant run.

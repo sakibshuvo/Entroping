@@ -635,6 +635,15 @@ Gate injection should write temporary execution copies or feed Hurl through safe
 7. Parse outputs and enforcement levels.
 8. Write reports and exit with deterministic status.
 
+All matching gates for a selected source are evaluated by Hurl in one bounded
+temporary execution copy and one Hurl invocation per attempt; no enforcement mode
+causes an extra request sequence. The source `.hurl` bytes are never rewritten,
+and each attempt runs the source request sequence once. The run records each gate's
+rule ID, enforcement, result, and exit evidence in JSON, JUnit, and HTML. Only a
+failed `block` gate contributes to the run exit status. `warn` and `audit_only`
+failures remain observable and do not change that status. Invalid enforcement
+values fail during typed policy loading before Hurl execution.
+
 ## 8. Hurl Metadata Conventions
 
 Tests should use Entroping metadata comments to support selection and traceability. Do not put `tags` or `meta` keys inside Hurl `[Options]`; those are not Hurl options and can make files invalid. Comments remain valid Hurl and are safe for Entroping to parse.

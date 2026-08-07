@@ -10,17 +10,49 @@ from collections.abc import Mapping, Sequence
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Literal
+from typing import BinaryIO
 
+from entroping.core import hurl_structured as _hurl_structured
+from entroping.core.hurl_attempt import (
+    _read_process_output,
+    redact_hurl_output,
+)
+from entroping.core.hurl_attempt import (
+    finalize_structured_result as _finalize_structured_result,
+)
+from entroping.core.hurl_attempt import (
+    read_attempt_stdout as _read_attempt_stdout,
+)
+from entroping.core.hurl_attempt import (
+    read_structured_attempt as _read_structured_attempt,
+)
+from entroping.core.hurl_structured import (
+    HurlAssertionEvidence,
+    HurlAssertionPolicy,
+    HurlRunnerError,
+    HurlRunStatus,
+    HurlStructuredReportError,
+)
+from entroping.core.hurl_structured import (
+    StructuredHurlReport as _StructuredHurlReport,
+)
+from entroping.core.hurl_structured import (
+    classify_structured_result as _classify_structured_result,
+)
+from entroping.core.hurl_structured import (
+    read_hurl_json_output as _read_hurl_json_output,
+)
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.hurl import HURL_VARIABLE_NAME_RE
-from entroping.models.secrets import REDACTED, redact_secret_like_values
 
 _DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024
-_TRUNCATION_TEMPLATE = "\n[entroping: {stream_name} truncated]\n"
 _VERSION_RE = re.compile(r"\b(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?\b")
 _VERSION_TIMEOUT_SECONDS = 2.0
 _VERSION_OUTPUT_LIMIT_BYTES = 4 * 1024
+_STRUCTURED_JSON_LIMIT_BYTES = _hurl_structured._STRUCTURED_JSON_LIMIT_BYTES
+_STRUCTURED_RESPONSE_BODY_LIMIT_BYTES = _hurl_structured._STRUCTURED_RESPONSE_BODY_LIMIT_BYTES
+_STRUCTURED_REPORT_ENTRY_LIMIT = _hurl_structured._STRUCTURED_REPORT_ENTRY_LIMIT
+_STRUCTURED_REPORT_FILE_LIMIT_BYTES = 256 * 1024
 _HOST_LEVEL_SYMLINK_ANCHOR_NAMES = frozenset({"tmp", "var"})
 _MINIMAL_SUBPROCESS_RUNTIME_PATHS = (
     Path("/opt/homebrew/bin"),
@@ -29,8 +61,29 @@ _MINIMAL_SUBPROCESS_RUNTIME_PATHS = (
 HURL_MINIMUM_SUPPORTED_VERSION = (4, 3, 0)
 HURL_MINIMUM_SUPPORTED_VERSION_TEXT = "4.3.0"
 
-HurlRunStatus = Literal["passed", "failed", "timeout", "error", "blocked"]
-
+__all__ = (
+    "HurlAssertionEvidence",
+    "HurlAssertionPolicy",
+    "HurlAttemptEvidence",
+    "HurlBinaryNotFoundError",
+    "HurlBinaryStatus",
+    "HurlFileResult",
+    "HurlRunnerError",
+    "HurlRunOptions",
+    "HurlRunStatus",
+    "HurlStructuredReportError",
+    "HurlSuiteResult",
+    "HURL_MINIMUM_SUPPORTED_VERSION",
+    "HURL_MINIMUM_SUPPORTED_VERSION_TEXT",
+    "discover_hurl",
+    "redact_hurl_output",
+    "run_hurl_file",
+    "run_hurl_files",
+    "validate_hurl_path",
+    "_StructuredHurlReport",
+    "_classify_structured_result",
+    "_read_hurl_json_output",
+)
 
 @dataclass(frozen=True)
 class HurlBinaryStatus:
@@ -43,10 +96,6 @@ class HurlBinaryStatus:
     version_parts: tuple[int, int, int] | None = None
     version_output: str | None = None
     version_error: str | None = None
-
-
-class HurlRunnerError(RuntimeError):
-    """Base class for deterministic Hurl runner failures."""
 
 
 class HurlBinaryNotFoundError(HurlRunnerError):
@@ -63,6 +112,9 @@ class HurlRunOptions:
     output_limit_bytes: int = _DEFAULT_OUTPUT_LIMIT_BYTES
     redacted_values: tuple[str, ...] = ()
     variables: Mapping[str, str] | None = None
+    capture_assertions: bool = False
+    assertion_policies: Mapping[Path, tuple[HurlAssertionPolicy, ...]] | None = None
+    response_capture_names: Mapping[Path, tuple[str, ...]] | None = None
 
     def __post_init__(self) -> None:
         if self.binary.strip() == "":
@@ -84,6 +136,18 @@ class HurlRunOptions:
         """Return subprocess timeout in seconds."""
 
         return self.timeout_ms / 1000
+
+
+def _capture_assertions_for_path(options: HurlRunOptions, hurl_path: Path) -> bool:
+    """Scope structured Hurl output to mapped gated paths when mappings exist."""
+
+    if not options.capture_assertions:
+        return False
+    if options.assertion_policies is None and options.response_capture_names is None:
+        return True
+    policy_paths = set(options.assertion_policies or {})
+    capture_paths = set(options.response_capture_names or {})
+    return hurl_path in policy_paths | capture_paths
 
 
 @dataclass(frozen=True)
@@ -113,6 +177,7 @@ class HurlFileResult:
     duration_ms: int
     timeout_ms: int = 0
     attempts: tuple[HurlAttemptEvidence, ...] = ()
+    assertion_evidence: tuple[HurlAssertionEvidence, ...] | None = None
 
     @property
     def passed(self) -> bool:
@@ -334,15 +399,22 @@ def run_hurl_file(
     final_stderr = ""
     final_stdout_truncated = False
     final_stderr_truncated = False
+    final_assertion_evidence: tuple[HurlAssertionEvidence, ...] | None = None
     variables_file: Path | None = None
     command: tuple[str, ...] = ()
 
     try:
         variables_file = _write_variables_file(run_options.variables or {})
-        command = (binary_path, *_variables_file_args(variables_file), str(hurl_path))
         subprocess_env = _minimal_subprocess_env(binary_path)
+        capture_assertions = _capture_assertions_for_path(run_options, hurl_path)
         for attempt_number in range(1, run_options.retry + 2):
             attempt_start = time.perf_counter()
+            command = _build_hurl_command(
+                binary_path=binary_path,
+                variables_file=variables_file,
+                hurl_path=hurl_path,
+                capture_assertions=capture_assertions,
+            )
             (
                 final_status,
                 final_exit_code,
@@ -350,10 +422,14 @@ def run_hurl_file(
                 final_stderr,
                 final_stdout_truncated,
                 final_stderr_truncated,
+                final_assertion_evidence,
             ) = _run_hurl_attempt(
                 command=command,
                 subprocess_env=subprocess_env,
                 options=run_options,
+                capture_assertions=capture_assertions,
+                capture_names=(run_options.response_capture_names or {}).get(hurl_path, ()),
+                hurl_path=hurl_path,
             )
             attempts.append(
                 HurlAttemptEvidence(
@@ -383,6 +459,7 @@ def run_hurl_file(
         duration_ms=max(0, int((time.perf_counter() - total_start) * 1000)),
         timeout_ms=run_options.timeout_ms,
         attempts=tuple(attempts),
+        assertion_evidence=final_assertion_evidence,
     )
 
 
@@ -410,42 +487,36 @@ def _run_hurl_attempt(
     command: tuple[str, ...],
     subprocess_env: dict[str, str],
     options: HurlRunOptions,
-) -> tuple[HurlRunStatus, int, str, str, bool, bool]:
-    status: HurlRunStatus
-    exit_code: int
-    extra_stderr = ""
-
+    capture_assertions: bool,
+    capture_names: Sequence[str],
+    hurl_path: Path,
+) -> tuple[HurlRunStatus, int, str, str, bool, bool, tuple[HurlAssertionEvidence, ...] | None]:
     with (
         tempfile.TemporaryFile(mode="w+b") as stdout_file,
         tempfile.TemporaryFile(mode="w+b") as stderr_file,
     ):
-        try:
-            # Uses a resolved binary, argument array, timeout, and shell=False.
-            completed = subprocess.run(  # nosec B603
-                list(command),
-                stdout=stdout_file,
-                stderr=stderr_file,
-                timeout=options.timeout_seconds,
-                check=False,
-                env=subprocess_env,
-                shell=False,
-            )
-        except subprocess.TimeoutExpired:
-            status = "timeout"
-            exit_code = 124
-            extra_stderr = f"Hurl subprocess timed out after {options.timeout_ms} ms"
-        except OSError as exc:
-            status = "error"
-            exit_code = 126
-            extra_stderr = f"Hurl subprocess failed: {exc}"
-        else:
-            exit_code = completed.returncode
-            status = "passed" if completed.returncode == 0 else "failed"
-
-        stdout, stdout_truncated = _read_process_output(
-            stdout_file,
-            stream_name="stdout",
-            limit_bytes=options.output_limit_bytes,
+        status, exit_code, extra_stderr, completed_process = _execute_hurl_subprocess(
+            command=command,
+            subprocess_env=subprocess_env,
+            options=options,
+            stdout_file=stdout_file,
+            stderr_file=stderr_file,
+        )
+        status, exit_code, structured_report, extra_stderr = _read_structured_attempt(
+            status=status,
+            exit_code=exit_code,
+            extra_stderr=extra_stderr,
+            completed_process=completed_process,
+            stdout_file=stdout_file,
+            capture_assertions=capture_assertions,
+            capture_names=capture_names,
+            hurl_path=hurl_path,
+        )
+        stdout, stdout_truncated = _read_attempt_stdout(
+            stdout_file=stdout_file,
+            capture_assertions=capture_assertions,
+            structured_report=structured_report,
+            output_limit_bytes=options.output_limit_bytes,
             redacted_values=_redaction_values(options),
         )
         stderr, stderr_truncated = _read_process_output(
@@ -457,17 +528,78 @@ def _run_hurl_attempt(
 
     if extra_stderr:
         stderr = f"{stderr}\n{extra_stderr}" if stderr else extra_stderr
-    return status, exit_code, stdout, stderr, stdout_truncated, stderr_truncated
+    (
+        status,
+        exit_code,
+        stdout,
+        stdout_truncated,
+        assertion_evidence,
+    ) = _finalize_structured_result(
+        status=status,
+        exit_code=exit_code,
+        stdout=stdout,
+        stdout_truncated=stdout_truncated,
+        structured_report=structured_report,
+        policies=(options.assertion_policies or {}).get(hurl_path, ()),
+        output_limit_bytes=options.output_limit_bytes,
+        redacted_values=_redaction_values(options),
+    )
+    return (
+        status,
+        exit_code,
+        stdout,
+        stderr,
+        stdout_truncated,
+        stderr_truncated,
+        assertion_evidence,
+    )
 
 
-def redact_hurl_output(text: str, extra_secret_values: Sequence[str] = ()) -> str:
-    """Redact sensitive values from captured Hurl output."""
+def _execute_hurl_subprocess(
+    *,
+    command: tuple[str, ...],
+    subprocess_env: dict[str, str],
+    options: HurlRunOptions,
+    stdout_file: BinaryIO,
+    stderr_file: BinaryIO,
+) -> tuple[HurlRunStatus, int, str, bool]:
+    try:
+        # Uses a resolved binary, argument array, timeout, and shell=False.
+        completed = subprocess.run(  # nosec B603
+            list(command),
+            stdout=stdout_file,
+            stderr=stderr_file,
+            timeout=options.timeout_seconds,
+            check=False,
+            env=subprocess_env,
+            shell=False,
+        )
+    except subprocess.TimeoutExpired:
+        return "timeout", 124, f"Hurl subprocess timed out after {options.timeout_ms} ms", False
+    except OSError as exc:
+        return "error", 126, f"Hurl subprocess failed: {exc}", False
+    status: HurlRunStatus = "passed" if completed.returncode == 0 else "failed"
+    return status, completed.returncode, "", True
 
-    redacted = redact_secret_like_values(text)
-    for secret_value in extra_secret_values:
-        if secret_value:
-            redacted = redacted.replace(secret_value, REDACTED)
-    return redacted
+
+def _build_hurl_command(
+    *,
+    binary_path: str,
+    variables_file: Path | None,
+    hurl_path: Path,
+    capture_assertions: bool,
+) -> tuple[str, ...]:
+    """Build one bounded Hurl invocation, optionally enabling assertion evidence."""
+
+    command: tuple[str, ...] = (binary_path, *_variables_file_args(variables_file))
+    if capture_assertions:
+        command += (
+            "--json",
+            "--continue-on-error",
+            "--max-filesize",
+            str(_STRUCTURED_REPORT_FILE_LIMIT_BYTES),
+        )
+    return (*command, str(hurl_path))
 
 
 def _resolve_hurl_binary(binary: str) -> str:
@@ -658,23 +790,3 @@ def _validate_variables(variables: Mapping[str, str]) -> None:
 def _redaction_values(options: HurlRunOptions) -> tuple[str, ...]:
     variable_values = tuple((options.variables or {}).values())
     return (*options.redacted_values, *variable_values)
-
-
-def _read_process_output(
-    handle: BinaryIO,
-    *,
-    stream_name: Literal["stdout", "stderr"],
-    limit_bytes: int,
-    redacted_values: Sequence[str],
-) -> tuple[str, bool]:
-    handle.seek(0)
-    raw_bytes = handle.read(limit_bytes + 1)
-    truncated = len(raw_bytes) > limit_bytes
-    if truncated:
-        raw_bytes = raw_bytes[:limit_bytes]
-
-    text = raw_bytes.decode("utf-8", errors="replace")
-    text = redact_hurl_output(text, redacted_values)
-    if truncated:
-        text += _TRUNCATION_TEMPLATE.format(stream_name=stream_name)
-    return text, truncated
