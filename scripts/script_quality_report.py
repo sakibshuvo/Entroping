@@ -27,7 +27,7 @@ SCRIPT_TEST_PATTERNS = (
 )
 SCRIPT_SOURCE_MAX_BYTES = 1_000_000
 JSON_MAX_BYTES = 10_000_000
-PYTEST_TIMEOUT_SECONDS = 300
+SCRIPT_COVERAGE_TIMEOUT_SECONDS = 600
 SCRIPT_COVERAGE_CONFIG = Path("docs/meta/script-coverage.ini")
 
 
@@ -152,7 +152,7 @@ def _run_script_coverage(
         env=env,
         text=True,
         capture_output=True,
-        timeout=PYTEST_TIMEOUT_SECONDS,
+        timeout=SCRIPT_COVERAGE_TIMEOUT_SECONDS,
         # nosec B603: fixed argv, shell disabled, bounded by timeout.
     )
     if result.stdout:
