@@ -378,6 +378,42 @@ def test_installed_demo_executes_hurl_and_writes_promised_reports(tmp_path: Path
         assert (workspace.root / relative_path).stat().st_size > 0
 
 
+@pytest.mark.skipif(shutil.which("hurl") is None, reason="requires the Hurl CLI")
+def test_installed_demo_executes_hurl_on_selected_non_default_port(
+    tmp_path: Path,
+) -> None:
+    workspace = demo_runner.provision_demo_workspace(
+        destination=tmp_path / "checkout-demo-non-default-port"
+    )
+    selected_port = _unused_non_default_tcp_port()
+    source_hurl = workspace.root / "tests" / "checkout_smoke.hurl"
+    original_hurl = source_hurl.read_bytes()
+
+    result = demo_runner.run_demo_workspace(
+        workspace=workspace,
+        port=selected_port,
+        command_prefix=(str(Path(sys.executable).with_name("entroping")),),
+    )
+
+    assert result.status == "passed"
+    report = json.loads(
+        (workspace.root / "reports" / "run-latest.json").read_text(encoding="utf-8")
+    )
+    assert report["summary"]["total"] >= 1
+    assert report["summary"]["passed"] == report["summary"]["total"]
+    assert report["summary"]["failed"] == 0
+    assert source_hurl.read_bytes() == original_hurl
+    assert (workspace.root / "envs" / "local.env").read_text(encoding="utf-8") == (
+        f"base_url=http://127.0.0.1:{selected_port}\ncart_id=demo-cart-001\n"
+    )
+    for relative_path in (
+        Path("reports/run-latest.json"),
+        Path("reports/junit.xml"),
+        Path("reports/run-latest.html"),
+    ):
+        assert (workspace.root / relative_path).stat().st_size > 0
+
+
 def test_run_demo_workspace_rejects_invalid_port() -> None:
     workspace = demo_runner.provision_demo_workspace()
     try:
@@ -534,3 +570,11 @@ def _unused_tcp_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.bind(("127.0.0.1", 0))
         return int(server.getsockname()[1])
+
+
+def _unused_non_default_tcp_port() -> int:
+    for _attempt in range(10):
+        port = _unused_tcp_port()
+        if port != demo_runner.DEMO_DEFAULT_PORT:
+            return port
+    raise AssertionError("could not allocate a non-default demo port")

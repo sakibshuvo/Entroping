@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-08-09
+
+- Fixed the checkout demo fixture to resolve every request through the
+  selected `base_url` environment value. Real Hurl coverage now proves the
+  supported non-default-port runner path, non-empty JSON/JUnit/HTML reports,
+  and source-Hurl immutability while preserving the local-only boundary.
+
 ## 2026-08-07
 
 - Added the maintainer-only aggregate-PR finish path for #1549. A tracked,
