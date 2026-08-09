@@ -17,6 +17,7 @@ Checks:
   - pytest-cov coverage gate with a JSON artifact under reports/
   - script-focused coverage and typing visibility report under reports/
   - radon cyclomatic complexity and maintainability-index audit
+  - script maintainability growth ratchet under reports/
   - vulture dead-code discovery with a curated confidence threshold
   - quality trend summary under reports/
   - bounded performance smoke evidence under reports/
@@ -65,6 +66,7 @@ min_mi_rank="${ENTROPING_MIN_MI_RANK:-C}"
 vulture_confidence="${ENTROPING_VULTURE_CONFIDENCE:-90}"
 script_quality_baseline="${ENTROPING_SCRIPT_QUALITY_BASELINE:-docs/meta/script-quality-ratchet-baseline.json}"
 readonly source_maintainability_baseline="docs/meta/source-maintainability-ratchet-baseline.json"
+readonly script_maintainability_baseline="docs/meta/script-maintainability-ratchet-baseline.json"
 
 log() {
   printf '[quality-audit] %s\n' "$*"
@@ -86,12 +88,14 @@ if ((dry_run)); then
     log "script quality baseline: not configured"
   fi
   log "source maintainability baseline: ${source_maintainability_baseline}"
+  log "script maintainability baseline: ${script_maintainability_baseline}"
   log "Would write test taxonomy report"
   log "Would run long-file hotspot report"
   log "Would run coverage gate with pytest-cov"
   log "Would run script quality coverage and typing visibility report"
   log "Would run Radon complexity gate"
   log "Would run source maintainability ratchet"
+  log "Would run script maintainability ratchet"
   log "Would run Vulture dead-code discovery"
   log "Would write quality trend summary"
   log "Would run bounded performance smoke"
@@ -227,6 +231,14 @@ uv run python scripts/source_maintainability_ratchet.py \
   --radon-mi reports/radon-mi.json \
   --baseline "${source_maintainability_baseline}" \
   --output reports/source-maintainability-ratchet.json
+
+log "Running script maintainability ratchet"
+uv run radon cc scripts -s -a --json > reports/radon-scripts-cc.json
+uv run python scripts/script_maintainability_ratchet.py \
+  --repo-root "${repo_root}" \
+  --radon-cc reports/radon-scripts-cc.json \
+  --baseline "${script_maintainability_baseline}" \
+  --output reports/script-maintainability-ratchet.json
 
 log "Running Vulture dead-code discovery"
 set +e
