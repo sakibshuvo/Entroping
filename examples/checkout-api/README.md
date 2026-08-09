@@ -39,7 +39,9 @@ Terminal 2:
 ```bash
 cd examples/checkout-api
 uv run --project ../.. entroping doctor
-uv run --project ../.. entroping run --tag smoke --report json --report junit
+mkdir -p envs
+printf 'base_url=http://127.0.0.1:18080\ncart_id=demo-cart-001\n' > envs/local.env
+uv run --project ../.. entroping run --env local --tag smoke --report json --report junit
 ```
 
 Expected result:
@@ -87,6 +89,6 @@ PNGs out of Git unless a launch asset is intentionally curated and size-checked.
 - Hurl metadata uses comments so the Hurl parser can safely ignore Entroping-specific data.
 - The QAnstitution condition examples stay inside the supported small DSL.
 - The demo server returns `X-Request-Id` so the first-hour request-ID header gate is runnable.
-- The checked-in `.hurl` file uses a literal local URL so the alpha quickstart does not depend on environment-variable loading.
+- The checked-in `.hurl` file uses `{{base_url}}` from `--env local` so manual and installed demo runs target the selected loopback server.
 - Source checkouts may copy the safe `envs/local.env.example`; installed demos create the gitignored `envs/local.env` directly.
 - Generated OpenAPI tests are written under `tests/generated/` and use `{{base_url}}` from `--env local`.
