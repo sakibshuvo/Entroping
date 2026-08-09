@@ -195,6 +195,14 @@ subprocess-heavy release and factory scripts remain listed in the baseline as
 deferred candidates until their tests can be observed by the script coverage
 mode.
 
+The separate script-maintainability gate measures every repository-owned Python
+file under `scripts/`. It compares Radon weighted complexity, worst and
+protected-rank counts, and 500-line hotspots with the input-only
+`docs/meta/script-maintainability-ratchet-baseline.json`. Normal audits write
+actionable evidence to the ignored
+`reports/script-maintainability-ratchet.json`; they cannot rewrite the tracked
+baseline or offset growth in one metric family with improvement in another.
+
 Performance smoke:
 
 ```bash
