@@ -6,10 +6,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 LAUNCH_DIR = REPO_ROOT / "docs" / "assets" / "launch"
 
 
-def test_readme_links_two_minute_launch_assets() -> None:
+def test_readme_links_local_demo_launch_assets() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "[Two-Minute Demo Assets](docs/assets/launch/README.md)" in readme
+    assert "[Local Demo Assets](docs/assets/launch/README.md)" in readme
     assert "docs/assets/launch/checkout-demo.gif" in readme
     assert "docs/assets/launch/ai-regression-proof.gif" in readme
     assert "docs/assets/launch/terminal-demo-screenshot.png" in readme
@@ -83,7 +83,7 @@ def test_growth_plan_has_concrete_launch_publish_order() -> None:
 
     ordered_steps = [
         "community health and Scorecard evidence",
-        "two-minute README demo links",
+        "local README demo links",
         "terminal screenshot",
         "HTML report screenshot",
         "dependency map example",

@@ -349,6 +349,12 @@ jobs:
           ENTROPING_LIVE_DEMO_ARTIFACT_DIR: live-demo-artifacts
         run: scripts/live_demo_smoke.sh
 
+      - name: Verify installed demo contract
+        run: >-
+          uv run pytest -p no:cacheprovider
+          tests/test_demo_runner.py::test_installed_demo_executes_hurl_and_writes_promised_reports
+          -q
+
       - name: Upload live demo reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

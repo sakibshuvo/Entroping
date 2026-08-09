@@ -404,7 +404,7 @@ def test_readme_surfaces_public_docs_before_project_context() -> None:
 
     public_docs_link = "[Public Docs](https://sakibshuvo.github.io/Entroping/)"
     assert public_docs_link in readme
-    assert "[Two-Minute Demo](#try-it-in-two-minutes)" in readme
+    assert "[Local Demo](#try-it-locally)" in readme
     assert "[Roadmap](ROADMAP.md)" in readme
     assert "[Project Context](#project-context)" in readme
     assert "[Vault Index](docs/meta/VAULT_INDEX.md)" in readme
@@ -488,17 +488,17 @@ def test_readme_is_demo_first_open_source_front_door() -> None:
     assert len(readme.splitlines()) <= 220
     assert "Code at the speed of AI. Don't crash at the speed of AI." in readme
     assert "## Use Entroping When" in readme
-    assert "## Try It In Two Minutes" in readme
+    assert "## Try It Locally" in readme
     assert "## Project Context" in readme
     assert "## Current Alpha" in readme
     assert readme.index("## Use Entroping When") < readme.index(
-        "## Try It In Two Minutes"
+        "## Try It Locally"
     )
-    assert readme.index("## Try It In Two Minutes") < readme.index("## Current Alpha")
-    assert readme.index("## Try It In Two Minutes") < readme.index("## Project Context")
+    assert readme.index("## Try It Locally") < readme.index("## Current Alpha")
+    assert readme.index("## Try It Locally") < readme.index("## Project Context")
 
     use_cases = readme.split("## Use Entroping When", maxsplit=1)[1].split(
-        "## Try It In Two Minutes",
+        "## Try It Locally",
         maxsplit=1,
     )[0]
     expected_use_cases = [
@@ -522,7 +522,7 @@ def test_readme_promotes_demo_wrapper_and_approved_demo_surface() -> None:
         REPO_ROOT / "docs" / "technical" / "COMMAND_CHEAT_SHEET.md"
     ).read_text(encoding="utf-8")
 
-    try_it = readme.split("## Try It In Two Minutes", maxsplit=1)[1].split(
+    try_it = readme.split("## Try It Locally", maxsplit=1)[1].split(
         "## What You Get",
         maxsplit=1,
     )[0]
@@ -533,7 +533,7 @@ def test_readme_promotes_demo_wrapper_and_approved_demo_surface() -> None:
     assert "docs/assets/launch/checkout-demo.gif" in try_it
     assert "docs/assets/launch/ai-regression-proof.gif" in try_it
     assert "entroping demo" in try_it
-    assert "same local-only Aha path is available" in try_it
+    assert "canonical first-success path" in try_it
     assert "does not call model providers or external APIs" in normalized_try_it
     assert "entroping demo --project <path>" in command_cheat_sheet
 
@@ -555,10 +555,10 @@ def test_user_guide_onboarding_links_approved_entroping_demo_decision() -> None:
     assert "does not call model providers or external APIs" in install
 
 
-def test_readme_transcripts_cover_aha_demo_and_failure_flows() -> None:
+def test_readme_transcript_matches_installed_demo_contract() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
-    try_it = readme.split("## Try It In Two Minutes", maxsplit=1)[1].split(
+    try_it = readme.split("## Try It Locally", maxsplit=1)[1].split(
         "## What You Get",
         maxsplit=1,
     )[0]
@@ -567,10 +567,44 @@ def test_readme_transcripts_cover_aha_demo_and_failure_flows() -> None:
         maxsplit=1,
     )[0]
 
-    assert "scripts/demo.sh" in try_it_commands
-    assert "scripts/ai_regression_demo.sh" in try_it_commands
-    assert "entroping demo" not in try_it_commands
-    assert "After installing the package, the same local-only Aha path is available" in try_it
+    assert "entroping demo --project ./entroping-checkout-demo" in try_it_commands
+    transcript = try_it.split("```text", maxsplit=1)[1].split("```", maxsplit=1)[0]
+    assert "Entroping demo: passed" in transcript
+    assert "Commands: 2 total, 2 passed, 0 failed, 0 errors, 0 blocked" in transcript
+    assert "Reports: reports/run-latest.json, reports/junit.xml, reports/run-latest.html" in (
+        transcript
+    )
+    assert "drift" not in transcript.casefold()
+    assert "delta" not in transcript.casefold()
+
+
+def test_first_success_docs_include_every_required_prerequisite() -> None:
+    first_hour = (
+        REPO_ROOT / "docs" / "user" / "QANSTITUTION_FIRST_HOUR.md"
+    ).read_text(encoding="utf-8")
+    user_flows = (REPO_ROOT / "docs" / "user" / "USER_FLOWS.md").read_text(
+        encoding="utf-8"
+    )
+
+    first_proof = first_hour.split("the first proof should be:", maxsplit=1)[1].split(
+        "For the full schema",
+        maxsplit=1,
+    )[0]
+    assert "entroping demo --project ./entroping-checkout-demo" in first_proof
+    assert "reports/run-latest.json" in first_proof
+    assert "reports/junit.xml" in first_proof
+    assert "reports/run-latest.html" in first_proof
+    assert "entroping init --minimal" not in first_proof
+
+    genesis = user_flows.split("## 2. Genesis: New API", maxsplit=1)[1].split(
+        "## 3. Active Feature Development",
+        maxsplit=1,
+    )[0]
+    assert "reviewed-openapi.yaml" in genesis
+    assert "sources:" in genesis
+    assert 'spec: "./openapi.yaml"' in genesis
+    assert "envs/local.env" in genesis
+    assert "running_api_base_url" in genesis
 
 
 def test_readme_keeps_first_hour_troubleshooting_and_cli_surface_scan_friendly() -> None:

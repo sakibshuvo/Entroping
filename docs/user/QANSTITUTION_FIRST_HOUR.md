@@ -129,10 +129,14 @@ Avoid these during the first hour:
 Those are useful later, but the first proof should be:
 
 ```bash
-entroping init --minimal
-entroping doctor
-entroping run --report html
+entroping demo --project ./entroping-checkout-demo
 ```
+
+That provider-free command prepares reviewed local fixture inputs, executes
+deterministic Hurl tests, and writes `reports/run-latest.json`,
+`reports/junit.xml`, and `reports/run-latest.html`. A freshly initialized
+project with no reviewed Hurl test is setup state, not proof of governed
+behavior.
 
 For the full schema and advanced examples, read
 [QANSTITUTION_REFERENCE.md](../technical/QANSTITUTION_REFERENCE.md).

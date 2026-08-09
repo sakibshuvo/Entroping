@@ -53,6 +53,9 @@ def test_copy_demo_fixture_from_source_checkout_writes_only_manifest_paths(
     ).read_text(encoding="utf-8")
     assert not (result.root / "envs").exists()
     assert not (result.root / "reports").exists()
+    copied_readme = (result.root / "README.md").read_text(encoding="utf-8")
+    assert "cp envs/local.env.example envs/local.env" not in copied_readme
+    assert "creates `envs/local.env`" in copied_readme
 
 
 def test_demo_fixture_source_defaults_to_source_checkout() -> None:
