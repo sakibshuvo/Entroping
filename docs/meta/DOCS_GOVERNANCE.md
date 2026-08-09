@@ -90,7 +90,7 @@ just because the file is useful to agents or future maintainers.
 
 Use this order for public onboarding surfaces:
 
-1. Product promise and two-minute proof.
+1. Product promise and first-success proof.
 2. Getting started and user workflow docs.
 3. QAnstitution, policy, CI, and report references.
 4. Roadmap and release-status evidence.

@@ -290,6 +290,10 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert 'export PATH="$hurl_bin:$PATH"' in run_blocks
     assert "$archive.sha256" not in run_blocks
     assert "scripts/live_demo_smoke.sh" in run_blocks
+    assert (
+        "tests/test_demo_runner.py::"
+        "test_installed_demo_executes_hurl_and_writes_promised_reports"
+    ) in run_blocks
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert _CHECKOUT_PIN in workflow_text
     assert _SETUP_PYTHON_PIN in workflow_text

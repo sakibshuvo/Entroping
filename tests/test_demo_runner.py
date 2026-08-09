@@ -1,3 +1,5 @@
+import json
+import shutil
 import socket
 import subprocess
 import sys
@@ -344,6 +346,36 @@ def test_run_demo_workspace_starts_server_writes_env_and_runs_plan() -> None:
         )
     finally:
         workspace.cleanup()
+
+
+@pytest.mark.skipif(shutil.which("hurl") is None, reason="requires the Hurl CLI")
+def test_installed_demo_executes_hurl_and_writes_promised_reports(tmp_path: Path) -> None:
+    workspace = demo_runner.provision_demo_workspace(
+        destination=tmp_path / "checkout-demo"
+    )
+
+    result = demo_runner.run_demo_workspace(
+        workspace=workspace,
+        command_prefix=(str(Path(sys.executable).with_name("entroping")),),
+    )
+
+    assert result.status == "passed"
+    report = json.loads(
+        (workspace.root / "reports" / "run-latest.json").read_text(encoding="utf-8")
+    )
+    assert [item.name for item in result.command_results] == [
+        "architect-build",
+        "demo-run",
+    ]
+    assert report["summary"]["total"] >= 1
+    assert report["summary"]["passed"] == report["summary"]["total"]
+    assert report["summary"]["failed"] == 0
+    for relative_path in (
+        Path("reports/run-latest.json"),
+        Path("reports/junit.xml"),
+        Path("reports/run-latest.html"),
+    ):
+        assert (workspace.root / relative_path).stat().st_size > 0
 
 
 def test_run_demo_workspace_rejects_invalid_port() -> None:

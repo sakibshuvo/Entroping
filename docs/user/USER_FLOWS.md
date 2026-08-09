@@ -32,8 +32,26 @@ A team has an OpenAPI spec or early implementation and wants a governed test bas
 
 ### Commands
 
+First copy a reviewed OpenAPI document and configure its exact local path:
+
 ```bash
 entroping init
+cp reviewed-openapi.yaml ./openapi.yaml
+```
+
+Add this block to the generated `qanstitution.yaml`:
+
+```yaml
+sources:
+  spec: "./openapi.yaml"
+```
+
+Then point the generated Hurl tests at an API that is already running:
+
+```bash
+mkdir -p envs
+running_api_base_url=http://127.0.0.1:8000
+printf 'base_url=%s\n' "$running_api_base_url" > envs/local.env
 entroping architect build --new --tag smoke
 entroping run --env local --tag smoke --report html
 ```
@@ -42,7 +60,7 @@ entroping run --env local --tag smoke --report html
 
 - `qanstitution.yaml`
 - `tests/**/*.hurl`
-- `envs/local.env.example`
+- `envs/local.env`
 - `reports/run-latest.html`
 
 ### Success Criteria
