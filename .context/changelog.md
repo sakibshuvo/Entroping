@@ -6,6 +6,12 @@
   selected `base_url` environment value. Real Hurl coverage now proves the
   supported non-default-port runner path, non-empty JSON/JUnit/HTML reports,
   and source-Hurl immutability while preserving the local-only boundary.
+- Aligned issue #1544 public maturity and support claims with executed evidence:
+  contract 4.1 is explicitly alpha, exact stable-core blocker IDs are validated
+  across the ledger/readiness/docs surfaces, structural checks are distinct
+  from commit-bound recorded execution and freshness, unsupported protocol,
+  remote-import, and credential-store paths are marked internal or future, and
+  the launch proof matrix is explicitly illustrative rather than live status.
 
 ## 2026-08-07
 

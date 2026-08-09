@@ -1,6 +1,7 @@
 # Entroping User Flows
 
-**Version:** 4.1 Stable
+**Contract version:** 4.1
+**Product maturity:** Alpha
 
 ## 1. Flow Map
 

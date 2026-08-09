@@ -4,7 +4,7 @@ This file is the visual implementation contract for GitHub issue #1507. The
 approved mobile reference is
 [`docs/assets/launch/launch-site-concept-mobile.gif`](docs/assets/launch/launch-site-concept-mobile.gif).
 The reference controls hierarchy, color, typography, kinetic glyph density,
-the `PASS` payoff, and tactile CTA treatment. Implementation may adapt layout
+the proof-matrix payoff, and tactile CTA treatment. Implementation may adapt layout
 for larger viewports, but it must not reinterpret the art direction.
 
 ## 1. Atmosphere & Identity
@@ -12,7 +12,7 @@ for larger viewports, but it must not reinterpret the art direction.
 Entroping feels like optimistic technical proof: fast, colorful creative energy
 is welcome, then deterministic runtime evidence brings it into order. The
 signature is a kinetic field of code-native glyphs that begins scattered and
-resolves into a measured pixel grid and green `PASS`. The surface is playful
+resolves into a measured illustrative pixel grid. The surface is playful
 without becoming childish, calm without becoming sterile, and technical
 without defaulting to a dark terminal aesthetic.
 
@@ -40,7 +40,7 @@ The website is light-first. No dark theme is included in this issue.
 | Lavender | `--color-lavender` | `#8c78d8` | Secondary emphasis and code glyphs |
 | Lavender soft | `--color-lavender-soft` | `#e9e2fb` | Secondary action and docs callouts |
 | Sage | `--color-sage` | `#719b5d` | Supporting glyphs and resolved states |
-| Pass green | `--color-pass` | `#4f873f` | Verified status and `PASS` matrix only |
+| Pass green | `--color-pass` | `#4f873f` | Fresh, executed, commit-bound verified status only |
 | Butter | `--color-butter` | `#f4b934` | Underlines and sparse energetic accents |
 | Coral soft | `--color-coral-soft` | `#ffe2d9` | Low-intensity highlighted surfaces |
 | Border soft | `--color-border-soft` | `#b5c8db` | Reading-surface separators |
@@ -198,9 +198,9 @@ All spacing is based on `4px`.
 
 ### Pass Matrix
 
-- **Structure:** code-native grid with a pixel checkmark and a text `PASS`
-  label. The visual cells are decorative; screen readers receive a concise
-  `Verified: PASS` status string.
+- **Structure:** code-native illustrative grid with a pixel checkmark and an
+  `ILLUSTRATIVE` label. It is not live readiness evidence; screen readers receive
+  the same explicit non-live boundary and no live-status announcement.
 - **Variants:** full launch payoff and compact docs status motif.
 - **States:** neutral before reveal, pass after reveal.
 - **Motion:** rows settle into alignment; never flashes or pulses.

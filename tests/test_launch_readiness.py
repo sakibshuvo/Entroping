@@ -38,6 +38,15 @@ def test_launch_readiness_json_distinguishes_alpha_from_stable_core() -> None:
     payload = json.loads(result.stdout)
     stable_payload = json.loads(stable_result.stdout)
     assert payload["schema_version"] == "entroping.alpha-launch-readiness.v1"
+    assert payload["contract_version"] == "4.1"
+    assert payload["product_maturity"] == "alpha"
+    assert payload["readiness_basis"] == "structural"
+    assert payload["execution_evidence"] == {
+        "commit": None,
+        "freshness": "not_checked",
+        "recorded_at": None,
+        "status": "not_evaluated",
+    }
     assert payload["alpha_launch_ready"] is True
     assert payload["stable_core_ready"] is False
     assert payload["stable_core_blockers"] == [
@@ -51,6 +60,10 @@ def test_launch_readiness_json_distinguishes_alpha_from_stable_core() -> None:
     assert payload["checks"]["policy_pack_smoke"]["status"] == "present"
     assert payload["checks"]["demo_matrix"]["status"] == "present"
     assert payload["checks"]["public_claims_audit"]["status"] == "present"
+    assert all(
+        check["evidence_kind"] == "structural"
+        for check in payload["checks"].values()
+    )
 
 
 def test_launch_readiness_strict_rejects_missing_evidence(tmp_path: Path) -> None:

@@ -10,7 +10,8 @@ tags:
 
 # Entroping User Guide
 
-**Version:** 4.1 Stable  
+**Contract version:** 4.1
+**Product maturity:** Alpha
 **Audience:** Developers, QA engineers, SDETs, architects, and platform teams
 
 ## 1. What Entroping Does
@@ -1398,7 +1399,7 @@ The intended UX is local-first and cloud-second:
 - Use a local Ollama model where privacy or offline work matters.
 - Use cloud models only after explicit configuration.
 - Do not rely on external Gemini or Claude CLI tools; Entroping talks to models through LiteLLM.
-- Keep API keys in environment variables or OS credential storage, not plaintext config files.
+- Keep API keys in environment variables, not plaintext config files. OS credential storage is future work.
 
 The operational setup guide lives in `docs/user/AI_PROVIDER_SETUP.md`. It covers
 LiteLLM installation, local Qwen through Ollama, local Qwen through oMLX

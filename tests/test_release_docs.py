@@ -108,9 +108,12 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "Current local queue: #517-#523" not in progress
     assert "review-derived launch-hardening sweep through #957-#961" in progress
     assert "stable-core external proof" in progress
-    assert "| 1 | #303-#305 |" in progress
-    assert "| 2 | #306 |" in progress
-    assert "| 3 | #309-#310 |" in progress
+    assert "| `package_index_proof` | #303-#305 |" in progress
+    assert "| `real_downstream_feedback` | #306 |" in progress
+    blocker_table = progress.split(
+        "## External Stable-Core Blockers", maxsplit=1
+    )[1].split("Non-GitHub runner proof", maxsplit=1)[0]
+    assert "#309-#310" not in blocker_table
     assert "Roadmap and docs inventory curation" in progress
     assert "Tier A cheap-worker defaults" in progress
     assert "Docs-prune candidate report" in progress
@@ -169,6 +172,7 @@ def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
     stable_core_blockers = roadmap.split(
         "## External Stable-Core Blockers", maxsplit=1
     )[1].split("## Future: v1.0 Stable Core", maxsplit=1)[0]
+    blocker_table = stable_core_blockers.split("These blockers", maxsplit=1)[0]
 
     required_sections = [
         "## Product Direction",
@@ -181,10 +185,12 @@ def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
 
     assert "GitHub Issues remain the backlog" in roadmap
     assert "Do not call the project stable just because alpha gates are green" in roadmap
-    assert "package-index proof" in stable_core_blockers
-    assert "compatibility policy" in stable_core_blockers
-    assert "real downstream user feedback" in stable_core_blockers
-    assert "provider-specific CI templates" in stable_core_blockers
+    assert "`package_index_proof`" in blocker_table
+    assert "package-index proof" in blocker_table
+    assert "`real_downstream_feedback`" in blocker_table
+    assert "real downstream user feedback" in blocker_table
+    assert "compatibility policy" not in blocker_table
+    assert "provider-specific CI templates" not in blocker_table
     assert "repeated release evidence" not in stable_core_blockers
 
 
@@ -200,8 +206,8 @@ def test_roadmap_stable_core_summary_uses_canonical_blocker_names() -> None:
     ].split("## Open-Core Path", maxsplit=1)[0]
     normalized_summary = " ".join(stable_core_summary.split())
 
-    for blocker in release_evidence["stable_core_blockers"]:
-        assert blocker in normalized_summary
+    for blocker_id in release_evidence["stable_core_blocker_ids"]:
+        assert blocker_id in normalized_summary
 
     assert "compatibility discipline" not in normalized_summary
     assert "real-user feedback" not in normalized_summary
@@ -222,6 +228,122 @@ def test_canonical_specs_do_not_label_current_alpha_as_stable() -> None:
         assert "4.1 Stable" not in text
         assert "Alpha" in header
         assert "stable-core" in header
+
+
+def test_active_user_docs_separate_contract_version_from_product_maturity() -> None:
+    user_docs = [
+        REPO_ROOT / "docs/user/USER_GUIDE.md",
+        REPO_ROOT / "docs/user/USER_FLOWS.md",
+        REPO_ROOT / "docs/user/USE_CASES.md",
+        REPO_ROOT / "docs/architecture/DIAGRAMS.md",
+    ]
+
+    for path in user_docs:
+        text = path.read_text(encoding="utf-8")
+        header = "\n".join(text.splitlines()[:20])
+        assert "**Contract version:** 4.1" in header
+        assert "**Product maturity:** Alpha" in header
+        assert "4.1 Stable" not in text
+
+
+def test_canonical_stable_core_blocker_ids_match_all_authoritative_surfaces() -> None:
+    ledger = json.loads(
+        (REPO_ROOT / "docs/meta/release-evidence.json").read_text(encoding="utf-8")
+    )
+    expected_ids = ["package_index_proof", "real_downstream_feedback"]
+    assert ledger["stable_core_blocker_ids"] == expected_ids
+
+    roadmap_section = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8").split(
+        "## External Stable-Core Blockers", maxsplit=1
+    )[1].split("## Future: v1.0 Stable Core", maxsplit=1)[0]
+    progress_section = (
+        REPO_ROOT / "docs/meta/PROJECT_PROGRESS.md"
+    ).read_text(encoding="utf-8").split(
+        "## External Stable-Core Blockers", maxsplit=1
+    )[1].split("## Latest Evidence", maxsplit=1)[0]
+    release_section = (
+        REPO_ROOT / "docs/meta/RELEASE_EVIDENCE.md"
+    ).read_text(encoding="utf-8").split(
+        "## Stable-Core Boundary", maxsplit=1
+    )[1].split("## Update Workflow", maxsplit=1)[0]
+    tds_header = "\n".join(
+        (REPO_ROOT / "docs/technical/TDS.md")
+        .read_text(encoding="utf-8")
+        .splitlines()[:25]
+    )
+
+    for surface in (roadmap_section, progress_section, release_section, tds_header):
+        for blocker_id in expected_ids:
+            assert surface.count(f"`{blocker_id}`") == 1
+
+
+def test_public_capability_matrix_matches_shipped_boundaries() -> None:
+    surface_scope = (
+        REPO_ROOT / "docs/technical/SURFACE_SCOPE.md"
+    ).read_text(encoding="utf-8")
+    expected_rows = {
+        "REST/OpenAPI": "shipped-core",
+        "GraphQL-over-HTTP": "internal-scaffold",
+        "SOAP/XML-over-HTTP": "internal-scaffold",
+        "HTTP callback observation": "shipped-advanced",
+        "AsyncAPI webhooks": "internal-scaffold",
+        "Proto HTTP transcoding": "internal-scaffold",
+        "WebSockets": "future",
+        "Credentials": "shipped-bounded",
+        "QAnstitution imports": "shipped-bounded",
+    }
+    for surface, support_level in expected_rows.items():
+        assert f"| {surface} | `{support_level}` |" in surface_scope
+
+    product_spec = (
+        REPO_ROOT / "docs/product/PRODUCT_SPEC.md"
+    ).read_text(encoding="utf-8")
+    mvp_plan = (REPO_ROOT / "docs/product/MVP_PLAN.md").read_text(encoding="utf-8")
+    cheat_sheet = (
+        REPO_ROOT / "docs/technical/COMMAND_CHEAT_SHEET.md"
+    ).read_text(encoding="utf-8")
+    user_guide = (REPO_ROOT / "docs/user/USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+    use_cases = (REPO_ROOT / "docs/user/USE_CASES.md").read_text(encoding="utf-8")
+    tds = (REPO_ROOT / "docs/technical/TDS.md").read_text(encoding="utf-8")
+    architect_prompt = (
+        REPO_ROOT / "docs/technical/CODEX_PROMPT.md"
+    ).read_text(encoding="utf-8")
+    local_brain_adr = (
+        REPO_ROOT / "decisions/ADR-0003-local-first-brain.md"
+    ).read_text(encoding="utf-8")
+    public_contract = "\n".join(
+        (
+            product_spec,
+            mvp_plan,
+            cheat_sheet,
+            user_guide,
+            use_cases,
+            tds,
+            architect_prompt,
+            local_brain_adr,
+        )
+    )
+
+    prohibited_claims = [
+        "API keys are read from environment variables or OS credential storage",
+        "Support imports from local files and HTTP(S) URLs",
+        "| GraphQL | Native over HTTP |",
+        "| SOAP | Supported over HTTP/XML |",
+        "| Webhooks | Supported through observation |",
+        "| gRPC | Bridge support |",
+        "| WebSockets | Limited |",
+        "Generate GraphQL tests for user lookup permission denial",
+        "Resolve HTTP(S) imports with timeouts and optional cache",
+    ]
+    for claim in prohibited_claims:
+        assert claim not in public_contract
+
+    assert "OS credential storage is future" in public_contract
+    assert "HTTP(S) imports are rejected" in public_contract
+    assert "Reject HTTP(S) imports in the current alpha" in tds
+    assert "internal scaffold, not a supported public workflow" in use_cases
 
 
 def test_promoted_runbooks_declare_protected_smoke_and_generated_traffic_selection() -> None:
@@ -683,14 +805,13 @@ def test_launch_copy_keeps_pitch_excluded_surfaces_out_of_front_door() -> None:
         encoding="utf-8"
     )
     assert (
-        "| WireMock mappings (`freeze --mock`) | **advanced-but-supported** | Excluded |"
+        "| WireMock mappings (`freeze --mock`) | `shipped-advanced` |"
         in surface_scope
     )
     assert (
-        "| Dependency maps (`map --export`) | **advanced-but-supported** | "
-        "Qualified visual evidence |"
+        "| Dependency maps (`map --export`) | `shipped-advanced` |"
     ) in surface_scope
-    assert "**Public pitch** records whether" in surface_scope
+    assert "**`shipped-bounded` surfaces** expose only" in surface_scope
     assert "not the primary value proposition" in surface_scope
 
 

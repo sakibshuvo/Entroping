@@ -24,11 +24,32 @@ def test_stable_core_readiness_json_reports_alpha_blockers() -> None:
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["schema_version"] == "entroping.stable-core-readiness.v1"
+    assert payload["contract_version"] == "4.1"
+    assert payload["product_maturity"] == "alpha"
+    assert payload["readiness_basis"] == "structural-and-recorded"
     assert payload["stable_core_ready"] is False
+    assert payload["blocker_ids"] == [
+        "package_index_proof",
+        "real_downstream_feedback",
+    ]
     assert "repeated release evidence" not in payload["blockers"]
     assert payload["evidence"]["release_evidence_ledger"]["status"] == "present"
+    release_evidence = payload["evidence"]["release_evidence_ledger"]
+    assert release_evidence["evidence_kind"] == "recorded_execution"
+    assert release_evidence["recorded_commit"] == (
+        "135d7d75c69201edad05cfe513d7db0a04f0c7b7"
+    )
+    assert release_evidence["recorded_at"] == "2026-06-10T12:21:25Z"
+    assert release_evidence["freshness"] == "not_checked"
+    assert payload["execution_evidence"] == {
+        "commit": "135d7d75c69201edad05cfe513d7db0a04f0c7b7",
+        "freshness": "not_checked",
+        "recorded_at": "2026-06-10T12:21:25Z",
+        "status": "recorded",
+    }
     assert payload["evidence"]["release_check"]["status"] == "present"
     assert payload["evidence"]["security_threat_model"]["status"] == "present"
+    assert payload["evidence"]["security_threat_model"]["evidence_kind"] == "structural"
     assert set(payload["blocker_issue_map"]) == set(payload["blockers"])
     assert [
         issue["number"]
