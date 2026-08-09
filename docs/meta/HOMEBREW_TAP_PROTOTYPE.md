@@ -1,5 +1,6 @@
 ---
 title: Homebrew Tap Prototype
+description: "Review the deferred Homebrew formula template and the package-index proof required before publication."
 type: runbook
 status: draft
 tags:

@@ -1,5 +1,6 @@
 ---
 title: Freeze and Map Implementation Plan
+description: "Plan separate freeze and dependency-map workflows that preserve redaction and deterministic execution."
 type: technical-plan
 status: accepted
 tags:

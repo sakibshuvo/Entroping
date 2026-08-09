@@ -1,5 +1,6 @@
 ---
 title: GitHub Actions Starter
+description: "Gate downstream pull requests with the reviewed Entroping GitHub Actions workflow and pinned Hurl runtime."
 type: guide
 status: active
 tags:

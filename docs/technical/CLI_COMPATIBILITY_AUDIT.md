@@ -1,5 +1,6 @@
 ---
 title: CLI Compatibility Audit
+description: "Trace the locked alpha command surface across implementation, documentation, and compatibility tests."
 type: technical
 status: active
 tags:

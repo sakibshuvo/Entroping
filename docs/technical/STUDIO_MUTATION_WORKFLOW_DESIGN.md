@@ -1,5 +1,6 @@
 ---
 title: Studio Mutation Workflow Design
+description: "Define the safety gate for any future Studio workflow that writes tests, config, or baselines."
 type: technical
 status: proposed
 tags:

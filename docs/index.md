@@ -1,5 +1,6 @@
 ---
 title: Entroping Documentation
+description: "Start with the curated public path for installing, governing, running, and operating Entroping."
 type: index
 status: active
 tags:

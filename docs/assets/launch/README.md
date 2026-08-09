@@ -1,5 +1,6 @@
 ---
 title: Launch Demo Assets
+description: "Reproduce the reviewed checkout demo frames and public launch previews from real fixture output."
 type: demo-assets
 status: active
 tags:

@@ -1,5 +1,6 @@
 ---
 title: CI Provider Recipes
+description: "Adapt the proven deterministic CI contract for GitHub Actions and evaluate other providers safely."
 type: guide
 status: active
 tags:

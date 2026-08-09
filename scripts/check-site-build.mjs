@@ -7,8 +7,11 @@ const REPO_ROOT = path.resolve(
   "..",
 );
 const DIST_ROOT = path.join(REPO_ROOT, "dist");
+const PUBLIC_DOCS_MANIFEST = path.join(REPO_ROOT, "site", "public-docs.json");
 const SITE_ORIGIN = "https://sakibshuvo.github.io";
 const SITE_BASE = "/Entroping/";
+const GENERIC_SITE_DESCRIPTION =
+  "Local-first runtime governance for AI-assisted backend development.";
 const REQUIRED_OUTPUTS = [
   "index.html",
   "404.html",
@@ -108,6 +111,72 @@ function hasDescription(html) {
   });
 }
 
+function metaContent(html, kind) {
+  const selector =
+    kind === "standard"
+      ? /\bname=(?:"description"|'description')/iu
+      : /\bproperty=(?:"og:description"|'og:description')/iu;
+  for (const match of html.matchAll(META_PATTERN)) {
+    const tag = match[0];
+    if (!selector.test(tag)) {
+      continue;
+    }
+    const contentMatch = /\bcontent=(?:"([^"]*)"|'([^']*)')/iu.exec(tag);
+    return (contentMatch?.[1] ?? contentMatch?.[2] ?? "").trim();
+  }
+  return "";
+}
+
+async function validatePublicDocMetadata() {
+  const manifest = JSON.parse(await readFile(PUBLIC_DOCS_MANIFEST, "utf8"));
+  const routes = manifest.groups.flatMap((group) => group.items);
+  const descriptions = new Map();
+  const failures = [];
+
+  for (const route of routes) {
+    if (!/^docs(?:\/[a-z0-9-]+)*$/u.test(route.slug)) {
+      failures.push(
+        `site/public-docs.json: unsafe public docs slug: ${route.slug}`,
+      );
+      continue;
+    }
+    const relativePath = `${route.slug}/index.html`;
+    const htmlPath = path.join(DIST_ROOT, relativePath);
+    if (!(await pathExists(htmlPath))) {
+      failures.push(`dist/${relativePath}: public docs route is missing`);
+      continue;
+    }
+
+    const html = await readFile(htmlPath, "utf8");
+    const description = metaContent(html, "standard");
+    const openGraphDescription = metaContent(html, "open-graph");
+    if (description.length === 0) {
+      failures.push(`dist/${relativePath}: missing page-specific description`);
+      continue;
+    }
+    if (description === GENERIC_SITE_DESCRIPTION) {
+      failures.push(`dist/${relativePath}: inherited generic site description`);
+    }
+    if (openGraphDescription !== description) {
+      failures.push(
+        `dist/${relativePath}: og:description does not match description`,
+      );
+    }
+
+    const normalized = description.toLocaleLowerCase("en-US");
+    const duplicate = descriptions.get(normalized);
+    if (duplicate !== undefined) {
+      failures.push(
+        `dist/${relativePath}: duplicate description from dist/${duplicate}`,
+      );
+    } else {
+      descriptions.set(normalized, relativePath);
+    }
+  }
+
+  return { failures, descriptionCount: descriptions.size };
+}
+
 async function validateHtmlFile(htmlPath) {
   const html = await readFile(htmlPath, "utf8");
   const relativePath = path.relative(REPO_ROOT, htmlPath);
@@ -157,9 +226,11 @@ async function main() {
 
   const htmlFiles = await collectHtmlFiles(DIST_ROOT);
   const results = await Promise.all(htmlFiles.map(validateHtmlFile));
+  const metadataResult = await validatePublicDocMetadata();
   const failures = [
     ...missingOutputs,
     ...results.flatMap((result) => result.failures),
+    ...metadataResult.failures,
   ];
   if (failures.length > 0) {
     throw new SiteBuildValidationError(failures);
@@ -170,7 +241,7 @@ async function main() {
     0,
   );
   console.log(
-    `Validated ${htmlFiles.length} HTML routes and ${checkedLinks} local links under ${SITE_BASE}`,
+    `Validated ${htmlFiles.length} HTML routes, ${metadataResult.descriptionCount} page descriptions, and ${checkedLinks} local links under ${SITE_BASE}`,
   );
 }
 

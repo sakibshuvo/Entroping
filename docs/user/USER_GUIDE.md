@@ -1,5 +1,6 @@
 ---
 title: Entroping User Guide
+description: "Learn the supported Entroping workflow from project setup through deterministic Hurl execution and reports."
 type: guide
 status: active
 tags:

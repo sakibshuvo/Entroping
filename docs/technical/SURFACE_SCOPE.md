@@ -1,5 +1,6 @@
 ---
 title: Surface Scope Policy
+description: "Distinguish core, advanced, hidden, and deferred Entroping surfaces for honest launch claims."
 type: reference
 status: active
 tags:
