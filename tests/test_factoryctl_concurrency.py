@@ -10,6 +10,8 @@ from multiprocessing.queues import Queue
 from multiprocessing.synchronize import Event
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FACTORYCTL = REPO_ROOT / "scripts" / "factoryctl.py"
 if str(REPO_ROOT) not in sys.path:
@@ -74,7 +76,11 @@ def _run_overlapping_tick(
     )
 
 
-def test_overlapping_factoryctl_processes_commit_one_assignment(tmp_path: Path) -> None:
+@pytest.mark.parametrize("_iteration", range(5))
+def test_overlapping_factoryctl_processes_commit_one_assignment(
+    tmp_path: Path,
+    _iteration: int,
+) -> None:
     context = get_context("spawn")
     ready: Queue[str] = context.Queue()
     start: Event = context.Event()
