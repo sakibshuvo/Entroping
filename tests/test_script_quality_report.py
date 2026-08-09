@@ -1,8 +1,10 @@
 import configparser
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -15,6 +17,15 @@ ANALYZER_SCRIPT_PATHS = (
 )
 
 
+def _load_script_quality_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("script_quality_report_under_test", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _run_script_quality(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
@@ -23,6 +34,36 @@ def _run_script_quality(*args: str, cwd: Path | None = None) -> subprocess.Compl
         capture_output=True,
         text=True,
     )
+
+
+def test_script_coverage_subprocess_uses_ci_viable_bounded_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_script_quality_module()
+    script_test = tmp_path / "tests" / "test_example_script.py"
+    script_test.parent.mkdir(parents=True)
+    script_test.write_text("def test_example() -> None:\n    assert True\n", encoding="utf-8")
+    coverage_output = tmp_path / "reports" / "script-coverage.json"
+    captured_timeout: list[float] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        timeout = kwargs["timeout"]
+        assert isinstance(timeout, (int, float))
+        captured_timeout.append(float(timeout))
+        coverage_output.write_text('{"files": {}}', encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    result = module._run_script_coverage(
+        tmp_path,
+        Path("reports/script-coverage.json"),
+        (script_test,),
+    )
+
+    assert result == coverage_output
+    assert captured_timeout == [600.0]
 
 
 def _prepare_repo(root: Path) -> None:
