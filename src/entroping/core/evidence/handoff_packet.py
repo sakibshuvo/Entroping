@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
-import subprocess  # nosec B404
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
@@ -16,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.core.evidence.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence.handoff_git import read_git_metadata
 from entroping.core.evidence.pilot_metrics import PILOT_METRICS_SCHEMA_VERSION
 from entroping.core.evidence_common import (
     LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
@@ -42,12 +41,10 @@ HandoffArtifactId = Literal[
 HandoffTargetId = Literal["cli", "pr", "desktop", "cloud", "mobile", "agent"]
 
 _MAX_HANDOFF_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
-_GIT_SUBPROCESS_SYSTEM_PATHS: Final = ("/usr/bin", "/bin")
 _DEFAULT_OUTPUTS: Final[dict[HandoffOutput, Path]] = {
     "md": Path("reports") / "handoff.md",
     "json": Path("reports") / "handoff.json",
 }
-_GIT_TIMEOUT_SECONDS: Final = 2.0
 
 
 class HandoffError(ValueError):
@@ -108,7 +105,7 @@ class HandoffGit(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     branch: str | None
-    commit: str | None
+    commit: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
 
 
 class HandoffSummary(BaseModel):
@@ -203,7 +200,7 @@ def run_handoff_report(
         handoff_path=destination.relative_to(root).as_posix(),
     )
     content = _render_packet_content(packet, output=output)
-    if _contains_unredacted_secret_like_value(content):
+    if _packet_contains_unredacted_secret(packet, output=output):
         msg = "handoff packet contains secret-like content"
         raise HandoffError(msg)
     try:
@@ -320,6 +317,19 @@ def _render_packet_content(packet: HandoffPacket, *, output: HandoffOutput) -> s
     if output == "json":
         return json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
     return render_handoff_markdown(packet)
+
+
+def _packet_contains_unredacted_secret(
+    packet: HandoffPacket,
+    *,
+    output: HandoffOutput,
+) -> bool:
+    validation_packet = packet.model_copy(
+        update={"git": packet.git.model_copy(update={"commit": None})}
+    )
+    return _contains_unredacted_secret_like_value(
+        _render_packet_content(validation_packet, output=output)
+    )
 
 
 def _load_source(definition: _SourceDefinition, *, root: Path) -> _LoadedSource:
@@ -696,39 +706,8 @@ def _targets(
 
 
 def _git_metadata(root: Path) -> HandoffGit:
-    return HandoffGit(
-        branch=_git_value(root, "branch", "--show-current"),
-        commit=_git_value(root, "rev-parse", "HEAD"),
-    )
-
-
-def _git_value(root: Path, *args: str) -> str | None:
-    git_binary = shutil.which("git")
-    if git_binary is None:
-        return None
-    try:
-        result = subprocess.run(  # nosec B603
-            [git_binary, "-C", str(root), *args],
-            check=False,
-            capture_output=True,
-            env=_minimal_git_subprocess_env(git_binary),
-            text=True,
-            timeout=_GIT_TIMEOUT_SECONDS,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if result.returncode != 0:
-        return None
-    value = _safe_text(result.stdout.strip())
-    return value or None
-
-
-def _minimal_git_subprocess_env(git_binary: str) -> dict[str, str]:
-    path_entries = [
-        str(Path(git_binary).resolve().parent),
-        *_GIT_SUBPROCESS_SYSTEM_PATHS,
-    ]
-    return {"PATH": ":".join(dict.fromkeys(path_entries))}
+    branch, commit = read_git_metadata(root)
+    return HandoffGit(branch=branch, commit=commit)
 
 
 def _safe_text(value: object) -> str:
