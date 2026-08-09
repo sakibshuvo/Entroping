@@ -16,6 +16,7 @@ UNSUPPORTED_CLAIMS = (
     "100% secure",
     "zero risk",
     "unbreakable",
+    "4.1 stable",
 )
 
 EXCLUDED_DIRS = {

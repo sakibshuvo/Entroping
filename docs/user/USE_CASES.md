@@ -10,7 +10,8 @@ tags:
 
 # Entroping Use Cases
 
-**Version:** 4.1 Stable
+**Contract version:** 4.1
+**Product maturity:** Alpha
 
 ## 1. Guard an AI-Generated Endpoint
 
@@ -214,16 +215,18 @@ entroping report traceability --output md
 
 Product intent is connected to runtime evidence.
 
-## 8. GraphQL API Governance
+## 8. GraphQL-over-HTTP Internal Scaffold
+
+> **Support boundary:** This is an internal scaffold, not a supported public workflow.
+> There is no public GraphQL schema-to-test command or native GraphQL runtime guarantee.
 
 ### Scenario
 
 A service exposes GraphQL over HTTP and must ensure queries do not return top-level errors.
 
-### Entroping Workflow
+### Bounded Exploration
 
 ```bash
-entroping architect build --agent breaker --prompt "Generate GraphQL tests for user lookup permission denial." --tag graphql
 entroping run --env local --tag graphql --report html
 ```
 
@@ -236,13 +239,15 @@ entroping run --env local --tag graphql --report html
 
 ### Value
 
-GraphQL behavior is covered using the same Hurl execution and policy engine.
+Reviewed HTTP requests can run through Hurl, but the scaffold does not establish
+public GraphQL generation or native protocol support.
 
-## 9. Webhook Regression
+## 9. Observed HTTP Callback Regression
 
 ### Scenario
 
-A service emits webhooks to downstream consumers and the team wants to preserve event shape.
+A service emits an HTTP callback to downstream consumers and the team wants to
+preserve the observed request shape.
 
 ### Entroping Workflow
 
@@ -254,13 +259,14 @@ entroping run --env local --tag regression --report html
 
 ### Expected Artifacts
 
-- Captured webhook request.
+- Captured HTTP callback request.
 - Golden event shape assertions.
 - Dependency map showing webhook receiver.
 
 ### Value
 
-Webhook contracts become visible and testable.
+Observed HTTP callbacks become reviewable Hurl evidence. This does not provide
+an AsyncAPI broker, message-delivery runtime, or webhook-specific public command.
 
 ## 10. Production Smoke Gate
 

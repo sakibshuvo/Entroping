@@ -107,7 +107,8 @@ Dependencies point inward. Domain code must not depend on adapters.
 - Load Builder, Auditor, and Breaker persona Markdown files from QAnstitution.
 - Separate prompt construction, model invocation, parsing, validation, and file writes.
 - Do not send secrets or unredacted traffic to LLMs.
-- Read provider credentials from environment variables or OS credential storage, never plaintext committed config.
+- Read current-alpha provider credentials from environment variables, never
+  plaintext committed config. Treat OS credential storage as future work.
 - Ground generated tests in configured specs, stories, dependency specs, redacted traffic, or explicit user prompts.
 - Treat generated tests as code and validate before accepting.
 

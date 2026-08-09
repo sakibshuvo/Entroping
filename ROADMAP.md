@@ -231,13 +231,14 @@ local core intact. Detailed product and monetization reasoning lives in
 
 Stable-core completion requires proof outside the local repo:
 
-- package-index proof from TestPyPI/PyPI publish and install smoke.
-- a documented compatibility policy that constrains future CLI/report changes.
-- real downstream user feedback from at least one external project.
-- provider-specific CI templates only after real GitLab/Buildkite/CircleCI
-  runner evidence.
+| Blocker ID | Required external proof |
+| --- | --- |
+| `package_index_proof` | package-index proof from TestPyPI/PyPI publish and clean install smoke. |
+| `real_downstream_feedback` | real downstream user feedback from at least one external project. |
 
 These blockers are tracked in GitHub Issues and the release-evidence ledger.
+The compatibility policy is complete, and non-GitHub runner recipes are
+supporting adoption evidence rather than stable-core blocker IDs.
 Repeated alpha release-candidate evidence is tracked separately in the
 release-evidence ledger; it is not currently an unresolved stable-core blocker.
 Do not call the project stable just because alpha gates are green.
@@ -255,8 +256,8 @@ Goal: make the local deterministic core safe to depend on.
 - A downstream smoke harness exists for local external-project proof, but this
   is not a substitute for feedback from a real project outside this repository.
 - Clear extension boundaries for open-core offerings exist.
-- Stable-core claims still require package-index proof, a stable-core
-  compatibility decision, and real downstream user feedback. Repeated alpha
+- Stable-core claims still require `package_index_proof` and
+  `real_downstream_feedback`. Repeated alpha
   release-candidate evidence is tracked separately in the release-evidence
   ledger.
 

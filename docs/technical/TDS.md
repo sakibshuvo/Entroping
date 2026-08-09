@@ -12,7 +12,7 @@ tags:
 
 **System:** Entroping Core
 **Design Version:** 4.1
-**Implementation Maturity:** Alpha; stable-core readiness is blocked by package-index proof, downstream feedback, and compatibility graduation.
+**Implementation Maturity:** Alpha; stable-core readiness is blocked by `package_index_proof` and `real_downstream_feedback`.
 **Versioning Note:** v4.1 is the product/spec/CLI contract generation, not the Python package release version; package releases use alpha Git tags and PEP 440 package metadata tracked from `pyproject.toml`.
 **Architecture:** Hexagonal, local-first, Git-native
 **Runtime Principle:** Python orchestrates. Hurl enforces.
@@ -501,7 +501,8 @@ settings:
 ### Import Semantics
 
 1. Resolve local imports relative to the importing file.
-2. Resolve HTTP(S) imports with timeouts and optional cache.
+2. Reject HTTP(S) imports in the current alpha. A future remote-import design
+   must add timeouts, bounded caching, and explicit provenance before support.
 3. Validate each imported document before merging.
 4. Merge imported gates before local gates.
 5. Local gates override imported gates with the same ID unless the imported gate is `final: true`.
@@ -791,14 +792,17 @@ The Brain is local-first and cloud-second:
   `api_key_env` environment-variable names on each agent.
 - Entroping must not shell out to external Gemini, Claude, or ChatGPT CLIs for intelligence.
 - If a local model is missing, the CLI should fail with helpful setup guidance or, in a future UX layer, offer an explicit pull/start flow.
-- API keys must come from environment variables or OS credential storage. Do not write provider keys into `qanstitution.yaml`, `.env.example`, logs, reports, or traffic state.
+- Current-alpha API keys come from environment variables. OS credential storage
+  is future work. Do not write provider keys into `qanstitution.yaml`,
+  `.env.example`, logs, reports, or traffic state.
 - The same agent persona and QAnstitution constraints should be used across local and cloud models so behavior stays consistent.
 
 ### Source Grounding
 
 The Architect can use these sources as grounding:
 
-- OpenAPI or GraphQL schemas from `sources`.
+- OpenAPI schemas from configured public sources. GraphQL schema grounding
+  remains an internal scaffold, not a supported public workflow.
 - Markdown story snapshots from `docs/stories`.
 - Observed and redacted traffic sessions.
 - Cross-service specs listed in `dependencies`.
@@ -2422,7 +2426,8 @@ No additional commands or flags should be implemented without updating the produ
 ## 15. Configuration and Secrets
 
 - Secrets come from environment variables, secret managers, or gitignored env files.
-- Cloud provider credentials should use OS credential storage where practical, for example macOS Keychain through a keyring adapter.
+- Current-alpha cloud provider credentials use environment-variable lookup. A
+  future keyring adapter may add OS credential storage such as macOS Keychain.
 - No API keys in qanstitution.yaml. Agent `api_key_env` values are environment
   variable names only, never secret values.
 - `envs/*.env.example` can be committed.

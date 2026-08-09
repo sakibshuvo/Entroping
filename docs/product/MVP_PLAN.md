@@ -110,7 +110,7 @@ Deliverables:
 
 - LiteLLM client wrapper.
 - Local-first provider defaults with explicit cloud model configuration.
-- Credential lookup through environment variables or OS credential storage.
+- Credential lookup through environment variables; OS credential storage is future work.
 - Agent config loading.
 - Builder/Auditor/Breaker persona loading.
 - Structured output validation.

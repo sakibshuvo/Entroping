@@ -16,9 +16,12 @@ const rows = [
 const { compact = false } = Astro.props;
 ---
 
-<div class:list={["pass-matrix", { "pass-matrix--compact": compact }]}>
-  <span class="sr-only" role="status">Verified: PASS</span>
-  <span class="pass-matrix__label" aria-hidden="true">PASS</span>
+<div
+  class:list={["pass-matrix", { "pass-matrix--compact": compact }]}
+  role="img"
+  aria-label="Illustrative check matrix; not live readiness evidence"
+>
+  <span class="pass-matrix__label" aria-hidden="true">ILLUSTRATIVE</span>
   <div class="pass-matrix__grid" aria-hidden="true">
     {
       rows.flatMap((row) =>
@@ -68,13 +71,13 @@ const { compact = false } = Astro.props;
   }
 
   .pass-matrix__cell--on {
-    background: var(--color-pass);
+    background: var(--color-sage);
     opacity: 1;
     transform: scale(2);
   }
 
   .pass-matrix__label {
-    color: var(--color-pass);
+    color: var(--color-ink-muted);
     font-family: var(--font-mono);
     font-size: var(--text-mono-label);
     font-weight: 700;

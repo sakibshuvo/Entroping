@@ -23,9 +23,9 @@ The product should not depend on external Gemini, Claude, ChatGPT, or other mode
 ## Consequences
 
 - Agent roles map to model IDs in QAnstitution or local config.
-- API keys come from environment variables or OS credential storage.
+- Current-alpha API keys come from environment variables; OS credential storage
+  requires a future keyring adapter.
 - Secrets and unredacted traffic must not be sent to model providers.
 - `entroping run` does not call the LLM.
 
 Links: [[docs/evolution/BRAIN_PROVIDER_STRATEGY|BRAIN_PROVIDER_STRATEGY]], [[docs/technical/TDS|TDS]], [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]]
-

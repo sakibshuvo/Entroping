@@ -126,7 +126,8 @@ def test_protocol_fixture_files_are_discoverable_and_hurl_over_http() -> None:
     assert "deterministic webhook acknowledgement scaffold compiler" in asyncapi_readme
     assert "compile_asyncapi_webhook_to_hurl" in asyncapi_readme
     assert "advanced examples remain documented" in root_readme
-    assert "## 8. GraphQL API Governance" in use_cases
+    assert "## 8. GraphQL-over-HTTP Internal Scaffold" in use_cases
+    assert "internal scaffold, not a supported public workflow" in use_cases
     assert "[[examples/graphql-api/README|GraphQL API demo fixture]]" in vault_index
     assert "[[examples/soap-api/README|SOAP API demo fixture]]" in vault_index
 

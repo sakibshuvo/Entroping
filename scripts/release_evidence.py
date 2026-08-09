@@ -11,14 +11,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import readiness_contract as readiness
+
 SCHEMA_VERSION = "entroping.release-evidence.v1"
 LEDGER_RELATIVE_PATH = Path("docs") / "meta" / "release-evidence.json"
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 GITHUB_URL_RE = re.compile(r"^https://github\.com/sakibshuvo/Entroping/")
-REQUIRED_BLOCKERS = (
-    "package-index proof",
-    "real downstream user feedback",
-)
 DOWNSTREAM_SMOKE_SCHEMA_VERSION = "entroping.downstream-smoke.v1"
 RELEASE_CANDIDATE_KIND = "local-release-candidate"
 RELEASE_CANDIDATE_GATE = "scripts/release_check.sh --require-live-demo"
@@ -149,13 +147,7 @@ def _validation_failures(ledger: dict[str, Any]) -> list[str]:
     if ledger.get("stable_core_ready") is not False:
         failures.append("stable_core_ready must remain false")
 
-    blockers = ledger.get("stable_core_blockers")
-    if not isinstance(blockers, list) or not all(isinstance(item, str) for item in blockers):
-        failures.append("stable_core_blockers must be a list of strings")
-        blockers = []
-    for blocker in REQUIRED_BLOCKERS:
-        if blocker not in blockers:
-            failures.append(f"stable_core_blockers missing {blocker}")
+    failures.extend(readiness.stable_core_blocker_failures(ledger))
 
     releases = ledger.get("releases")
     if not isinstance(releases, list):
@@ -562,9 +554,11 @@ def _summary_payload(
     downstream_smoke = ledger.get("downstream_smoke")
     return {
         "schema_version": SCHEMA_VERSION,
+        **readiness.readiness_metadata("recorded-execution-ledger"),
         "ledger_path": LEDGER_RELATIVE_PATH.as_posix(),
         "status": "pass" if not failures else "fail",
         "stable_core_ready": False,
+        "stable_core_blocker_ids": ledger.get("stable_core_blocker_ids", []),
         "stable_core_blockers": ledger.get("stable_core_blockers", []),
         "release_count": len(release_tags),
         "release_candidate_count": len(release_candidate_list),
@@ -582,9 +576,11 @@ def _summary_payload(
 def _error_payload(message: str) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
+        **readiness.readiness_metadata("recorded-execution-ledger"),
         "ledger_path": LEDGER_RELATIVE_PATH.as_posix(),
         "status": "fail",
         "stable_core_ready": False,
+        "stable_core_blocker_ids": [],
         "stable_core_blockers": [],
         "release_count": 0,
         "release_candidate_count": 0,
@@ -604,6 +600,9 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         "# Release Evidence",
         "",
         f"- Schema: `{payload['schema_version']}`",
+        f"- Contract version: `{payload['contract_version']}`",
+        f"- Product maturity: `{payload['product_maturity']}`",
+        f"- Readiness basis: `{payload['readiness_basis']}`",
         f"- Status: `{payload['status']}`",
         f"- Stable-core ready: `{str(payload['stable_core_ready']).lower()}`",
         f"- Release count: `{payload['release_count']}`",
@@ -670,9 +669,7 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         )
 
     lines.extend(["## Stable-Core Blockers", ""])
-    blockers = payload["stable_core_blockers"]
-    if isinstance(blockers, list):
-        lines.extend(f"- {blocker}" for blocker in blockers)
+    lines.extend(readiness.render_stable_core_blockers(payload))
     lines.extend(["", "## Releases", ""])
     release_tags = payload["release_tags"]
     if isinstance(release_tags, list):

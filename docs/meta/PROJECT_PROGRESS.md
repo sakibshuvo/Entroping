@@ -46,8 +46,15 @@ init -> doctor -> load QAnstitution -> discover Hurl -> inject gates -> run Hurl
 ## External Stable-Core Blockers
 
 Stable-core readiness remains blocked by evidence that cannot be manufactured
-inside this repository: package-index publish/install proof (#303-#305), real
-downstream feedback (#306), and non-GitHub runner proof (#309-#310).
+inside this repository:
+
+| Blocker ID | Issues | Required proof |
+| --- | --- | --- |
+| `package_index_proof` | #303-#305 | Package-index publish, clean install, and smoke evidence. |
+| `real_downstream_feedback` | #306 | Sanitized feedback from a project outside this repository. |
+
+Non-GitHub runner proof (#309-#310) remains useful adoption evidence, but it is
+not a stable-core blocker ID.
 
 ## Latest Evidence
 

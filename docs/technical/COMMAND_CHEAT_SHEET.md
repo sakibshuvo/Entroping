@@ -656,7 +656,7 @@ Do not document these as primary v4.1 commands:
 | `explain` | Reports and audit output |
 | top-level `build` | `architect build` |
 | `report --type` | `run --report` or `report bug` |
-| `auth` | Future credential UX; MVP uses env vars or OS credential storage |
+| `auth` | Future credential UX; current alpha uses environment variables, and OS credential storage is future work |
 | `--verbose` | Future global flag only after spec update |
 | `freeze --dry-run` | Preview selected freeze artifacts without writing files |
 

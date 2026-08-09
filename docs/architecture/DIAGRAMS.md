@@ -1,6 +1,7 @@
 # Entroping Diagrams
 
-**Version:** 4.1 Stable
+**Contract version:** 4.1
+**Product maturity:** Alpha
 
 This file contains Mermaid and PlantUML diagrams that can be copied into compatible renderers.
 
