@@ -9,10 +9,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "publish-python-package.yml"
 CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
 SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
-SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
+SETUP_UV_PIN = "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9"
 UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 DOWNLOAD_ARTIFACT_PIN = "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
-PYPI_PUBLISH_PIN = "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b"
+PYPI_PUBLISH_PIN = "pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247"
 
 
 def test_publish_workflow_is_manual_and_token_free() -> None:

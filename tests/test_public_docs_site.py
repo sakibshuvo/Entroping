@@ -22,7 +22,7 @@ MOBILE_MENU_TOGGLE = (
 )
 PAGES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pages.yml"
 CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
-SETUP_NODE_PIN = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
+SETUP_NODE_PIN = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
 CONFIGURE_PAGES_PIN = "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d"
 UPLOAD_PAGES_ARTIFACT_PIN = "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9"
 DEPLOY_PAGES_PIN = "actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"

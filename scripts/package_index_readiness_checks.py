@@ -13,7 +13,7 @@ RUNBOOK_PATH = Path("docs") / "meta" / "PYPI_RELEASE_RUNBOOK.md"
 RELEASE_EVIDENCE_PATH = Path("docs") / "meta" / "release-evidence.json"
 PYPROJECT_PATH = Path("pyproject.toml")
 DOWNLOAD_ARTIFACT_PIN = "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
-PYPI_PUBLISH_PIN = "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b"
+PYPI_PUBLISH_PIN = "pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247"
 PACKAGE_INDEX_PUBLISH_STATUSES = frozenset(
     {
         "not-published",

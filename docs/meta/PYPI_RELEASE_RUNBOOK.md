@@ -178,7 +178,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
       - run: uv sync --dev
       - run: scripts/regression.sh --security
       - run: scripts/package_check.sh
@@ -203,7 +203,7 @@ jobs:
           name: python-distributions
           path: dist/
       - name: Publish package distributions to TestPyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247
         with:
           repository-url: https://test.pypi.org/legacy/
 ```
@@ -254,7 +254,7 @@ publish-pypi:
         name: python-distributions
         path: dist/
     - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
+      uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247
 ```
 
 The PyPA action is expected to produce PyPI attestations automatically for
