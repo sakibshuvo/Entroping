@@ -132,39 +132,45 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert len(progress.splitlines()) <= 150
 
 
-def test_issue_1576_status_handoff_stays_local_and_release_gated() -> None:
+def test_issue_1576_status_records_merged_but_disabled_delivery() -> None:
     progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
         encoding="utf-8"
     )
-    plan = (REPO_ROOT / ".context" / "plan.md").read_text(encoding="utf-8")
-    changelog = (REPO_ROOT / ".context" / "changelog.md").read_text(encoding="utf-8")
-    current_changelog = changelog.split("## 2026-08-03", maxsplit=1)[0]
-    normalized = " ".join(f"{progress} {plan} {current_changelog}".split())
+    delivery_row = next(
+        line for line in progress.splitlines() if "/issues/1576" in line
+    )
+    offline_row = next(
+        line for line in progress.splitlines() if "/issues/1575" in line
+    )
+    normalized_delivery = " ".join(delivery_row.split())
+    normalized_offline = " ".join(offline_row.split())
 
     required = [
-        "Focused local evidence; release gates pending",
-        "focused local unmerged issue-branch evidence",
-        "Local/unmerged issue-branch evidence for #1576",
-        "scripts/regression.sh --security",
-        "scripts/audit_quality.sh",
-        "Launchd remains disabled pending a separate explicit activation decision",
-        (
-            "#1575 remains offline proposal-only and excludes live selection, "
-            "provider dispatch, and launchd"
-        ),
+        "Merged via PR #1608 at `cd83d32b`",
+        "maintainer-only, disabled-by-default controller",
+        "exact terminal receipt replay",
+        "strict finish partial replay",
+        "leased remote deletion with absence proof",
+        "fenced scheduler completion",
+        "Launchd remains disabled",
+        "no autonomous Tier B or Tier C activation is authorized",
     ]
     for term in required:
-        assert term in normalized
+        assert term in normalized_delivery
+
+    assert (
+        "It intentionally excludes live GitHub selection, provider dispatch, "
+        "orchestration apply, and launchd"
+    ) in normalized_offline
 
     stale = [
-        "#1576 remains the PR/CI/merge-control blocker",
-        "#1576 still owns PR/CI/merge-control and cleanup evidence",
-        "#1576 is merged",
-        "#1576 is done",
-        "#1576 is activated",
+        "Focused local evidence; release gates pending",
+        "Local unmerged issue-branch implementation",
+        "Full security regression, quality audit",
+        "PR/CI, merge, and finish cleanup remain pending",
     ]
     for term in stale:
-        assert term not in normalized
+        assert term not in normalized_delivery
 
 
 def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
@@ -822,6 +828,11 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     cli_audit = (
         REPO_ROOT / "docs" / "technical" / "CLI_COMPATIBILITY_AUDIT.md"
     ).read_text(encoding="utf-8")
+    aha_entry_row = next(
+        line
+        for line in cli_audit.splitlines()
+        if line.startswith("| Aha entrypoint command |")
+    )
     index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "scripts/demo.sh" in decision
@@ -830,8 +841,9 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     assert "Do not add `init --demo`" in decision
     assert "entroping demo --project" in decision
     assert "The package-installed Aha entrypoint is implemented" in decision
-    assert "Aha entrypoint command" in cli_audit
-    assert "implemented package-installed Aha command" in cli_audit
+    assert "implemented package-installed Aha command" in aha_entry_row
+    assert "does not close #1255" in aha_entry_row
+    assert "package-index and downstream evidence" in aha_entry_row
     assert "Until that implementation lands" not in cli_audit
     assert "v1 change policy" in cli_audit
     assert "[[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]]" in index
