@@ -1,5 +1,15 @@
 # Entroping Changelog
 
+## 2026-08-11
+
+- Reconciled internal factory status after #1576 merged via PR #1608 at
+  `cd83d32b`; the controller remains maintainer-only, disabled by default, and
+  grants no Tier B or Tier C autonomous authority. Launchd and the product
+  CLI/provider boundary remain unchanged.
+- Recorded #1549 as merged via PR #1618 at `2669801b` while leaving aggregate
+  cleanup completion unclaimed until durable post-merge evidence exists;
+  missing worktrees or labels are not proof of completion.
+
 ## 2026-08-09
 
 - Fixed the checkout demo fixture to resolve every request through the
