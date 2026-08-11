@@ -11,15 +11,25 @@ tags:
 # Entroping Documentation
 
 Entroping is a local-first runtime governance layer for AI-assisted backend
-development. This is the curated public reading path, built directly from the
-canonical Markdown in the repository.
+teams. It keeps API integrity reviewable by turning specs, reviewed traffic,
+and versioned policy into deterministic checks and CI-ready evidence. Hurl is
+the deterministic local HTTP runner; Entroping adds policy, generation, and
+reviewable evidence around it.
 
-Start here:
+Choose the shortest path to your goal:
+
+1. **[Run the local demo](../#demo)** — get deterministic API proof in two
+   minutes without a provider key.
+2. **[Protect an API](user/USER_GUIDE.md#3-new-project-quick-start)** — create
+   or generate Hurl checks, apply policy, and review the resulting reports.
+3. **[Add the CI gate](user/GITHUB_ACTIONS_STARTER.md)** — run the same proof in
+   GitHub Actions before merge.
+
+## Browse by Topic
 
 - **Getting Started:** [User Guide](user/USER_GUIDE.md),
   [QAnstitution First Hour](user/QANSTITUTION_FIRST_HOUR.md),
-  [Use Cases](user/USE_CASES.md), and
-  [Launch Demo Assets](assets/launch/README.md).
+  and [Use Cases](user/USE_CASES.md).
 - **Policy:** [QAnstitution Reference](technical/QANSTITUTION_REFERENCE.md),
   [QAnstitution JSON Schema](technical/qanstitution.schema.json),
   [Policy Pack Layout](technical/POLICY_PACK_LAYOUT.md), and
@@ -31,6 +41,17 @@ Start here:
 - **Setup and Strategy:** [AI Provider Setup](user/AI_PROVIDER_SETUP.md),
   [Open-Core Boundaries](product/OPEN_CORE_BOUNDARIES.md), and
   [Surface Scope Policy](technical/SURFACE_SCOPE.md).
+
+## What You Will Prove
+
+- An OpenAPI spec or reviewed traffic can become reviewable API tests.
+- Versioned policy can enforce status, auth, schema, header, and latency rules.
+- The same deterministic checks can run locally and before merge.
+- JSON, JUnit, and HTML reports can show what passed or failed without a model
+  provider.
+
+Entroping does not replace test design, human review, or production monitoring.
+It keeps API behavior reviewable and repeatable at the local and CI boundary.
 
 ## How This Site Fits
 
@@ -66,7 +87,8 @@ implementation layer. For maintainer and release evidence, use
 [Install Smoke Matrix](meta/INSTALL_SMOKE_MATRIX.md),
 [Downstream Smoke Evidence](meta/DOWNSTREAM_SMOKE_EVIDENCE.md), and
 [Downstream Feedback Kit](meta/DOWNSTREAM_FEEDBACK_KIT.md) when you need the
-release-owner evidence layer.
+release-owner evidence layer. Maintainers rebuilding launch media can use the
+[Demo Asset Reference](assets/launch/README.md).
 
 Canonical source stays in the repository Markdown. The Obsidian vault entry
 point remains `docs/meta/VAULT_INDEX.md`; this page is only the public web

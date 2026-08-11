@@ -304,6 +304,19 @@
   current issue, file, revision, and cheap-routing evidence, while a durable
   record keeps replacement creation idempotent across every queue state.
 
+## 2026-07-14
+
+- Clarified the launch page without replacing its bold matte art direction:
+  canonical runtime-governance positioning now leads into concrete API
+  integrity outcomes, user-facing proof steps precede internal terminology, and
+  mobile spacing keeps both launch actions in the first 375-pixel-wide view.
+- Reworked the public docs entry around executable demo, API-protection, and CI
+  journeys; separated Alpha maturity from the v4.1 policy contract; documented
+  real platform boundaries; and removed the empty-project first-proof dead end.
+- Added clean-production Playwright coverage for responsive overflow, docs
+  search, accessibility, browser health, copy success/failure/timeout behavior,
+  and platform-local visual baselines, with non-visual Chromium coverage in CI.
+
 ## 2026-07-11
 
 - Added issue #1507's unified public web experience: Astro 7 renders the

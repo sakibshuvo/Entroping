@@ -1,6 +1,7 @@
 ---
 import CodeWindow from "./CodeWindow.astro";
 import SectionBand from "./SectionBand.astro";
+import { withBase } from "../config/base-path";
 
 const checkoutCommand = `git clone https://github.com/sakibshuvo/Entroping.git
 cd Entroping
@@ -13,10 +14,17 @@ const packageCommand = "entroping demo --project ./entroping-checkout-demo";
   <div class="demo">
     <div class="demo__intro">
       <p class="demo__eyebrow">Two-minute proof</p>
-      <h2 id="demo-heading">Run the truth, locally.</h2>
-      <p>
+      <h2 id="demo-heading">Test a sample API locally.</h2>
+      <p class="demo__lead">
         Clone the repository and run the reviewed checkout fixture, or use the
         installed-package command in a new or empty demo directory.
+      </p>
+      <p class="demo__platform-note">
+        The checkout command below is for macOS.
+        <a href={withBase("docs/user/user-guide/#2-install")}
+          >Linux setup and Windows support status</a
+        > are documented separately. Windows is currently limited to doctor checks;
+        the API proof is not yet supported there.
       </p>
     </div>
     <div class="demo__commands">
@@ -61,10 +69,27 @@ const packageCommand = "entroping demo --project ./entroping-checkout-demo";
     margin: 0;
   }
 
-  .demo__intro > p:last-child {
+  .demo__lead {
     color: var(--color-ink-muted);
     font-size: var(--text-lead);
     margin: var(--space-6) 0 0;
+  }
+
+  .demo__platform-note {
+    color: var(--color-ink-muted);
+    font-size: var(--text-body-small);
+    margin: var(--space-4) 0 0;
+  }
+
+  .demo__platform-note a {
+    color: var(--color-cobalt);
+    font-weight: 700;
+  }
+
+  .demo__platform-note a:focus-visible {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-focus);
+    outline: none;
   }
 
   .demo__commands {

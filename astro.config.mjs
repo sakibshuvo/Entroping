@@ -20,7 +20,7 @@ export default defineConfig({
     starlight({
       title: "Entroping",
       description:
-        "Local-first runtime governance for AI-assisted backend development.",
+        "Local-first runtime governance for AI-assisted backend teams.",
       favicon: "/favicon.svg",
       social: [
         {

@@ -149,6 +149,9 @@ jobs:
       - name: Audit production site dependencies
         run: npm run test:security
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Check site formatting
         run: npm run format:check
 
@@ -160,6 +163,17 @@ jobs:
 
       - name: Validate static site output
         run: npm run test:site
+
+      - name: Test site in Chromium
+        run: npm run test:e2e:ci
+
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-failure-evidence
+          path: test-results
+          if-no-files-found: ignore
 
   install-smoke:
     runs-on: ${{ matrix.os }}

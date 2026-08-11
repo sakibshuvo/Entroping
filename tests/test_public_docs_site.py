@@ -17,6 +17,7 @@ PACKAGE = REPO_ROOT / "package.json"
 ASTRO_CONFIG = REPO_ROOT / "astro.config.mjs"
 CONTENT_CONFIG = REPO_ROOT / "src" / "content.config.ts"
 SITE_CHECK = REPO_ROOT / "scripts" / "check-site-build.mjs"
+CLEAN_SITE_BUILD = REPO_ROOT / "scripts" / "clean-site-build.mjs"
 MOBILE_MENU_TOGGLE = (
     REPO_ROOT / "src" / "components" / "docs" / "MobileMenuToggle.astro"
 )
@@ -114,7 +115,7 @@ def test_public_docs_manifest_preserves_curated_sidebar_order() -> None:
     assert public_sidebar_labels() == [
         "Introduction",
         "Getting started",
-        "User guide",
+        "Workflows",
         "Policy and QAnstitution",
         "CI and reports",
         "Technical reference",
@@ -125,6 +126,47 @@ def test_public_docs_manifest_preserves_curated_sidebar_order() -> None:
     assert manifest["external"][0].get("url") == (
         "https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md"
     )
+
+
+def test_public_docs_manifest_prioritizes_users_over_asset_maintenance() -> None:
+    manifest = _manifest()
+    groups = {group["label"]: group for group in manifest["groups"]}
+
+    getting_started = groups["Getting started"]["items"]
+    assert [item["label"] for item in getting_started] == [
+        "User Guide",
+        "Policy First Hour",
+    ]
+
+    demo_assets = next(
+        item
+        for item in groups["Maintainer reference"]["items"]
+        if item["source"] == "docs/assets/launch/README.md"
+    )
+    assert demo_assets["label"] == "Demo Asset Reference"
+
+
+def test_public_guides_distinguish_contract_version_from_product_maturity() -> None:
+    user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+    use_cases = (REPO_ROOT / "docs" / "user" / "USE_CASES.md").read_text(
+        encoding="utf-8"
+    )
+
+    for guide in (user_guide, use_cases):
+        assert "**Product maturity:** Alpha" in guide
+        assert "**Contract version:** 4.1" in guide
+        assert "**Version:** 4.1 Stable" not in guide
+
+    assert "Commit artifacts" not in user_guide
+    assert "Commit reviewed tests and policy" in user_guide
+
+    first_hour = (
+        REPO_ROOT / "docs" / "user" / "QANSTITUTION_FIRST_HOUR.md"
+    ).read_text(encoding="utf-8")
+    assert "scripts/demo.sh" in first_hour
+    assert "entroping init --minimal\nentroping doctor\nentroping run" not in first_hour
 
 
 def test_public_docs_manifest_items_have_exact_route_or_external_shapes() -> None:
@@ -189,6 +231,22 @@ def test_site_scaffold_is_astro_not_mkdocs() -> None:
         CONTENT_CONFIG.is_file()
     )
     assert SITE_CHECK.is_file()
+
+
+def test_playwright_builds_from_clean_generated_site_state() -> None:
+    package = json.loads(PACKAGE.read_text(encoding="utf-8"))
+    playwright_config = (REPO_ROOT / "playwright.config.ts").read_text(
+        encoding="utf-8"
+    )
+
+    assert CLEAN_SITE_BUILD.is_file()
+    assert package["scripts"]["build:clean"] == (
+        "node scripts/clean-site-build.mjs && astro build"
+    )
+    assert "npm run build:clean && npm run preview" in playwright_config
+    assert "reuseExistingServer: false" in playwright_config
+    assert "{platform}" in playwright_config
+    assert package["scripts"]["test:e2e:ci"] == "playwright test --grep-invert @visual"
 
 
 def test_site_scaffold_tracks_manifest_and_ignores_generated_output() -> None:

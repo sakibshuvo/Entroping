@@ -27,7 +27,7 @@ const { label, code, result } = Astro.props;
       </div>
     )
   }
-  <span class="code-window__status sr-only" aria-live="polite"></span>
+  <span class="code-window__status" aria-live="polite"></span>
 </figure>
 
 <script>
@@ -40,30 +40,66 @@ const { label, code, result } = Astro.props;
       const status = windowElement?.querySelector<HTMLElement>(
         ".code-window__status",
       );
+      const label = button.querySelector<HTMLElement>("span");
       const value = button.dataset.copyValue;
 
-      if (status === undefined || status === null || value === undefined) {
+      if (
+        status === undefined ||
+        status === null ||
+        label === null ||
+        value === undefined
+      ) {
         return;
       }
       if (navigator.clipboard === undefined) {
+        label.textContent = "Copy unavailable";
         status.textContent = "Copy unavailable. Select the command manually.";
+        button.disabled = true;
         return;
       }
 
+      let timeoutId: number | undefined;
+      button.disabled = true;
+      label.textContent = "Copying";
+      status.textContent = "Copying command.";
+      let outcome: "copied" | "timeout";
       try {
-        await navigator.clipboard.writeText(value);
-        status.textContent = "Copied command.";
-        const label = button.querySelector("span");
-        if (label !== null) {
-          label.textContent = "Copied";
-        }
+        const timeout = new Promise<"timeout">((resolve) => {
+          timeoutId = window.setTimeout(() => {
+            resolve("timeout");
+          }, 2_000);
+        });
+        outcome = await Promise.race([
+          navigator.clipboard.writeText(value).then(() => "copied" as const),
+          timeout,
+        ]);
       } catch (error) {
-        if (error instanceof DOMException) {
-          status.textContent = "Copy failed. Select the command manually.";
-          return;
+        if (
+          !(error instanceof DOMException) ||
+          (error.name !== "NotAllowedError" && error.name !== "SecurityError")
+        ) {
+          throw error;
         }
-        throw error;
+        label.textContent = "Try copy again";
+        status.textContent = "Copy failed. Select the command manually.";
+        button.disabled = false;
+        return;
+      } finally {
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
       }
+
+      if (outcome === "timeout") {
+        label.textContent = "Try copy again";
+        status.textContent =
+          "Copy timed out. Try copy again or select the command manually.";
+        button.disabled = false;
+        return;
+      }
+      status.textContent = "Copied command.";
+      label.textContent = "Copied";
+      button.disabled = false;
     });
   }
 </script>
@@ -109,6 +145,11 @@ const { label, code, result } = Astro.props;
     background: var(--color-sky-strong);
   }
 
+  .code-window__copy:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+
   .code-window__copy:focus-visible {
     box-shadow: var(--shadow-focus);
     outline: none;
@@ -130,12 +171,27 @@ const { label, code, result } = Astro.props;
     align-items: center;
     background: var(--color-paper);
     border-block-start: var(--border-strong);
-    color: var(--color-pass);
+    color: var(--color-pass-ink);
     display: flex;
     font-family: var(--font-mono);
     font-size: var(--text-body-small);
     font-weight: 700;
     gap: var(--space-2);
     padding: var(--space-4);
+  }
+
+  .code-window__status {
+    background: var(--color-lavender-soft);
+    border-block-start: var(--border-strong);
+    color: var(--color-ink);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .code-window__status:empty {
+    display: none;
   }
 </style>

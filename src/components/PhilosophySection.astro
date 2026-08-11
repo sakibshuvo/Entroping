@@ -64,7 +64,7 @@ import { withBase } from "../config/base-path";
   }
 
   .philosophy__index {
-    color: var(--color-coral);
+    color: var(--color-coral-ink);
     font-family: var(--font-mono);
     font-size: var(--text-mono-label);
     font-weight: 700;
@@ -76,6 +76,10 @@ import { withBase } from "../config/base-path";
     letter-spacing: -0.055em;
     line-height: 0.9;
     margin: 0;
+  }
+
+  #law-heading {
+    font-size: clamp(2.875rem, 9vw, 3rem);
   }
 
   article p:not(.philosophy__index) {
@@ -101,6 +105,10 @@ import { withBase } from "../config/base-path";
   }
 
   @media (min-width: 48rem) {
+    #law-heading {
+      font-size: var(--text-section);
+    }
+
     .philosophy__principle {
       gap: var(--space-12);
       grid-template-columns: minmax(4rem, 0.3fr) minmax(0, 1fr);

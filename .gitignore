@@ -20,6 +20,8 @@ build/
 node_modules/
 .astro/
 .pagefind/
+playwright-report/
+test-results/
 
 # Local runtime state and generated outputs
 .entroping/

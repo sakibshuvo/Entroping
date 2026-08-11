@@ -8,13 +8,18 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:clean": "node scripts/clean-site-build.mjs && astro build",
     "check": "astro check",
     "preview": "astro preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:deps": "npm ls --all",
     "test:security": "npm audit --omit=dev",
-    "test:site": "node scripts/check-site-build.mjs"
+    "test:site": "node scripts/check-site-build.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --grep-invert @visual",
+    "test:e2e:visual": "playwright test tests/site/visual.spec.ts",
+    "test:e2e:update": "playwright test tests/site/visual.spec.ts --update-snapshots"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "7.2.1",
