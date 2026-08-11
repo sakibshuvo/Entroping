@@ -165,6 +165,17 @@ def test_lane_commands_are_exact_target_worktree_allowlists(
         "/bin/bash",
         str(tmp_path / "scripts" / "doc_governance_check.sh"),
     )
+    if lane == "docs-guardrail":
+        assert commands[0].argv == (
+            "uv",
+            "run",
+            "pytest",
+            "tests/test_agent_workflow_prompt_library.py",
+            "tests/test_agent_workflow_control_plane.py",
+            "tests/test_agent_workflow_issue_lifecycle.py",
+            "tests/test_agent_workflow_factory_artifacts.py",
+            "-q",
+        )
 
 
 def test_non_documentation_lane_has_no_executable_fallback(tmp_path: Path) -> None:

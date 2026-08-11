@@ -43,6 +43,10 @@ patch_inspection = importlib.import_module("scripts.factory_patch_inspection")
         ("docs/meta/factory-cost-policy.v1.schema.json", "budget-governor"),
         (".github/workflows/ci.yml", "repository-authority"),
         ("AGENTS.md", "repository-authority"),
+        ("tests/test_agent_workflow_prompt_library.py", "repository-authority"),
+        ("tests/test_agent_workflow_control_plane.py", "repository-authority"),
+        ("tests/test_agent_workflow_issue_lifecycle.py", "repository-authority"),
+        ("tests/test_agent_workflow_factory_artifacts.py", "repository-authority"),
         (".env.production", "credential-boundary"),
     ],
 )

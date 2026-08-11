@@ -4,6 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOC_GOVERNANCE_SCRIPT = REPO_ROOT / "scripts" / "doc_governance_check.sh"
 PR_BODY_SCRIPT = REPO_ROOT / "scripts" / "pr_body_check.py"
@@ -417,7 +419,10 @@ def test_pr_body_check_accepts_docs_guardrail_lane_with_focused_doc_test(
         _body_with_lane(
             lane="docs-guardrail",
             commands=(
-                "uv run pytest tests/test_agent_workflow_docs.py -q\n"
+                "uv run pytest tests/test_agent_workflow_prompt_library.py "
+                "tests/test_agent_workflow_control_plane.py "
+                "tests/test_agent_workflow_issue_lifecycle.py "
+                "tests/test_agent_workflow_factory_artifacts.py -q\n"
                 "scripts/doc_governance_check.sh\n"
             ),
             docs_line="- [x] ADR/spec/context updated: prompt-library.\n",
@@ -431,7 +436,40 @@ def test_pr_body_check_accepts_docs_guardrail_lane_with_focused_doc_test(
         "--changed-file",
         "docs/meta/prompt-library/issue-worker.md",
         "--changed-file",
-        "tests/test_agent_workflow_docs.py",
+        "tests/test_agent_workflow_prompt_library.py",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "split_suite",
+    (
+        "tests/test_agent_workflow_prompt_library.py",
+        "tests/test_agent_workflow_control_plane.py",
+        "tests/test_agent_workflow_issue_lifecycle.py",
+        "tests/test_agent_workflow_factory_artifacts.py",
+    ),
+)
+def test_pr_body_check_accepts_docs_guardrail_for_each_split_suite(
+    tmp_path: Path,
+    split_suite: str,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="docs-guardrail",
+            commands=(f"uv run pytest {split_suite} -q\nscripts/doc_governance_check.sh\n"),
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        split_suite,
     )
 
     assert result.returncode == 0, result.stderr

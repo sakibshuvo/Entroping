@@ -97,7 +97,7 @@ Issue:
 
 - `uv run pytest tests/test_architecture_boundaries.py -q` when source imports,
   package boundaries, or runtime architecture are touched.
-- `uv run pytest tests/test_agent_workflow_docs.py -q` when agent workflow,
+- `uv run pytest tests/test_agent_workflow_prompt_library.py tests/test_agent_workflow_control_plane.py tests/test_agent_workflow_issue_lifecycle.py tests/test_agent_workflow_factory_artifacts.py -q` when agent workflow,
   prompt-library, or autonomous-lane guardrails are touched.
 - `scripts/regression.sh --security` before Tier A autonomous merge or when the
   issue requires it.

@@ -119,7 +119,12 @@ scripts/regression.sh --security
 
 ```bash
 scripts/doc_governance_check.sh
-uv run pytest tests/test_agent_workflow_docs.py -q
+uv run pytest \
+  tests/test_agent_workflow_prompt_library.py \
+  tests/test_agent_workflow_control_plane.py \
+  tests/test_agent_workflow_issue_lifecycle.py \
+  tests/test_agent_workflow_factory_artifacts.py \
+  -q
 ```
 
 - [ ] For validation marathons, release hardening, or maintenance-risk reviews, run:
