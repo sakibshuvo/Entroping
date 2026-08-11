@@ -101,7 +101,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
   before final review, and declare it in the PR body as `Verification lane: <lane>`.
 - For `tiny-docs`, run `scripts/doc_governance_check.sh`.
 - For `docs-guardrail`, run focused docs/workflow tests such as
-  `uv run pytest tests/test_agent_workflow_docs.py -q` plus
+  `uv run pytest tests/test_agent_workflow_prompt_library.py tests/test_agent_workflow_control_plane.py tests/test_agent_workflow_issue_lifecycle.py tests/test_agent_workflow_factory_artifacts.py -q` plus
   `scripts/doc_governance_check.sh`.
 - For `tests-only`, run the focused pytest slice for the touched tests.
 - For `normal-code`, run `scripts/feature_gate.sh` or `scripts/regression.sh`.

@@ -268,7 +268,7 @@ DOCS_GUARDRAIL_PATTERNS = (
     "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
     "docs/meta/AGENT_ROLE_REGISTRY.yaml",
     "docs/meta/prompt-library/*",
-    "tests/test_agent_workflow_docs.py",
+    "tests/test_agent_workflow_*.py",
 )
 
 

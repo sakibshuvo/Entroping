@@ -45,7 +45,16 @@ def commands_for_lane(
                 GateCommand(
                     "docs-tests",
                     "agent-workflow-docs-v1",
-                    ("uv", "run", "pytest", "tests/test_agent_workflow_docs.py", "-q"),
+                    (
+                        "uv",
+                        "run",
+                        "pytest",
+                        "tests/test_agent_workflow_prompt_library.py",
+                        "tests/test_agent_workflow_control_plane.py",
+                        "tests/test_agent_workflow_issue_lifecycle.py",
+                        "tests/test_agent_workflow_factory_artifacts.py",
+                        "-q",
+                    ),
                     300,
                     1_048_576,
                 ),
