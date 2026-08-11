@@ -20,9 +20,10 @@ tracked template is inactive by default and must not be bootstrapped yet. Issue
 #1562 supplies bounded artifact and stream-log retention, and issue #1571 is merged
 via PR #1597 at commit `b78c551a`. Issue #1572's status projection is done.
 Activation remains blocked pending a later explicit launchd enablement decision.
-Issue #1576 has focused local issue-branch evidence but still awaits full release
-gates, GitHub review/merge, and does not activate the controller. Issue #1574 is
-merged, while #1575 now
+Issue #1576 is merged via PR #1608 at commit `cd83d32b`; its controller remains
+maintainer-only, disabled-by-default, does not activate the controller, and
+grants no Tier B or Tier C autonomous authority. The product CLI/provider
+boundary is unchanged. Issue #1574 is merged, while #1575 now
 has bounded offline proposal-controller evidence only; it is not
 live-selection, provider, or launchd evidence. Issue #1571 supplies recovery
 authority, including crash/outage recovery, and the plan/apply command; it does
@@ -441,9 +442,10 @@ performance promise. The source manifest remained unchanged during every
 scenario.
 
 Remaining enablement blockers are explicit: the offline soak excludes live
-GitHub selection, and #1576 still owns PR, CI, merge-control, and cleanup
-evidence. The launchd template remains disabled; this pilot does not authorize
-bootstrap, provider dispatch, or autonomous delivery.
+GitHub selection. Issue #1576 is merged via PR #1608 at commit `cd83d32b`; this
+runbook does not activate its controller or authorize aggregate cleanup. The
+launchd template remains disabled; this pilot does not authorize bootstrap,
+provider dispatch, or autonomous delivery.
 
 ### Scheduler recovery
 
@@ -499,9 +501,8 @@ Use this incident order:
    freshness or launch a provider. The #1574 static-document orchestrator does
    not dispatch providers; #1575 has completed bounded offline
    proposal-controller evidence only, not live-selection, provider, or launchd
-   authorization. #1576 has focused local issue-branch evidence but still awaits
-   full release gates and GitHub review/merge; it does not activate the
-   controller.
+authorization. #1576 is merged via PR #1608 at commit `cd83d32b`; it does not
+activate the controller.
 
 Only durably never-dispatched scheduler work can enter bounded exponential retry. Retry
 deadlines use deterministic jitter, honor bounded provider hints, and never

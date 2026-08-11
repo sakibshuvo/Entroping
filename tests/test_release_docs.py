@@ -173,6 +173,35 @@ def test_issue_1576_status_records_merged_but_disabled_delivery() -> None:
         assert term not in normalized_delivery
 
 
+def test_factory_delivery_status_reconciles_merged_issue_evidence() -> None:
+    factory_operations = (
+        REPO_ROOT / "docs" / "meta" / "FACTORY_OPERATIONS.md"
+    ).read_text(encoding="utf-8")
+    progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
+        encoding="utf-8"
+    )
+    normalized_factory = " ".join(factory_operations.split())
+    aggregate_row = next(
+        line for line in progress.splitlines() if "/issues/1549" in line
+    )
+    normalized_aggregate = " ".join(aggregate_row.split())
+
+    assert (
+        "Issue #1576 has focused local issue-branch evidence but still awaits"
+        not in normalized_factory
+    )
+    assert "#1576 still owns PR, CI, merge-control, and cleanup evidence" not in normalized_factory
+    assert "Issue #1576 is merged via PR #1608 at commit `cd83d32b`" in normalized_factory
+    assert "maintainer-only, disabled-by-default" in normalized_factory
+    assert "launchd template remains disabled" in normalized_factory
+    assert "grants no Tier B or Tier C autonomous authority" in normalized_factory
+
+    assert "PR #1618 merged at `2669801b`" in normalized_aggregate
+    assert "No aggregate cleanup completion is claimed" in normalized_aggregate
+    assert "missing worktrees or labels are not proof" in normalized_aggregate
+    assert "Implementation; release gates pending" not in normalized_aggregate
+
+
 def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     stable_core_blockers = roadmap.split(
