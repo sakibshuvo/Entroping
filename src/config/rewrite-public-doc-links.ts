@@ -64,7 +64,6 @@ function rewriteUrl(url: string, context: RewriteContext): string {
   if (linkPath.length === 0) {
     return url;
   }
-
   let decodedLinkPath: string;
   try {
     decodedLinkPath = decodeURI(linkPath);
@@ -94,6 +93,9 @@ function rewriteUrl(url: string, context: RewriteContext): string {
     .relative(repoRoot, absoluteTarget)
     .split(path.sep)
     .join("/");
+  if (source.length === 0 && !context.image) {
+    return `${context.base}${suffix}`;
+  }
   if (source === ".." || source.startsWith("../")) {
     throw new PublicDocLinkTargetError(
       url,

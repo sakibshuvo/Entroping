@@ -831,6 +831,8 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     assert "entroping demo --project" in decision
     assert "The package-installed Aha entrypoint is implemented" in decision
     assert "Aha entrypoint command" in cli_audit
+    assert "implemented package-installed Aha command" in cli_audit
+    assert "Until that implementation lands" not in cli_audit
     assert "v1 change policy" in cli_audit
     assert "[[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]]" in index
 

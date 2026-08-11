@@ -41,7 +41,7 @@ const isUnavailable = disabled || busy;
     gap: var(--space-3);
     justify-content: center;
     min-height: 3rem;
-    padding: var(--space-4);
+    padding: var(--space-3);
     text-align: center;
     text-decoration: none;
     transition:
@@ -92,6 +92,12 @@ const isUnavailable = disabled || busy;
     cursor: not-allowed;
     opacity: 0.56;
     pointer-events: none;
+  }
+
+  @media (min-width: 48rem) {
+    .tilt-button {
+      padding: var(--space-4);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -46,6 +46,11 @@ includes executed parent package initializers recursively under fixed aggregate
 path/load/byte/AST/depth budgets, then verifies every loaded closure module
 against canonical-main commit bytes.
 
+The follow-up keeps the approved art direction while making the first viewport
+plain-language first, moving public docs to executable user journeys, and
+adding clean-production Playwright coverage for responsive behavior,
+accessibility, browser health, copy failure states, and local visual baselines.
+
 ## Current Baseline
 
 - The locked v4.1 CLI surface, deterministic `entroping run`, Hurl execution,

@@ -21,10 +21,20 @@ Entroping helps you turn backend intent into enforced API quality. You define po
 The normal loop is:
 
 ```text
-Define law -> Generate or record tests -> Run Hurl with gates -> Review reports -> Commit artifacts
+Define law -> Generate or record tests -> Run Hurl with gates -> Review evidence -> Commit reviewed tests and policy
 ```
 
 ## 2. Install
+
+Entroping currently supports Python 3.12 or 3.13. Install
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/) and
+[Hurl 4.3.0 or newer](https://hurl.dev/docs/installation.html) using the
+instructions for your operating system, then install Entroping below. The
+reviewed CI examples pin Hurl 8.0.1 for repeatable setup evidence.
+
+Linux and macOS run the deterministic Hurl-backed workflow. Windows is
+currently a doctor-only alpha path; Hurl-backed `entroping run` on Windows is
+not yet a public support claim.
 
 The alpha is installed from source. For the latest GitHub branch:
 
@@ -56,8 +66,7 @@ change the locked CLI namespace.
 
 Required external tools:
 
-- `hurl` 4.3.0 or newer. The reviewed CI examples pin Hurl 8.0.1 for
-  repeatable setup evidence.
+- `hurl` 4.3.0 or newer.
 - `hurlfmt` for Architect generated-Hurl validation; it is usually installed
   with the Hurl package, and `entroping doctor` reports it separately.
 - Python 3.12 or 3.13

@@ -14,25 +14,20 @@
       "label": "Getting started",
       "items": [
         {
-          "label": "QAnstitution First Hour",
-          "source": "docs/user/QANSTITUTION_FIRST_HOUR.md",
-          "slug": "docs/user/qanstitution-first-hour"
-        },
-        {
-          "label": "Two-Minute Demo Assets",
-          "source": "docs/assets/launch/README.md",
-          "slug": "docs/assets/launch"
-        }
-      ]
-    },
-    {
-      "label": "User guide",
-      "items": [
-        {
           "label": "User Guide",
           "source": "docs/user/USER_GUIDE.md",
           "slug": "docs/user/user-guide"
         },
+        {
+          "label": "Policy First Hour",
+          "source": "docs/user/QANSTITUTION_FIRST_HOUR.md",
+          "slug": "docs/user/qanstitution-first-hour"
+        }
+      ]
+    },
+    {
+      "label": "Workflows",
+      "items": [
         {
           "label": "Use Cases",
           "source": "docs/user/USE_CASES.md",
@@ -144,6 +139,11 @@
       "label": "Maintainer reference",
       "collapsed": true,
       "items": [
+        {
+          "label": "Demo Asset Reference",
+          "source": "docs/assets/launch/README.md",
+          "slug": "docs/assets/launch"
+        },
         {
           "label": "Release Checklist",
           "source": "docs/meta/RELEASE_CHECKLIST.md",

@@ -6,18 +6,21 @@ import SectionBand from "./SectionBand.astro";
 
 const proofSteps = [
   {
-    title: "QAnstitution governs.",
-    body: "Policies define allowed runtime behavior.",
+    label: "INPUT → TESTS",
+    title: "Specs or reviewed traffic become executable API tests.",
+    body: "Entroping writes reviewable Hurl files from approved inputs.",
     accent: "cobalt",
   },
   {
-    title: "Hurl executes.",
-    body: "Real HTTP requests produce deterministic results.",
+    label: "QANSTITUTION",
+    title: "Versioned policy enforces status, schema, auth, and latency.",
+    body: "The same rules run locally and before merge.",
     accent: "coral",
   },
   {
-    title: "CI keeps the receipt.",
-    body: "JSON, JUnit, and HTML evidence survive the run.",
+    label: "CI RECEIPT",
+    title: "Local and CI runs produce JSON, JUnit, and HTML evidence.",
+    body: "Each run keeps durable, reviewable pass/fail proof.",
     accent: "pass",
   },
 ] as const;

@@ -1,0 +1,74 @@
+<div class="hero-message">
+  <p class="hero-message__truth">
+    <span>AI can suggest.</span>
+    <span><b>Runtime truth</b> decides.</span>
+  </p>
+  <div class="hero-message__clarity">
+    <p class="hero-message__category">
+      Local-first runtime governance for AI-assisted backend teams.
+    </p>
+    <p class="hero-message__explanation">
+      Catch status, auth, schema, and latency regressions before merge.
+      Entroping keeps API integrity reviewable by turning specs, reviewed
+      traffic, and policy into deterministic checks and CI-ready evidence.
+    </p>
+  </div>
+</div>
+
+<style>
+  .hero-message {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .hero-message__truth {
+    background: var(--color-sky);
+    box-shadow: var(--shadow-mask-sky);
+    color: var(--color-ink);
+    font-size: var(--text-lead);
+    font-weight: 650;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    margin: 0;
+    width: max-content;
+    max-width: 100%;
+  }
+
+  .hero-message__truth span {
+    display: block;
+  }
+
+  .hero-message__truth b {
+    color: var(--color-lavender);
+  }
+
+  .hero-message__clarity {
+    background: var(--color-sky);
+    border-inline-start: var(--space-1) solid var(--color-butter);
+    box-shadow: var(--shadow-mask-sky);
+    display: grid;
+    gap: var(--space-2);
+    max-width: var(--prose-max-width);
+    padding-inline-start: var(--space-3);
+  }
+
+  .hero-message__category {
+    font-size: var(--text-body);
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .hero-message__explanation {
+    color: var(--color-ink-muted);
+    font-size: var(--text-body-small);
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  @media (min-width: 48rem) {
+    .hero-message {
+      gap: var(--space-4);
+    }
+  }
+</style>

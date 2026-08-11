@@ -15,7 +15,7 @@ const homeUrl = withBase();
     </div>
     <details class="launch-nav__disclosure" data-nav-menu>
       <summary aria-controls="launch-menu" aria-expanded="false">
-        <span class="sr-only">Open navigation menu</span>
+        <span class="sr-only" data-nav-menu-label>Open navigation menu</span>
         <span class="launch-nav__menu-icon launch-nav__menu-icon--open">
           <Icon name="menu" size={28} />
         </span>
@@ -36,8 +36,14 @@ const homeUrl = withBase();
     document.querySelectorAll<HTMLDetailsElement>("[data-nav-menu]");
   for (const menu of menus) {
     const summary = menu.querySelector("summary");
+    const label = menu.querySelector<HTMLElement>("[data-nav-menu-label]");
     menu.addEventListener("toggle", () => {
       summary?.setAttribute("aria-expanded", String(menu.open));
+      if (label !== null) {
+        label.textContent = menu.open
+          ? "Close navigation menu"
+          : "Open navigation menu";
+      }
     });
   }
 </script>

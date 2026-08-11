@@ -11,6 +11,13 @@ tags:
 
 # QAnstitution First Hour
 
+## Before You Begin
+
+Install Python 3.12 or 3.13, `uv`, Hurl 4.3.0 or newer, and Entroping by
+following the [installation guide](USER_GUIDE.md#2-install). Then run
+`entroping doctor` before editing policy. No model provider or API key is
+required for this deterministic first proof.
+
 `qanstitution.yaml` is the runtime policy Entroping injects into Hurl tests.
 Start with three rules you can understand without reading the full reference:
 
@@ -126,17 +133,27 @@ Avoid these during the first hour:
 - redaction tuning.
 - known-failure exceptions.
 
-Those are useful later, but the first proof should be:
+Those are useful later. Do not run `entroping init --minimal` followed by
+`entroping run` in an empty project: initialization creates policy and
+directories, not an API target or Hurl test.
+
+From a source checkout, the reviewed local fixture is available through:
+
+```bash
+scripts/demo.sh
+```
+
+For a package install in a new or empty directory, the first proof should be:
 
 ```bash
 entroping demo --project ./entroping-checkout-demo
 ```
 
-That provider-free command prepares reviewed local fixture inputs, executes
-deterministic Hurl tests, and writes `reports/run-latest.json`,
-`reports/junit.xml`, and `reports/run-latest.html`. A freshly initialized
-project with no reviewed Hurl test is setup state, not proof of governed
-behavior.
+Both paths start a local sample API, run Hurl with QAnstitution gates, and emit
+`reports/run-latest.json`, `reports/junit.xml`, and `reports/run-latest.html`
+without a model provider. After that proof is green, use the
+[new-project quick start](USER_GUIDE.md#3-new-project-quick-start) to generate
+or add tests for your own API before running `entroping run`.
 
 For the full schema and advanced examples, read
 [QANSTITUTION_REFERENCE.md](../technical/QANSTITUTION_REFERENCE.md).
