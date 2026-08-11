@@ -4,7 +4,7 @@ This file is the visual implementation contract for GitHub issue #1507. The
 approved mobile reference is
 [`docs/assets/launch/launch-site-concept-mobile.gif`](docs/assets/launch/launch-site-concept-mobile.gif).
 The reference controls hierarchy, color, typography, kinetic glyph density,
-the `PASS` payoff, and tactile CTA treatment. Implementation may adapt layout
+the proof-matrix payoff, and tactile CTA treatment. Implementation may adapt layout
 for larger viewports, but it must not reinterpret the art direction.
 
 ## 1. Atmosphere & Identity
@@ -12,7 +12,7 @@ for larger viewports, but it must not reinterpret the art direction.
 Entroping feels like optimistic technical proof: fast, colorful creative energy
 is welcome, then deterministic runtime evidence brings it into order. The
 signature is a kinetic field of code-native glyphs that begins scattered and
-resolves into a measured pixel grid and green `PASS`. The surface is playful
+resolves into a measured illustrative pixel grid. The surface is playful
 without becoming childish, calm without becoming sterile, and technical
 without defaulting to a dark terminal aesthetic.
 
@@ -37,10 +37,12 @@ The website is light-first. No dark theme is included in this issue.
 | Cobalt | `--color-cobalt` | `#2850d8` | Primary action, links, headline emphasis |
 | Cobalt hover | `--color-cobalt-hover` | `#173bb7` | Primary action hover/active |
 | Coral | `--color-coral` | `#ff654a` | `Don't crash` emphasis and active accents |
+| Coral ink | `--color-coral-ink` | `#b13c25` | Small coral text on light surfaces |
 | Lavender | `--color-lavender` | `#8c78d8` | Secondary emphasis and code glyphs |
 | Lavender soft | `--color-lavender-soft` | `#e9e2fb` | Secondary action and docs callouts |
 | Sage | `--color-sage` | `#719b5d` | Supporting glyphs and resolved states |
-| Pass green | `--color-pass` | `#4f873f` | Verified status and `PASS` matrix only |
+| Pass green | `--color-pass` | `#4f873f` | Fresh, executed, commit-bound verified status only |
+| Pass ink | `--color-pass-ink` | `#3c6d32` | Small verified-status text on light surfaces |
 | Butter | `--color-butter` | `#f4b934` | Underlines and sparse energetic accents |
 | Coral soft | `--color-coral-soft` | `#ffe2d9` | Low-intensity highlighted surfaces |
 | Border soft | `--color-border-soft` | `#b5c8db` | Reading-surface separators |
@@ -55,6 +57,8 @@ The website is light-first. No dark theme is included in this issue.
   should use at most three accents plus ink and its surface.
 - `--color-pass` is semantic. Reserve it for verified outcomes, checkmarks, and
   the resolved end of the entropy field.
+- Use the `-ink` variants for small coral or pass text that must meet WCAG AA;
+  keep the brighter base accents for large display type and non-text graphics.
 - Gradients are not part of the approved reference. Use flat matte fields.
 - Raw hex values are forbidden in component styles. Add a token here first.
 
@@ -188,19 +192,28 @@ All spacing is based on `4px`.
 
 - **Structure:** semantic `h1` containing two sentence spans and emphasis spans
   for `AI` and `Don't crash`, followed by the visible two-line mono annotation
-  `// write fast` / `verify faster` from the approved reference.
+  `// write fast` / `verify faster` from the approved reference. A compact
+  clarity statement follows the philosophy copy and precedes the proof matrix:
+  `Local-first runtime governance for AI-assisted backend teams.` Supporting
+  copy explains API integrity in plain language, names the regressions
+  Entroping catches before merge, then the concrete
+  transformation from specs, reviewed traffic, and versioned policy to
+  deterministic API checks and CI-ready evidence. Internal terms such as Hurl
+  follow the plain-language outcome instead of leading it.
 - **Variants:** mobile stacked and desktop editorial grid.
 - **Accessibility:** DOM order remains the spoken sentence order even when CSS
   offsets the visual rhythm; the annotation remains a separate paragraph so it
-  does not alter the heading's accessible name.
+  does not alter the heading's accessible name. The clarity statement is
+  ordinary text, not a pill or card, so it remains part of the natural reading
+  order.
 - **Motion:** one transform/opacity entrance sequence; no character-by-character
   animation.
 
 ### Pass Matrix
 
-- **Structure:** code-native grid with a pixel checkmark and a text `PASS`
-  label. The visual cells are decorative; screen readers receive a concise
-  `Verified: PASS` status string.
+- **Structure:** code-native illustrative grid with a pixel checkmark and an
+  `ILLUSTRATIVE` label. It is not live readiness evidence; screen readers receive
+  the same explicit non-live boundary and no live-status announcement.
 - **Variants:** full launch payoff and compact docs status motif.
 - **States:** neutral before reveal, pass after reveal.
 - **Motion:** rows settle into alignment; never flashes or pulses.
@@ -222,8 +235,10 @@ All spacing is based on `4px`.
 
 ### Proof Rail
 
-- **Structure:** three semantic steps: QAnstitution governs, Hurl executes, CI
-  keeps the receipt.
+- **Structure:** three semantic steps explained in plain language first: specs
+  or reviewed traffic become executable API tests; versioned policy enforces
+  runtime checks; local and CI runs emit durable evidence. `QAnstitution`,
+  `Hurl`, and `CI keeps the receipt` follow as concise secondary labels.
 - **Variants:** vertical mobile and horizontal tablet/desktop.
 - **States:** default and current proof step where interactive demonstration is
   used.

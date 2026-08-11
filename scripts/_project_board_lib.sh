@@ -1,13 +1,5 @@
 # shellcheck shell=bash
 
-project_item_list_limit() {
-  local limit="${ENTROPING_PROJECT_ITEM_LIST_LIMIT:-1000}"
-  if [[ ! "$limit" =~ ^[1-9][0-9]*$ ]]; then
-    limit="1000"
-  fi
-  printf '%s\n' "$limit"
-}
-
 json_project_status_ids() {
   local payload="$1"
   local option_name="$2"
@@ -29,34 +21,70 @@ raise SystemExit(1)
 ' "$option_name"
 }
 
-json_project_item_id() {
+json_current_issue_project_item_id() {
   local payload="$1"
-  local issue_number="$2"
+  local project_id="$2"
   printf '%s' "$payload" | uv run python -c '
 import json
 import sys
 
-data = json.load(sys.stdin)
-issue_number = int(sys.argv[1])
-for item in data.get("items", []):
-    content = item.get("content", {})
-    if content.get("number") == issue_number:
-        print(item.get("id", ""))
-        raise SystemExit(0)
+try:
+    data = json.load(sys.stdin)
+    nodes = data["data"]["repository"]["issue"]["projectItems"]["nodes"]
+except (KeyError, TypeError, json.JSONDecodeError):
+    raise SystemExit(2)
+if not isinstance(nodes, list):
+    raise SystemExit(2)
+project_id = sys.argv[1]
+for item in nodes:
+    if not isinstance(item, dict):
+        continue
+    project = item.get("project")
+    if not isinstance(project, dict) or project.get("id") != project_id:
+        continue
+    item_id = item.get("id")
+    if not isinstance(item_id, str) or not item_id:
+        raise SystemExit(2)
+    print(item_id)
+    raise SystemExit(0)
 raise SystemExit(1)
-' "$issue_number"
+' "$project_id"
+}
+
+project_item_id_for_issue() {
+  local repo_full_name="$1"
+  local project_id="$2"
+  local issue_number="$3"
+  local repo_owner
+  local repo_name
+  local items_json
+
+  if [[ ! "$repo_full_name" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+    return 2
+  fi
+  repo_owner="${repo_full_name%%/*}"
+  repo_name="${repo_full_name#*/}"
+  # GraphQL variable names in the query must remain literal.
+  # shellcheck disable=SC2016
+  if ! items_json=$(gh api graphql \
+    -F owner="$repo_owner" \
+    -F name="$repo_name" \
+    -F number="$issue_number" \
+    -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){projectItems(first:10){nodes{id project{id}}}}}}' \
+    2>/dev/null); then
+    return 2
+  fi
+  json_current_issue_project_item_id "$items_json" "$project_id"
 }
 
 retry_project_item_id() {
-  local project_number="$1"
-  local project_owner="$2"
+  local repo_full_name="$1"
+  local project_id="$2"
   local issue_number="$3"
   local attempts="${ENTROPING_PROJECT_ITEM_LOOKUP_RETRIES:-3}"
   local delay_seconds="${ENTROPING_PROJECT_ITEM_LOOKUP_RETRY_DELAY_SECONDS:-1}"
   local attempt
-  local items_json
   local item_id
-  local item_list_limit
 
   if [[ ! "$attempts" =~ ^[1-9][0-9]*$ ]]; then
     attempts="3"
@@ -64,15 +92,16 @@ retry_project_item_id() {
   if [[ ! "$delay_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
     delay_seconds="1"
   fi
-  item_list_limit=$(project_item_list_limit)
-
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit "$item_list_limit" --format json 2>/dev/null); then
-      return 2
-    fi
-    if item_id=$(json_project_item_id "$items_json" "$issue_number"); then
+    local item_lookup_status=0
+    item_id=$(project_item_id_for_issue "$repo_full_name" "$project_id" "$issue_number") \
+      || item_lookup_status=$?
+    if [[ "$item_lookup_status" == "0" ]]; then
       printf '%s\n' "$item_id"
       return 0
+    fi
+    if [[ "$item_lookup_status" == "2" ]]; then
+      return 2
     fi
     if ((attempt < attempts)); then
       sleep "$delay_seconds"

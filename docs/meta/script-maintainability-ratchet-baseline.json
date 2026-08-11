@@ -1,0 +1,53 @@
+{
+  "evidence": {
+    "cc_command": "uv run radon cc scripts -s -a --json",
+    "hotspot_definition": "Python scripts with at least 500 physical lines, tracked by path and accepted line count.",
+    "issue_url": "https://github.com/sakibshuvo/Entroping/issues/1533"
+  },
+  "metrics": {
+    "cyclomatic_complexity": {
+      "rank_counts": {
+        "A": 1987,
+        "B": 491,
+        "C": 209,
+        "D": 28,
+        "E": 3,
+        "F": 6
+      },
+      "weighted_score": 1507,
+      "worst_rank": "F"
+    },
+    "script_hotspots": {
+      "count": 14,
+      "files": {
+        "scripts/ai_jobs.py": 2170,
+        "scripts/deepseek_worker.py": 1207,
+        "scripts/docs_inventory.py": 624,
+        "scripts/finish_issue_replay_evidence.py": 508,
+        "scripts/local_wheel_install_smoke.py": 525,
+        "scripts/opencode_readiness.py": 989,
+        "scripts/opencode_worker.py": 1067,
+        "scripts/policy_pack_smoke.py": 687,
+        "scripts/pr_body_check.py": 1319,
+        "scripts/pytest_collection_manifest.py": 1763,
+        "scripts/release_evidence.py": 698,
+        "scripts/script_quality_report.py": 772,
+        "scripts/source_maintainability_ratchet.py": 842,
+        "scripts/test_taxonomy.py": 1512
+      },
+      "threshold_lines": 500
+    }
+  },
+  "owner": "Entroping maintainers",
+  "reviewed_on": "2026-08-09",
+  "revision": 1,
+  "schema_version": "entroping.script-maintainability-ratchet-baseline.v1",
+  "weights": {
+    "A": 0,
+    "B": 1,
+    "C": 3,
+    "D": 8,
+    "E": 13,
+    "F": 21
+  }
+}

@@ -17,15 +17,19 @@ PACKAGE = REPO_ROOT / "package.json"
 ASTRO_CONFIG = REPO_ROOT / "astro.config.mjs"
 CONTENT_CONFIG = REPO_ROOT / "src" / "content.config.ts"
 SITE_CHECK = REPO_ROOT / "scripts" / "check-site-build.mjs"
+CLEAN_SITE_BUILD = REPO_ROOT / "scripts" / "clean-site-build.mjs"
 MOBILE_MENU_TOGGLE = (
     REPO_ROOT / "src" / "components" / "docs" / "MobileMenuToggle.astro"
 )
 PAGES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pages.yml"
 CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
-SETUP_NODE_PIN = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
+SETUP_NODE_PIN = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
 CONFIGURE_PAGES_PIN = "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d"
 UPLOAD_PAGES_ARTIFACT_PIN = "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9"
 DEPLOY_PAGES_PIN = "actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"
+GENERIC_SITE_DESCRIPTION = (
+    "Local-first runtime governance for AI-assisted backend development."
+)
 
 
 def _manifest() -> PublicDocsManifest:
@@ -34,6 +38,18 @@ def _manifest() -> PublicDocsManifest:
         PublicDocsManifest,
         json.loads(PUBLIC_DOCS_MANIFEST.read_text(encoding="utf-8")),
     )
+
+
+def _frontmatter(source: str) -> dict[str, object]:
+    lines = (REPO_ROOT / source).read_text(encoding="utf-8").splitlines()
+    assert lines and lines[0] == "---", f"{source}: missing YAML frontmatter"
+    try:
+        closing_index = lines.index("---", 1)
+    except ValueError as exc:
+        raise AssertionError(f"{source}: unterminated YAML frontmatter") from exc
+    payload = yaml.safe_load("\n".join(lines[1:closing_index]))
+    assert isinstance(payload, dict), f"{source}: frontmatter must be a mapping"
+    return cast(dict[str, object], payload)
 
 
 def test_public_docs_manifest_uses_canonical_markdown() -> None:
@@ -46,6 +62,30 @@ def test_public_docs_manifest_uses_canonical_markdown() -> None:
     assert "docs/technical/TDS.md" in sources
     assert all((REPO_ROOT / source).is_file() for source in sources)
     assert len(sources) == len(set(sources))
+
+
+def test_public_docs_manifest_requires_page_specific_descriptions() -> None:
+    descriptions: dict[str, str] = {}
+
+    for source in public_doc_sources():
+        raw_description = _frontmatter(source).get("description")
+        assert isinstance(raw_description, str), f"{source}: missing description"
+        description = raw_description.strip()
+        assert description == raw_description, f"{source}: description has edge whitespace"
+        assert description, f"{source}: description is empty"
+        assert 40 <= len(description) <= 160, (
+            f"{source}: description must be a concise search snippet"
+        )
+        assert description != GENERIC_SITE_DESCRIPTION, (
+            f"{source}: description must be page-specific"
+        )
+        normalized = description.casefold()
+        assert normalized not in descriptions, (
+            f"{source}: duplicate description from {descriptions.get(normalized)}"
+        )
+        descriptions[normalized] = source
+
+    assert len(descriptions) == len(public_doc_sources())
 
 
 def test_public_docs_manifest_has_unique_url_safe_slugs() -> None:
@@ -75,7 +115,7 @@ def test_public_docs_manifest_preserves_curated_sidebar_order() -> None:
     assert public_sidebar_labels() == [
         "Introduction",
         "Getting started",
-        "User guide",
+        "Workflows",
         "Policy and QAnstitution",
         "CI and reports",
         "Technical reference",
@@ -86,6 +126,47 @@ def test_public_docs_manifest_preserves_curated_sidebar_order() -> None:
     assert manifest["external"][0].get("url") == (
         "https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md"
     )
+
+
+def test_public_docs_manifest_prioritizes_users_over_asset_maintenance() -> None:
+    manifest = _manifest()
+    groups = {group["label"]: group for group in manifest["groups"]}
+
+    getting_started = groups["Getting started"]["items"]
+    assert [item["label"] for item in getting_started] == [
+        "User Guide",
+        "Policy First Hour",
+    ]
+
+    demo_assets = next(
+        item
+        for item in groups["Maintainer reference"]["items"]
+        if item["source"] == "docs/assets/launch/README.md"
+    )
+    assert demo_assets["label"] == "Demo Asset Reference"
+
+
+def test_public_guides_distinguish_contract_version_from_product_maturity() -> None:
+    user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+    use_cases = (REPO_ROOT / "docs" / "user" / "USE_CASES.md").read_text(
+        encoding="utf-8"
+    )
+
+    for guide in (user_guide, use_cases):
+        assert "**Product maturity:** Alpha" in guide
+        assert "**Contract version:** 4.1" in guide
+        assert "**Version:** 4.1 Stable" not in guide
+
+    assert "Commit artifacts" not in user_guide
+    assert "Commit reviewed tests and policy" in user_guide
+
+    first_hour = (
+        REPO_ROOT / "docs" / "user" / "QANSTITUTION_FIRST_HOUR.md"
+    ).read_text(encoding="utf-8")
+    assert "scripts/demo.sh" in first_hour
+    assert "entroping init --minimal\nentroping doctor\nentroping run" not in first_hour
 
 
 def test_public_docs_manifest_items_have_exact_route_or_external_shapes() -> None:
@@ -150,6 +231,22 @@ def test_site_scaffold_is_astro_not_mkdocs() -> None:
         CONTENT_CONFIG.is_file()
     )
     assert SITE_CHECK.is_file()
+
+
+def test_playwright_builds_from_clean_generated_site_state() -> None:
+    package = json.loads(PACKAGE.read_text(encoding="utf-8"))
+    playwright_config = (REPO_ROOT / "playwright.config.ts").read_text(
+        encoding="utf-8"
+    )
+
+    assert CLEAN_SITE_BUILD.is_file()
+    assert package["scripts"]["build:clean"] == (
+        "node scripts/clean-site-build.mjs && astro build"
+    )
+    assert "npm run build:clean && npm run preview" in playwright_config
+    assert "reuseExistingServer: false" in playwright_config
+    assert "{platform}" in playwright_config
+    assert package["scripts"]["test:e2e:ci"] == "playwright test --grep-invert @visual"
 
 
 def test_site_scaffold_tracks_manifest_and_ignores_generated_output() -> None:

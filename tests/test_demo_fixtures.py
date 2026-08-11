@@ -53,6 +53,17 @@ def test_copy_demo_fixture_from_source_checkout_writes_only_manifest_paths(
     ).read_text(encoding="utf-8")
     assert not (result.root / "envs").exists()
     assert not (result.root / "reports").exists()
+    copied_readme = (result.root / "README.md").read_text(encoding="utf-8")
+    assert "cp envs/local.env.example envs/local.env" not in copied_readme
+    assert "creates `envs/local.env`" in copied_readme
+    assert "entroping run --env local" in copied_readme
+    assert "entroping run --tag smoke" not in copied_readme
+    copied_hurl = (result.root / "tests" / "checkout_smoke.hurl").read_text(
+        encoding="utf-8"
+    )
+    assert "GET {{base_url}}/health" in copied_hurl
+    assert "POST {{base_url}}/checkout" in copied_hurl
+    assert "127.0.0.1:18080" not in copied_hurl
 
 
 def test_demo_fixture_source_defaults_to_source_checkout() -> None:

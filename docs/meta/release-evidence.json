@@ -1,6 +1,10 @@
 {
   "schema_version": "entroping.release-evidence.v1",
   "stable_core_ready": false,
+  "stable_core_blocker_ids": [
+    "package_index_proof",
+    "real_downstream_feedback"
+  ],
   "stable_core_blockers": [
     "package-index proof",
     "real downstream user feedback"

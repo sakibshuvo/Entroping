@@ -10,7 +10,7 @@ The core rule is simple: **AI can suggest. Runtime truth decides.**
 
 Project philosophy: **The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.**
 
-**Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) · [Two-Minute Demo](#try-it-in-two-minutes) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) · [Troubleshooting](#first-hour-troubleshooting) · [Project Context](#project-context)
+**Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) · [Local Demo](#try-it-locally) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) · [Troubleshooting](#first-hour-troubleshooting) · [Project Context](#project-context)
 
 ## Why Entroping
 
@@ -39,21 +39,9 @@ It is an API integrity layer, not a broad AI QA platform. It does not replace te
 - **Rules should apply everywhere:** enforce status, latency, headers, and policy-pack gates through `qanstitution.yaml`.
 - **PRs need evidence:** emit JSON, JUnit, HTML, drift, delta, traceability, and GitHub annotations.
 
-## Try It In Two Minutes
+## Try It Locally
 
-Clone the repo, install `uv` and Hurl, and run the checkout demo:
-
-```bash
-git clone https://github.com/sakibshuvo/Entroping.git
-cd Entroping
-brew install uv hurl # macOS; use your package manager elsewhere
-scripts/demo.sh
-scripts/ai_regression_demo.sh
-```
-
-Expected proof: Hurl passes and writes JSON, JUnit, and HTML reports. `scripts/demo.sh` delegates to the same deterministic `scripts/live_demo_smoke.sh` release gate used by CI.
-
-After installing the package, the same local-only Aha path is available as:
+With Entroping and Hurl installed, the canonical first-success path is:
 
 ```bash
 entroping demo --project ./entroping-checkout-demo
@@ -65,15 +53,26 @@ model providers or external APIs.
 
 ```text
 $ entroping demo --project ./entroping-checkout-demo
-[pass] Aha local smoke wrote JSON, JUnit, HTML, drift, and delta without provider or external API calls.
+Entroping demo: passed
+Commands: 2 total, 2 passed, 0 failed, 0 errors, 0 blocked
+Reports: reports/run-latest.json, reports/junit.xml, reports/run-latest.html
 ```
+
+The command executes deterministic Hurl tests from reviewed local fixture
+inputs in a new or empty project and writes the listed JSON, JUnit, and HTML
+artifacts. It does not call model providers or external APIs.
+
+For source-checkout release-smoke parity, clone the repository, install `uv`
+and Hurl, then run `scripts/demo.sh`. The wrapper delegates to the same
+deterministic `scripts/live_demo_smoke.sh` release gate used by CI;
+`scripts/ai_regression_demo.sh` exercises the governed failure path.
 
 ![Checkout demo: Hurl run passes and reports are emitted](docs/assets/launch/checkout-demo.gif)
 
 ![AI regression proof: QAnstitution blocks a missing request-id header](docs/assets/launch/ai-regression-proof.gif)
 
 [examples/ai-regression-demo](examples/ai-regression-demo/README.md) is the failure-path fixture.
-For launch screenshots, including `docs/assets/launch/terminal-demo-screenshot.png`, `docs/assets/launch/html-report-screenshot.png`, and `docs/assets/launch/dependency-map-screenshot.png`, plus GIF rebuilds, see the [Two-Minute Demo Assets](docs/assets/launch/README.md).
+For launch screenshots, including `docs/assets/launch/terminal-demo-screenshot.png`, `docs/assets/launch/html-report-screenshot.png`, and `docs/assets/launch/dependency-map-screenshot.png`, plus GIF rebuilds, see the [Local Demo Assets](docs/assets/launch/README.md).
 
 For a first-hour API integrity quickstart that starts with OpenAPI and ends with
 Hurl run, report, drift, and delta evidence, use

@@ -60,7 +60,7 @@ Publish order:
    `.github/workflows/scorecard.yml` once the repository is public.
 2. Keep `ROADMAP.md`, GitHub milestones, and the project board visible before
    external announcements.
-3. Add two-minute README demo links to the launch asset hub, including curated
+3. Add local README demo links to the launch asset hub, including curated
    public preview GIFs and PNGs.
 4. Render the happy-path and AI-regression animated GIF previews from reviewed
    launch proof frames.

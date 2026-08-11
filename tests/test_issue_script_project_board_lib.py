@@ -6,9 +6,9 @@ START_ISSUE_SCRIPT = REPO_ROOT / "scripts" / "start_issue.sh"
 FINISH_ISSUE_SCRIPT = REPO_ROOT / "scripts" / "finish_issue.sh"
 
 PROJECT_BOARD_FUNCTIONS = (
-    "project_item_list_limit",
     "json_project_status_ids",
-    "json_project_item_id",
+    "json_current_issue_project_item_id",
+    "project_item_id_for_issue",
     "retry_project_item_id",
     "project_graphql_quota_allows_update",
 )

@@ -18,6 +18,7 @@ from factory_scheduler_test_support import (
 )
 
 from scripts.factory_scheduler_models import LeaseOwner
+from scripts.factory_scheduler_storage_fs import BUSY_TIMEOUT_MILLISECONDS
 
 
 def test_malformed_state_and_lock_contention_return_bounded_receipts(
@@ -70,7 +71,7 @@ def test_malformed_state_and_lock_contention_return_bounded_receipts(
         _ = connection.execute("ROLLBACK")
         connection.close()
 
-    assert time.monotonic() - started < 1.0
+    assert time.monotonic() - started < (BUSY_TIMEOUT_MILLISECONDS / 1_000) + 0.5
     assert busy.decision == "blocked"
     assert busy.reason == "state-busy"
 

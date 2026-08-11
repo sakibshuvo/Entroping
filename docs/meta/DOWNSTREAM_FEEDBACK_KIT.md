@@ -1,5 +1,6 @@
 ---
 title: Downstream Feedback Kit
+description: "Collect reproducible feedback from a real external adopter without confusing local smoke with user proof."
 type: runbook
 status: active
 tags:

@@ -1,5 +1,6 @@
 ---
 title: CLI Compatibility Audit
+description: "Trace the locked alpha command surface across implementation, documentation, and compatibility tests."
 type: technical
 status: active
 tags:
@@ -106,7 +107,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` and `run --dry-run` are command-scoped and do not create a global dry-run mode. |
 | Init CI starter | `init --github-actions` is an explicit opt-in setup helper that writes the reviewed starter to `.github/workflows/entroping.yml`, refuses to overwrite an existing workflow, and does not add secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
-| Aha entrypoint command | `entroping demo --project <path>` is the approved package-installed Aha command shape for #1385. Until that implementation lands, `scripts/demo.sh` remains the only implemented public Aha entrypoint. |
+| Aha entrypoint command | `entroping demo --project <path>` is the implemented package-installed Aha command for #1385. It copies the reviewed fixture into a new or empty directory and runs the same local-only, provider-free Hurl proof as `scripts/demo.sh`; neither entrypoint claims package-index or stable-core readiness. The implemented command behavior does not close #1255 or supply the package-index and downstream evidence required for stable-core graduation. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Doctor CI readiness | `doctor --ci` is a strict local preflight for PR gates. It validates Hurl availability, safe report paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without calling CI provider APIs or mutating workflows. |
 | Named suites | `run --suite <name>` loads committed `suites/<name>.yaml` manifests with schema `entroping.suite.v1`, root-bounded local path globs, tags, env, reports, parallel, fail-fast, and drift settings. It cannot be combined with ad hoc selectors; `--ci` remains allowed for exit behavior. |
@@ -166,11 +167,9 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 `docs/meta/experimental-report-growth-policy.json` is the versioned,
 machine-readable governance record for the 41 commands in the experimental
 report help panel. Its order must match the resolved panel exactly. The strict
-policy implementation has no Typer or registration dependency, and runtime
-registration does not import it. Standard Python import still initializes the
-parent `report` package, so the offline guarantee applies to loading and
-validation—no network, provider, or runtime mutation—not package-import
-isolation. Tests pass resolved command names into the completeness validator.
+repository test guard loads the tracked JSON directly and compares it with the
+resolved Typer panel. No shipped `entroping.cli` module parses or validates this
+maintainer policy, and runtime registration does not import it.
 
 Each entry records an owner, adoption-evidence state and pointer, proposed
 disposition, and review date. A tracking issue or other pointer identifies where

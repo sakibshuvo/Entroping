@@ -10,7 +10,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from stable_core_readiness import STABLE_CORE_BLOCKERS as CANONICAL_STABLE_CORE_BLOCKERS
+from readiness_contract import (
+    CONTRACT_VERSION,
+    PRODUCT_MATURITY,
+)
+from readiness_contract import (
+    STABLE_CORE_BLOCKERS as CANONICAL_STABLE_CORE_BLOCKERS,
+)
 
 SCHEMA_VERSION = "entroping.alpha-launch-readiness.v1"
 MAX_READ_TEXT_BYTES = 1024 * 1024
@@ -159,13 +165,23 @@ def _build_payload(root: Path) -> dict[str, object]:
             "path": check.path,
             "status": status,
             "description": check.description,
+            "evidence_kind": "structural",
         }
 
     return {
         "schema_version": SCHEMA_VERSION,
+        "contract_version": CONTRACT_VERSION,
+        "product_maturity": PRODUCT_MATURITY,
+        "readiness_basis": "structural",
         "alpha_launch_ready": all(entry["status"] == "present" for entry in checks.values()),
         "stable_core_ready": False,
         "stable_core_blockers": list(STABLE_CORE_BLOCKERS),
+        "execution_evidence": {
+            "status": "not_evaluated",
+            "commit": None,
+            "recorded_at": None,
+            "freshness": "not_checked",
+        },
         "checks": checks,
     }
 
@@ -215,6 +231,9 @@ def _render_markdown(payload: dict[str, object]) -> str:
         "# Alpha Launch Readiness",
         "",
         f"- Schema: `{payload['schema_version']}`",
+        f"- Contract version: `{payload['contract_version']}`",
+        f"- Product maturity: `{payload['product_maturity']}`",
+        f"- Readiness basis: `{payload['readiness_basis']}`",
         f"- Alpha launch ready: `{str(payload['alpha_launch_ready']).lower()}`",
         f"- Stable-core ready: `{str(payload['stable_core_ready']).lower()}`",
         "",

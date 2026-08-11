@@ -1,5 +1,6 @@
 ---
 title: Threat Model
+description: "Review Entroping trust boundaries, attacker-controlled inputs, sensitive assets, and required mitigations."
 type: technical
 status: active
 tags:

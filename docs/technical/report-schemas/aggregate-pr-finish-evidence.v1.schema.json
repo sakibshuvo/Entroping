@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sakibshuvo/Entroping/docs/technical/report-schemas/aggregate-pr-finish-evidence.v1.schema.json",
+  "title": "Aggregate PR finish evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repository",
+    "aggregate_pr_number",
+    "aggregate_merge_commit",
+    "entries"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.aggregate-pr-finish-evidence.v1"
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "maxLength": 255
+    },
+    "aggregate_pr_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "aggregate_merge_commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue_number",
+          "source_branch",
+          "source_commit",
+          "integrated_commit",
+          "patch_id"
+        ],
+        "properties": {
+          "issue_number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "source_branch": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{2,159}$"
+          },
+          "source_commit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$"
+          },
+          "integrated_commit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$"
+          },
+          "patch_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$"
+          }
+        }
+      }
+    }
+  }
+}

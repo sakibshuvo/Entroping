@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.evidence.handoff_git as handoff_git
 import entroping.core.evidence.handoff_packet as handoff_packet
 from entroping.core.evidence.handoff_packet import (
     HandoffError,
@@ -13,7 +14,10 @@ from entroping.core.evidence.handoff_packet import (
     render_handoff_markdown,
     run_handoff_report,
 )
+from entroping.core.evidence_common import safe_evidence_text
 from entroping.core.safe_write import SafeWriteError
+
+_PAN_LIKE_GIT_COMMIT = "a4111111111111111bcdef0123456789abcdef01"
 
 
 def test_run_handoff_report_writes_value_free_json_from_local_artifacts(
@@ -383,7 +387,7 @@ def test_handoff_packet_tolerates_git_subprocess_failure(
     def fail_git(*args: object, **kwargs: object) -> object:
         raise subprocess.TimeoutExpired(cmd=["git"], timeout=2)
 
-    monkeypatch.setattr("entroping.core.evidence.handoff_packet.subprocess.run", fail_git)
+    monkeypatch.setattr("entroping.core.evidence.handoff_git.subprocess.run", fail_git)
 
     packet = build_handoff_packet(project_root=tmp_path)
 
@@ -400,7 +404,7 @@ def test_handoff_packet_git_subprocess_uses_minimal_environment(
     monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-" + ("a" * 24))
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-secret")
     monkeypatch.setattr(
-        "entroping.core.evidence.handoff_packet.shutil.which",
+        "entroping.core.evidence.handoff_git.shutil.which",
         lambda binary: git_binary,
     )
 
@@ -417,14 +421,14 @@ def test_handoff_packet_git_subprocess_uses_minimal_environment(
         assert check is False
         assert capture_output is True
         assert text is True
-        assert timeout == handoff_packet._GIT_TIMEOUT_SECONDS
+        assert timeout == handoff_git.GIT_TIMEOUT_SECONDS
         if args[-2:] == ["branch", "--show-current"]:
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="main\n")
         if args[-2:] == ["rev-parse", "HEAD"]:
             return subprocess.CompletedProcess(args=args, returncode=0, stdout=("a" * 40) + "\n")
         return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
 
-    monkeypatch.setattr("entroping.core.evidence.handoff_packet.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.evidence.handoff_git.subprocess.run", fake_run)
 
     packet = build_handoff_packet(project_root=tmp_path)
 
@@ -448,11 +452,58 @@ def test_handoff_packet_git_subprocess_uses_minimal_environment(
     assert "DEEPSEEK_API_KEY" not in expected_env
 
 
+def test_run_handoff_report_preserves_valid_commit_that_matches_secret_heuristic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_handoff_inputs(tmp_path)
+    assert len(_PAN_LIKE_GIT_COMMIT) == 40
+    assert safe_evidence_text(_PAN_LIKE_GIT_COMMIT) != _PAN_LIKE_GIT_COMMIT
+
+    def fake_run(
+        args: list[str],
+        **_: object,
+    ) -> subprocess.CompletedProcess[str]:
+        stdout = "main\n" if args[-2:] == ["branch", "--show-current"] else (
+            _PAN_LIKE_GIT_COMMIT + "\n"
+        )
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=stdout)
+
+    monkeypatch.setattr("entroping.core.evidence.handoff_git.subprocess.run", fake_run)
+
+    result = run_handoff_report(project_root=tmp_path, output="json")
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+
+    assert payload["git"]["commit"] == _PAN_LIKE_GIT_COMMIT
+
+
+def test_handoff_packet_rejects_non_hex_secret_like_commit_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unsafe_commit = "sk-proj-" + ("a" * 32)
+
+    def fake_run(
+        args: list[str],
+        **_: object,
+    ) -> subprocess.CompletedProcess[str]:
+        stdout = "main\n" if args[-2:] == ["branch", "--show-current"] else (
+            unsafe_commit + "\n"
+        )
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=stdout)
+
+    monkeypatch.setattr("entroping.core.evidence.handoff_git.subprocess.run", fake_run)
+
+    packet = build_handoff_packet(project_root=tmp_path)
+
+    assert packet.git.commit is None
+
+
 def test_handoff_packet_tolerates_missing_git_binary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("entroping.core.evidence.handoff_packet.shutil.which", lambda _: None)
+    monkeypatch.setattr("entroping.core.evidence.handoff_git.shutil.which", lambda _: None)
 
     packet = build_handoff_packet(project_root=tmp_path)
 

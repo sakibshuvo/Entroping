@@ -11,7 +11,6 @@ import subprocess
 import sys
 import time
 from contextlib import suppress
-from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -140,6 +139,7 @@ def write_fake_gh(
     pr_state: str = "MERGED",
     checks_json: str | None = None,
     head_sha: str | None = None,
+    closing_pr_numbers: tuple[int, ...] = (123,),
 ) -> Path:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir(exist_ok=True)
@@ -147,6 +147,16 @@ def write_fake_gh(
     mutation_marker = shlex.quote(str(tmp_path / "finish-mutation"))
     checks = checks_json or (
         '[{"__typename":"CheckRun","name":"checks","status":"COMPLETED","conclusion":"SUCCESS"}]'
+    )
+    closing_refs = json.dumps(
+        [
+            {
+                "number": number,
+                "url": f"https://github.com/sakibshuvo/Entroping/pull/{number}",
+            }
+            for number in closing_pr_numbers
+        ],
+        separators=(",", ":"),
     )
     fake_gh.write_text(
         "#!/usr/bin/env bash\n"
@@ -157,7 +167,7 @@ def write_fake_gh(
         "{"
         f'"title":"Dry run feature","url":"https://github.com/sakibshuvo/Entroping/issues/{issue_number}",'
         f'"state":"{issue_state}",'
-        '"closedByPullRequestsReferences":[{"number":123,"url":"https://github.com/sakibshuvo/Entroping/pull/123"}]'
+        f'"closedByPullRequestsReferences":{closing_refs}'
         "}\n"
         "JSON\n"
         "  exit 0\n"
@@ -189,9 +199,10 @@ def write_fake_gh(
         '"options":[{"name":"Done","id":"done-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        'if [[ "$1 $2" == "project item-list" ]]; then\n'
+        'if [[ "$1 $2" == "api graphql" ]]; then\n'
         "  printf '%s\\n' "
-        f'\'{{"items":[{{"id":"item-id","content":{{"number":{issue_number}}}}}]}}\'\n'
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":["
+        "{\"id\":\"item-id\",\"project\":{\"id\":\"project-id\"}}]}}}}}'\n"
         "  exit 0\n"
         "fi\n"
         'if [[ "$1 $2" == "project item-edit" ]]; then\n'
@@ -258,21 +269,25 @@ def write_fake_gh_with_missing_project_item(
         '"options":[{"name":"Done","id":"done-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        'if [[ "$1 $2" == "project item-list" ]]; then\n'
+        'if [[ "$1 $2" == "api graphql" ]]; then\n'
+        '  printf \'api graphql %s\\n\' "$*" >> "$calls"\n'
         '  if [[ -f "$state_dir/project-added" ]]; then\n'
-        '    count_file="$state_dir/item-list-after-add-count"\n'
+        '    count_file="$state_dir/graphql-after-add-count"\n'
         "    count=0\n"
         '    [[ -f "$count_file" ]] && count=$(cat "$count_file")\n'
         "    count=$((count + 1))\n"
         '    printf \'%s\\n\' "$count" > "$count_file"\n'
         "    if ((count >= 2)); then\n"
         "      printf '%s\\n' "
-        f'\'{{"items":[{{"id":"item-id","content":{{"number":{issue_number}}}}}]}}\'\n'
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":["
+        "{\"id\":\"item-id\",\"project\":{\"id\":\"project-id\"}}]}}}}}'\n"
         "    else\n"
-        "      printf '%s\\n' '{\"items\":[]}'\n"
+        "      printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":[]}}}}}'\n"
         "    fi\n"
         "  else\n"
-        "    printf '%s\\n' '{\"items\":[]}'\n"
+        "    printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":[]}}}}}'\n"
         "  fi\n"
         "  exit 0\n"
         "fi\n"
@@ -403,6 +418,18 @@ def seed_replay_stage(
     return identity
 
 
+def replay_proof_path(repo: Path, identity: ReplayIdentity) -> Path:
+    return (
+        repo
+        / ".entroping"
+        / "finish-issue-replay"
+        / (
+            f"issue-{identity.issue}-pr-{identity.pull_request}-"
+            f"{identity.expected_head}.json"
+        )
+    )
+
+
 def branch_exists(repo: Path) -> bool:
     return (
         subprocess.run(
@@ -450,6 +477,38 @@ def test_strict_expected_identity_checks_exact_pr_head_branch_and_worktree(
     assert result.returncode == 0
     assert "DRY RUN" in result.stdout
     assert read_replay_evidence(repo, replay_identity(repo, worktree, head)) == "none"
+
+
+def test_strict_expected_identity_selects_expected_reclosing_pr(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(
+        tmp_path,
+        head_sha=head,
+        closing_pr_numbers=(122, 123),
+    )
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head), "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "PR: #123" in result.stdout
+
+
+def test_strict_expected_identity_rejects_missing_expected_closing_pr(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
+    fake_bin = write_fake_gh(
+        tmp_path,
+        head_sha=head,
+        closing_pr_numbers=(122,),
+    )
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head), "--dry-run")
+
+    assert result.returncode == 1
+    assert "closing PR identity does not match expected PR" in result.stderr
 
 
 def test_strict_expected_identity_idempotent_replay_real_cleanup(tmp_path: Path) -> None:
@@ -741,18 +800,21 @@ def test_strict_rejects_invalid_replay_evidence_before_cleanup(
     repo, worktree = create_repo_with_worktree(tmp_path)
     head = run_git(worktree, "rev-parse", "HEAD").stdout.strip()
     fake_bin = write_fake_gh(tmp_path, head_sha=head)
+    identity = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
+    proof = replay_proof_path(repo, identity)
     if damage == "conflict":
-        conflicting = replace(replay_identity(repo, worktree, head), pull_request=124)
-        _ = advance_replay_evidence(repo, conflicting, "worktree-removal-attempted")
+        payload = cast(dict[str, object], json.loads(proof.read_text(encoding="utf-8")))
+        payload["pull_request"] = 124
+        proof.write_text(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    elif damage == "corrupt":
+        proof.write_text("not-json", encoding="utf-8")
     else:
-        _ = seed_replay_stage(repo, worktree, head, "worktree-removal-attempted")
-        proof = repo / ".entroping" / "finish-issue-replay" / "issue-99.json"
-        if damage == "corrupt":
-            proof.write_text("not-json", encoding="utf-8")
-        else:
-            outside = tmp_path / "outside-proof.json"
-            proof.replace(outside)
-            proof.symlink_to(outside)
+        outside = tmp_path / "outside-proof.json"
+        proof.replace(outside)
+        proof.symlink_to(outside)
 
     result = run_finish_issue(repo, fake_bin, tmp_path, *strict_args(head))
 
@@ -1329,6 +1391,105 @@ def test_finish_issue_accepts_unknown_passing_ci_rollup_entry(tmp_path: Path) ->
     assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip() == ""
 
 
+def test_finish_issue_accepts_latest_success_after_superseded_failure(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:24:55Z",
+                "completedAt": "2026-08-07T18:25:05Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            },
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "completedAt": "2026-08-07T18:36:00Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            },
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "CI checks verified: 1" in result.stdout
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_latest_failure_after_superseded_success(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "completedAt": "2026-08-07T18:36:00Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            },
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:24:55Z",
+                "completedAt": "2026-08-07T18:25:05Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            },
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 1
+    assert "checks (3.12): status=COMPLETED conclusion=FAILURE" in result.stderr
+    assert worktree.exists()
+
+
+def test_finish_issue_rejects_conflicting_check_runs_with_same_start_time(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = json.dumps(
+        [
+            {
+                "__typename": "CheckRun",
+                "name": "checks (3.12)",
+                "workflowName": "CI",
+                "startedAt": "2026-08-07T18:26:52Z",
+                "status": "COMPLETED",
+                "conclusion": conclusion,
+            }
+            for conclusion in ("FAILURE", "SUCCESS")
+        ],
+        separators=(",", ":"),
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 1
+    assert "checks (3.12): status=COMPLETED conclusion=FAILURE" in result.stderr
+    assert worktree.exists()
+
+
 def test_finish_issue_removes_clean_worktree_and_squash_merged_branch(tmp_path: Path) -> None:
     repo, worktree = create_repo_with_worktree(tmp_path)
     fake_bin = write_fake_gh(tmp_path)
@@ -1372,7 +1533,7 @@ def test_finish_issue_adds_missing_issue_to_project_before_marking_done(
     assert not worktree.exists()
 
 
-def test_finish_issue_finds_existing_project_item_beyond_first_200(
+def test_finish_issue_targets_current_issue_project_item_without_listing_board(
     tmp_path: Path,
 ) -> None:
     repo, worktree = create_repo_with_worktree(tmp_path)
@@ -1423,19 +1584,12 @@ def test_finish_issue_finds_existing_project_item_beyond_first_200(
         '"options":[{"name":"Done","id":"done-id"}]}]}\'\n'
         "  exit 0\n"
         "fi\n"
-        'if [[ "$1 $2" == "project item-list" ]]; then\n'
-        '  printf \'project item-list %s\\n\' "$*" >> "$calls"\n'
-        "  limit=0\n"
-        "  previous=''\n"
-        '  for arg in "$@"; do\n'
-        '    if [[ "$previous" == \'--limit\' ]]; then limit="$arg"; fi\n'
-        '    previous="$arg"\n'
-        "  done\n"
-        "  if ((limit > 200)); then\n"
-        '    printf \'%s\\n\' \'{"items":[{"id":"late-item-id","content":{"number":99}}]}\'\n'
-        "  else\n"
-        "    printf '%s\\n' '{\"items\":[]}'\n"
-        "  fi\n"
+        'if [[ "$1 $2" == "api graphql" ]]; then\n'
+        '  printf \'api graphql %s\\n\' "$*" >> "$calls"\n'
+        "  printf '%s\\n' "
+        "'{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":["
+        "{\"id\":\"wrong-item-id\",\"project\":{\"id\":\"other-project-id\"}},"
+        "{\"id\":\"target-item-id\",\"project\":{\"id\":\"project-id\"}}]}}}}}'\n"
         "  exit 0\n"
         "fi\n"
         'if [[ "$1 $2" == "project item-add" ]]; then\n'
@@ -1467,10 +1621,15 @@ def test_finish_issue_finds_existing_project_item_beyond_first_200(
 
     assert result.returncode == 0, result.stderr
     calls = (fake_state / "calls.log").read_text(encoding="utf-8")
-    assert "project item-list" in calls
+    assert "api graphql" in calls
+    assert "-F owner=sakibshuvo" in calls
+    assert "-F name=Entroping" in calls
+    assert "-F number=99" in calls
+    assert "project item-list" not in calls
     assert "project item-add" not in calls
     assert "project item-edit" in calls
-    assert "late-item-id" in calls
+    assert "target-item-id" in calls
+    assert "wrong-item-id" not in calls
     assert not worktree.exists()
 
 

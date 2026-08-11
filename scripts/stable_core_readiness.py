@@ -11,9 +11,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from readiness_contract import (
+    CONTRACT_VERSION,
+    PRODUCT_MATURITY,
+    STABLE_CORE_BLOCKER_IDS,
+    STABLE_CORE_BLOCKERS,
+)
+
 SCHEMA_VERSION = "entroping.stable-core-readiness.v1"
 MAX_READ_TEXT_BYTES = 1024 * 1024
 CheckStatus = Literal["present", "missing", "marker-missing", "invalid"]
+EVIDENCE_KIND_BY_KEY = {"release_evidence_ledger": "recorded_execution"}
 
 
 @dataclass(frozen=True)
@@ -120,10 +128,6 @@ EVIDENCE_CHECKS = (
     ),
 )
 
-STABLE_CORE_BLOCKERS = (
-    "package-index proof",
-    "real downstream user feedback",
-)
 STABLE_CORE_BLOCKER_ISSUES = {
     "package-index proof": (
         IssueRef(
@@ -223,16 +227,68 @@ def _build_payload(root: Path) -> dict[str, object]:
             "path": check.path,
             "status": status,
             "description": check.description,
+            "evidence_kind": EVIDENCE_KIND_BY_KEY.get(check.key, "structural"),
         }
+
+    execution_evidence = _recorded_execution_evidence(root)
+    release_entry = evidence["release_evidence_ledger"]
+    release_entry.update(
+        {
+            "recorded_commit": str(execution_evidence["commit"] or ""),
+            "recorded_at": str(execution_evidence["recorded_at"] or ""),
+            "freshness": str(execution_evidence["freshness"]),
+        }
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
+        "contract_version": CONTRACT_VERSION,
+        "product_maturity": PRODUCT_MATURITY,
+        "readiness_basis": "structural-and-recorded",
         "stable_core_ready": False,
+        "blocker_ids": list(STABLE_CORE_BLOCKER_IDS),
         "blockers": list(STABLE_CORE_BLOCKERS),
         "blocker_issue_map": _blocker_issue_map_payload(),
         "completed_issue_map": _completed_issue_map_payload(),
+        "execution_evidence": execution_evidence,
         "evidence": evidence,
     }
+
+
+def _recorded_execution_evidence(root: Path) -> dict[str, object]:
+    empty: dict[str, object] = {
+        "status": "not_recorded",
+        "commit": None,
+        "recorded_at": None,
+        "freshness": "not_checked",
+    }
+    latest_main_ci = _read_latest_main_ci(root)
+    if latest_main_ci is None:
+        return empty
+    commit = latest_main_ci.get("commit")
+    recorded_at = latest_main_ci.get("created_at")
+    if not isinstance(commit, str) or not isinstance(recorded_at, str):
+        return empty
+    return {
+        "status": "recorded",
+        "commit": commit,
+        "recorded_at": recorded_at,
+        "freshness": "not_checked",
+    }
+
+
+def _read_latest_main_ci(root: Path) -> dict[str, object] | None:
+    ledger_path = root / "docs" / "meta" / "release-evidence.json"
+    if not ledger_path.is_file():
+        return None
+    try:
+        ledger = json.loads(_read_text_file_bounded(ledger_path))
+    except (json.JSONDecodeError, OSError, ValueError):
+        return None
+    if not isinstance(ledger, dict):
+        return None
+    latest_main_ci = ledger.get("latest_main_ci")
+    return latest_main_ci if isinstance(latest_main_ci, dict) else None
 
 
 def _blocker_issue_map_payload() -> dict[str, list[dict[str, object]]]:
@@ -304,6 +360,9 @@ def _render_markdown(payload: dict[str, object]) -> str:
         "# Stable-Core Readiness",
         "",
         f"- Schema: `{payload['schema_version']}`",
+        f"- Contract version: `{payload['contract_version']}`",
+        f"- Product maturity: `{payload['product_maturity']}`",
+        f"- Readiness basis: `{payload['readiness_basis']}`",
         f"- Stable-core ready: `{str(payload['stable_core_ready']).lower()}`",
         "",
         "## Blockers",
@@ -311,7 +370,12 @@ def _render_markdown(payload: dict[str, object]) -> str:
     ]
     blockers = payload["blockers"]
     assert isinstance(blockers, list)
-    lines.extend(f"- {blocker}" for blocker in blockers)
+    blocker_ids = payload["blocker_ids"]
+    assert isinstance(blocker_ids, list)
+    lines.extend(
+        f"- `{blocker_id}`: {blocker}"
+        for blocker_id, blocker in zip(blocker_ids, blockers, strict=True)
+    )
     lines.extend(["", "## Blocker Issue Map", ""])
     blocker_issue_map = payload["blocker_issue_map"]
     assert isinstance(blocker_issue_map, dict)

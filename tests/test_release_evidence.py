@@ -14,6 +14,7 @@ COMMIT_A = "a" * 40
 COMMIT_B = "b" * 40
 COMMIT_C = "c" * 40
 COMMIT_D = "d" * 40
+BLOCKER_IDS = ["package_index_proof", "real_downstream_feedback"]
 
 
 def run_release_evidence(
@@ -46,6 +47,7 @@ def write_release_evidence_ledger(
             {
                 "schema_version": LEDGER_SCHEMA,
                 "stable_core_ready": False,
+                "stable_core_blocker_ids": BLOCKER_IDS,
                 "stable_core_blockers": [
                     "package-index proof",
                     "real downstream user feedback",
@@ -191,6 +193,7 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     payload = json.loads(result.stdout)
     assert payload["schema_version"] == "entroping.release-evidence.v1"
     assert payload["stable_core_ready"] is False
+    assert payload["stable_core_blocker_ids"] == BLOCKER_IDS
     assert payload["release_count"] >= 2
     assert payload["release_candidate_count"] >= 1
     assert payload["latest_release"] == "v0.1.1-alpha"
@@ -216,6 +219,20 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     assert payload["ledger_path"] == "docs/meta/release-evidence.json"
 
 
+def test_release_evidence_rejects_blocker_id_or_name_drift(tmp_path: Path) -> None:
+    ledger_path = write_release_evidence_ledger(tmp_path)
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    ledger["stable_core_blocker_ids"].append("non_github_runner_proof")
+    ledger["stable_core_blockers"].append("non-GitHub runner proof")
+    ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+
+    result = run_release_evidence("--root", str(tmp_path), "--strict")
+
+    assert result.returncode == 1
+    assert "stable_core_blocker_ids must exactly match" in result.stderr
+    assert "stable_core_blockers must exactly match" in result.stderr
+
+
 def test_release_evidence_blockers_match_stable_core_readiness() -> None:
     release_result = run_release_evidence("--format", "json", "--strict")
     readiness_result = subprocess.run(
@@ -231,6 +248,7 @@ def test_release_evidence_blockers_match_stable_core_readiness() -> None:
     release_payload = json.loads(release_result.stdout)
     readiness_payload = json.loads(readiness_result.stdout)
     assert release_payload["stable_core_blockers"] == readiness_payload["blockers"]
+    assert release_payload["stable_core_blocker_ids"] == readiness_payload["blocker_ids"]
 
 
 def test_release_evidence_markdown_is_maintainer_readable() -> None:
@@ -246,6 +264,26 @@ def test_release_evidence_markdown_is_maintainer_readable() -> None:
     assert "Downstream smoke evidence" in result.stdout
     assert "Latest main CI" not in result.stdout
     assert "Stable-core ready: `false`" in result.stdout
+
+
+def test_release_evidence_markdown_omits_malformed_blocker_values(
+    tmp_path: Path,
+) -> None:
+    ledger_path = write_release_evidence_ledger(tmp_path)
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    ledger["stable_core_blocker_ids"] = "forged_blocker"
+    ledger["stable_core_blockers"] = {"forged": "proof"}
+    ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+
+    result = run_release_evidence("--root", str(tmp_path))
+
+    assert result.returncode == 0, result.stderr
+    blocker_section = result.stdout.split("## Stable-Core Blockers", maxsplit=1)[
+        1
+    ].split("## Releases", maxsplit=1)[0]
+    assert "forged" not in blocker_section
+    assert "stable_core_blocker_ids must exactly match" in result.stdout
+    assert "stable_core_blockers must exactly match" in result.stdout
 
 
 def test_release_evidence_docs_explain_ci_evidence_is_recorded() -> None:

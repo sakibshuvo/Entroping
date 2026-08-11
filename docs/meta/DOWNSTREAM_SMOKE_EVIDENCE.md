@@ -1,5 +1,6 @@
 ---
 title: Downstream Smoke Evidence
+description: "Run Entroping against a temporary external project and record deterministic CLI proof outside the checkout."
 type: runbook
 status: active
 tags:

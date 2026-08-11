@@ -42,7 +42,7 @@ Read:
 
 Assess:
 1. Can a new developer understand the use case in 60 seconds?
-2. Can they run a demo in two minutes?
+2. Can they run the canonical local demo from its documented prerequisites?
 3. Is install guidance honest and current?
 4. Are launch claims supported by evidence?
 5. Is the public repo surface clean enough?

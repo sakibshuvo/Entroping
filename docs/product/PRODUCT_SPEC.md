@@ -2,7 +2,7 @@
 
 **Project:** Entroping
 **Spec Version:** 4.1
-**Implementation Maturity:** Alpha; stable-core readiness is blocked by package-index proof, real downstream feedback, and compatibility graduation.
+**Implementation Maturity:** Alpha; stable-core readiness is blocked by `package_index_proof` and `real_downstream_feedback`.
 **Status:** Current product contract, not a stable-core release claim
 **Versioning Note:** v4.1 is the product/spec/CLI contract generation, not the Python package release version; package releases use alpha Git tags and PEP 440 package metadata tracked from `pyproject.toml`.
 **Philosophy:** The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.
@@ -199,7 +199,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | SET-004 | Configure agent model routing | `entroping config set --agent auditor --model <id>` updates local configuration without printing secrets |
 | SET-005 | List effective config | `entroping config list` shows resolved non-secret configuration and imported rules |
 | SET-006 | Support local-first brain setup | AI commands can use an Ollama-backed local model by default and cloud models only through explicit configuration |
-| SET-007 | Store credentials safely | API keys are read from environment variables or OS credential storage; plaintext config files must not contain secrets |
+| SET-007 | Store credentials safely | API keys are read from environment variables; plaintext config files must not contain secrets, and OS credential storage is future work |
 | SET-008 | Vendor reviewed local policy packs | `entroping config vendor-policy-pack --pack <path> [--name <dir>]` copies a local pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, preserves final-gate behavior, and appends a local import without remote registry behavior |
 | SET-009 | Self-test local policy packs | `entroping config test-policy-pack --pack <path> [--output text|json]` validates a local pack before vendoring or publishing without network access, provider keys, or project mutation |
 | SET-010 | Install an optional CI starter workflow | `entroping init --github-actions` writes the reviewed starter to `.github/workflows/entroping.yml`, refuses existing workflows, keeps Hurl pinned, and adds no secrets, provider credentials, hosted-service coupling, or package-index readiness claims |
@@ -209,7 +209,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | ID | Requirement | Acceptance Criteria |
 | --- | --- | --- |
 | GOV-001 | Load `qanstitution.yaml` with schema validation | Invalid files fail fast with actionable line/path errors |
-| GOV-002 | Support imports from local files and HTTP(S) URLs | Imported gates merge into the effective policy before execution |
+| GOV-002 | Support local-file imports | Local imported gates merge before execution; HTTP(S) imports are rejected and remain future work |
 | GOV-003 | Support local overrides | Local gates with the same ID override imported gates unless the imported gate is marked `final: true` |
 | GOV-004 | Support gate matching conditions | Conditions can match tags, method, path, URL, metadata, and a global `true` condition |
 | GOV-005 | Support enforcement levels | `block`, `warn`, and `audit_only` are represented in reports and exit behavior |
@@ -295,7 +295,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | Test Type | Entroping Support | Notes |
 | --- | --- | --- |
 | Unit tests | Not owned | Codebase frameworks remain responsible |
-| API contract tests | First-class | Generated from OpenAPI and GraphQL where possible |
+| API contract tests | First-class for REST/OpenAPI | Generated from OpenAPI; GraphQL-over-HTTP remains an internal scaffold/hidden example |
 | Functional API tests | First-class | Hurl workflows with captures and assertions |
 | Integration tests | First-class | Multi-service chains and real dependencies |
 | Component tests | Supported | Service under test plus generated mocks |
@@ -305,14 +305,15 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 
 ## 11. Protocol Support
 
-| Protocol | v4.1 Support | Product Behavior |
+| Protocol | Contract 4.1 support level | Product behavior |
 | --- | --- | --- |
-| REST/HTTP | Native | Mainline Hurl execution path |
-| GraphQL | Native over HTTP | Validate status, data shape, and absence of top-level `errors` |
-| SOAP | Supported over HTTP/XML | Use Hurl XML assertions and SOAPAction headers |
-| Webhooks | Supported through observation | Watch inbound/outbound traffic, freeze replayable flows |
-| gRPC | Bridge support | Start with gRPC-Web or proto-assisted mapping; full streaming is future work |
-| WebSockets | Limited | Handshake and observed message capture first; full stateful testing future |
+| REST/OpenAPI | Shipped core | Mainline Hurl execution and OpenAPI compiler path |
+| GraphQL-over-HTTP | Internal scaffold | Hidden example and local SDL scaffold only; no public schema command or native runtime guarantee |
+| SOAP/XML-over-HTTP | Internal scaffold | Hidden example and local WSDL scaffold only; no public schema command or SOAP runtime |
+| HTTP callback observation | Shipped advanced | Generic redacted traffic observation/freeze can preserve reviewed HTTP callback evidence |
+| AsyncAPI webhooks | Internal scaffold | Local contract scaffold only; no broker, delivery, or webhook-specific runtime |
+| Proto HTTP transcoding | Internal scaffold | Local HTTP-transcoding scaffold only; native gRPC and streaming are future work |
+| WebSockets | Future | No handshake/message state-machine runtime is shipped |
 | MCP | Future/advanced | Governance for agent tool access and prompt-injection-sensitive integrations |
 
 ## 12. Artifact Model

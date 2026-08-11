@@ -19,8 +19,17 @@ from typing import Final, Literal, assert_never
 
 SCHEMA: Final = "entroping.finish-issue-replay.v1"
 MAX_BYTES: Final = 4096
-Stage = Literal["worktree-removal-attempted", "branch-deletion-attempted"]
-ReadStage = Literal["none", "worktree-removal-attempted", "branch-deletion-attempted"]
+Stage = Literal[
+    "worktree-removal-attempted",
+    "branch-deletion-attempted",
+    "remote-branch-deletion-attempted",
+]
+ReadStage = Literal[
+    "none",
+    "worktree-removal-attempted",
+    "branch-deletion-attempted",
+    "remote-branch-deletion-attempted",
+]
 JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 _HEAD: Final = re.compile(r"[0-9a-f]{40}\Z")
 _EXACT_KEYS: Final = {
@@ -182,6 +191,13 @@ def _evidence_directory(root: Path, *, create: bool) -> Iterator[int | None]:
 
 
 def _file_name(identity: ReplayIdentity) -> str:
+    return (
+        f"issue-{identity.issue}-pr-{identity.pull_request}-"
+        f"{identity.expected_head}.json"
+    )
+
+
+def _legacy_file_name(identity: ReplayIdentity) -> str:
     return f"issue-{identity.issue}.json"
 
 
@@ -256,11 +272,18 @@ def _stage(value: JsonValue) -> Stage:
             return value
         case "branch-deletion-attempted":
             return value
+        case "remote-branch-deletion-attempted":
+            return value
         case _:
             raise ReplayEvidenceError("invalid replay evidence")
 
 
-def _decode(payload: bytes, expected: ReplayIdentity) -> Stage:
+def _decode(
+    payload: bytes,
+    expected: ReplayIdentity,
+    *,
+    allow_other_identity: bool = False,
+) -> ReadStage:
     try:
         decoded: JsonValue = json.loads(payload.decode("utf-8"), object_pairs_hook=_json_pairs)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -278,13 +301,20 @@ def _decode(payload: bytes, expected: ReplayIdentity) -> Stage:
         worktree_path=_string(decoded["worktree_path"]),
     )
     if actual != expected:
+        if allow_other_identity:
+            return "none"
         raise ReplayEvidenceError("conflicting replay evidence")
     return _stage(decoded["stage"])
 
 
 def _read_from(directory_fd: int, identity: ReplayIdentity) -> ReadStage:
     payload = _read_payload(directory_fd, _file_name(identity))
-    return "none" if payload is None else _decode(payload, identity)
+    if payload is not None:
+        return _decode(payload, identity)
+    legacy_payload = _read_payload(directory_fd, _legacy_file_name(identity))
+    if legacy_payload is None:
+        return "none"
+    return _decode(legacy_payload, identity, allow_other_identity=True)
 
 
 def read_replay_evidence(root: Path, identity: ReplayIdentity) -> ReadStage:
@@ -401,9 +431,14 @@ def _allows(current: ReadStage, requested: Stage) -> bool:
         case "none":
             return requested == "worktree-removal-attempted"
         case "worktree-removal-attempted":
-            return True
+            return requested in {"worktree-removal-attempted", "branch-deletion-attempted"}
         case "branch-deletion-attempted":
-            return requested == "branch-deletion-attempted"
+            return requested in {
+                "branch-deletion-attempted",
+                "remote-branch-deletion-attempted",
+            }
+        case "remote-branch-deletion-attempted":
+            return requested == "remote-branch-deletion-attempted"
         case unreachable:
             assert_never(unreachable)
 
@@ -435,7 +470,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--worktree-path", required=True)
     parser.add_argument(
         "--stage",
-        choices=("worktree-removal-attempted", "branch-deletion-attempted"),
+        choices=(
+            "worktree-removal-attempted",
+            "branch-deletion-attempted",
+            "remote-branch-deletion-attempted",
+        ),
     )
     return parser
 

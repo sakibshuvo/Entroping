@@ -1,5 +1,6 @@
 ---
 title: Open Core Boundaries
+description: "Understand which Entroping capabilities remain Apache-2.0 core and where paid surfaces may grow."
 type: product
 status: active
 tags:

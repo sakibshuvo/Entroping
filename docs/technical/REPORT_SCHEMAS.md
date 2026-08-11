@@ -1,5 +1,6 @@
 ---
 title: Report Schemas
+description: "Integrate with versioned Entroping report contracts, path-safety rules, and compatibility guarantees."
 type: technical-reference
 status: active
 tags:

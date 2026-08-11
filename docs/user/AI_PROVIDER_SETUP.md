@@ -1,5 +1,6 @@
 ---
 title: AI Provider Setup
+description: "Configure LiteLLM-backed Architect providers while keeping deterministic Entroping runs model-free."
 type: guide
 status: active
 tags:

@@ -19,14 +19,14 @@ Options:
                    Strict controller contract: require this exact PR head.
   --expected-branch NAME
                    Strict controller contract: require this exact branch.
+  --aggregate-evidence PATH
+                   Use the tracked aggregate-PR evidence manifest at PATH.
   -h, --help        Show this help text.
 
 Environment:
   ENTROPING_REPO             GitHub repo. Default: sakibshuvo/Entroping
   ENTROPING_PROJECT_OWNER    GitHub project owner. Default: sakibshuvo
   ENTROPING_PROJECT_NUMBER   GitHub project number. Default: 1
-  ENTROPING_PROJECT_ITEM_LIST_LIMIT
-                            Project item lookup window. Default: 1000
   ENTROPING_WORKTREE_PARENT  Parent directory for issue worktrees.
 USAGE
 }
@@ -97,7 +97,7 @@ finally:
     os.lseek(descriptor, 0, os.SEEK_SET)
 ' "${helper_path#/dev/fd/}" "$helper_name" "$@"
   else
-    python3 "$script_dir/$helper_name" "$@"
+    uv run python "$script_dir/$helper_name" "$@"
   fi
 }
 
@@ -117,6 +117,7 @@ json_key() {
 
 json_closing_pr_number() {
   local payload="$1"
+  local expected_pr="${2:-}"
   printf '%s' "$payload" | python3 -c '
 import json
 import sys
@@ -125,11 +126,18 @@ data = json.load(sys.stdin)
 refs = data.get("closedByPullRequestsReferences") or []
 if not refs:
     raise SystemExit(1)
-number = refs[0].get("number")
+expected = sys.argv[1]
+if expected:
+    matches = [ref for ref in refs if ref.get("number") == int(expected)]
+    if len(matches) != 1:
+        raise SystemExit(1)
+    number = matches[0].get("number")
+else:
+    number = refs[0].get("number")
 if not isinstance(number, int):
     raise SystemExit(1)
 print(number)
-'
+' "$expected_pr"
 }
 
 json_check_rollup_passed() {
@@ -137,6 +145,7 @@ json_check_rollup_passed() {
   printf '%s' "$payload" | python3 -c '
 import json
 import sys
+from datetime import datetime
 
 data = json.load(sys.stdin)
 checks = data.get("statusCheckRollup") or []
@@ -144,9 +153,37 @@ if not checks:
     print("no CI checks found on closing PR", file=sys.stderr)
     raise SystemExit(1)
 
+latest_check_runs: dict[tuple[str, str], tuple[datetime, list[dict[str, object]]]] = {}
+current_checks: list[dict[str, object]] = []
+for check in checks:
+    if check.get("__typename") != "CheckRun":
+        current_checks.append(check)
+        continue
+    started_at = check.get("startedAt")
+    if not isinstance(started_at, str):
+        current_checks.append(check)
+        continue
+    try:
+        started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+    except ValueError:
+        current_checks.append(check)
+        continue
+    if started.tzinfo is None:
+        current_checks.append(check)
+        continue
+    key = (str(check.get("workflowName") or ""), str(check.get("name") or ""))
+    previous = latest_check_runs.get(key)
+    if previous is None or started > previous[0]:
+        latest_check_runs[key] = (started, [check])
+    elif started == previous[0]:
+        previous[1].append(check)
+
+for _started, latest in latest_check_runs.values():
+    current_checks.extend(latest)
+
 allowed_check_run_conclusions = {"SUCCESS", "SKIPPED", "NEUTRAL"}
 bad: list[str] = []
-for check in checks:
+for check in current_checks:
     name = str(check.get("name") or check.get("context") or "<unnamed>")
     kind = check.get("__typename", "")
     if kind == "CheckRun":
@@ -173,7 +210,7 @@ if bad:
         print(f"  {item}", file=sys.stderr)
     raise SystemExit(1)
 
-print(len(checks))
+print(len(current_checks))
 '
 }
 
@@ -268,10 +305,8 @@ move_project_done() {
   local ids
   local status_field_id
   local done_option_id
-  local items_json
   local item_id
   local item_lookup_status
-  local item_list_limit
 
   project_graphql_quota_allows_update || return 0
 
@@ -292,18 +327,20 @@ move_project_done() {
   status_field_id=$(printf '%s\n' "$ids" | sed -n '1p')
   done_option_id=$(printf '%s\n' "$ids" | sed -n '2p')
 
-  item_list_limit=$(project_item_list_limit)
-  if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit "$item_list_limit" --format json 2>/dev/null); then
-    warn "could not read GitHub Project items"
+  item_lookup_status=0
+  item_id=$(project_item_id_for_issue "$repo" "$project_id" "$issue_number") \
+    || item_lookup_status=$?
+  if [[ "$item_lookup_status" == "2" ]]; then
+    warn "could not read current issue's GitHub Project items"
     return 0
   fi
-  if ! item_id=$(json_project_item_id "$items_json" "$issue_number"); then
+  if [[ "$item_lookup_status" != "0" ]]; then
     if ! gh project item-add "$project_number" --owner "$project_owner" --url "$issue_url" >/dev/null 2>&1; then
       warn "issue #$issue_number is not on the GitHub Project board and could not be added"
       return 0
     fi
     item_lookup_status=0
-    item_id=$(retry_project_item_id "$project_number" "$project_owner" "$issue_number") \
+    item_id=$(retry_project_item_id "$repo" "$project_id" "$issue_number") \
       || item_lookup_status=$?
     if [[ "$item_lookup_status" == "2" ]]; then
       warn "added issue #$issue_number to the GitHub Project board but could not reread items"
@@ -342,6 +379,7 @@ worktree_override=""
 expected_pr=""
 expected_head=""
 expected_branch=""
+aggregate_manifest=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -373,6 +411,11 @@ while [[ $# -gt 0 ]]; do
       expected_branch="$2"
       shift 2
       ;;
+    --aggregate-evidence)
+      [[ $# -ge 2 ]] || die "--aggregate-evidence requires a path"
+      aggregate_manifest="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -388,7 +431,15 @@ if [[ "$dry_run" == "1" && "$keep_worktree" == "1" ]]; then
 fi
 
 strict_cleanup="0"
-if [[ -n "$expected_pr" || -n "$expected_head" || -n "$expected_branch" ]]; then
+aggregate_mode="0"
+if [[ -n "$aggregate_manifest" ]]; then
+  [[ -z "$expected_pr" && -z "$expected_head" && -z "$expected_branch" ]] \
+    || die "--aggregate-evidence cannot be combined with --expected-pr, --expected-head, or --expected-branch"
+  [[ "$controller_mode" == "0" ]] \
+    || die "aggregate evidence is unavailable through pinned controller capabilities"
+  aggregate_mode="1"
+  strict_cleanup="1"
+elif [[ -n "$expected_pr" || -n "$expected_head" || -n "$expected_branch" ]]; then
   [[ -n "$expected_pr" && -n "$expected_head" && -n "$expected_branch" ]] \
     || die "--expected-pr, --expected-head, and --expected-branch must be supplied together"
   [[ "$expected_pr" =~ ^[1-9][0-9]*$ ]] || die "--expected-pr must be a positive integer"
@@ -415,40 +466,58 @@ if [[ -n "$worktree_override" ]]; then
 else
   worktree_path="${worktree_parent}/Entroping-issue-${issue_number}"
 fi
-issue_json=$(gh issue view "$issue_number" --repo "$repo" \
-  --json title,url,state,closedByPullRequestsReferences) \
-  || die "could not read GitHub issue #$issue_number from $repo"
-issue_title=$(json_key "$issue_json" "title")
-issue_url=$(json_key "$issue_json" "url")
-issue_state=$(json_key "$issue_json" "state")
-[[ "$issue_state" == "CLOSED" ]] || die "issue #$issue_number is $issue_state; wait for merge/close before cleanup"
+if [[ "$aggregate_mode" == "1" ]]; then
+  aggregate_payload=$(run_python_helper "finish_issue_aggregate.py" \
+    --repo-root "$repo_root" \
+    --repo "$repo" \
+    --worktree "$worktree_path" \
+    --issue "$issue_number" \
+    --manifest "$aggregate_manifest" 2>/dev/null) \
+    || die "aggregate evidence is invalid or unsafe"
+  issue_title=$(json_key "$aggregate_payload" "issue_title")
+  issue_url=$(json_key "$aggregate_payload" "issue_url")
+  issue_state="CLOSED"
+  pr_number=$(json_key "$aggregate_payload" "aggregate_pr_number")
+  pr_url=$(json_key "$aggregate_payload" "aggregate_pr_url")
+  branch_name=$(json_key "$aggregate_payload" "source_branch")
+  merged_at=$(json_key "$aggregate_payload" "merged_at")
+  expected_pr="$pr_number"
+  expected_head=$(json_key "$aggregate_payload" "source_commit")
+  expected_branch="$branch_name"
+  check_count=$(json_key "$aggregate_payload" "check_count")
+else
+  issue_json=$(gh issue view "$issue_number" --repo "$repo" \
+    --json title,url,state,closedByPullRequestsReferences) \
+    || die "could not read GitHub issue #$issue_number from $repo"
+  issue_title=$(json_key "$issue_json" "title")
+  issue_url=$(json_key "$issue_json" "url")
+  issue_state=$(json_key "$issue_json" "state")
+  [[ "$issue_state" == "CLOSED" ]] || die "issue #$issue_number is $issue_state; wait for merge/close before cleanup"
 
-if ! pr_number=$(json_closing_pr_number "$issue_json"); then
-  die "issue #$issue_number has no closing pull request reference"
-fi
-pr_json=$(gh pr view "$pr_number" --repo "$repo" \
-  --json number,url,state,headRefName,headRefOid,mergedAt,statusCheckRollup) \
-  || die "could not read closing PR #$pr_number"
-pr_state=$(json_key "$pr_json" "state")
-pr_url=$(json_key "$pr_json" "url")
-branch_name=$(json_key "$pr_json" "headRefName")
-merged_at=$(json_key "$pr_json" "mergedAt")
-[[ "$pr_state" == "MERGED" && -n "$merged_at" ]] || die "closing PR #$pr_number is not merged"
-[[ -n "$branch_name" ]] || die "closing PR #$pr_number has no head branch name"
-if [[ "$strict_cleanup" == "1" ]]; then
-  [[ "$pr_number" == "$expected_pr" ]] || die "closing PR identity does not match expected PR"
-  [[ "$branch_name" == "$expected_branch" ]] || die "closing PR branch does not match expected branch"
-  [[ "$(json_key "$pr_json" "headRefOid")" == "$expected_head" ]] \
-    || die "closing PR head does not match expected head"
-  closing_count=$(printf '%s' "$issue_json" | python3 -c '
-import json, sys
-refs = json.load(sys.stdin).get("closedByPullRequestsReferences") or []
-print(len(refs))
-')
-  [[ "$closing_count" == "1" ]] || die "issue must have exactly one closing pull request"
-fi
-if ! check_count=$(json_check_rollup_passed "$pr_json"); then
-  die "closing PR #$pr_number checks have not all passed"
+  if ! pr_number=$(json_closing_pr_number "$issue_json" "$expected_pr"); then
+    if [[ "$strict_cleanup" == "1" ]]; then
+      die "closing PR identity does not match expected PR"
+    fi
+    die "issue #$issue_number has no closing pull request reference"
+  fi
+  pr_json=$(gh pr view "$pr_number" --repo "$repo" \
+    --json number,url,state,headRefName,headRefOid,mergedAt,statusCheckRollup) \
+    || die "could not read closing PR #$pr_number"
+  pr_state=$(json_key "$pr_json" "state")
+  pr_url=$(json_key "$pr_json" "url")
+  branch_name=$(json_key "$pr_json" "headRefName")
+  merged_at=$(json_key "$pr_json" "mergedAt")
+  [[ "$pr_state" == "MERGED" && -n "$merged_at" ]] || die "closing PR #$pr_number is not merged"
+  [[ -n "$branch_name" ]] || die "closing PR #$pr_number has no head branch name"
+  if [[ "$strict_cleanup" == "1" ]]; then
+    [[ "$pr_number" == "$expected_pr" ]] || die "closing PR identity does not match expected PR"
+    [[ "$branch_name" == "$expected_branch" ]] || die "closing PR branch does not match expected branch"
+    [[ "$(json_key "$pr_json" "headRefOid")" == "$expected_head" ]] \
+      || die "closing PR head does not match expected head"
+  fi
+  if ! check_count=$(json_check_rollup_passed "$pr_json"); then
+    die "closing PR #$pr_number checks have not all passed"
+  fi
 fi
 
 if [[ "$strict_cleanup" == "1" ]]; then
@@ -556,10 +625,43 @@ if [[ "$strict_cleanup" == "1" ]]; then
       [[ "$worktree_exists" == "0" && "$worktree_registered" == "0" ]] \
         || die "strict cleanup replay has a worktree after branch deletion intent"
       ;;
+    remote-branch-deletion-attempted)
+      [[ "$worktree_exists" == "0" && "$worktree_registered" == "0" ]] \
+        || die "strict cleanup replay has a worktree after remote deletion intent"
+      [[ "$branch_exists" == "0" ]] \
+        || die "strict cleanup replay has a local branch after remote deletion intent"
+      ;;
     *)
       die "strict cleanup replay evidence is invalid or unsafe"
       ;;
   esac
+
+  remote_branch_helper() {
+    local action="$1"
+    local output
+    if ! output=$(run_python_helper "finish_issue_remote_branch.py" \
+      "$action" \
+      --worktree "$repo_root" \
+      --branch "$expected_branch" \
+      --expected-head "$expected_head" 2>/dev/null); then
+      die "remote source branch evidence is invalid or uncertain"
+    fi
+    printf '%s' "$output"
+  }
+
+  remote_initial=""
+  if [[ "$aggregate_mode" == "1" ]]; then
+    remote_initial=$(remote_branch_helper observe)
+    if [[ "$remote_initial" == "present:"* ]]; then
+      remote_initial_head="${remote_initial#present:}"
+      [[ "$remote_initial_head" =~ ^[0-9a-f]{40}$ ]] \
+        || die "remote source branch observation is invalid"
+      [[ "$remote_initial_head" == "$expected_head" ]] \
+        || die "remote source branch head does not match expected source commit"
+    elif [[ "$remote_initial" != "absent" ]]; then
+      die "remote source branch observation is invalid"
+    fi
+  fi
 fi
 
 if [[ "$dry_run" != "1" && "$keep_worktree" != "1" && -n "$(git -C "$repo_root" status --porcelain)" ]]; then
@@ -572,6 +674,13 @@ printf '%s\n' "PR: #$pr_number $pr_url"
 printf '%s\n' "Branch: $branch_name"
 printf '%s\n' "CI checks verified: $check_count"
 printf '%s\n' "Worktree: $worktree_path"
+if [[ "$aggregate_mode" == "1" ]]; then
+  printf '%s\n' "Aggregate PR: #$pr_number"
+  printf '%s\n' "Aggregate evidence: $aggregate_manifest"
+  printf '%s\n' "Aggregate merge commit: $(json_key "$aggregate_payload" "aggregate_merge_commit")"
+  printf '%s\n' "Integrated commit: $(json_key "$aggregate_payload" "integrated_commit")"
+  printf '%s\n' "Stable patch ID: $(json_key "$aggregate_payload" "patch_id")"
+fi
 
 if [[ "$dry_run" == "1" ]]; then
   printf '%s\n' "DRY RUN"
@@ -586,6 +695,13 @@ if [[ "$dry_run" == "1" ]]; then
     printf '%s\n' "Would delete local branch: $branch_name"
   else
     printf '%s\n' "No local branch found; would skip branch deletion."
+  fi
+  if [[ "$aggregate_mode" == "1" ]]; then
+    if [[ "$remote_initial" == "present:"* ]]; then
+      printf '%s\n' "Would delete remote source branch: $expected_branch"
+    else
+      printf '%s\n' "Remote source branch already absent: $expected_branch"
+    fi
   fi
   printf '%s\n' "Would remove active status labels and move project item to Done."
   exit 0
@@ -608,48 +724,67 @@ if [[ "$keep_worktree" == "1" ]]; then
 fi
 
 if [[ "$strict_cleanup" == "1" ]]; then
-  if [[ "$worktree_exists" == "1" ]]; then
-    preserve_factory_metrics \
-      "$worktree_path" "$repo_root" "$issue_number" "0" "$pr_number" "$merged_at"
-    [[ "$(replay_helper advance worktree-removal-attempted)" == "worktree-removal-attempted" ]] \
-      || die "strict cleanup replay evidence is invalid or unsafe"
-    git -C "$repo_root" worktree remove "$worktree_path"
-    printf '%s\n' "Removed worktree: $worktree_path"
-  fi
-  [[ ! -e "$worktree_path" && ! -L "$worktree_path" ]] \
-    || die "strict cleanup did not remove the exact worktree path"
-  post_worktree_probe="0"
-  worktree_registration_probe "$repo_root" "$worktree_path" || post_worktree_probe=$?
-  case "$post_worktree_probe" in
-    0)
-      die "strict cleanup did not unregister the exact worktree"
-      ;;
-    1)
-      ;;
-    *)
-      die "strict cleanup worktree absence verification failed"
-      ;;
-  esac
+  if [[ "$aggregate_mode" == "1" && "$replay_stage" == "remote-branch-deletion-attempted" ]]; then
+    printf '%s\n' "Replaying after verified local cleanup: $worktree_path"
+  else
+    if [[ "$worktree_exists" == "1" ]]; then
+      preserve_factory_metrics \
+        "$worktree_path" "$repo_root" "$issue_number" "0" "$pr_number" "$merged_at"
+      [[ "$(replay_helper advance worktree-removal-attempted)" == "worktree-removal-attempted" ]] \
+        || die "strict cleanup replay evidence is invalid or unsafe"
+      git -C "$repo_root" worktree remove "$worktree_path"
+      printf '%s\n' "Removed worktree: $worktree_path"
+    fi
+    [[ ! -e "$worktree_path" && ! -L "$worktree_path" ]] \
+      || die "strict cleanup did not remove the exact worktree path"
+    post_worktree_probe="0"
+    worktree_registration_probe "$repo_root" "$worktree_path" || post_worktree_probe=$?
+    case "$post_worktree_probe" in
+      0)
+        die "strict cleanup did not unregister the exact worktree"
+        ;;
+      1)
+        ;;
+      *)
+        die "strict cleanup worktree absence verification failed"
+        ;;
+    esac
 
-  [[ "$(replay_helper advance branch-deletion-attempted)" == "branch-deletion-attempted" ]] \
-    || die "strict cleanup replay evidence is invalid or unsafe"
-  if [[ "$branch_exists" == "1" ]]; then
-    git -C "$repo_root" update-ref -d "refs/heads/$expected_branch" "$expected_head" \
-      || die "strict cleanup local branch changed before deletion"
-    printf '%s\n' "Deleted local branch: $expected_branch"
+    [[ "$(replay_helper advance branch-deletion-attempted)" == "branch-deletion-attempted" ]] \
+      || die "strict cleanup replay evidence is invalid or unsafe"
+    if [[ "$branch_exists" == "1" ]]; then
+      git -C "$repo_root" update-ref -d "refs/heads/$expected_branch" "$expected_head" \
+        || die "strict cleanup local branch changed before deletion"
+      printf '%s\n' "Deleted local branch: $expected_branch"
+    fi
+    post_branch_probe="0"
+    local_branch_probe "$repo_root" "$expected_branch" || post_branch_probe=$?
+    case "$post_branch_probe" in
+      0)
+        die "strict cleanup did not delete the exact local branch"
+        ;;
+      1)
+        ;;
+      *)
+        die "strict cleanup local branch absence verification failed"
+        ;;
+    esac
   fi
-  post_branch_probe="0"
-  local_branch_probe "$repo_root" "$expected_branch" || post_branch_probe=$?
-  case "$post_branch_probe" in
-    0)
-      die "strict cleanup did not delete the exact local branch"
-      ;;
-    1)
-      ;;
-    *)
-      die "strict cleanup local branch absence verification failed"
-      ;;
-  esac
+
+  if [[ "$aggregate_mode" == "1" ]]; then
+    if [[ "$remote_initial" == "present:"* ]]; then
+      [[ "$(replay_helper advance remote-branch-deletion-attempted)" == \
+        "remote-branch-deletion-attempted" ]] \
+        || die "strict cleanup replay evidence is invalid or unsafe"
+      remote_delete_result=$(remote_branch_helper delete)
+      [[ "$remote_delete_result" == "deleted" || "$remote_delete_result" == "absent" ]] \
+        || die "remote source branch deletion was not proven"
+    fi
+    remote_final=$(remote_branch_helper observe)
+    [[ "$remote_final" == "absent" ]] \
+      || die "remote source branch absence was not proven"
+    printf '%s\n' "Verified remote source branch absent: $expected_branch"
+  fi
 else
   if [[ "$worktree_exists" == "1" ]]; then
     preserve_factory_metrics \

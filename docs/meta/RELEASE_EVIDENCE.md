@@ -1,5 +1,6 @@
 ---
 title: Release Evidence
+description: "Interpret the committed release ledger and validate stable-core claims against concrete evidence."
 type: runbook
 status: active
 tags:
@@ -106,6 +107,11 @@ blocker name to the tracked GitHub issues that can advance it. Keep those
 blocker names aligned with `docs/meta/release-evidence.json` so future agents
 do not invent replacement work or overclaim stable readiness.
 
+Readiness JSON distinguishes `structural` checks from `recorded_execution`.
+Recorded execution entries expose their reviewed commit and timestamp plus a
+`freshness` state; `not_checked` means the committed ledger has not been
+compared with the latest successful `main` runs in that invocation.
+
 ## Stable-Core Boundary
 
 Passing release evidence does not make Entroping stable-core ready. It only
@@ -115,8 +121,10 @@ recorded in a reviewed format.
 
 `stable_core_ready` must remain `false` until the project has:
 
-- package-index proof from TestPyPI/PyPI Trusted Publishing;
-- real downstream user feedback from projects outside this repository.
+| Blocker ID | Required proof |
+| --- | --- |
+| `package_index_proof` | Package-index proof from TestPyPI/PyPI Trusted Publishing. |
+| `real_downstream_feedback` | Real downstream user feedback from projects outside this repository. |
 
 The downstream smoke entry is maintainer-controlled local smoke evidence. It
 does not replace real downstream user feedback, package-index proof, or a user

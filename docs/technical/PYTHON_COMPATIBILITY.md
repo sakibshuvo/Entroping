@@ -1,5 +1,6 @@
 ---
 title: Python Compatibility
+description: "See the supported Python versions and the CI evidence for core and optional adapter boundaries."
 type: technical
 status: active
 tags:

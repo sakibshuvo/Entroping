@@ -81,7 +81,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/prompt-library/README|PROMPT_LIBRARY]] - copy-paste prompt shelf for fresh sessions, issue workers, Spark-safe work, external reviews, bug bashes, launch audits, merge gates, and thread steering.
 - [[docs/meta/KNOWLEDGE_BASE_WORKFLOW|KNOWLEDGE_BASE_WORKFLOW]] - Obsidian-first brain, source-promotion rules, and hallucination controls.
 - [[docs/product/GROWTH_AND_MONETIZATION|GROWTH_AND_MONETIZATION]] - open-source credibility, hype loop, and open-core monetization path.
-- [[docs/assets/launch/README|Launch demo assets]] - two-minute GIF, terminal, report, and dependency-map proof kit.
+- [[docs/assets/launch/README|Launch demo assets]] - local GIF, terminal, report, and dependency-map proof kit.
 
 ## Product History
 

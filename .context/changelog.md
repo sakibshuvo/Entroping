@@ -1,7 +1,30 @@
 # Entroping Changelog
 
+## 2026-08-09
+
+- Fixed the checkout demo fixture to resolve every request through the
+  selected `base_url` environment value. Real Hurl coverage now proves the
+  supported non-default-port runner path, non-empty JSON/JUnit/HTML reports,
+  and source-Hurl immutability while preserving the local-only boundary.
+- Aligned issue #1544 public maturity and support claims with executed evidence:
+  contract 4.1 is explicitly alpha, exact stable-core blocker IDs are validated
+  across the ledger/readiness/docs surfaces, structural checks are distinct
+  from commit-bound recorded execution and freshness, unsupported protocol,
+  remote-import, and credential-store paths are marked internal or future, and
+  the launch proof matrix is explicitly illustrative rather than live status.
+
 ## 2026-08-07
 
+- Added the maintainer-only aggregate-PR finish path for #1549. A tracked,
+  strict evidence manifest binds each retained issue worktree to its source
+  branch/commit, integrated commit, and stable patch identity; live issue,
+  merged PR, CI, ancestry, and clean-worktree checks remain mandatory before
+  the existing exact local cleanup. Aggregate cleanup also verifies the exact
+  remote source ref, uses a persisted deletion intent plus expected-value
+  lease, and proves remote absence without touching the aggregate PR branch.
+  Dry-run is mutation-free, and backlog health now reports closed active issues
+  and registered issue worktrees.
+  Historical PR #1537 cleanup has not been run by this branch.
 - Implemented issue #1540's nonblocking QAnstitution enforcement contract:
   block, warn, and audit_only gates share one temporary Hurl execution copy and
   one Hurl invocation per attempt. Source and block failures remain blocking;
@@ -280,6 +303,19 @@
   bytes with receipt-first digest provenance; dispatch and requeue require
   current issue, file, revision, and cheap-routing evidence, while a durable
   record keeps replacement creation idempotent across every queue state.
+
+## 2026-07-14
+
+- Clarified the launch page without replacing its bold matte art direction:
+  canonical runtime-governance positioning now leads into concrete API
+  integrity outcomes, user-facing proof steps precede internal terminology, and
+  mobile spacing keeps both launch actions in the first 375-pixel-wide view.
+- Reworked the public docs entry around executable demo, API-protection, and CI
+  journeys; separated Alpha maturity from the v4.1 policy contract; documented
+  real platform boundaries; and removed the empty-project first-proof dead end.
+- Added clean-production Playwright coverage for responsive overflow, docs
+  search, accessibility, browser health, copy success/failure/timeout behavior,
+  and platform-local visual baselines, with non-visual Chromium coverage in CI.
 
 ## 2026-07-11
 

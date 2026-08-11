@@ -2,6 +2,7 @@
 type Accent = "cobalt" | "coral" | "pass";
 
 type ProofStep = {
+  readonly label: string;
   readonly title: string;
   readonly body: string;
   readonly accent: Accent;
@@ -23,6 +24,7 @@ const { steps } = Astro.props;
         </span>
         <div>
           <h3>{step.title}</h3>
+          <p class="proof-rail__label">{step.label}</p>
           <p>{step.body}</p>
         </div>
       </li>
@@ -60,11 +62,11 @@ const { steps } = Astro.props;
   }
 
   .proof-rail__step--coral {
-    --step-accent: var(--color-coral);
+    --step-accent: var(--color-coral-ink);
   }
 
   .proof-rail__step--pass {
-    --step-accent: var(--color-pass);
+    --step-accent: var(--color-pass-ink);
   }
 
   h3 {
@@ -77,6 +79,15 @@ const { steps } = Astro.props;
     font-size: var(--text-body-large);
     margin: var(--space-2) 0 0;
     max-width: var(--prose-max-width);
+  }
+
+  .proof-rail__label {
+    color: var(--step-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin: var(--space-2) 0;
   }
 
   @media (min-width: 48rem) {

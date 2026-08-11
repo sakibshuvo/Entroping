@@ -39,6 +39,21 @@ def test_public_claims_audit_rejects_unsupported_production_claim(tmp_path: Path
     assert "guaranteed secure" in result.stderr
 
 
+def test_public_claims_audit_rejects_contract_version_as_product_stability(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "README.md").write_text(
+        "# Demo\n\n**Version:** 4.1 Stable\n",
+        encoding="utf-8",
+    )
+
+    result = run_public_claims_audit("--root", str(tmp_path))
+
+    assert result.returncode == 1
+    assert "unsupported public claim" in result.stderr
+    assert "4.1 stable" in result.stderr
+
+
 def test_public_claims_audit_skips_generated_context_tool_outputs(tmp_path: Path) -> None:
     generated_paths = [
         "llm-wiki-out/README.md",

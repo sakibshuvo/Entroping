@@ -1,5 +1,6 @@
 ---
 title: Entroping User Guide
+description: "Learn the supported Entroping workflow from project setup through deterministic Hurl execution and reports."
 type: guide
 status: active
 tags:
@@ -9,7 +10,8 @@ tags:
 
 # Entroping User Guide
 
-**Version:** 4.1 Stable  
+**Contract version:** 4.1
+**Product maturity:** Alpha
 **Audience:** Developers, QA engineers, SDETs, architects, and platform teams
 
 ## 1. What Entroping Does
@@ -19,10 +21,20 @@ Entroping helps you turn backend intent into enforced API quality. You define po
 The normal loop is:
 
 ```text
-Define law -> Generate or record tests -> Run Hurl with gates -> Review reports -> Commit artifacts
+Define law -> Generate or record tests -> Run Hurl with gates -> Review evidence -> Commit reviewed tests and policy
 ```
 
 ## 2. Install
+
+Entroping currently supports Python 3.12 or 3.13. Install
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/) and
+[Hurl 4.3.0 or newer](https://hurl.dev/docs/installation.html) using the
+instructions for your operating system, then install Entroping below. The
+reviewed CI examples pin Hurl 8.0.1 for repeatable setup evidence.
+
+Linux and macOS run the deterministic Hurl-backed workflow. Windows is
+currently a doctor-only alpha path; Hurl-backed `entroping run` on Windows is
+not yet a public support claim.
 
 The alpha is installed from source. For the latest GitHub branch:
 
@@ -54,8 +66,7 @@ change the locked CLI namespace.
 
 Required external tools:
 
-- `hurl` 4.3.0 or newer. The reviewed CI examples pin Hurl 8.0.1 for
-  repeatable setup evidence.
+- `hurl` 4.3.0 or newer.
 - `hurlfmt` for Architect generated-Hurl validation; it is usually installed
   with the Hurl package, and `entroping doctor` reports it separately.
 - Python 3.12 or 3.13
@@ -1397,7 +1408,7 @@ The intended UX is local-first and cloud-second:
 - Use a local Ollama model where privacy or offline work matters.
 - Use cloud models only after explicit configuration.
 - Do not rely on external Gemini or Claude CLI tools; Entroping talks to models through LiteLLM.
-- Keep API keys in environment variables or OS credential storage, not plaintext config files.
+- Keep API keys in environment variables, not plaintext config files. OS credential storage is future work.
 
 The operational setup guide lives in `docs/user/AI_PROVIDER_SETUP.md`. It covers
 LiteLLM installation, local Qwen through Ollama, local Qwen through oMLX

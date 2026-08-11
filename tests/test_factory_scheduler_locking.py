@@ -17,7 +17,11 @@ from factory_scheduler_test_support import (
 )
 
 from scripts.factory_scheduler import FactoryScheduler
-from scripts.factory_scheduler_storage_fs import nofollow_flag, open_lock
+from scripts.factory_scheduler_storage_fs import (
+    BUSY_TIMEOUT_MILLISECONDS,
+    nofollow_flag,
+    open_lock,
+)
 
 
 def _private_directory(path: Path) -> None:
@@ -92,7 +96,7 @@ def test_scheduler_lock_contention_returns_bounded_state_busy(
             plan_only=False,
             owner_health=dead,
         )
-        receipt = future.result(timeout=1)
+        receipt = future.result(timeout=(BUSY_TIMEOUT_MILLISECONDS / 1_000) + 1)
     finally:
         fcntl.flock(descriptor, fcntl.LOCK_UN)
         os.close(descriptor)

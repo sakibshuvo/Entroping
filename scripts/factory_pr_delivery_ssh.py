@@ -190,6 +190,21 @@ def delete_remote_branch(
     raise DeliveryGitError("remote-delete-uncertain")
 
 
+def observe_remote_branch(
+    worktree: Path,
+    *,
+    branch: str,
+    expected_head: str,
+) -> str | None:
+    """Observe one exact origin ref using the same authority as deletion."""
+    spec = build_push_spec(
+        worktree,
+        branch=branch,
+        committed_head=expected_head,
+    )
+    return _remote_head(worktree, spec, branch)
+
+
 def _remote_head(worktree: Path, spec: PushSpec, branch: str) -> str | None:
     push_index = spec.argv.index("push")
     argv = (
