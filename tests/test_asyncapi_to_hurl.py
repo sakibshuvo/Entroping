@@ -31,6 +31,17 @@ def _large_asyncapi_yaml(channel_count: int) -> str:
     return f"asyncapi: 2.6.0\nchannels:\n{channels}\n"
 
 
+def _aliased_asyncapi_yaml(alias_count: int) -> str:
+    aliases = "\n".join(f"  alias_{index}: *operation" for index in range(alias_count))
+    return (
+        "asyncapi: 2.6.0\n"
+        "channels:\n"
+        "  operation: &operation\n"
+        "    publish: {}\n"
+        f"{aliases}\n"
+    )
+
+
 def test_compile_asyncapi_webhook_to_hurl_preserves_baseline_bytes() -> None:
     generated = compile_asyncapi_webhook_to_hurl(
         ASYNCAPI_SPEC.read_text(encoding="utf-8"),
@@ -121,6 +132,7 @@ def test_compile_asyncapi_webhook_to_hurl_ignores_sparse_channel_entries() -> No
         ),
         ("depth", _deep_asyncapi_yaml(130)),
         ("nodes", _large_asyncapi_yaml(5_001)),
+        ("alias-expansion", _aliased_asyncapi_yaml(3_000)),
     ],
 )
 def test_compile_asyncapi_webhook_rejects_yaml_resource_boundaries_before_construction(

@@ -1,5 +1,5 @@
 import re
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Final, cast
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
@@ -117,8 +117,10 @@ def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
 
 def _preflight_yaml_structure(content: str) -> None:
     state = _YamlPreflightState()
-    yaml_parse = cast(Callable[..., Iterable[object]], vars(yaml)["parse"])
-    events = yaml_parse(content, Loader=yaml.SafeLoader)
+    events = cast(
+        Iterable[object],
+        yaml.parse(content, Loader=yaml.SafeLoader),  # pyright: ignore[reportUnknownMemberType]
+    )
     for event in events:
         if isinstance(event, CollectionStartEvent):
             _count_yaml_node(state)
