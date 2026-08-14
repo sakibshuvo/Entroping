@@ -1,19 +1,48 @@
 import re
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field
 from typing import Final, cast
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import yaml
+from yaml.events import (
+    AliasEvent,
+    CollectionEndEvent,
+    CollectionStartEvent,
+    MappingEndEvent,
+    MappingStartEvent,
+    ScalarEvent,
+    SequenceEndEvent,
+    SequenceStartEvent,
+)
 
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
 _SAFE_STEM_RE: Final = re.compile(r"[^A-Za-z0-9_-]+")
 _OPERATION_KEYS: Final = frozenset({"publish", "subscribe"})
+_MAX_YAML_COLLECTION_DEPTH: Final = 128
+_MAX_YAML_EXPANDED_NODES: Final = 10_000
 
 
 class AsyncapiHurlCompilationError(ValueError):
     pass
+
+
+class _YamlResourceError(ValueError):
+    pass
+
+
+@dataclass(slots=True)
+class _YamlCollectionFrame:
+    anchor: str | None
+    expanded_nodes: int = 1
+
+
+@dataclass(slots=True)
+class _YamlPreflightState:
+    stack: list[_YamlCollectionFrame] = field(default_factory=list)
+    anchors: dict[str, int | None] = field(default_factory=dict)
+    syntactic_nodes: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +99,14 @@ def _validate_asyncapi_text(asyncapi_yaml: str) -> None:
 
 def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
     try:
-        loaded = yaml.safe_load(asyncapi_yaml)
+        _preflight_yaml_structure(asyncapi_yaml)
+        loaded = cast(object, yaml.safe_load(asyncapi_yaml))
+    except _YamlResourceError as exc:
+        msg = "AsyncAPI YAML exceeds resource limits"
+        raise AsyncapiHurlCompilationError(msg) from exc
+    except (MemoryError, RecursionError) as exc:
+        msg = "AsyncAPI YAML exceeds resource limits"
+        raise AsyncapiHurlCompilationError(msg) from exc
     except yaml.YAMLError as exc:
         msg = "Invalid AsyncAPI YAML"
         raise AsyncapiHurlCompilationError(msg) from exc
@@ -86,6 +122,95 @@ def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
         msg = "AsyncAPI document must define a channels mapping"
         raise AsyncapiHurlCompilationError(msg)
     return document
+
+
+def _preflight_yaml_structure(content: str) -> None:
+    state = _YamlPreflightState()
+    events = cast(
+        Iterable[object],
+        yaml.parse(content, Loader=yaml.SafeLoader),  # pyright: ignore[reportUnknownMemberType]
+    )
+    for event in events:
+        _process_yaml_event(state, event)
+
+
+def _process_yaml_event(state: _YamlPreflightState, event: object) -> None:
+    handler = _YAML_PRE_FLIGHT_EVENT_HANDLERS.get(type(event))
+    if handler is not None:
+        handler(state, event)
+
+
+def _handle_collection_start(state: _YamlPreflightState, event: object) -> None:
+    collection_start_event = cast(CollectionStartEvent, event)
+    _count_yaml_node(state)
+    if len(state.stack) >= _MAX_YAML_COLLECTION_DEPTH:
+        raise _YamlResourceError
+    anchor = _yaml_anchor(collection_start_event)
+    state.stack.append(_YamlCollectionFrame(anchor=anchor))
+    if anchor is not None:
+        state.anchors[anchor] = None
+
+
+def _handle_scalar(state: _YamlPreflightState, event: object) -> None:
+    scalar_event = cast(ScalarEvent, event)
+    _count_yaml_node(state)
+    _add_yaml_expanded_nodes(state, 1)
+    anchor = _yaml_anchor(scalar_event)
+    if anchor is not None:
+        state.anchors[anchor] = 1
+
+
+def _handle_alias(state: _YamlPreflightState, event: object) -> None:
+    alias_event = cast(AliasEvent, event)
+    _count_yaml_node(state)
+    anchor = _yaml_anchor(alias_event)
+    anchor_nodes = state.anchors.get(anchor) if anchor is not None else None
+    if anchor_nodes is None:
+        raise _YamlResourceError
+    _add_yaml_expanded_nodes(state, anchor_nodes)
+
+
+def _handle_collection_end(state: _YamlPreflightState, event: object) -> None:
+    _ = cast(CollectionEndEvent, event)
+    frame = state.stack.pop()
+    if frame.anchor is not None:
+        state.anchors[frame.anchor] = frame.expanded_nodes
+    _add_yaml_expanded_nodes(state, frame.expanded_nodes)
+
+
+_YAML_PRE_FLIGHT_EVENT_HANDLERS: Final[
+    dict[type[object], Callable[[_YamlPreflightState, object], None]
+    ]
+] = {
+    CollectionEndEvent: _handle_collection_end,
+    CollectionStartEvent: _handle_collection_start,
+    MappingEndEvent: _handle_collection_end,
+    SequenceEndEvent: _handle_collection_end,
+    MappingStartEvent: _handle_collection_start,
+    SequenceStartEvent: _handle_collection_start,
+    ScalarEvent: _handle_scalar,
+    AliasEvent: _handle_alias,
+}
+
+
+def _yaml_anchor(event: CollectionStartEvent | ScalarEvent | AliasEvent) -> str | None:
+    anchor = cast(object, event.anchor)
+    return anchor if isinstance(anchor, str) else None
+
+
+def _count_yaml_node(state: _YamlPreflightState) -> None:
+    state.syntactic_nodes += 1
+    if state.syntactic_nodes > _MAX_YAML_EXPANDED_NODES:
+        raise _YamlResourceError
+
+
+def _add_yaml_expanded_nodes(state: _YamlPreflightState, nodes: int) -> None:
+    if not state.stack:
+        return
+    total = state.stack[-1].expanded_nodes + nodes
+    if total > _MAX_YAML_EXPANDED_NODES:
+        raise _YamlResourceError
+    state.stack[-1].expanded_nodes = total
 
 
 def _asyncapi_operation_count(document: Mapping[str, object]) -> int:
