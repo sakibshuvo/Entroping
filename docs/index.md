@@ -30,6 +30,9 @@ Choose the shortest path to your goal:
 - **Getting Started:** [User Guide](user/USER_GUIDE.md),
   [QAnstitution First Hour](user/QANSTITUTION_FIRST_HOUR.md),
   and [Use Cases](user/USE_CASES.md).
+- **Alpha Status:** [Current Alpha Status](user/ALPHA_STATUS.md) explains the
+  supported scope, caveats, and where to find the canonical release and issue
+  evidence.
 - **Policy:** [QAnstitution Reference](technical/QANSTITUTION_REFERENCE.md),
   [QAnstitution JSON Schema](technical/qanstitution.schema.json),
   [Policy Pack Layout](technical/POLICY_PACK_LAYOUT.md), and
