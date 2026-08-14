@@ -228,6 +228,8 @@ def test_run_report_v1_schema_contract_includes_fail_fast_summary_evidence() -> 
     gate_properties = schema["properties"]["tests"]["items"]["properties"]["gate_results"][
         "items"
     ]["properties"]
+    auth_properties = schema["properties"]["tests"]["items"]["properties"]["auth"]
+    required_tests_fields = schema["properties"]["tests"]["items"]["required"]
     report = RunReport(
         project="checkout-api",
         environment="ci",
@@ -261,6 +263,18 @@ def test_run_report_v1_schema_contract_includes_fail_fast_summary_evidence() -> 
     assert summary_properties["executed"] == {"type": "integer", "minimum": 0}
     assert summary_properties["not_scheduled"] == {"type": "integer", "minimum": 0}
     assert summary_properties["fail_fast"] == {"type": "boolean"}
+    assert auth_properties["required"] == ["flow", "requires", "produces"]
+    assert auth_properties["additionalProperties"] is False
+    assert auth_properties["properties"]["flow"]["type"] == ["string", "null"]
+    assert auth_properties["properties"]["requires"] == {
+        "type": "array",
+        "items": {"type": "string"},
+    }
+    assert auth_properties["properties"]["produces"] == {
+        "type": "array",
+        "items": {"type": "string"},
+    }
+    assert "auth" not in required_tests_fields
     assert gate_properties["enforcement"] == {"enum": ["block", "warn", "audit_only"]}
     assert gate_properties["result"] == {
         "enum": ["passed", "failed", "timeout", "error", "blocked"]
