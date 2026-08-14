@@ -9,6 +9,12 @@ from entroping.brain.safety import redact_secret_like_values
 from entroping.core.hurl_validator import HurlValidationError
 
 console = Console()
+_SAFE_CLI_TEXT_REPLACEMENTS = {
+    **{code_point: "\ufffd" for code_point in range(0x00, 0x20) if code_point not in (9, 10)},
+    0x7F: "\ufffd",
+    **{code_point: "\ufffd" for code_point in range(0x80, 0xA0)},
+}
+_SAFE_CLI_TEXT_TRANSLATOR = str.maketrans(_SAFE_CLI_TEXT_REPLACEMENTS)
 
 
 def display_cli_path(path: Path) -> str:
@@ -19,7 +25,8 @@ def display_cli_path(path: Path) -> str:
 
 
 def safe_cli_text(value: object) -> str:
-    return redact_secret_like_values(str(value))
+    redacted = redact_secret_like_values(str(value))
+    return redacted.translate(_SAFE_CLI_TEXT_TRANSLATOR)
 
 
 def print_cli_error(exc: BaseException) -> None:
