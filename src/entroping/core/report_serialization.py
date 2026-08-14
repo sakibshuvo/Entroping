@@ -14,6 +14,12 @@ from entroping.core.report_fingerprint import (
     _serialized_response_headers,
     _serialized_response_status,
 )
+from entroping.core.report_schema_versions import (
+    RUN_REPORT_SCHEMA_VERSION as _RUN_REPORT_SCHEMA_VERSION,
+)
+from entroping.core.report_schema_versions import (
+    _require_run_report_schema,
+)
 from entroping.models.hurl import HURL_VARIABLE_NAME_RE
 from entroping.models.report import (
     GateResultEvidence,
@@ -27,31 +33,9 @@ from entroping.models.report import (
     RunTestReport,
 )
 
-RUN_REPORT_SCHEMA_VERSION = "entroping.run-report.v1"
-_REQUIRED_RUN_REPORT_STRING_FIELDS: Final[tuple[str, ...]] = (
-    "project",
-    "environment",
-    "generated_at",
-)
-_REQUIRED_RUN_REPORT_SUMMARY_INT_FIELDS: Final[tuple[str, ...]] = (
-    "total",
-    "passed",
-    "failed",
-    "exit_code",
-)
-_REQUIRED_RUN_REPORT_TEST_STRING_FIELDS: Final[tuple[str, ...]] = (
-    "path",
-    "execution_path",
-    "status",
-    "stdout",
-    "stderr",
-)
-_REQUIRED_RUN_REPORT_TEST_INT_FIELDS: Final[tuple[str, ...]] = (
-    "exit_code",
-    "duration_ms",
-)
 _AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _MAX_RUN_REPORT_BYTES: Final = 100 * 1024 * 1024
+RUN_REPORT_SCHEMA_VERSION: Final = _RUN_REPORT_SCHEMA_VERSION
 
 
 def _require_gate_results(
@@ -135,112 +119,6 @@ def load_run_report(path: Path) -> RunReport:
         ),
         tests=tests,
     )
-
-
-def _require_run_report_schema(data: object, *, path: Path) -> None:
-    if not isinstance(data, Mapping):
-        msg = f"Run report {path} must be a JSON object"
-        raise ValueError(msg)
-    if "schema_version" not in data:
-        msg = f"Run report {path} must use schema_version {RUN_REPORT_SCHEMA_VERSION}"
-        raise ValueError(msg)
-    schema_version = data["schema_version"]
-    if not isinstance(schema_version, str):
-        msg = f"Run report {path} field schema_version must be a string"
-        raise ValueError(msg)
-    if schema_version != RUN_REPORT_SCHEMA_VERSION:
-        msg = f"Run report {path} must use schema_version {RUN_REPORT_SCHEMA_VERSION}"
-        raise ValueError(msg)
-    for field in _REQUIRED_RUN_REPORT_STRING_FIELDS:
-        _require_json_string(data, field, path=path)
-
-    summary = _require_json_field(data, "summary", path=path)
-    if not isinstance(summary, Mapping):
-        msg = f"Run report {path} field summary must be a JSON object"
-        raise ValueError(msg)
-    for field in _REQUIRED_RUN_REPORT_SUMMARY_INT_FIELDS:
-        _require_json_int(summary, f"summary.{field}", path=path, key=field)
-
-    tests = _require_json_array(data, "tests", path=path)
-    for index, item in enumerate(tests):
-        if not isinstance(item, Mapping):
-            msg = f"Run report {path} field tests[{index}] must be a JSON object"
-            raise ValueError(msg)
-        for field in _REQUIRED_RUN_REPORT_TEST_STRING_FIELDS:
-            _require_json_string(item, f"tests[{index}].{field}", path=path, key=field)
-        for field in _REQUIRED_RUN_REPORT_TEST_INT_FIELDS:
-            _require_json_int(item, f"tests[{index}].{field}", path=path, key=field)
-        rule_ids = _require_json_array(item, f"tests[{index}].rule_ids", path=path, key="rule_ids")
-        for rule_index, rule_id in enumerate(rule_ids):
-            if not isinstance(rule_id, str):
-                msg = (
-                    f"Run report {path} field tests[{index}].rule_ids[{rule_index}] "
-                    "must be a string"
-                )
-                raise ValueError(msg)
-            if not rule_id.strip() or _has_control_character(rule_id):
-                msg = (
-                    f"Run report {path} field tests[{index}].rule_ids[{rule_index}] "
-                    "must be a non-empty string without control characters"
-                )
-                raise ValueError(msg)
-        _require_gate_results(item.get("gate_results"), path=path, test_index=index)
-
-
-def _require_json_string(
-    data: Mapping[object, object],
-    display_name: str,
-    *,
-    path: Path,
-    key: str | None = None,
-) -> str:
-    value = _require_json_field(data, display_name, path=path, key=key)
-    if not isinstance(value, str):
-        msg = f"Run report {path} field {display_name} must be a string"
-        raise ValueError(msg)
-    return value
-
-
-def _require_json_int(
-    data: Mapping[object, object],
-    display_name: str,
-    *,
-    path: Path,
-    key: str | None = None,
-) -> int:
-    value = _require_json_field(data, display_name, path=path, key=key)
-    if not _is_json_int(value):
-        msg = f"Run report {path} field {display_name} must be an integer"
-        raise ValueError(msg)
-    return value
-
-
-def _require_json_array(
-    data: Mapping[object, object],
-    display_name: str,
-    *,
-    path: Path,
-    key: str | None = None,
-) -> list[object]:
-    value = _require_json_field(data, display_name, path=path, key=key)
-    if not isinstance(value, list):
-        msg = f"Run report {path} field {display_name} must be a JSON array"
-        raise ValueError(msg)
-    return value
-
-
-def _require_json_field(
-    data: Mapping[object, object],
-    display_name: str,
-    *,
-    path: Path,
-    key: str | None = None,
-) -> object:
-    lookup_key = display_name if key is None else key
-    if lookup_key not in data:
-        msg = f"Run report {path} must include required field {display_name}"
-        raise ValueError(msg)
-    return data[lookup_key]
 
 
 def run_report_to_dict(report: RunReport) -> dict[str, object]:
@@ -463,8 +341,8 @@ def _serialized_auth(raw_auth: object) -> RunAuthEvidence | None:
     if not isinstance(raw_auth, Mapping):
         return None
     flow = _serialized_auth_flow(raw_auth.get("flow"))
-    requires = _serialized_auth_variables(raw_auth.get("requires"))
-    produces = _serialized_auth_variables(raw_auth.get("produces"))
+    requires = _serialized_auth_variables(cast(list[str], raw_auth["requires"]))
+    produces = _serialized_auth_variables(cast(list[str], raw_auth["produces"]))
     if flow is None and not requires and not produces:
         return None
     return RunAuthEvidence(flow=flow, requires=requires, produces=produces)
@@ -477,14 +355,10 @@ def _serialized_auth_flow(raw_flow: object) -> str | None:
     return flow
 
 
-def _serialized_auth_variables(raw_variables: object) -> tuple[str, ...]:
-    if not isinstance(raw_variables, list):
-        return ()
+def _serialized_auth_variables(raw_variables: list[str]) -> tuple[str, ...]:
     variables: list[str] = []
     seen: set[str] = set()
     for raw_name in raw_variables:
-        if not isinstance(raw_name, str):
-            continue
         name = raw_name.strip()
         if (
             not name

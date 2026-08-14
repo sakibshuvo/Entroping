@@ -25,7 +25,7 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-06-03T00:00:00+00:00",
-                "summary": {"total": 2, "passed": 1, "failed": 1, "exit_code": 1},
+                "summary": {"total": 3, "passed": 1, "failed": 2, "exit_code": 1},
                 "tests": [
                     {
                         "path": "tests/eventual.hurl",
@@ -72,6 +72,21 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
                         "stderr": "",
                         "retry": "not-a-dict",
                     },
+                    {
+                        "path": "tests/bad-retry-attempts.hurl",
+                        "execution_path": ".entroping/run/bad-retry-attempts.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 1,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "retry": {
+                            "retry_count": 4,
+                            "unstable": True,
+                            "attempts": "not-a-list",
+                        },
+                    },
                 ],
             },
         )
@@ -98,6 +113,9 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
     ] == [(1, "failed", 42, 20, False, True)]
     assert report.tests[1].retry.retry_count == 0
     assert not report.tests[1].retry.unstable
+    assert report.tests[2].retry.retry_count == 4
+    assert report.tests[2].retry.unstable
+    assert report.tests[2].retry.attempts == ()
 
 
 @pytest.mark.parametrize(
@@ -392,7 +410,8 @@ def test_load_run_report_round_trips_valid_known_failures_and_ignores_malformed_
     assert report.tests[1].known_failures == ()
 
 
-def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries(
+
+def test_load_run_report_round_trips_auth_evidence_and_preserves_compat_normalization(
     tmp_path: Path,
 ) -> None:
     latest = tmp_path / ".entroping" / "latest-run.json"
@@ -404,11 +423,11 @@ def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-06-12T00:00:00+00:00",
-                "summary": {"total": 4, "passed": 4, "failed": 0, "exit_code": 0},
+                "summary": {"total": 5, "passed": 5, "failed": 0, "exit_code": 0},
                 "tests": [
                     {
-                        "path": "tests/auth.hurl",
-                        "execution_path": ".entroping/run/auth.hurl",
+                        "path": "tests/normalized-auth.hurl",
+                        "execution_path": ".entroping/run/normalized-auth.hurl",
                         "status": "passed",
                         "exit_code": 0,
                         "duration_ms": 42,
@@ -417,41 +436,13 @@ def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries
                         "stderr": "",
                         "auth": {
                             "flow": " oauth2-client-credentials ",
-                            "requires": [
-                                " access_token ",
-                                "bad name",
-                                123,
-                                "access_token",
-                                "csrf_token",
-                            ],
+                            "requires": [" access_token ", "csrf_token"],
                             "produces": [" session_cookie "],
                         },
                     },
                     {
-                        "path": "tests/no-auth.hurl",
-                        "execution_path": ".entroping/run/no-auth.hurl",
-                        "status": "passed",
-                        "exit_code": 0,
-                        "duration_ms": 10,
-                        "rule_ids": [],
-                        "stdout": "",
-                        "stderr": "",
-                        "auth": {},
-                    },
-                    {
-                        "path": "tests/malformed-auth.hurl",
-                        "execution_path": ".entroping/run/malformed-auth.hurl",
-                        "status": "passed",
-                        "exit_code": 0,
-                        "duration_ms": 10,
-                        "rule_ids": [],
-                        "stdout": "",
-                        "stderr": "",
-                        "auth": "not-a-dict",
-                    },
-                    {
-                        "path": "tests/invalid-flow.hurl",
-                        "execution_path": ".entroping/run/invalid-flow.hurl",
+                        "path": "tests/arbitrary-flow-auth.hurl",
+                        "execution_path": ".entroping/run/arbitrary-flow-auth.hurl",
                         "status": "passed",
                         "exit_code": 0,
                         "duration_ms": 10,
@@ -461,7 +452,52 @@ def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries
                         "auth": {
                             "flow": "oauth2 live-secret",
                             "requires": ["session_token"],
+                            "produces": ["oauth2_token"],
+                        },
+                    },
+                    {
+                        "path": "tests/null-flow-auth.hurl",
+                        "execution_path": ".entroping/run/null-flow-auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": {
+                            "flow": None,
+                            "requires": ["session_token"],
                             "produces": [],
+                        },
+                    },
+                    {
+                        "path": "tests/empty-normalized-auth.hurl",
+                        "execution_path": ".entroping/run/empty-normalized-auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": {
+                            "flow": "oauth2 live-secret",
+                            "requires": ["1bad"],
+                            "produces": [""],
+                        },
+                    },
+                    {
+                        "path": "tests/filtered-vars-auth.hurl",
+                        "execution_path": ".entroping/run/filtered-vars-auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": {
+                            "flow": None,
+                            "requires": ["  ", "session_token", "1bad"],
+                            "produces": ["-invalid"],
                         },
                     },
                 ],
@@ -477,11 +513,147 @@ def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries
     assert report.tests[0].auth.flow == "oauth2-client-credentials"
     assert report.tests[0].auth.requires == ("access_token", "csrf_token")
     assert report.tests[0].auth.produces == ("session_cookie",)
-    assert report.tests[1].auth is None
-    assert report.tests[2].auth is None
-    assert report.tests[3].auth is not None
-    assert report.tests[3].auth.flow is None
-    assert report.tests[3].auth.requires == ("session_token",)
+    assert report.tests[1].auth is not None
+    assert report.tests[1].auth.flow is None
+    assert report.tests[1].auth.requires == ("session_token",)
+    assert report.tests[1].auth.produces == ("oauth2_token",)
+    assert report.tests[2].auth is not None
+    assert report.tests[2].auth.flow is None
+    assert report.tests[2].auth.requires == ("session_token",)
+    assert report.tests[2].auth.produces == ()
+    assert report.tests[3].auth is None
+    assert report.tests[4].auth is not None
+    assert report.tests[4].auth.flow is None
+    assert report.tests[4].auth.requires == ("session_token",)
+    assert report.tests[4].auth.produces == ()
+
+
+@pytest.mark.parametrize(
+    ("auth_payload", "error_fragment"),
+    [
+        ({}, "must include flow"),
+        ("not-a-dict", "must be a JSON object"),
+        ([], "must be a JSON object"),
+        (None, "must be a JSON object"),
+        (
+            {"flow": 1, "requires": ["session_token"], "produces": []},
+            "flow has invalid type",
+        ),
+        (
+            {"flow": None, "requires": "session_token", "produces": []},
+            "must be an array of strings",
+        ),
+        (
+            {"flow": None, "requires": ["session_token"], "produces": "session_token"},
+            "must be an array of strings",
+        ),
+        (
+            {"flow": None, "requires": [1], "produces": ["session_token"]},
+            "must be an array of strings",
+        ),
+        (
+            {"flow": None, "requires": ["session_token"], "produces": [1]},
+            "must be an array of strings",
+        ),
+        (
+            {"requires": ["session_token"], "produces": ["session_token"]},
+            "must include flow",
+        ),
+        (
+            {"flow": None, "requires": ["session_token"]},
+            "must include produces",
+        ),
+        (
+            {
+                "requires": ["session_token"],
+                "produces": ["session_token"],
+                "flow": None,
+                "private": "no",
+            },
+            "contains unknown fields",
+        ),
+    ],
+)
+
+def test_load_run_report_rejects_invalid_auth_shape(
+    tmp_path: Path,
+    auth_payload: object,
+    error_fragment: str,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-06-12T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/auth.hurl",
+                        "execution_path": ".entroping/run/auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 42,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": auth_payload,
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].auth" in str(exc_info.value)
+    assert error_fragment in str(exc_info.value)
+    assert "session_secret" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_non_object_gate_result_entry(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-06-12T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/gate-results.hurl",
+                        "execution_path": ".entroping/run/gate-results.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 42,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "gate_results": [None],
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].gate_results[0] must be a JSON object" in str(exc_info.value)
 
 
 def test_load_run_report_trims_valid_operation_ids_and_ignores_malformed_values(

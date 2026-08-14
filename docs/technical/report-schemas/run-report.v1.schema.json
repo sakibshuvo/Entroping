@@ -118,6 +118,22 @@
               }
             }
           },
+          "auth": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["flow", "requires", "produces"],
+            "properties": {
+              "flow": {"type": ["string", "null"]},
+              "requires": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "produces": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          },
           "known_failures": {
             "type": "array",
             "items": {

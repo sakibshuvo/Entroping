@@ -206,6 +206,231 @@ def test_junit_report_replaces_xml_illegal_control_characters_in_attributes(
     assert values["entroping.operation_id"] == "checkout\ufffdCreate"
 
 
+def _base_load_run_report_payload() -> dict[str, object]:
+    return {
+        "schema_version": "entroping.run-report.v1",
+        "project": "private-report-project",
+        "environment": "local",
+        "generated_at": "2026-06-12T00:00:00+00:00",
+        "summary": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "exit_code": 0,
+        },
+        "tests": [
+            {
+                "path": "tests/private-test.hurl",
+                "execution_path": ".entroping/run/private-test.hurl",
+                "status": "passed",
+                "exit_code": 0,
+                "duration_ms": 5,
+                "rule_ids": [],
+                "stdout": "",
+                "stderr": "",
+                "retry": {
+                    "retry_count": 1,
+                    "unstable": False,
+                    "attempts": [
+                        {
+                            "attempt": 1,
+                            "status": "passed",
+                            "exit_code": 0,
+                            "duration_ms": 5,
+                            "stdout_truncated": False,
+                            "stderr_truncated": False,
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+
+
+def _payload_first_test(payload: dict[str, object]) -> dict[str, object]:
+    return cast(list[dict[str, object]], payload["tests"])[0]
+
+
+def _payload_summary(payload: dict[str, object]) -> dict[str, object]:
+    return cast(dict[str, object], payload["summary"])
+
+
+def test_load_run_report_rejects_unknown_root_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    payload["private_root"] = "private-root-value"
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field root contains unknown fields" in str(exc_info.value)
+    assert "private-root-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_summary_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    summary = _payload_summary(payload)
+    summary["private_summary"] = "private-summary-value"
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field summary contains unknown fields" in str(exc_info.value)
+    assert "private-summary-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_test_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    first_test["private_test"] = "private-test-value"
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0] contains unknown fields" in str(exc_info.value)
+    assert "private-test-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_retry_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    retry = cast(dict[str, object], first_test["retry"])
+    retry["private_retry"] = "private-retry-value"
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].retry contains unknown fields" in str(exc_info.value)
+    assert "private-retry-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_retry_attempt_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    retry = cast(dict[str, object], first_test["retry"])
+    attempts = cast(list[dict[str, object]], retry["attempts"])
+    attempts[0]["private_attempt"] = "private-attempt-value"
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].retry.attempts[0] contains unknown fields" in str(exc_info.value)
+    assert "private-attempt-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_auth_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    first_test["auth"] = {
+        "flow": None,
+        "requires": [],
+        "produces": [],
+        "private_auth": "private-auth-value",
+    }
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].auth contains unknown fields" in str(exc_info.value)
+    assert "private-auth-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_safety_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    first_test["safety"] = {
+        "protected_environment": True,
+        "safety": None,
+        "safety_source": None,
+        "methods": [],
+        "blocked_reason": None,
+        "private_safety": "private-safety-value",
+    }
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].safety contains unknown fields" in str(exc_info.value)
+    assert "private-safety-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_response_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    first_test["response"] = {
+        "status_code": 200,
+        "headers": {},
+        "body_shape": ["$:object"],
+        "private_response": "private-response-value",
+    }
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].response contains unknown fields" in str(exc_info.value)
+    assert "private-response-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_known_failure_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    first_test["known_failures"] = [
+        {
+            "test": "tests/private-test.hurl",
+            "rule_id": "private-rule-id",
+            "issue_id": "private-issue-id",
+            "expires": "2026-06-30",
+            "reason": "Known failure",
+            "private_failure": "private-failure-value",
+        }
+    ]
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].known_failures[0] contains unknown fields" in str(exc_info.value)
+    assert "private-failure-value" not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_unknown_gate_result_fields(tmp_path: Path) -> None:
+    payload = _base_load_run_report_payload()
+    first_test = _payload_first_test(payload)
+    first_test["gate_results"] = [
+        {
+            "rule_id": "global_latency",
+            "enforcement": "warn",
+            "result": "passed",
+            "exit_code": 0,
+            "private_gate_result": "private-gate-result-value",
+        }
+    ]
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        report_writer.load_run_report(latest)
+    assert "field tests[0].gate_results[0] contains unknown fields" in str(exc_info.value)
+    assert "private-gate-result-value" not in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     ("payload", "forbidden_error_fragment"),
     [
