@@ -1,11 +1,20 @@
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Final, cast
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import yaml
-from yaml.events import AliasEvent, CollectionEndEvent, CollectionStartEvent, ScalarEvent
+from yaml.events import (
+    AliasEvent,
+    CollectionEndEvent,
+    CollectionStartEvent,
+    MappingEndEvent,
+    MappingStartEvent,
+    ScalarEvent,
+    SequenceEndEvent,
+    SequenceStartEvent,
+)
 
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
@@ -122,32 +131,66 @@ def _preflight_yaml_structure(content: str) -> None:
         yaml.parse(content, Loader=yaml.SafeLoader),  # pyright: ignore[reportUnknownMemberType]
     )
     for event in events:
-        if isinstance(event, CollectionStartEvent):
-            _count_yaml_node(state)
-            if len(state.stack) >= _MAX_YAML_COLLECTION_DEPTH:
-                raise _YamlResourceError
-            anchor = _yaml_anchor(event)
-            state.stack.append(_YamlCollectionFrame(anchor=anchor))
-            if anchor is not None:
-                state.anchors[anchor] = None
-        elif isinstance(event, ScalarEvent):
-            _count_yaml_node(state)
-            _add_yaml_expanded_nodes(state, 1)
-            anchor = _yaml_anchor(event)
-            if anchor is not None:
-                state.anchors[anchor] = 1
-        elif isinstance(event, AliasEvent):
-            _count_yaml_node(state)
-            anchor = _yaml_anchor(event)
-            anchor_nodes = state.anchors.get(anchor) if anchor is not None else None
-            if anchor_nodes is None:
-                raise _YamlResourceError
-            _add_yaml_expanded_nodes(state, anchor_nodes)
-        elif isinstance(event, CollectionEndEvent):
-            frame = state.stack.pop()
-            if frame.anchor is not None:
-                state.anchors[frame.anchor] = frame.expanded_nodes
-            _add_yaml_expanded_nodes(state, frame.expanded_nodes)
+        _process_yaml_event(state, event)
+
+
+def _process_yaml_event(state: _YamlPreflightState, event: object) -> None:
+    handler = _YAML_PRE_FLIGHT_EVENT_HANDLERS.get(type(event))
+    if handler is not None:
+        handler(state, event)
+
+
+def _handle_collection_start(state: _YamlPreflightState, event: object) -> None:
+    collection_start_event = cast(CollectionStartEvent, event)
+    _count_yaml_node(state)
+    if len(state.stack) >= _MAX_YAML_COLLECTION_DEPTH:
+        raise _YamlResourceError
+    anchor = _yaml_anchor(collection_start_event)
+    state.stack.append(_YamlCollectionFrame(anchor=anchor))
+    if anchor is not None:
+        state.anchors[anchor] = None
+
+
+def _handle_scalar(state: _YamlPreflightState, event: object) -> None:
+    scalar_event = cast(ScalarEvent, event)
+    _count_yaml_node(state)
+    _add_yaml_expanded_nodes(state, 1)
+    anchor = _yaml_anchor(scalar_event)
+    if anchor is not None:
+        state.anchors[anchor] = 1
+
+
+def _handle_alias(state: _YamlPreflightState, event: object) -> None:
+    alias_event = cast(AliasEvent, event)
+    _count_yaml_node(state)
+    anchor = _yaml_anchor(alias_event)
+    anchor_nodes = state.anchors.get(anchor) if anchor is not None else None
+    if anchor_nodes is None:
+        raise _YamlResourceError
+    _add_yaml_expanded_nodes(state, anchor_nodes)
+
+
+def _handle_collection_end(state: _YamlPreflightState, event: object) -> None:
+    _ = cast(CollectionEndEvent, event)
+    frame = state.stack.pop()
+    if frame.anchor is not None:
+        state.anchors[frame.anchor] = frame.expanded_nodes
+    _add_yaml_expanded_nodes(state, frame.expanded_nodes)
+
+
+_YAML_PRE_FLIGHT_EVENT_HANDLERS: Final[
+    dict[type[object], Callable[[_YamlPreflightState, object], None]
+    ]
+] = {
+    CollectionEndEvent: _handle_collection_end,
+    CollectionStartEvent: _handle_collection_start,
+    MappingEndEvent: _handle_collection_end,
+    SequenceEndEvent: _handle_collection_end,
+    MappingStartEvent: _handle_collection_start,
+    SequenceStartEvent: _handle_collection_start,
+    ScalarEvent: _handle_scalar,
+    AliasEvent: _handle_alias,
+}
 
 
 def _yaml_anchor(event: CollectionStartEvent | ScalarEvent | AliasEvent) -> str | None:
