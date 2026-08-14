@@ -110,9 +110,14 @@ def test_compile_asyncapi_webhook_to_hurl_ignores_sparse_channel_entries() -> No
     [
         (
             "recursive-alias",
-            "asyncapi: 2.6.0\n"
-            "channels: &recursive_marker\n"
-            "  recursive_marker: *recursive_marker\n",
+            "\n".join(
+                (
+                    "asyncapi: 2.6.0",
+                    "channels: &recursive_marker",
+                    "  recursive_marker: *recursive_marker",
+                    "",
+                )
+            ),
         ),
         ("depth", _deep_asyncapi_yaml(130)),
         ("nodes", _large_asyncapi_yaml(5_001)),
@@ -123,7 +128,7 @@ def test_compile_asyncapi_webhook_rejects_yaml_resource_boundaries_before_constr
     asyncapi_yaml: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fail_if_constructed(*args: object, **kwargs: object) -> object:
+    def fail_if_constructed(_content: str) -> object:
         raise AssertionError(f"safe_load constructed {case_name} input")
 
     monkeypatch.setattr(yaml, "safe_load", fail_if_constructed)
@@ -132,7 +137,7 @@ def test_compile_asyncapi_webhook_rejects_yaml_resource_boundaries_before_constr
         AsyncapiHurlCompilationError,
         match="^AsyncAPI YAML exceeds resource limits$",
     ) as exc_info:
-        compile_asyncapi_webhook_to_hurl(
+        _ = compile_asyncapi_webhook_to_hurl(
             asyncapi_yaml,
             target_url="https://webhooks.example.test/order-events",
         )
@@ -146,7 +151,7 @@ def test_compile_asyncapi_webhook_normalizes_yaml_resource_errors_without_conten
     resource_error: type[Exception],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def raise_resource_error(*args: object, **kwargs: object) -> object:
+    def raise_resource_error(_content: str) -> object:
         raise resource_error("resource-input-marker")
 
     monkeypatch.setattr(yaml, "safe_load", raise_resource_error)
@@ -155,7 +160,7 @@ def test_compile_asyncapi_webhook_normalizes_yaml_resource_errors_without_conten
         AsyncapiHurlCompilationError,
         match="^AsyncAPI YAML exceeds resource limits$",
     ) as exc_info:
-        compile_asyncapi_webhook_to_hurl(
+        _ = compile_asyncapi_webhook_to_hurl(
             "asyncapi: 2.6.0\nchannels:\n  order.created:\n    publish: {}\n",
             target_url="https://webhooks.example.test/order-events",
         )
@@ -185,7 +190,7 @@ def test_compile_asyncapi_webhook_to_hurl_rejects_unsupported_or_unsafe_document
     message: str,
 ) -> None:
     with pytest.raises(AsyncapiHurlCompilationError, match=message):
-        compile_asyncapi_webhook_to_hurl(
+        _ = compile_asyncapi_webhook_to_hurl(
             asyncapi_yaml,
             target_url="https://webhooks.example.test/order-events",
         )
@@ -213,7 +218,7 @@ def test_compile_asyncapi_webhook_to_hurl_rejects_unsafe_targets(
     message: str,
 ) -> None:
     with pytest.raises(AsyncapiHurlCompilationError, match=message):
-        compile_asyncapi_webhook_to_hurl(
+        _ = compile_asyncapi_webhook_to_hurl(
             "asyncapi: 2.6.0\nchannels:\n  order.created:\n    publish: {}\n",
             target_url=target_url,
         )

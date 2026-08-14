@@ -1,5 +1,5 @@
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Final, cast
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
@@ -91,7 +91,7 @@ def _validate_asyncapi_text(asyncapi_yaml: str) -> None:
 def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
     try:
         _preflight_yaml_structure(asyncapi_yaml)
-        loaded = yaml.safe_load(asyncapi_yaml)
+        loaded = cast(object, yaml.safe_load(asyncapi_yaml))
     except _YamlResourceError as exc:
         msg = "AsyncAPI YAML exceeds resource limits"
         raise AsyncapiHurlCompilationError(msg) from exc
@@ -117,22 +117,27 @@ def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
 
 def _preflight_yaml_structure(content: str) -> None:
     state = _YamlPreflightState()
-    for event in yaml.parse(content, Loader=yaml.SafeLoader):
+    yaml_parse = cast(Callable[..., Iterable[object]], vars(yaml)["parse"])
+    events = yaml_parse(content, Loader=yaml.SafeLoader)
+    for event in events:
         if isinstance(event, CollectionStartEvent):
             _count_yaml_node(state)
             if len(state.stack) >= _MAX_YAML_COLLECTION_DEPTH:
                 raise _YamlResourceError
-            state.stack.append(_YamlCollectionFrame(anchor=event.anchor))
-            if event.anchor is not None:
-                state.anchors[event.anchor] = None
+            anchor = _yaml_anchor(event)
+            state.stack.append(_YamlCollectionFrame(anchor=anchor))
+            if anchor is not None:
+                state.anchors[anchor] = None
         elif isinstance(event, ScalarEvent):
             _count_yaml_node(state)
             _add_yaml_expanded_nodes(state, 1)
-            if event.anchor is not None:
-                state.anchors[event.anchor] = 1
+            anchor = _yaml_anchor(event)
+            if anchor is not None:
+                state.anchors[anchor] = 1
         elif isinstance(event, AliasEvent):
             _count_yaml_node(state)
-            anchor_nodes = state.anchors.get(event.anchor)
+            anchor = _yaml_anchor(event)
+            anchor_nodes = state.anchors.get(anchor) if anchor is not None else None
             if anchor_nodes is None:
                 raise _YamlResourceError
             _add_yaml_expanded_nodes(state, anchor_nodes)
@@ -143,6 +148,11 @@ def _preflight_yaml_structure(content: str) -> None:
             if frame.anchor is not None:
                 state.anchors[frame.anchor] = frame.expanded_nodes
             _add_yaml_expanded_nodes(state, frame.expanded_nodes)
+
+
+def _yaml_anchor(event: CollectionStartEvent | ScalarEvent | AliasEvent) -> str | None:
+    anchor = cast(object, event.anchor)
+    return anchor if isinstance(anchor, str) else None
 
 
 def _count_yaml_node(state: _YamlPreflightState) -> None:
