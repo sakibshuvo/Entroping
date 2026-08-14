@@ -15,6 +15,7 @@ from entroping.bridge.capture_summary import (
 )
 from entroping.core import capture_summary_report
 from entroping.core.capture_summary_report import (
+    MAX_CAPTURE_SUMMARY_EXCHANGES,
     CaptureSummaryError,
     run_capture_summary_report,
 )
@@ -237,6 +238,110 @@ def test_run_capture_summary_report_writes_empty_markdown_for_empty_state(
     assert "No captured traffic records found." in content
 
 
+def test_run_capture_summary_report_reads_one_past_maximum(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    TrafficStore.open_project(tmp_path)
+    requested_limits: list[int | None] = []
+
+    def read_bounded(
+        project_root: Path,
+        *,
+        limit: int | None = None,
+    ) -> tuple[TrafficExchange, ...]:
+        _ = project_root
+        requested_limits.append(limit)
+        return ()
+
+    monkeypatch.setattr(capture_summary_report, "list_project_exchanges_readonly", read_bounded)
+
+    run_capture_summary_report(project_root=tmp_path, output="md")
+
+    assert requested_limits == [MAX_CAPTURE_SUMMARY_EXCHANGES + 1]
+
+
+def test_run_capture_summary_report_allows_maximum_in_memory_exchanges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    TrafficStore.open_project(tmp_path)
+    exchange = _redacted_exchange(url="https://api.example.test/bounded")
+    exchanges = (exchange,) * MAX_CAPTURE_SUMMARY_EXCHANGES
+
+    def read_bounded(
+        project_root: Path,
+        *,
+        limit: int | None = None,
+    ) -> tuple[TrafficExchange, ...]:
+        _ = project_root, limit
+        return exchanges
+
+    monkeypatch.setattr(
+        capture_summary_report,
+        "list_project_exchanges_readonly",
+        read_bounded,
+    )
+
+    markdown_result = run_capture_summary_report(project_root=tmp_path, output="md")
+    markdown = (tmp_path / "reports" / "capture-summary.md").read_text(encoding="utf-8")
+    json_result = run_capture_summary_report(project_root=tmp_path, output="json")
+    content = (tmp_path / "reports" / "capture-summary.json").read_text(encoding="utf-8")
+
+    assert markdown_result.report.summary.total_records == MAX_CAPTURE_SUMMARY_EXCHANGES
+    assert json_result.report.summary.total_records == MAX_CAPTURE_SUMMARY_EXCHANGES
+    assert "# Entroping Capture Summary" in markdown
+    assert CAPTURE_SUMMARY_SCHEMA_VERSION in content
+
+
+def test_run_capture_summary_report_rejects_oversized_state_before_compile_or_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    TrafficStore.open_project(tmp_path)
+    exchange = _redacted_exchange(url="https://api.example.test/oversized")
+    exchanges = (exchange,) * (MAX_CAPTURE_SUMMARY_EXCHANGES + 1)
+
+    def read_oversized(
+        project_root: Path,
+        *,
+        limit: int | None = None,
+    ) -> tuple[TrafficExchange, ...]:
+        _ = project_root, limit
+        return exchanges
+
+    monkeypatch.setattr(
+        capture_summary_report,
+        "list_project_exchanges_readonly",
+        read_oversized,
+    )
+
+    def fail_compile(exchanges: tuple[TrafficExchange, ...]) -> object:
+        _ = exchanges
+        pytest.fail("compile_capture_summary must not run for oversized state")
+
+    def fail_render(report: object, output: str) -> str:
+        _ = report, output
+        pytest.fail("_render_report must not run for oversized state")
+
+    def fail_write(path: Path, content: str, *, root: Path) -> None:
+        _ = path, content, root
+        pytest.fail("_write_text_atomically must not run for oversized state")
+
+    monkeypatch.setattr(capture_summary_report, "compile_capture_summary", fail_compile)
+    monkeypatch.setattr(capture_summary_report, "_render_report", fail_render)
+    monkeypatch.setattr(capture_summary_report, "_write_text_atomically", fail_write)
+
+    with pytest.raises(
+        CaptureSummaryError,
+        match="^Capture summary exceeds the maximum supported exchange count\\.$",
+    ):
+        run_capture_summary_report(project_root=tmp_path, output="md")
+
+    assert not (tmp_path / "reports" / "capture-summary.md").exists()
+    assert not (tmp_path / "reports" / "capture-summary.json").exists()
+
+
 def test_run_capture_summary_report_reports_missing_state(tmp_path: Path) -> None:
     with pytest.raises(CaptureSummaryError, match="No traffic state found"):
         run_capture_summary_report(project_root=tmp_path, output="md")
@@ -250,8 +355,12 @@ def test_run_capture_summary_report_wraps_traffic_store_errors(
 ) -> None:
     TrafficStore.open_project(tmp_path)
 
-    def fail_readonly(project_root: Path) -> tuple[TrafficExchange, ...]:
-        _ = project_root
+    def fail_readonly(
+        project_root: Path,
+        *,
+        limit: int | None = None,
+    ) -> tuple[TrafficExchange, ...]:
+        _ = project_root, limit
         from entroping.core.traffic_store import TrafficStoreError
 
         raise TrafficStoreError("readonly traffic failed")
