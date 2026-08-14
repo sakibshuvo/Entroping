@@ -1,7 +1,9 @@
+import hashlib
 import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from entroping.bridge.asyncapi_to_hurl import (
     AsyncapiHurlCompilationError,
@@ -12,6 +14,35 @@ from entroping.models.hurl import parse_hurl_exchanges, parse_hurl_metadata
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ASYNCAPI_SPEC = REPO_ROOT / "examples" / "asyncapi-events" / "contracts" / "orders.asyncapi.yaml"
+
+
+def _deep_asyncapi_yaml(collection_count: int) -> str:
+    lines = ["asyncapi: 2.6.0", "channels:"]
+    indent = ""
+    for index in range(collection_count):
+        indent += "  "
+        lines.append(f"{indent}level_{index}:")
+    lines.append(f"{indent}  publish: {{}}")
+    return "\n".join(lines) + "\n"
+
+
+def _large_asyncapi_yaml(channel_count: int) -> str:
+    channels = "\n".join(f"  channel_{index}: {{}}" for index in range(channel_count))
+    return f"asyncapi: 2.6.0\nchannels:\n{channels}\n"
+
+
+def test_compile_asyncapi_webhook_to_hurl_preserves_baseline_bytes() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        ASYNCAPI_SPEC.read_text(encoding="utf-8"),
+        target_url="https://webhooks.example.test/order-events",
+    )
+
+    assert generated.relative_path == (
+        "tests/generated/asyncapi-webhooks-example-test-order-events-smoke.hurl"
+    )
+    assert hashlib.sha256(generated.content.encode("utf-8")).hexdigest() == (
+        "012b96d1950f8cb06d65babdaee91f096e73c03b63bdf4fd259bcdbe89f25db3"
+    )
 
 
 def test_compile_asyncapi_webhook_to_hurl_generates_deterministic_smoke_scaffold() -> None:
@@ -72,6 +103,64 @@ def test_compile_asyncapi_webhook_to_hurl_ignores_sparse_channel_entries() -> No
     )
 
     assert "# entroping: operation_count=1\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    ("case_name", "asyncapi_yaml"),
+    [
+        (
+            "recursive-alias",
+            "asyncapi: 2.6.0\n"
+            "channels: &recursive_marker\n"
+            "  recursive_marker: *recursive_marker\n",
+        ),
+        ("depth", _deep_asyncapi_yaml(130)),
+        ("nodes", _large_asyncapi_yaml(5_001)),
+    ],
+)
+def test_compile_asyncapi_webhook_rejects_yaml_resource_boundaries_before_construction(
+    case_name: str,
+    asyncapi_yaml: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_constructed(*args: object, **kwargs: object) -> object:
+        raise AssertionError(f"safe_load constructed {case_name} input")
+
+    monkeypatch.setattr(yaml, "safe_load", fail_if_constructed)
+
+    with pytest.raises(
+        AsyncapiHurlCompilationError,
+        match="^AsyncAPI YAML exceeds resource limits$",
+    ) as exc_info:
+        compile_asyncapi_webhook_to_hurl(
+            asyncapi_yaml,
+            target_url="https://webhooks.example.test/order-events",
+        )
+
+    assert case_name not in str(exc_info.value)
+    assert "recursive_marker" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize("resource_error", [MemoryError, RecursionError])
+def test_compile_asyncapi_webhook_normalizes_yaml_resource_errors_without_content(
+    resource_error: type[Exception],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_resource_error(*args: object, **kwargs: object) -> object:
+        raise resource_error("resource-input-marker")
+
+    monkeypatch.setattr(yaml, "safe_load", raise_resource_error)
+
+    with pytest.raises(
+        AsyncapiHurlCompilationError,
+        match="^AsyncAPI YAML exceeds resource limits$",
+    ) as exc_info:
+        compile_asyncapi_webhook_to_hurl(
+            "asyncapi: 2.6.0\nchannels:\n  order.created:\n    publish: {}\n",
+            target_url="https://webhooks.example.test/order-events",
+        )
+
+    assert "resource-input-marker" not in str(exc_info.value)
 
 
 @pytest.mark.parametrize(

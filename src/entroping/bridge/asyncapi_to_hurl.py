@@ -1,19 +1,39 @@
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, cast
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import yaml
+from yaml.events import AliasEvent, CollectionEndEvent, CollectionStartEvent, ScalarEvent
 
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
 _SAFE_STEM_RE: Final = re.compile(r"[^A-Za-z0-9_-]+")
 _OPERATION_KEYS: Final = frozenset({"publish", "subscribe"})
+_MAX_YAML_COLLECTION_DEPTH: Final = 128
+_MAX_YAML_EXPANDED_NODES: Final = 10_000
 
 
 class AsyncapiHurlCompilationError(ValueError):
     pass
+
+
+class _YamlResourceError(ValueError):
+    pass
+
+
+@dataclass(slots=True)
+class _YamlCollectionFrame:
+    anchor: str | None
+    expanded_nodes: int = 1
+
+
+@dataclass(slots=True)
+class _YamlPreflightState:
+    stack: list[_YamlCollectionFrame] = field(default_factory=list)
+    anchors: dict[str, int | None] = field(default_factory=dict)
+    syntactic_nodes: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +90,14 @@ def _validate_asyncapi_text(asyncapi_yaml: str) -> None:
 
 def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
     try:
+        _preflight_yaml_structure(asyncapi_yaml)
         loaded = yaml.safe_load(asyncapi_yaml)
+    except _YamlResourceError as exc:
+        msg = "AsyncAPI YAML exceeds resource limits"
+        raise AsyncapiHurlCompilationError(msg) from exc
+    except (MemoryError, RecursionError) as exc:
+        msg = "AsyncAPI YAML exceeds resource limits"
+        raise AsyncapiHurlCompilationError(msg) from exc
     except yaml.YAMLError as exc:
         msg = "Invalid AsyncAPI YAML"
         raise AsyncapiHurlCompilationError(msg) from exc
@@ -86,6 +113,51 @@ def _load_asyncapi_document(asyncapi_yaml: str) -> Mapping[str, object]:
         msg = "AsyncAPI document must define a channels mapping"
         raise AsyncapiHurlCompilationError(msg)
     return document
+
+
+def _preflight_yaml_structure(content: str) -> None:
+    state = _YamlPreflightState()
+    for event in yaml.parse(content, Loader=yaml.SafeLoader):
+        if isinstance(event, CollectionStartEvent):
+            _count_yaml_node(state)
+            if len(state.stack) >= _MAX_YAML_COLLECTION_DEPTH:
+                raise _YamlResourceError
+            state.stack.append(_YamlCollectionFrame(anchor=event.anchor))
+            if event.anchor is not None:
+                state.anchors[event.anchor] = None
+        elif isinstance(event, ScalarEvent):
+            _count_yaml_node(state)
+            _add_yaml_expanded_nodes(state, 1)
+            if event.anchor is not None:
+                state.anchors[event.anchor] = 1
+        elif isinstance(event, AliasEvent):
+            _count_yaml_node(state)
+            anchor_nodes = state.anchors.get(event.anchor)
+            if anchor_nodes is None:
+                raise _YamlResourceError
+            _add_yaml_expanded_nodes(state, anchor_nodes)
+        elif isinstance(event, CollectionEndEvent):
+            if not state.stack:
+                raise _YamlResourceError
+            frame = state.stack.pop()
+            if frame.anchor is not None:
+                state.anchors[frame.anchor] = frame.expanded_nodes
+            _add_yaml_expanded_nodes(state, frame.expanded_nodes)
+
+
+def _count_yaml_node(state: _YamlPreflightState) -> None:
+    state.syntactic_nodes += 1
+    if state.syntactic_nodes > _MAX_YAML_EXPANDED_NODES:
+        raise _YamlResourceError
+
+
+def _add_yaml_expanded_nodes(state: _YamlPreflightState, nodes: int) -> None:
+    if not state.stack:
+        return
+    total = state.stack[-1].expanded_nodes + nodes
+    if total > _MAX_YAML_EXPANDED_NODES:
+        raise _YamlResourceError
+    state.stack[-1].expanded_nodes = total
 
 
 def _asyncapi_operation_count(document: Mapping[str, object]) -> int:
