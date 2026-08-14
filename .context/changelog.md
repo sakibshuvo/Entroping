@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-08-14
+
+- Tightened issue #1682's overlapping `factoryctl tick --apply` regression
+  proof: exactly one assignment and one blocked loser are required, while the
+  loser accepts only the existing fail-closed `lease-held` or `state-busy`
+  reasons across the bounded real-process repetitions.
+
 ## 2026-08-11
 
 - Reconciled internal factory status after #1576 merged via PR #1608 at
