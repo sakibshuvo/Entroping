@@ -144,8 +144,6 @@ def _preflight_yaml_structure(content: str) -> None:
                 raise _YamlResourceError
             _add_yaml_expanded_nodes(state, anchor_nodes)
         elif isinstance(event, CollectionEndEvent):
-            if not state.stack:
-                raise _YamlResourceError
             frame = state.stack.pop()
             if frame.anchor is not None:
                 state.anchors[frame.anchor] = frame.expanded_nodes

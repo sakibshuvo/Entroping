@@ -56,6 +56,23 @@ def test_compile_asyncapi_webhook_to_hurl_preserves_baseline_bytes() -> None:
     )
 
 
+def test_compile_asyncapi_webhook_accepts_scalar_yaml_anchor() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        (
+            "asyncapi: 2.6.0\n"
+            "info:\n"
+            "  title: &document_title Orders\n"
+            "  description: *document_title\n"
+            "channels:\n"
+            "  order.created:\n"
+            "    publish: {}\n"
+        ),
+        target_url="https://webhooks.example.test/order-events",
+    )
+
+    assert "# entroping: operation_count=1\n" in generated.content
+
+
 def test_compile_asyncapi_webhook_to_hurl_generates_deterministic_smoke_scaffold() -> None:
     generated = compile_asyncapi_webhook_to_hurl(
         ASYNCAPI_SPEC.read_text(encoding="utf-8"),
