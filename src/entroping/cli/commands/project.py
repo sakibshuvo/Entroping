@@ -418,9 +418,9 @@ def _collect_agent_readiness(law: Qanstitution, *, config_path: Path) -> list[Do
                 source=display_cli_path(persona.source_path),
                 api_key_env=persona.api_key_env,
                 api_key_env_present=api_key_env_present,
-                message="api_key_env not set"
-                if persona.api_key_env is not None and not api_key_env_present
-                else "agent ready",
+                message=DoctorAgentHealth.message_for(
+                    persona.model, persona.api_base, api_key_env_present
+                ),
             )
         )
     return agents
@@ -561,7 +561,7 @@ def _render_agent_readiness(agents: list[DoctorAgentHealth]) -> None:
             continue
         console.print(
             f"Agent {agent.role}: ready "
-            f"(model {agent.model}, persona {agent.source})",
+            f"(model {agent.model}, persona {agent.source}){agent.message_suffix}",
             style="green",
             markup=False,
         )

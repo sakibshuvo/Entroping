@@ -1,5 +1,7 @@
 """CLI adapter tests for root, init, and doctor commands."""
 
+import socket
+
 from cli_test_support import (
     CliRunner,
     Path,
@@ -10,9 +12,11 @@ from cli_test_support import (
     json,
     project_cli,
     pytest,
+    subprocess,
     yaml,
 )
 
+from entroping.brain import litellm_client
 from entroping.core.demo_runner import (
     DemoCommandResult,
     DemoResultSummary,
@@ -43,6 +47,23 @@ def _fake_hurl_status(
         version_output=version_output,
         version_error=version_error,
     )
+
+
+def _reject_doctor_runtime_probes(monkeypatch: pytest.MonkeyPatch) -> None:
+    def reject_network(*args: object, **kwargs: object) -> None:
+        raise AssertionError("doctor must not create network connections")
+
+    def reject_process(*args: object, **kwargs: object) -> None:
+        raise AssertionError("doctor must not execute subprocesses")
+
+    def reject_provider() -> object:
+        raise AssertionError("doctor must not load or invoke LiteLLM")
+
+    monkeypatch.setattr(socket, "create_connection", reject_network)
+    monkeypatch.setattr(socket, "socket", reject_network)
+    monkeypatch.setattr(subprocess, "run", reject_process)
+    monkeypatch.setattr(subprocess, "Popen", reject_process)
+    monkeypatch.setattr(litellm_client, "_load_completion_func", reject_provider)
 
 
 def test_root_help_groups_locked_commands_by_first_contact_workflow() -> None:
@@ -880,6 +901,187 @@ gates: []
     assert "Agents: 1 configured agent" in result.output
     assert "Agent breaker: ready" in result.output
     assert "api_key_env: not configured" in result.output
+
+
+def test_doctor_reports_ollama_setup_reference_without_runtime_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    _reject_doctor_runtime_probes(monkeypatch)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "builder.md").write_text(
+        "Build focused local tests.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: ollama/qwen-local
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "warn"
+    assert payload["agents"] == [
+        {
+            "role": "builder",
+            "status": "ok",
+            "model": "ollama/qwen-local",
+            "source": "agents/builder.md",
+            "api_key_env": None,
+            "api_key_env_present": None,
+            "message": (
+                "Local setup reference: "
+                "docs/user/AI_PROVIDER_SETUP.md#local-qwen-through-ollama"
+            ),
+        }
+    ]
+
+    human = runner.invoke(app, ["doctor"])
+    assert human.exit_code == 0
+    assert "Agent builder: ready" in human.output
+    assert "AI_PROVIDER_SETUP.md#local-qwen-through-ollama" in human.output
+
+
+def test_doctor_reports_omlx_setup_reference_from_loopback_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    _reject_doctor_runtime_probes(monkeypatch)
+    monkeypatch.setenv("ENTROPING_SECRET_SENTINEL", "sk-proj-live-secret")
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "builder.md").write_text(
+        "Build focused local tests.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/qwen-local
+    api_base: http://127.0.0.1:8000/v1
+    api_key_env: ENTROPING_LOCAL_KEY
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "warn"
+    assert payload["agents"] == [
+        {
+            "role": "builder",
+            "status": "warn",
+            "model": "openai/qwen-local",
+            "source": "agents/builder.md",
+            "api_key_env": "ENTROPING_LOCAL_KEY",
+            "api_key_env_present": False,
+            "message": (
+                "api_key_env not set; Local setup reference: "
+                "docs/user/AI_PROVIDER_SETUP.md#local-openai-compatible-runtime"
+            ),
+        }
+    ]
+    assert "http://127.0.0.1:8000/v1" not in result.output
+    assert "sk-proj-live-secret" not in result.output
+    assert "Ollama setup guidance" not in result.output
+
+    human = runner.invoke(app, ["doctor"])
+    assert human.exit_code == 0
+    assert "AI_PROVIDER_SETUP.md#local-openai-compatible-runtime" in human.output
+    assert "http://127.0.0.1:8000/v1" not in human.output
+    assert "sk-proj-live-secret" not in human.output
+
+
+def test_doctor_leaves_cloud_agent_without_local_setup_reference(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ENTROPING_CLOUD_KEY", "sk-proj-live-secret")
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "builder.md").write_text(
+        "Build focused cloud tests.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/cloud-model
+    api_key_env: ENTROPING_CLOUD_KEY
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["agents"] == [
+        {
+            "role": "builder",
+            "status": "ok",
+            "model": "openai/cloud-model",
+            "source": "agents/builder.md",
+            "api_key_env": "ENTROPING_CLOUD_KEY",
+            "api_key_env_present": True,
+            "message": "agent ready",
+        }
+    ]
+    assert "setup guidance" not in result.output
+    assert "sk-proj-live-secret" not in result.output
+
+    human = runner.invoke(app, ["doctor"])
+    assert human.exit_code == 0
+    assert "setup guidance" not in human.output
+    assert "sk-proj-live-secret" not in human.output
+
+    monkeypatch.delenv("ENTROPING_CLOUD_KEY")
+    missing_key_human = runner.invoke(app, ["doctor"])
+    assert missing_key_human.exit_code == 0
+    assert (
+        "Agent builder: ready (model openai/cloud-model, persona agents/builder.md)"
+        in missing_key_human.output
+    )
+    assert "Agent builder api_key_env ENTROPING_CLOUD_KEY: not set" in missing_key_human.output
+    assert "Local setup reference:" not in missing_key_human.output
 
 
 def test_doctor_fails_for_configured_missing_agent_persona(

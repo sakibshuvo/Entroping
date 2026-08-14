@@ -35,6 +35,17 @@ def test_ai_provider_setup_guide_covers_local_cloud_and_no_provider_paths() -> N
     assert guide.index("## No-Provider CI") < guide.index("## Secret Rules")
 
 
+def test_ai_provider_setup_documents_secret_free_doctor_references() -> None:
+    guide = PROVIDER_GUIDE.read_text(encoding="utf-8")
+
+    assert "## Doctor Local Setup References" in guide
+    assert "docs/user/AI_PROVIDER_SETUP.md#local-qwen-through-ollama" in guide
+    assert "docs/user/AI_PROVIDER_SETUP.md#local-openai-compatible-runtime" in guide
+    assert "agent `message`" in guide
+    assert "does not inspect a provider" in guide
+    assert "does not print" in guide
+
+
 def test_ai_provider_setup_is_linked_from_canonical_docs() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
