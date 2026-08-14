@@ -760,3 +760,25 @@ decisions:
     related_issues: ["#1576"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0033
+    title: Define generated-test materialization boundary
+    status: accepted
+    date: "2026-08-14"
+    summary: >
+      Exact contract for closed-v1 materialization requests, deterministic
+      `mut-` candidate IDs, fixed generated-test destination, category
+      transforms for status-code/request-shape, value-free metadata, and create-only
+      governance before downstream execution.
+    tags: [generated-tests, mutation, boundaries, architecture]
+    source_links:
+      - path: decisions/ADR-0033-generated-test-materialization-boundary.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - ROADMAP.md
+      - decisions/ADR-0033-generated-test-materialization-boundary.md
+    related_issues: ["#1653", "#1668", "#1669"]
+    supersedes: []
+    superseded_by: null

@@ -2757,3 +2757,14 @@ and digest pinning, rollback rules, and smoke checks. It must not replace local
 5. Keep domain code independent from adapters.
 6. Validate generated files before accepting them.
 7. Treat security and quality as release gates.
+
+## 22. Generated-Test Materialization Boundary
+
+`entroping report mutation-materialize` is explicit in `Experimental Design-Partner Evidence`; ADR-0033 owns its command compatibility.
+Core stays private and experimental/non-launch-critical, outside locked v4.1 compatibility until a separate decision.
+`#1668` exposes it through `docs/meta/experimental-report-growth-policy.json` (registry), `_experimental_qa.py` and `_deps.py` (command wiring), and
+`tests/test_cli_report_experimental.py` (strict order/count guard updates).
+Destination publication is held-root no-follow + create-exclusive with fixed destination ancestors already existing as directories; unsupported primitives fail before any I/O.
+Status-code requires non-no-op replacement status; request-shape filters candidates by JSON type-strict current-value equality.
+Request-shape always emits `safety=destructive`, runs no Hurl execution in this boundary, and downstream destructive-runtime refusal is #1669.
+P17/P18 are derivable.
