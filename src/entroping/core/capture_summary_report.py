@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Final, Literal
 
 from entroping.bridge.capture_summary import (
     CaptureSummaryReport,
@@ -15,6 +15,7 @@ from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 
 CaptureSummaryOutput = Literal["md", "json"]
+MAX_CAPTURE_SUMMARY_EXCHANGES: Final = 10_000
 
 
 class CaptureSummaryError(ValueError):
@@ -43,9 +44,16 @@ def run_capture_summary_report(
         raise CaptureSummaryError(msg)
 
     try:
-        exchanges = list_project_exchanges_readonly(root)
+        exchanges = list_project_exchanges_readonly(
+            root,
+            limit=MAX_CAPTURE_SUMMARY_EXCHANGES + 1,
+        )
     except TrafficStoreError as exc:
         raise CaptureSummaryError(str(exc)) from exc
+
+    if len(exchanges) > MAX_CAPTURE_SUMMARY_EXCHANGES:
+        msg = "Capture summary exceeds the maximum supported exchange count."
+        raise CaptureSummaryError(msg)
 
     report = compile_capture_summary(exchanges)
     content = _render_report(report, output)
