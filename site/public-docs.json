@@ -87,6 +87,11 @@
           "label": "Report Schemas",
           "source": "docs/technical/REPORT_SCHEMAS.md",
           "slug": "docs/technical/report-schemas"
+        },
+        {
+          "label": "Alpha Status",
+          "source": "docs/user/ALPHA_STATUS.md",
+          "slug": "docs/user/alpha-status"
         }
       ]
     },
