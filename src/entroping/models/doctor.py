@@ -9,6 +9,26 @@ from entroping.models.qanstitution import AgentRole
 DoctorHealthStatus = Literal["ok", "warn", "error"]
 DoctorHurlCompatibilityState = Literal["compatible", "missing", "unsupported", "unparsable"]
 
+_OLLAMA_SETUP_REFERENCE = (
+    "Local setup reference: "
+    "docs/user/AI_PROVIDER_SETUP.md#local-qwen-through-ollama"
+)
+_LOCAL_OPENAI_COMPATIBLE_SETUP_REFERENCE = (
+    "Local setup reference: "
+    "docs/user/AI_PROVIDER_SETUP.md#local-openai-compatible-runtime"
+)
+
+
+def doctor_agent_setup_reference(*, model: str, api_base: str | None) -> str | None:
+    """Return fixed local setup guidance from non-secret routing metadata."""
+
+    provider = model.partition("/")[0]
+    if provider == "ollama":
+        return _OLLAMA_SETUP_REFERENCE
+    if provider == "openai" and api_base is not None:
+        return _LOCAL_OPENAI_COMPATIBLE_SETUP_REFERENCE
+    return None
+
 
 class DoctorToolHealth(BaseModel):
     """Availability status for a local tool used by Entroping."""
@@ -70,6 +90,29 @@ class DoctorAgentHealth(BaseModel):
     api_key_env: str | None = None
     api_key_env_present: bool | None = None
     message: str
+
+    @staticmethod
+    def message_for(
+        model: str,
+        api_base: str | None,
+        api_key_env_present: bool | None,
+    ) -> str:
+        """Build the value-free doctor message for one configured agent."""
+
+        message = "api_key_env not set" if api_key_env_present is False else "agent ready"
+        setup_reference = doctor_agent_setup_reference(model=model, api_base=api_base)
+        if setup_reference is None:
+            return message
+        if message == "agent ready":
+            return setup_reference
+        return f"{message}; {setup_reference}"
+
+    @property
+    def message_suffix(self) -> str:
+        """Return the human-only suffix for local setup guidance."""
+
+        _, marker, reference = self.message.partition("Local setup reference:")
+        return f"\n{marker}{reference}" if marker else ""
 
 
 class DoctorCiReadinessCheck(BaseModel):

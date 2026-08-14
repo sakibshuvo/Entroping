@@ -131,6 +131,30 @@ entroping architect refactor --target "tests/**/*.hurl" --prompt "Add missing au
 entroping run --ci
 ```
 
+## Doctor Local Setup References
+
+`entroping doctor` derives value-free local setup references from configured
+routing metadata. An `ollama/` model reports the Ollama reference, while an
+`openai/` model with a configured loopback `api_base` reports a generic local
+OpenAI-compatible runtime reference. oMLX is one example of that runtime
+class; metadata alone cannot identify which runtime is active:
+
+- `docs/user/AI_PROVIDER_SETUP.md#local-qwen-through-ollama`
+- `docs/user/AI_PROVIDER_SETUP.md#local-openai-compatible-runtime`
+
+### Local OpenAI-Compatible Runtime
+
+Use this reference for any local OpenAI-compatible server, including oMLX.
+The doctor guidance intentionally names the runtime class rather than claiming
+that a configured endpoint is oMLX.
+
+The same reference appears in the human output and in the agent `message`
+field of `doctor --output json`. Doctor does not inspect a provider, probe the
+loopback endpoint, inspect a running process, install or pull a model, or print
+the `api_base` value, query, credentials, or environment values. A missing
+`api_key_env` remains a readiness warning and keeps doctor exit code `0`, as it
+does for cloud agents.
+
 ## Cloud Providers
 
 Cloud providers are explicit opt-in routes through LiteLLM model IDs, for
