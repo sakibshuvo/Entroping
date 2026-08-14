@@ -21,6 +21,7 @@ from entroping.core.demo_runner import (
     DemoRunnerResult,
     DemoWorkspace,
 )
+from entroping.core.traffic_store import TrafficStoreError
 
 
 def _fake_hurl_status(
@@ -1115,6 +1116,39 @@ def test_doctor_reports_missing_hurlfmt_for_architect_validation(
     assert "Hurl parser: not found" in result.output
     assert "hurlfmt" in result.output
     assert "Architect generated-Hurl validation" in " ".join(result.output.split())
+
+
+def test_doctor_error_messages_sanitize_control_text_and_secrets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".entroping").mkdir()
+    (tmp_path / ".entroping/state.db").write_text("", encoding="utf-8")
+    tmp_path.joinpath("qanstitution.yaml").write_text(
+        "project: entroping-project\nversion: \"4.1\"\ngates: []\n",
+        encoding="utf-8",
+    )
+
+    def fail_with_control_text(*_args: object, **_kwargs: object) -> list[tuple[object, object]]:
+        raise TrafficStoreError(
+            "traffic\x00state\rcontains Bearer sk-proj-live-secret\n"
+            "tab\tcarriage\rC1\u0080DEL\u007f"
+        )
+
+    monkeypatch.setattr(project_cli, "list_project_exchanges_readonly", fail_with_control_text)
+
+    result = CliRunner().invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "Traffic state: invalid" in result.output
+    assert "Traceback" not in result.output
+    assert "sk-proj-live-secret" not in result.output
+    assert "traffic�state" in result.output
+    assert "\x00" not in result.output
+    assert "\r" not in result.output
+    assert "\u007f" not in result.output
+    assert "\u0080" not in result.output
 
 
 def test_doctor_json_reports_versioned_machine_readable_health(

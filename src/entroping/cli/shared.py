@@ -19,7 +19,15 @@ def display_cli_path(path: Path) -> str:
 
 
 def safe_cli_text(value: object) -> str:
-    return redact_secret_like_values(str(value))
+    redacted = redact_secret_like_values(str(value))
+    return "".join(
+        character
+        if (ord_character := ord(character)) in {9, 10}
+        else "�"
+        if (ord_character < 32 or ord_character == 127 or 128 <= ord_character <= 159)
+        else character
+        for character in redacted
+    )
 
 
 def print_cli_error(exc: BaseException) -> None:

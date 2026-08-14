@@ -7,6 +7,9 @@ from cli_test_support import (
     pytest,
 )
 
+from entroping.cli.shared import safe_cli_text
+from entroping.models.secrets import redact_secret_like_values
+
 
 def test_architect_build_merge_strategy_requires_prompt_for_now() -> None:
     result = CliRunner().invoke(app, ["architect", "build", "--new", "--strategy", "merge"])
@@ -30,6 +33,41 @@ def test_configured_spec_reference_preserves_remote_and_absolute_paths(tmp_path:
 
     assert remote == "https://example.test/openapi.yaml"
     assert absolute == tmp_path / "openapi.yaml"
+
+
+def test_safe_cli_text_replaces_all_disallowed_control_characters() -> None:
+    forbidden_codes = [code for code in range(0x00, 0x20) if code not in (0x09, 0x0A)]
+    forbidden_codes.append(0x7F)
+    forbidden_codes.extend(range(0x80, 0xA0))
+    forbidden = "".join(chr(code) for code in forbidden_codes)
+    sanitized_forbidden = safe_cli_text(forbidden)
+    assert sanitized_forbidden == "�" * len(forbidden_codes)
+    assert len(sanitized_forbidden) == len(forbidden)
+    assert all(character == "�" for character in sanitized_forbidden)
+
+    value = (
+        "🙂 status=ok\n"
+        "Allowed text\tand line\n"
+        "Unicode: ~ and \u00A0 keep.\n"
+        "Bearer sk-proj-live-secret\n"
+        f"\nforbidden={forbidden}"
+    )
+    redacted_first = redact_secret_like_values(value)
+    sanitized = safe_cli_text(value)
+
+    assert redacted_first == value.replace(
+        "Bearer sk-proj-live-secret",
+        "Bearer [REDACTED]",
+    )
+    assert safe_cli_text(redacted_first) == sanitized
+    assert "Bearer [REDACTED]" in sanitized
+    assert "sk-proj-live-secret" not in sanitized
+    assert "\t" in sanitized
+    assert "\n" in sanitized
+    assert "~" in sanitized
+    assert "\u00A0" in sanitized
+    assert "🙂" in sanitized
+    assert sanitized.endswith("forbidden=" + ("�" * len(forbidden)))
 
 
 def test_write_generated_hurl_file_writes_openapi_generated_content(
@@ -342,6 +380,42 @@ def test_write_generated_hurl_file_overwrites_existing_target_url_header_target(
         "GET /new-health\n"
         "HTTP 200\n"
     )
+
+
+def test_architect_refactor_command_sanitizes_error_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    control_text = "refactor failure:\nBearer sk-proj-live-secret\t\x00\x1b[31m\u007F\u0080"
+
+    def fake_load_qanstitution(_path: object) -> object:
+        return object()
+
+    def fake_run_architect_refactor(*_args: object, **_kwargs: object) -> None:
+        raise ValueError(control_text)
+
+    monkeypatch.setattr(architect_cli, "load_qanstitution", fake_load_qanstitution)
+    monkeypatch.setattr(architect_cli, "run_architect_refactor", fake_run_architect_refactor)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "refactor",
+            "--target",
+            "tests/**/*.hurl",
+            "--prompt",
+            "refresh all",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "sk-proj-live-secret" not in result.output
+    assert "refactor failure:" in result.output
+    assert "Bearer [REDACTED]" in result.output
+    assert "\x00" not in result.output
+    assert "\x1b" not in result.output
+    assert "\u007f" not in result.output
+    assert "\u0080" not in result.output
+    assert "\r" not in result.output
 
 
 @pytest.mark.parametrize(
