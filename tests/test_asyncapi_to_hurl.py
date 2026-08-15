@@ -1,6 +1,7 @@
 import hashlib
 import shutil
 from pathlib import Path
+from typing import Literal, cast
 
 import pytest
 import yaml
@@ -14,6 +15,17 @@ from entroping.models.hurl import parse_hurl_exchanges, parse_hurl_metadata
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ASYNCAPI_SPEC = REPO_ROOT / "examples" / "asyncapi-events" / "contracts" / "orders.asyncapi.yaml"
+HTTP_WEBHOOK_ASYNCAPI = """\
+asyncapi: 2.6.0
+channels:
+  /orders:
+    bindings:
+      http: {}
+    publish:
+      bindings:
+        http:
+          method: POST
+"""
 
 
 def _deep_asyncapi_yaml(collection_count: int) -> str:
@@ -33,13 +45,17 @@ def _large_asyncapi_yaml(channel_count: int) -> str:
 
 def _aliased_asyncapi_yaml(alias_count: int) -> str:
     aliases = "\n".join(f"  alias_{index}: *operation" for index in range(alias_count))
-    return (
-        "asyncapi: 2.6.0\n"
-        "channels:\n"
-        "  operation: &operation\n"
-        "    publish: {}\n"
-        f"{aliases}\n"
-    )
+    return f"asyncapi: 2.6.0\nchannels:\n  operation: &operation\n    publish: {{}}\n{aliases}\n"
+
+
+def _nested_mapping_asyncapi_yaml(entry_count: int) -> str:
+    entries = "\n".join(f"  entry_{index}: {{value: item}}" for index in range(entry_count))
+    return f"asyncapi: 2.6.0\nchannels:\n  operation:\n    publish: {{}}\n{entries}\n"
+
+
+def _syntactic_limit_asyncapi_yaml(entry_count: int) -> str:
+    entries = "\n".join(f"  entry_{index}: {{}}" for index in range(entry_count))
+    return f"asyncapi: 2.6.0\nchannels:\n  operation:\n    publish: {{}}\n{entries}\n"
 
 
 def test_compile_asyncapi_webhook_to_hurl_preserves_baseline_bytes() -> None:
@@ -54,6 +70,371 @@ def test_compile_asyncapi_webhook_to_hurl_preserves_baseline_bytes() -> None:
     assert hashlib.sha256(generated.content.encode("utf-8")).hexdigest() == (
         "012b96d1950f8cb06d65babdaee91f096e73c03b63bdf4fd259bcdbe89f25db3"
     )
+
+
+def test_compile_asyncapi_webhook_to_hurl_compiles_selected_http_publish_operation() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        HTTP_WEBHOOK_ASYNCAPI,
+        target_url="https://webhooks.example.test/base?ignored=true",
+        channel="/orders",
+        operation="publish",
+    )
+
+    assert generated.relative_path == (
+        "tests/generated/asyncapi-webhooks-example-test-orders-smoke.hurl"
+    )
+    assert generated.content == (
+        "# entroping: tags=smoke,asyncapi,webhook\n"
+        "# entroping: source=asyncapi\n"
+        "# entroping: target_origin=https://webhooks.example.test\n"
+        "# entroping: channel=/orders\n"
+        "# entroping: operation=publish\n"
+        "# entroping: scaffold=http-webhook-operation\n"
+        "\n"
+        "POST https://webhooks.example.test/orders\n"
+        "Content-Type: application/json\n"
+        "{\n"
+        '  "entroping": "asyncapi-webhook-smoke"\n'
+        "}\n"
+        "HTTP 202\n"
+    )
+
+
+def test_compile_asyncapi_webhook_to_hurl_compiles_selected_http_subscribe_operation() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        HTTP_WEBHOOK_ASYNCAPI.replace("publish", "subscribe").replace("POST", "GET"),
+        target_url="https://webhooks.example.test/base?ignored=true#fragment",
+        channel="/orders",
+        operation="subscribe",
+    )
+
+    assert "GET https://webhooks.example.test/orders\n" in generated.content
+    assert "Content-Type:" not in generated.content
+    assert '"entroping":' not in generated.content
+    assert "/base" not in generated.content
+    assert "ignored=true" not in generated.content
+    assert "fragment" not in generated.content
+
+
+def test_compile_asyncapi_webhook_to_hurl_never_materializes_selected_payload_metadata() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        HTTP_WEBHOOK_ASYNCAPI
+        + "      message:\n"
+        + "        name: OrderPayload\n"
+        + "        payload:\n"
+        + "          type: object\n"
+        + "          example: payload-marker\n",
+        target_url="https://webhooks.example.test",
+        channel="/orders",
+        operation="publish",
+    )
+
+    assert '"entroping": "asyncapi-webhook-smoke"' in generated.content
+    assert "OrderPayload" not in generated.content
+    assert "payload-marker" not in generated.content
+
+
+@pytest.mark.parametrize(
+    ("channel", "operation"),
+    [
+        (None, "publish"),
+        ("/orders", None),
+        ("", "publish"),
+        ("orders", "publish"),
+        ("/orders//items", "publish"),
+        ("/orders/../items", "publish"),
+        ("/orders%2Fitems", "publish"),
+        ("/orders?query=yes", "publish"),
+        ("/orders#fragment", "publish"),
+        ("/orders/{id}", "publish"),
+        ("/sk-proj-secret123", "publish"),
+        ("/\ud800", "publish"),
+        ("/orders", "receive"),
+    ],
+)
+def test_compile_asyncapi_webhook_to_hurl_rejects_invalid_selector_pairs(
+    channel: str | None,
+    operation: str | None,
+) -> None:
+    with pytest.raises(AsyncapiHurlCompilationError) as exc_info:
+        _ = compile_asyncapi_webhook_to_hurl(
+            HTTP_WEBHOOK_ASYNCAPI,
+            target_url="https://webhooks.example.test",
+            channel=channel,
+            operation=cast(Literal["publish", "subscribe"] | None, operation),
+        )
+
+    assert str(exc_info.value) in {
+        "AsyncAPI webhook selection is invalid",
+        "AsyncAPI webhook channel is invalid",
+    }
+    assert "sk-proj-secret123" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("asyncapi_yaml", "expected_error"),
+    [
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("asyncapi: 2.6.0", "asyncapi: 3.0.0"),
+            "AsyncAPI webhook selection requires an AsyncAPI 2.x document",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("asyncapi: 2.6.0", "asyncapi: 3.0.0\nasyncapi: 2.6.0"),
+            "AsyncAPI webhook selection requires an AsyncAPI 2.x document",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("http: {}", "ws: {}"),
+            "AsyncAPI webhook channel binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("http: {}", "http:\n        type: request"),
+            "AsyncAPI webhook channel binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("method: POST", "method: CONNECT"),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "method: POST", "method: POST\n          bindingVersion: 0.2.0"
+            ),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("method: POST", "method: POST\n          query: {}"),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace("method: POST", "message: {}"),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+    ],
+)
+def test_compile_asyncapi_webhook_to_hurl_rejects_unsupported_selected_bindings(
+    asyncapi_yaml: str,
+    expected_error: str,
+) -> None:
+    with pytest.raises(AsyncapiHurlCompilationError, match=f"^{expected_error}$") as exc_info:
+        _ = compile_asyncapi_webhook_to_hurl(
+            asyncapi_yaml,
+            target_url="https://webhooks.example.test",
+            channel="/orders",
+            operation="publish",
+        )
+
+    assert "request" not in str(exc_info.value)
+    assert "CONNECT" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "asyncapi_yaml",
+    [
+        HTTP_WEBHOOK_ASYNCAPI.replace(
+            "  /orders:\n",
+            "  /orders:\n"
+            "    bindings:\n"
+            "      http: {}\n"
+            "    publish:\n"
+            "      bindings:\n"
+            "        http:\n"
+            "          method: POST\n"
+            "  /orders:\n",
+        ),
+        HTTP_WEBHOOK_ASYNCAPI.replace(
+            "          method: POST\n",
+            "          method: POST\n"
+            "    publish:\n"
+            "      bindings:\n"
+            "        http:\n"
+            "          method: POST\n",
+        ),
+    ],
+)
+def test_compile_asyncapi_webhook_to_hurl_rejects_duplicate_selected_channel_or_operation(
+    asyncapi_yaml: str,
+) -> None:
+    with pytest.raises(
+        AsyncapiHurlCompilationError,
+        match="^AsyncAPI selected channel operation is invalid$",
+    ):
+        _ = compile_asyncapi_webhook_to_hurl(
+            asyncapi_yaml,
+            target_url="https://webhooks.example.test",
+            channel="/orders",
+            operation="publish",
+        )
+
+
+@pytest.mark.parametrize("resource_error", [MemoryError, RecursionError, yaml.YAMLError])
+def test_selected_compiler_normalizes_yaml_compose_errors_without_artifact(
+    resource_error: type[Exception],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_compose(*_args: object, **_kwargs: object) -> object:
+        raise resource_error("compose-input-marker")
+
+    monkeypatch.setattr(yaml, "compose", raise_compose)
+    expected = (
+        "Invalid AsyncAPI YAML"
+        if resource_error is yaml.YAMLError
+        else "AsyncAPI YAML exceeds resource limits"
+    )
+
+    with pytest.raises(AsyncapiHurlCompilationError, match=f"^{expected}$") as exc_info:
+        _ = compile_asyncapi_webhook_to_hurl(
+            HTTP_WEBHOOK_ASYNCAPI,
+            target_url="https://webhooks.example.test",
+            channel="/orders",
+            operation="publish",
+        )
+
+    assert "compose-input-marker" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("asyncapi_yaml", "expected_error"),
+    [
+        (
+            "asyncapi: 2.6.0\n"
+            "channels:\n"
+            "  /other: {publish: {}}\n"
+            "channels:\n"
+            "  /orders: {publish: {}}\n",
+            "AsyncAPI selected channel operation is invalid",
+        ),
+        (
+            "asyncapi: 2.6.0\nchannels:\n  /orders: []\n",
+            "AsyncAPI selected channel operation is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "        http:\n          method: POST",
+                "        http: []",
+            ),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "      bindings:\n        http:\n          method: POST",
+                "      bindings: []",
+            ),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "          method: POST",
+                "          method: {}",
+            ),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "          method: POST\n",
+                "          method: POST\n          method: GET\n",
+            ),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "          method: POST\n",
+                "          method: POST\n"
+                "          bindingVersion: 0.3.0\n"
+                "          bindingVersion: 0.3.0\n",
+            ),
+            "AsyncAPI webhook operation binding is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "    bindings:\n      http: {}\n",
+                "    bindings:\n      http: {}\n    bindings:\n      http: {}\n",
+            ),
+            "AsyncAPI selected channel operation is invalid",
+        ),
+        (
+            HTTP_WEBHOOK_ASYNCAPI.replace(
+                "      http: {}\n",
+                "      http: {}\n      http: {}\n",
+            ),
+            "AsyncAPI selected channel operation is invalid",
+        ),
+    ],
+)
+def test_selected_compiler_rejects_public_yaml_binding_shapes_without_artifact(
+    asyncapi_yaml: str,
+    expected_error: str,
+) -> None:
+    with pytest.raises(AsyncapiHurlCompilationError, match=f"^{expected_error}$"):
+        _ = compile_asyncapi_webhook_to_hurl(
+            asyncapi_yaml,
+            target_url="https://webhooks.example.test",
+            channel="/orders",
+            operation="publish",
+        )
+
+
+def test_compile_asyncapi_webhook_to_hurl_rejects_missing_selected_operation() -> None:
+    with pytest.raises(
+        AsyncapiHurlCompilationError,
+        match="^AsyncAPI selected channel operation is invalid$",
+    ):
+        _ = compile_asyncapi_webhook_to_hurl(
+            HTTP_WEBHOOK_ASYNCAPI,
+            target_url="https://webhooks.example.test",
+            channel="/orders",
+            operation="subscribe",
+        )
+
+
+def test_compile_asyncapi_webhook_to_hurl_accepts_exact_http_binding_version() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        HTTP_WEBHOOK_ASYNCAPI.replace(
+            "method: POST", "method: PUT\n          bindingVersion: 0.3.0"
+        ),
+        target_url="https://webhooks.example.test",
+        channel="/orders",
+        operation="publish",
+    )
+
+    assert "PUT https://webhooks.example.test/orders\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "",
+        "https://webhooks.example.test/base?token=selection-marker",
+        "https://webhooks.example.test/sk-proj-secret123",
+        "https://webhooks.example.test/{{selection-marker}}",
+        "ftp://webhooks.example.test/orders",
+        "https://user:pass@webhooks.example.test/orders",
+        "https://webhooks.example.test:abc/orders",
+        "https:///orders",
+        "https://webhooks.example.test/orders?token=",
+        "https://webhooks.example.test/orders?token=selection-marker",
+        'https://evil.com"x',
+        "https://example.com|evil",
+        "https://example.com<evil",
+        "https://example.com>evil",
+        r"https://example.com\evil",
+    ],
+)
+def test_compile_asyncapi_webhook_to_hurl_rejects_unsafe_selected_target_without_echoing_input(
+    target_url: str,
+) -> None:
+    with pytest.raises(
+        AsyncapiHurlCompilationError,
+        match="^AsyncAPI webhook target URL is invalid$",
+    ) as exc_info:
+        _ = compile_asyncapi_webhook_to_hurl(
+            HTTP_WEBHOOK_ASYNCAPI,
+            target_url=target_url,
+            channel="/orders",
+            operation="publish",
+        )
+
+    assert "selection-marker" not in str(exc_info.value)
+    assert "sk-proj-secret123" not in str(exc_info.value)
+    assert "evil" not in str(exc_info.value)
 
 
 def test_compile_asyncapi_webhook_accepts_scalar_yaml_anchor() -> None:
@@ -116,6 +497,15 @@ def test_compile_asyncapi_webhook_to_hurl_accepts_local_fixture_target() -> None
 
     assert "POST http://127.0.0.1:18084/webhooks/orders\n" in generated.content
     assert "# entroping: target_origin=http://127.0.0.1:18084\n" in generated.content
+
+
+def test_compile_asyncapi_webhook_to_hurl_preserves_non_sensitive_target_query() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        ASYNCAPI_SPEC.read_text(encoding="utf-8"),
+        target_url="https://webhooks.example.test/order-events?ready=1",
+    )
+
+    assert "POST https://webhooks.example.test/order-events?ready=1\n" in generated.content
 
 
 def test_compile_asyncapi_webhook_to_hurl_ignores_sparse_channel_entries() -> None:
@@ -197,6 +587,46 @@ def test_compile_asyncapi_webhook_normalizes_yaml_resource_errors_without_conten
     assert "resource-input-marker" not in str(exc_info.value)
 
 
+def test_compile_asyncapi_webhook_accepts_nested_mapping_below_syntactic_limit() -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        _nested_mapping_asyncapi_yaml(2_000),
+        target_url="https://webhooks.example.test",
+    )
+
+    assert "operation_count=1" in generated.content
+
+
+@pytest.mark.parametrize(
+    ("asyncapi_yaml", "should_compile"),
+    [
+        (_syntactic_limit_asyncapi_yaml(4_995), True),
+        (_syntactic_limit_asyncapi_yaml(4_996), False),
+        (_aliased_asyncapi_yaml(2_497), True),
+        (_aliased_asyncapi_yaml(2_498), False),
+    ],
+)
+def test_compile_asyncapi_webhook_enforces_adjacent_yaml_resource_limits(
+    asyncapi_yaml: str,
+    should_compile: bool,
+) -> None:
+    if should_compile:
+        generated = compile_asyncapi_webhook_to_hurl(
+            asyncapi_yaml,
+            target_url="https://webhooks.example.test",
+        )
+        assert "operation_count=" in generated.content
+    else:
+        with pytest.raises(
+            AsyncapiHurlCompilationError,
+            match="^AsyncAPI YAML exceeds resource limits$",
+        ) as exc_info:
+            _ = compile_asyncapi_webhook_to_hurl(
+                asyncapi_yaml,
+                target_url="https://webhooks.example.test",
+            )
+        assert "resource-input-marker" not in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     ("asyncapi_yaml", "message"),
     [
@@ -257,9 +687,22 @@ def test_compile_asyncapi_webhook_to_hurl_validates_with_hurlfmt_when_available(
     if shutil.which("hurlfmt") is None:
         pytest.skip("hurlfmt is not installed")
 
-    generated = compile_asyncapi_webhook_to_hurl(
+    omitted_generated = compile_asyncapi_webhook_to_hurl(
         ASYNCAPI_SPEC.read_text(encoding="utf-8"),
         target_url="https://webhooks.example.test/order-events",
     )
+    selected_generated = compile_asyncapi_webhook_to_hurl(
+        HTTP_WEBHOOK_ASYNCAPI,
+        target_url="https://webhooks.example.test",
+        channel="/orders",
+        operation="publish",
+    )
 
-    validate_hurl_content(generated.content, display_path=generated.relative_path)
+    validate_hurl_content(
+        omitted_generated.content,
+        display_path=omitted_generated.relative_path,
+    )
+    validate_hurl_content(
+        selected_generated.content,
+        display_path=selected_generated.relative_path,
+    )
