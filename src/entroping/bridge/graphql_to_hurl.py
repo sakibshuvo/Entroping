@@ -6,7 +6,7 @@ from urllib.parse import parse_qsl, urlsplit, urlunsplit
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
 _SAFE_STEM_RE: Final = re.compile(r"[^A-Za-z0-9_-]+")
-_GRAPHQL_BLOCK_STRING_RE: Final = re.compile(r'"""(?:.|\n)*?"""')
+_GRAPHQL_IGNORED_LEXEME_RE: Final = re.compile(r'"""|"(?:\\.|[^"\\])*"|#[^\n]*')
 _GRAPHQL_LINE_COMMENT_RE: Final = re.compile(r"(?m)#.*$")
 _GRAPHQL_NAME_RE: Final = re.compile(r"[_A-Za-z][_0-9A-Za-z]{0,127}")
 _GRAPHQL_ROOT_OPERATION_BLOCK_RE: Final = re.compile(
@@ -17,9 +17,15 @@ _GRAPHQL_ROOT_FIELD_RE: Final = re.compile(
     r"(?m)^[ \t]*[_A-Za-z][_0-9A-Za-z]*\s*(?:\([^{}]*\)\s*)?:",
 )
 _GRAPHQL_TOKEN_RE: Final = re.compile(
-    r'"""(?:.|\n)*?"""|"(?:\\.|[^"\\])*"|#[^\n]*|[_A-Za-z][_0-9A-Za-z]*|[{}()[\]!:$=@|&]',
+    r'"(?:\\.|[^"\\])*"|#[^\n]*|[_A-Za-z][_0-9A-Za-z]*|[{}()[\]!:$=@|&]',
 )
 _GRAPHQL_SMOKE_QUERY: Final = "query EntropingSmoke { __typename }"
+_DISALLOWED_CONTROL_CHARACTERS: Final = "".join(
+    map(chr, (*range(0, 9), *range(11, 13), *range(14, 32)))
+)
+_ROOT_OPERATION_TOKENS: Final = frozenset(
+    {("type", "Query"), ("type", "Mutation"), ("type", "Subscription")}
+)
 
 
 class GraphqlHurlCompilationError(ValueError):
@@ -81,68 +87,82 @@ def compile_graphql_sdl_to_hurl(
 def _selected_query(schema_sdl: str, query_field: str | None) -> str | None:
     if query_field is None:
         return None
-    if _GRAPHQL_NAME_RE.fullmatch(query_field) is None:
-        raise GraphqlHurlCompilationError("GraphQL query_field must be a GraphQL name")
+    _raise_for_invalid(
+        (
+            (
+                _GRAPHQL_NAME_RE.fullmatch(query_field) is None,
+                "GraphQL query_field must be a GraphQL name",
+            ),
+        )
+    )
     blocks = [
         (body, is_extension)
         for root, body, is_extension in _operation_root_blocks(schema_sdl)
         if root == "Query"
     ]
-    if sum(not is_extension for _, is_extension in blocks) != 1:
-        raise GraphqlHurlCompilationError(
-            "GraphQL SDL must define exactly one canonical Query root",
+    _raise_for_invalid(
+        (
+            (
+                sum(not is_extension for _, is_extension in blocks) != 1,
+                "GraphQL SDL must define exactly one canonical Query root",
+            ),
         )
+    )
     matches = [
         (has_arguments, has_directive)
         for body, _ in blocks
         for name, has_arguments, has_directive in _query_fields(body)
         if name == query_field
     ]
-    if len(matches) != 1 or matches[0] != (False, False):
-        raise GraphqlHurlCompilationError(
-            "GraphQL query_field must match one zero-argument directive-free Query field",
+    _raise_for_invalid(
+        (
+            (
+                matches != [(False, False)],
+                "GraphQL query_field must match one zero-argument directive-free Query field",
+            ),
         )
+    )
     return query_field
 
 
 def _operation_root_blocks(
     schema_sdl: str,
 ) -> list[tuple[str, list[tuple[str, str]], bool]]:
-    tokens = _graphql_tokens(schema_sdl)
+    tokens = [*_graphql_tokens(schema_sdl), ("punctuation", "")]
     blocks: list[tuple[str, list[tuple[str, str]], bool]] = []
     index = 0
-    while index < len(tokens):
+    limit = len(tokens) - 1
+    while index < limit:
         value = tokens[index][1]
-        if (
-            value == "type"
-            and index + 1 < len(tokens)
-            and tokens[index + 1][1] in {"Query", "Mutation", "Subscription"}
-        ):
+        if (value, tokens[index + 1][1]) in _ROOT_OPERATION_TOKENS:
             opening = index + 2
-            while opening < len(tokens) and tokens[opening][1] != "{":
+            while opening < limit:
+                if tokens[opening][1] == "{":
+                    break
                 if tokens[opening][1] == "(":
                     closing = _matching_token(tokens, opening, "(", ")")
-                    opening = len(tokens) if closing is None else closing + 1
+                    opening = limit if closing is None else closing + 1
                 else:
                     opening += 1
-            opening = min(opening, len(tokens) - 1)
+            opening = min(opening, limit - 1)
             closing = _matching_token(tokens, opening, "{", "}")
             if closing is not None:
-                is_extension = index > 0 and tokens[index - 1][1] == "extend"
+                is_extension = tokens[index - 1 : index] == [("name", "extend")]
                 blocks.append((tokens[index + 1][1], tokens[opening + 1 : closing], is_extension))
                 index = closing
         elif value == "{":
             closing = _matching_token(tokens, index, "{", "}")
-            if closing is not None:
-                index = closing
+            if closing is None:
+                return []
+            index = closing
         index += 1
     return blocks
 
 
 def _graphql_tokens(schema_sdl: str) -> list[tuple[str, str]]:
     return [
-        ("name" if value[0] == "_" or value[0].isalpha() else "punctuation", value)
-        for match in _GRAPHQL_TOKEN_RE.finditer(schema_sdl)
+        ("name" if value[0].isidentifier() else "punctuation", value)
+        for match in _GRAPHQL_TOKEN_RE.finditer(_strip_graphql_block_strings(schema_sdl))
         if (value := match.group())[0] not in '#"'
     ]
 
@@ -154,8 +174,9 @@ def _matching_token(
     close_value: str,
 ) -> int | None:
     depth = 0
-    for index, (_, value) in enumerate(tokens[opening:], opening):
-        depth += 1 if value == open_value else -1 if value == close_value else 0
+    for index in range(opening, len(tokens)):
+        value = tokens[index][1]
+        depth += (value == open_value) - (value == close_value)
         if depth == 0:
             return index
     return None
@@ -164,46 +185,54 @@ def _matching_token(
 def _query_fields(body: list[tuple[str, str]]) -> list[tuple[str, bool, bool]]:
     fields: list[tuple[str, bool, bool]] = []
     index = 0
-    depth = 0
-    while index + 1 < len(body):
-        value = body[index][1]
-        if value in "([":
-            depth += 1
-        elif value in ")]":
-            depth = max(0, depth - 1)
-        elif depth == 0 and body[index][0] == "name" and body[index + 1][1] in {":", "("}:
-            has_arguments = body[index + 1][1] == "("
-            colon = index + 1
-            if has_arguments:
-                closing = _matching_token(body, colon, "(", ")")
-                if closing is None:
-                    index += 1
-                    continue
-                colon = closing + 1
-            if colon + 1 < len(body) and body[colon][1] == ":":
-                if body[colon + 1][1] == "[":
-                    closing = _matching_token(body, colon + 1, "[", "]")
-                    type_end = len(body) if closing is None else closing + 1
-                else:
-                    type_end = colon + 2
-                type_end += type_end < len(body) and body[type_end][1] == "!"
-                fields.append(
-                    (value, has_arguments, type_end < len(body) and body[type_end][1] == "@")
-                )
-        index += 1
+    tokens = [*body, ("punctuation", ""), ("punctuation", "@")]
+    while index < len(body):
+        kind, value = tokens[index]
+        separator = tokens[index + 1][1]
+        if (kind, separator) not in {("name", ":"), ("name", "(")}:
+            index += 1
+            continue
+        has_arguments = separator == "("
+        colon = _matching_token(tokens, index + 1, "(", ")") if has_arguments else index
+        if colon is None:
+            return []
+        colon += 1
+        if tokens[colon][1] != ":":
+            index = colon
+            continue
+        return_type_is_invalid = {
+            "name": False,
+            "punctuation": tokens[colon + 1][1] != "[",
+        }[tokens[colon + 1][0]]
+        type_end = (
+            _matching_token(tokens, colon + 1, "[", "]")
+            if tokens[colon + 1][1] == "["
+            else colon + 1
+        )
+        if type_end is None:
+            return []
+        type_end += 1
+        type_end += tokens[type_end][1] == "!"
+        has_directive = {"@": True}.get(tokens[type_end][1], return_type_is_invalid)
+        fields.append((value, has_arguments, has_directive))
+        index = type_end
     return fields
 
 
 def _validate_schema_sdl(schema_sdl: str) -> None:
-    if schema_sdl.strip() == "":
-        msg = "GraphQL SDL is required"
-        raise GraphqlHurlCompilationError(msg)
-    if _contains_disallowed_control(schema_sdl):
-        msg = "GraphQL SDL contains disallowed control characters"
-        raise GraphqlHurlCompilationError(msg)
-    if contains_secret_like_value(schema_sdl):
-        msg = "GraphQL SDL contains secret-like material"
-        raise GraphqlHurlCompilationError(msg)
+    _raise_for_invalid(
+        (
+            (schema_sdl.strip() == "", "GraphQL SDL is required"),
+            (
+                _contains_disallowed_control(schema_sdl),
+                "GraphQL SDL contains disallowed control characters",
+            ),
+        )
+    )
+    _strip_graphql_block_strings(schema_sdl)
+    _raise_for_invalid(
+        ((contains_secret_like_value(schema_sdl), "GraphQL SDL contains secret-like material"),)
+    )
 
 
 def _selected_operation_categories(schema_sdl: str) -> tuple[str, ...]:
@@ -214,49 +243,71 @@ def _selected_operation_categories(schema_sdl: str) -> tuple[str, ...]:
 
 
 def _operation_categories(schema_sdl: str) -> tuple[str, ...]:
-    stripped = _strip_graphql_ignored_text(schema_sdl)
-    categories: list[str] = []
-    for match in _GRAPHQL_ROOT_OPERATION_BLOCK_RE.finditer(stripped):
-        body = match.group("body")
-        if _GRAPHQL_ROOT_FIELD_RE.search(body) is None:
-            continue
-        root = match.group("root").lower()
-        if root not in categories:
-            categories.append(root)
-    categories.sort()
-    return tuple(categories)
+    return tuple(
+        sorted(
+            {
+                match.group("root").lower()
+                for match in _GRAPHQL_ROOT_OPERATION_BLOCK_RE.finditer(
+                    _strip_graphql_ignored_text(schema_sdl)
+                )
+                if _GRAPHQL_ROOT_FIELD_RE.search(match.group("body")) is not None
+            }
+        )
+    )
 
 
 def _strip_graphql_ignored_text(schema_sdl: str) -> str:
-    without_block_strings = _GRAPHQL_BLOCK_STRING_RE.sub("", schema_sdl)
-    return _GRAPHQL_LINE_COMMENT_RE.sub("", without_block_strings)
+    return _GRAPHQL_LINE_COMMENT_RE.sub("", _strip_graphql_block_strings(schema_sdl))
+
+
+def _strip_graphql_block_strings(schema_sdl: str) -> str:
+    parts: list[str] = []
+    start = index = 0
+    while (marker := _GRAPHQL_IGNORED_LEXEME_RE.search(schema_sdl, index)) is not None:
+        if marker.group() != '"""':
+            index = marker.end()
+            continue
+        parts.append(schema_sdl[start : marker.start()])
+        index = marker.end()
+        while (closing := schema_sdl.find('"""', index)) != -1:
+            if schema_sdl[closing - 1] != "\\":
+                break
+            index = closing + 3
+        if closing == -1:
+            raise GraphqlHurlCompilationError("GraphQL SDL contains an unterminated block string")
+        start = index = closing + 3
+    parts.append(schema_sdl[start:])
+    return "".join(parts)
 
 
 def _safe_target_url(value: str) -> tuple[str, str]:
-    if not value:
-        msg = "GraphQL target URL is required"
-        raise GraphqlHurlCompilationError(msg)
-    if _contains_disallowed_control(value):
-        msg = "GraphQL target URL contains control characters"
-        raise GraphqlHurlCompilationError(msg)
-    if any(character.isspace() for character in value):
-        msg = "GraphQL target URL must not contain whitespace"
-        raise GraphqlHurlCompilationError(msg)
-    if _has_hurl_template_delimiter(value):
-        msg = "GraphQL target URL contains Hurl template delimiters"
-        raise GraphqlHurlCompilationError(msg)
+    _raise_for_invalid(
+        (
+            (not value, "GraphQL target URL is required"),
+            (_contains_disallowed_control(value), "GraphQL target URL contains control characters"),
+            (
+                any(character.isspace() for character in value),
+                "GraphQL target URL must not contain whitespace",
+            ),
+            (
+                _has_hurl_template_delimiter(value),
+                "GraphQL target URL contains Hurl template delimiters",
+            ),
+        )
+    )
 
     parts = urlsplit(value)
     scheme = parts.scheme.lower()
-    if scheme not in {"http", "https"}:
-        msg = "GraphQL target URL scheme must be http or https"
-        raise GraphqlHurlCompilationError(msg)
-    if parts.username is not None or parts.password is not None:
-        msg = "GraphQL target URL must not contain credentials"
-        raise GraphqlHurlCompilationError(msg)
-    if parts.fragment:
-        msg = "GraphQL target URL must not contain a fragment"
-        raise GraphqlHurlCompilationError(msg)
+    _raise_for_invalid(
+        (
+            (scheme not in {"http", "https"}, "GraphQL target URL scheme must be http or https"),
+            (
+                parts.username is not None or parts.password is not None,
+                "GraphQL target URL must not contain credentials",
+            ),
+            (bool(parts.fragment), "GraphQL target URL must not contain a fragment"),
+        )
+    )
 
     try:
         port = parts.port
@@ -265,9 +316,8 @@ def _safe_target_url(value: str) -> tuple[str, str]:
         raise GraphqlHurlCompilationError(msg) from exc
 
     hostname = parts.hostname
-    if hostname is None:
-        msg = "GraphQL target URL must include a host"
-        raise GraphqlHurlCompilationError(msg)
+    _raise_for_invalid(((hostname is None, "GraphQL target URL must include a host"),))
+    assert hostname is not None
 
     _reject_sensitive_query(parts.query)
     normalized_host = hostname.lower()
@@ -276,10 +326,21 @@ def _safe_target_url(value: str) -> tuple[str, str]:
     normalized_url = urlunsplit(
         (scheme, normalized_netloc, normalized_path, parts.query, ""),
     )
-    if contains_secret_like_value(normalized_url):
-        msg = "GraphQL target URL contains secret-like material"
-        raise GraphqlHurlCompilationError(msg)
+    _raise_for_invalid(
+        (
+            (
+                contains_secret_like_value(normalized_url),
+                "GraphQL target URL contains secret-like material",
+            ),
+        )
+    )
     return normalized_url, urlunsplit((scheme, normalized_netloc, "", "", ""))
+
+
+def _raise_for_invalid(checks: tuple[tuple[bool, str], ...]) -> None:
+    for invalid, message in checks:
+        if invalid:
+            raise GraphqlHurlCompilationError(message)
 
 
 def _reject_sensitive_query(query: str) -> None:
@@ -307,7 +368,7 @@ def _target_file_stem(target_url: str) -> str:
 
 
 def _contains_disallowed_control(value: str) -> bool:
-    return any(ord(character) < 32 and character not in "\n\r\t" for character in value)
+    return any(character in _DISALLOWED_CONTROL_CHARACTERS for character in value)
 
 
 def _has_hurl_template_delimiter(value: str) -> bool:

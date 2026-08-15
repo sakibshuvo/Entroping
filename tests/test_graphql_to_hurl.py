@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+from time import perf_counter
 
 import pytest
 
@@ -133,6 +134,156 @@ def test_compile_graphql_sdl_to_hurl_selects_field_after_nested_argument_default
     assert '"query": "query EntropingSmoke { health }"' in generated.content
 
 
+@pytest.mark.parametrize(
+    "description",
+    [
+        r'''"""description with escaped triple quote: \""" and a fake field
+        ghost: String
+        """''',
+        r'''"""description with a backslash \\ before \""" and a fake field
+        ghost: String
+        """''',
+        r'''"""description with adjacent backslashes \\""" and a fake field
+        ghost: String
+        """''',
+        '''"""description with a fake field
+        ghost: String
+        """''',
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_ignores_block_string_description_fields(
+    description: str,
+) -> None:
+    schema_sdl = f"type Query {{\n{description}\nhealth: String\n}}"
+    baseline = compile_graphql_sdl_to_hurl(
+        "type Query { health: String }",
+        target_url="https://api.example.test/graphql",
+    )
+
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field="ghost",
+        )
+    generated = compile_graphql_sdl_to_hurl(
+        schema_sdl,
+        target_url="https://api.example.test/graphql",
+        query_field="health",
+    )
+    omitted = compile_graphql_sdl_to_hurl(
+        schema_sdl,
+        target_url="https://api.example.test/graphql",
+    )
+
+    assert "ghost" not in str(error.value)
+    assert "Traceback" not in str(error.value)
+    assert '"query": "query EntropingSmoke { ghost }"' not in generated.content
+    assert '"query": "query EntropingSmoke { health }"' in generated.content
+    assert omitted == baseline
+
+
+@pytest.mark.parametrize(
+    ("description", "query_field"),
+    [
+        ('"""description with a fake field\nghost: String', "ghost"),
+        ('"""description with a fake field\nghost: String', "health"),
+        (r'"""description with escaped triple quote: \"""\nghost: String', "ghost"),
+        (r'"""description with escaped triple quote: \"""\nghost: String', "health"),
+        (
+            r'"""description with a backslash \\ before \"""\nghost: String',
+            "ghost",
+        ),
+        (
+            r'"""description with a backslash \\ before \"""\nghost: String',
+            "health",
+        ),
+        (r'"""description with adjacent backslashes \\"""\nghost: String', "ghost"),
+        (r'"""description with adjacent backslashes \\"""\nghost: String', "health"),
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_rejects_unterminated_block_string_content_free(
+    description: str,
+    query_field: str,
+) -> None:
+    schema_sdl = f"type Query {{\n{description}\nhealth: String\n}}"
+
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field=query_field,
+        )
+
+    assert "ghost" not in str(error.value)
+    assert "Traceback" not in str(error.value)
+
+
+def test_compile_graphql_sdl_to_hurl_bounds_escaped_block_string_scanning() -> None:
+    schema_sdl = 'type Query {\n"""' + (r'\"""' * 20_000) + "\nghost: String\nhealth: String\n}"
+    started_at = perf_counter()
+
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field="ghost",
+        )
+
+    assert "ghost" not in str(error.value)
+    assert perf_counter() - started_at < 2.0
+
+
+def test_compile_graphql_sdl_to_hurl_scales_for_argument_list_fields() -> None:
+    small_schema = (
+        "type Query { "
+        + " ".join(f"field{number}(values: [String]): String" for number in range(2_000))
+        + " health: String }"
+    )
+    large_schema = (
+        "type Query { "
+        + " ".join(f"field{number}(values: [String]): String" for number in range(8_000))
+        + " health: String }"
+    )
+
+    small_started_at = perf_counter()
+    small_generated = compile_graphql_sdl_to_hurl(
+        small_schema,
+        target_url="https://api.example.test/graphql",
+        query_field="health",
+    )
+    small_elapsed = perf_counter() - small_started_at
+    large_started_at = perf_counter()
+    large_generated = compile_graphql_sdl_to_hurl(
+        large_schema,
+        target_url="https://api.example.test/graphql",
+        query_field="health",
+    )
+    large_elapsed = perf_counter() - large_started_at
+
+    assert '"query": "query EntropingSmoke { health }"' in small_generated.content
+    assert '"query": "query EntropingSmoke { health }"' in large_generated.content
+    assert large_elapsed < (small_elapsed * 8) + 0.1
+
+
+def test_compile_graphql_sdl_to_hurl_ignores_block_markers_in_comments_and_strings() -> None:
+    schema_sdl = '''
+    directive @root(label: String) on OBJECT
+    type Query @root(label: "quoted") {
+      # """ not a block string
+      health: String
+    }
+    '''
+
+    generated = compile_graphql_sdl_to_hurl(
+        schema_sdl,
+        target_url="https://api.example.test/graphql",
+        query_field="health",
+    )
+
+    assert '"query": "query EntropingSmoke { health }"' in generated.content
+
+
 def test_compile_graphql_sdl_to_hurl_rejects_malformed_type_directive_content_free() -> None:
     schema_sdl = "type Query @root(arg: { ghost: VALUE } { health: String }"
 
@@ -144,6 +295,88 @@ def test_compile_graphql_sdl_to_hurl_rejects_malformed_type_directive_content_fr
         )
 
     assert "ghost" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "schema_sdl",
+    [
+        "type Query { viewer(argument: String }",
+        "type Query { viewer(argument: String) }",
+        "type Query { viewer: [String }",
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_rejects_unclosed_selected_field_syntax(
+    schema_sdl: str,
+) -> None:
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field="viewer",
+        )
+
+    assert "viewer" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "schema_sdl",
+    [
+        "type Query { health: }",
+        "type Query { health(): }",
+        "type Query { health: ! }",
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_rejects_empty_selected_return_type_content_free(
+    schema_sdl: str,
+) -> None:
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field="health",
+        )
+
+    assert "health" not in str(error.value)
+    assert "Traceback" not in str(error.value)
+
+
+def test_compile_graphql_sdl_to_hurl_rejects_unclosed_preceding_selected_syntax() -> None:
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            "input Broken { type Query { viewer: String }",
+            target_url="https://api.example.test/graphql",
+            query_field="viewer",
+        )
+
+    assert "Broken" not in str(error.value)
+
+
+def test_compile_graphql_sdl_to_hurl_selects_list_return_field() -> None:
+    generated = compile_graphql_sdl_to_hurl(
+        "type Query { viewer: [String]! }",
+        target_url="https://api.example.test/graphql",
+        query_field="viewer",
+    )
+
+    assert '"query": "query EntropingSmoke { viewer }"' in generated.content
+
+
+def test_compile_graphql_sdl_to_hurl_omitted_selector_deduplicates_legacy_categories() -> None:
+    generated = compile_graphql_sdl_to_hurl(
+        "type Query { viewer: String } type Query { health: String }",
+        target_url="https://api.example.test/graphql",
+    )
+
+    assert "# entroping: operation_categories=query\n" in generated.content
+
+
+def test_compile_graphql_sdl_to_hurl_preserves_safe_target_query() -> None:
+    generated = compile_graphql_sdl_to_hurl(
+        "type Query { viewer: String }",
+        target_url="https://api.example.test/graphql?ready=true",
+    )
+
+    assert "POST https://api.example.test/graphql?ready=true\n" in generated.content
 
 
 def test_compile_graphql_sdl_to_hurl_selected_output_validates_with_hurlfmt_when_available() -> (
