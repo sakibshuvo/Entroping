@@ -2,6 +2,10 @@
 
 ## 2026-08-14
 
+- Defined ADR-0034's internal-only HTTP selector boundary for the GraphQL,
+  SOAP, AsyncAPI, and proto bridge scaffolds. Omitted selectors preserve
+  current output, and no public CLI, network, execution, or write authority is
+  added; issues #1664-#1667 own the bounded compiler slices.
 - Fixed concurrent AI-job claims so a queued name that disappears after the
   routing-audit snapshot is treated as another worker's claim, while an unsafe
   entry that remains present still fails closed. The queue adds no retry,
