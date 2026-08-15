@@ -564,16 +564,16 @@ current top-level inventory is:
 | `effective_policy_diff.py` | Effective-policy evidence diffs | Policy mutation, compatibility decisions |
 | `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
 | `gate_injection_explain.py` | Gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
-| `asyncapi_to_hurl.py` | AsyncAPI webhook-ack Hurl scaffold from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
-| `graphql_to_hurl.py` | GraphQL SDL typename-smoke Hurl scaffold from local schema metadata | GraphQL runtime execution, resolver calls, file writes |
+| `asyncapi_to_hurl.py` | Local contract → AsyncAPI webhook-ack Hurl | Broker/cloud/webhook execution; message delivery; writes |
+| `graphql_to_hurl.py` | Local SDL metadata → GraphQL typename-smoke Hurl | GraphQL runtime/resolver execution; writes |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 | `openapi_audit.py` | OpenAPI operation coverage audit against Hurl tests | File discovery, Hurl execution, LLM calls |
 | `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
 | `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler modules | LLM calls, file writes, merge strategy |
 | `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
-| `proto_to_hurl.py` | Proto HTTP-transcoding Hurl scaffold | Native gRPC, streaming, proto detail rendering |
+| `proto_to_hurl.py` | Proto → HTTP-transcoding Hurl | Native/streaming gRPC; proto detail rendering |
 | `redaction_review.py` | Safe redaction review summaries from redacted traffic | Raw traffic capture, secret storage |
-| `soap_to_hurl.py` | Local WSDL to SOAP smoke Hurl scaffold | SOAP runtime, network execution, WSDL detail rendering |
+| `soap_to_hurl.py` | Local WSDL → SOAP smoke Hurl | SOAP/network execution; WSDL detail rendering |
 | `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
 | `target_to_hurl.py` | Single target URL smoke-test Hurl scaffold | Network execution, CLI file writes, non-read-only HTTP methods |
 | `test_pyramid.py` | Local test-pyramid evidence summaries | Test execution, artifact generation |
@@ -584,13 +584,12 @@ current top-level inventory is:
 | `traffic_to_wiremock.py` | Redacted dependency traffic to WireMock mappings | Filesystem writes, mock server runtime |
 | `traffic_to_graph.py` | Redacted traffic to dependency graph models | SQLite reads, renderer invocation |
 
-The shipped `story_traceability.py` bridge compiles discovered Hurl metadata
-and core-discovered `docs/stories/*.md` story documents into local story/test
-reports. It validates missing `story_id` comments, Hurl story IDs with no local
-story Markdown, Markdown stories without tests, duplicate Markdown story IDs,
-malformed story metadata, unsafe story paths, and external `doc_url` values that
-point to multiple story IDs. It does not call Jira, Notion, Linear, monday.com,
-or other business-system APIs.
+ADR-0034: internal selector kwargs.
+
+`story_traceability.py` compiles Hurl metadata and `docs/stories/*.md` into local
+reports. It rejects missing/duplicate/malformed story IDs, Hurl IDs without local
+stories, stories without tests, unsafe paths, and external `doc_url` fan-out; it
+calls no business-system API.
 
 ## 7. Hurl Execution Design
 
