@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Final
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
+from entroping.bridge.target_url import contains_unsafe_target_authority, host_with_port
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
 _SAFE_STEM_RE: Final = re.compile(r"[^A-Za-z0-9_-]+")
@@ -373,6 +374,10 @@ def _safe_target_url(value: str) -> tuple[str, str]:
     _raise_for_invalid(
         (
             (not value, "GraphQL target URL is required"),
+            (
+                contains_unsafe_target_authority(value),
+                "GraphQL target URL contains unsafe authority characters",
+            ),
             (_contains_disallowed_control(value), "GraphQL target URL contains control characters"),
             (
                 any(character.isspace() for character in value),
@@ -411,7 +416,7 @@ def _safe_target_url(value: str) -> tuple[str, str]:
 
     _reject_sensitive_query(parts.query)
     normalized_host = hostname.lower()
-    normalized_netloc = _host_with_port(normalized_host, port)
+    normalized_netloc = host_with_port(normalized_host, port)
     normalized_path = parts.path or "/graphql"
     normalized_url = urlunsplit(
         (scheme, normalized_netloc, normalized_path, parts.query, ""),
@@ -441,13 +446,6 @@ def _reject_sensitive_query(query: str) -> None:
         if contains_secret_like_value(value):
             msg = f"GraphQL target URL contains secret-like query value for {key!r}"
             raise GraphqlHurlCompilationError(msg)
-
-
-def _host_with_port(hostname: str, port: int | None) -> str:
-    host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
-    if port is None:
-        return host
-    return f"{host}:{port}"
 
 
 def _target_file_stem(target_url: str) -> str:

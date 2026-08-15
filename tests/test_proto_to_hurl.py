@@ -1010,6 +1010,54 @@ service Orders {
         )
 
 
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "https://api.example.test/v1/orders?ready=1",
+        "http://127.0.0.1:18085/v1/orders",
+        "http://[::1]:18085/v1/orders",
+        "http://localhost/v1/orders",
+    ],
+)
+def test_compile_proto_http_transcoding_to_hurl_accepts_safe_target_authorities(
+    target_url: str,
+) -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        PROTO_CONTRACT.read_text(encoding="utf-8"),
+        target_url=target_url,
+    )
+
+    assert f"GET {target_url}\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        'https://api.example.test"attacker/v1/orders',
+        "https://api.example.test|attacker/v1/orders",
+        "https://api.example.test<attacker/v1/orders",
+        "https://api.example.test>attacker/v1/orders",
+        "https://api.example.test\\attacker/v1/orders",
+        "https://api.example.test\x1fattacker/v1/orders",
+        "https://api.example.test\x7fattacker/v1/orders",
+        "https://api.example.test\tattacker/v1/orders",
+    ],
+)
+def test_compile_proto_http_transcoding_to_hurl_rejects_unsafe_target_authorities(
+    target_url: str,
+) -> None:
+    with pytest.raises(
+        ProtoHurlCompilationError,
+        match="^gRPC HTTP target URL contains unsafe authority characters$",
+    ) as error:
+        compile_proto_http_transcoding_to_hurl(
+            PROTO_CONTRACT.read_text(encoding="utf-8"),
+            target_url=target_url,
+        )
+
+    assert "attacker" not in str(error.value)
+
+
 def test_compile_proto_http_transcoding_to_hurl_validates_with_hurlfmt_when_available() -> None:
     if shutil.which("hurlfmt") is None:
         pytest.skip("hurlfmt is not installed")

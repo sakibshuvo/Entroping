@@ -646,6 +646,54 @@ def test_compile_graphql_sdl_to_hurl_rejects_unsafe_targets(
         )
 
 
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "https://api.example.test/graphql?ready=1",
+        "http://127.0.0.1:18082/graphql",
+        "http://[::1]:18082/graphql",
+        "http://localhost/graphql",
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_accepts_safe_target_authorities(
+    target_url: str,
+) -> None:
+    generated = compile_graphql_sdl_to_hurl(
+        "type Query { viewer: String }",
+        target_url=target_url,
+    )
+
+    assert f"POST {target_url}\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        'https://api.example.test"attacker/graphql',
+        "https://api.example.test|attacker/graphql",
+        "https://api.example.test<attacker/graphql",
+        "https://api.example.test>attacker/graphql",
+        "https://api.example.test\\attacker/graphql",
+        "https://api.example.test\x1fattacker/graphql",
+        "https://api.example.test\x7fattacker/graphql",
+        "https://api.example.test\tattacker/graphql",
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_rejects_unsafe_target_authorities(
+    target_url: str,
+) -> None:
+    with pytest.raises(
+        GraphqlHurlCompilationError,
+        match="^GraphQL target URL contains unsafe authority characters$",
+    ) as error:
+        compile_graphql_sdl_to_hurl(
+            "type Query { viewer: String }",
+            target_url=target_url,
+        )
+
+    assert "attacker" not in str(error.value)
+
+
 def test_compile_graphql_sdl_to_hurl_validates_with_hurlfmt_when_available() -> None:
     if shutil.which("hurlfmt") is None:
         pytest.skip("hurlfmt is not installed")
