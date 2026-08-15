@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Final, NoReturn
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
+from entroping.bridge.target_url import contains_unsafe_target_authority, host_with_port
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
 _SAFE_STEM_RE: Final = re.compile(r"[^A-Za-z0-9_-]+")
@@ -443,6 +444,10 @@ def _matching_brace(value: str, opening: int) -> int | None:
 def _safe_target_url(value: str) -> tuple[str, str]:
     _require(value != "", "gRPC HTTP target URL is required")
     _require(
+        not contains_unsafe_target_authority(value),
+        "gRPC HTTP target URL contains unsafe authority characters",
+    )
+    _require(
         _PROTO_DISALLOWED_CONTROL_RE.search(value) is None,
         "gRPC HTTP target URL contains control characters",
     )
@@ -469,13 +474,7 @@ def _safe_target_url(value: str) -> tuple[str, str]:
     hostname = parts.hostname or _fail("gRPC HTTP target URL must include a host")
     _reject_sensitive_query(parts.query)
     normalized_host = hostname.lower()  # normalize origin metadata
-    normalized_netloc = (
-        f"[{normalized_host}]"
-        if ":" in normalized_host and not normalized_host.startswith("[")
-        else normalized_host
-    )
-    if port is not None:
-        normalized_netloc += f":{port}"
+    normalized_netloc = host_with_port(normalized_host, port)
     normalized_path = parts.path or "/grpc-transcoding"
     normalized_url = urlunsplit(
         (scheme, normalized_netloc, normalized_path, parts.query, ""),

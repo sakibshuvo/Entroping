@@ -514,6 +514,56 @@ def test_compile_wsdl_to_soap_hurl_rejects_unsafe_targets(
         )
 
 
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "https://soap.example.test/soap/orders?ready=1",
+        "http://127.0.0.1:18083/soap/orders",
+        "http://[::1]:18083/soap/orders",
+        "http://localhost/soap/orders",
+    ],
+)
+def test_compile_wsdl_to_soap_hurl_accepts_safe_target_authorities(target_url: str) -> None:
+    generated = compile_wsdl_to_soap_hurl(
+        '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/">'
+        "<portType><operation /></portType>"
+        "</definitions>",
+        target_url=target_url,
+    )
+
+    assert f"POST {target_url}\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        'https://soap.example.test"attacker/soap/orders',
+        "https://soap.example.test|attacker/soap/orders",
+        "https://soap.example.test<attacker/soap/orders",
+        "https://soap.example.test>attacker/soap/orders",
+        "https://soap.example.test\\attacker/soap/orders",
+        "https://soap.example.test\x1fattacker/soap/orders",
+        "https://soap.example.test\x7fattacker/soap/orders",
+        "https://soap.example.test\tattacker/soap/orders",
+    ],
+)
+def test_compile_wsdl_to_soap_hurl_rejects_unsafe_target_authorities(
+    target_url: str,
+) -> None:
+    with pytest.raises(
+        SoapHurlCompilationError,
+        match="^SOAP target URL contains unsafe authority characters$",
+    ) as error:
+        compile_wsdl_to_soap_hurl(
+            '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/">'
+            "<portType><operation /></portType>"
+            "</definitions>",
+            target_url=target_url,
+        )
+
+    assert "attacker" not in str(error.value)
+
+
 def test_compile_wsdl_to_soap_hurl_does_not_echo_sensitive_query_keys() -> None:
     with pytest.raises(SoapHurlCompilationError, match="sensitive query key") as error:
         compile_wsdl_to_soap_hurl(

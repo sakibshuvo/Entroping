@@ -13,6 +13,7 @@ import yaml
 from yaml import events
 from yaml.nodes import MappingNode, Node, ScalarNode
 
+from entroping.bridge.target_url import contains_unsafe_target_authority, host_with_port
 from entroping.models.secrets import contains_secret_like_value, is_sensitive_key
 
 _SAFE_STEM_RE: Final = re.compile(r"[^A-Za-z0-9_-]+")
@@ -292,6 +293,7 @@ def _safe_selected_target_origin(value: str) -> str:
                 not _contains_disallowed_control(value),
                 not any(character.isspace() for character in value),
                 not _has_hurl_template_delimiter(value),
+                not contains_unsafe_target_authority(value),
                 not contains_secret_like_value(value),
             )
         ),
@@ -315,7 +317,7 @@ def _safe_selected_target_origin(value: str) -> str:
     )
     _reject_selected_query(parts.query)
     return urlunsplit(
-        (parts.scheme.lower(), _host_with_port(cast(str, hostname).lower(), port), "", "", "")
+        (parts.scheme.lower(), host_with_port(cast(str, hostname).lower(), port), "", "", "")
     )
 
 
@@ -418,6 +420,7 @@ def _asyncapi_operation_count(document: Mapping[str, object]) -> int:
 
 
 def _safe_target_url(value: str) -> tuple[str, str]:
+    _require(not contains_unsafe_target_authority(value), _TARGET_ERROR)
     for condition, message in (
         (bool(value), "AsyncAPI webhook target URL is required"),
         (
@@ -455,7 +458,7 @@ def _safe_target_url(value: str) -> tuple[str, str]:
     _require(hostname is not None, "AsyncAPI webhook target URL must include a host")
     _reject_sensitive_query(parts.query)
     normalized_host = cast(str, hostname).lower()
-    normalized_netloc = _host_with_port(normalized_host, port)
+    normalized_netloc = host_with_port(normalized_host, port)
     normalized_path = parts.path or "/webhooks"
     normalized_url = urlunsplit(
         (scheme, normalized_netloc, normalized_path, parts.query, ""),
@@ -477,11 +480,6 @@ def _reject_sensitive_query(query: str) -> None:
             not contains_secret_like_value(value),
             f"AsyncAPI webhook target URL contains secret-like query value for {key!r}",
         )
-
-
-def _host_with_port(hostname: str, port: int | None) -> str:
-    host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
-    return host if port is None else f"{host}:{port}"
 
 
 def _target_file_stem(target_url: str) -> str:

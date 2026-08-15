@@ -683,6 +683,54 @@ def test_compile_asyncapi_webhook_to_hurl_rejects_unsafe_targets(
         )
 
 
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "https://webhooks.example.test/order-events?ready=1",
+        "http://127.0.0.1:18084/webhooks/orders",
+        "http://[::1]:18084/webhooks/orders",
+        "http://localhost/webhooks/orders",
+    ],
+)
+def test_compile_asyncapi_webhook_to_hurl_accepts_safe_target_authorities(
+    target_url: str,
+) -> None:
+    generated = compile_asyncapi_webhook_to_hurl(
+        "asyncapi: 2.6.0\nchannels:\n  order.created:\n    publish: {}\n",
+        target_url=target_url,
+    )
+
+    assert f"POST {target_url}\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        'https://webhooks.example.test"attacker/order-events',
+        "https://webhooks.example.test|attacker/order-events",
+        "https://webhooks.example.test<attacker/order-events",
+        "https://webhooks.example.test>attacker/order-events",
+        "https://webhooks.example.test\\attacker/order-events",
+        "https://webhooks.example.test\x1fattacker/order-events",
+        "https://webhooks.example.test\x7fattacker/order-events",
+        "https://webhooks.example.test\tattacker/order-events",
+    ],
+)
+def test_compile_asyncapi_webhook_to_hurl_rejects_unsafe_target_authorities(
+    target_url: str,
+) -> None:
+    with pytest.raises(
+        AsyncapiHurlCompilationError,
+        match="^AsyncAPI webhook target URL is invalid$",
+    ) as error:
+        compile_asyncapi_webhook_to_hurl(
+            "asyncapi: 2.6.0\nchannels:\n  order.created:\n    publish: {}\n",
+            target_url=target_url,
+        )
+
+    assert "attacker" not in str(error.value)
+
+
 def test_compile_asyncapi_webhook_to_hurl_validates_with_hurlfmt_when_available() -> None:
     if shutil.which("hurlfmt") is None:
         pytest.skip("hurlfmt is not installed")
