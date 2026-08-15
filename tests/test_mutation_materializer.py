@@ -850,9 +850,10 @@ def test_materializer_rejects_filesystem_publication_refusal(
         _source: str,
         _name: str,
         *,
-        _dst_dir_fd: int | None = None,
-        _follow_symlinks: bool = True,
+        dst_dir_fd: int | None = None,
+        follow_symlinks: bool = True,
     ) -> None:
+        del dst_dir_fd, follow_symlinks
         raise OSError(errno.ENOTSUP, "injected refusal")
 
     _install_linux_link(monkeypatch, refuse_link)
@@ -876,9 +877,10 @@ def test_materializer_rejects_generic_publication_error(
         _source: str,
         _name: str,
         *,
-        _dst_dir_fd: int | None = None,
-        _follow_symlinks: bool = True,
+        dst_dir_fd: int | None = None,
+        follow_symlinks: bool = True,
     ) -> None:
+        del dst_dir_fd, follow_symlinks
         raise OSError(errno.EIO, "injected publication error")
 
     _install_linux_link(monkeypatch, fail_link)
@@ -907,9 +909,10 @@ def test_materializer_rejects_noop_publication_without_artifact(
         _source: str,
         _name: str,
         *,
-        _dst_dir_fd: int | None = None,
-        _follow_symlinks: bool = True,
+        dst_dir_fd: int | None = None,
+        follow_symlinks: bool = True,
     ) -> None:
+        del dst_dir_fd, follow_symlinks
         return None
 
     _install_linux_link(monkeypatch, noop_backend)
