@@ -410,6 +410,16 @@
       },
       "disposition": "retain-experimental",
       "review_on": "2026-08-31"
+    },
+    {
+      "command": "mutation-materialize",
+      "owner": "qa-brain",
+      "adoption_evidence": {
+        "state": "missing",
+        "pointer": "https://github.com/sakibshuvo/Entroping/issues/306"
+      },
+      "disposition": "retain-experimental",
+      "review_on": "2026-08-31"
     }
   ]
 }

@@ -77,10 +77,7 @@ from entroping.core.readiness.team_evidence_readiness import TeamEvidenceReadine
 
 _EXPERIMENTAL_REPORT_PANEL = "Experimental Design-Partner Evidence"
 _EXPERIMENTAL_REPORT_POLICY_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "docs"
-    / "meta"
-    / "experimental-report-growth-policy.json"
+    Path(__file__).resolve().parents[1] / "docs" / "meta" / "experimental-report-growth-policy.json"
 )
 
 
@@ -114,8 +111,8 @@ def test_experimental_report_growth_policy_covers_live_panel_in_order() -> None:
 
     entries = validate_experimental_report_growth_policy(document, live_commands)
 
-    assert len(report_command.commands) == 62
-    assert len(live_commands) == 41
+    assert len(report_command.commands) == 63
+    assert len(live_commands) == 42
     assert tuple(entry["command"] for entry in entries) == live_commands
     assert {entry["owner"] for entry in entries} == {
         "evidence-delivery",
@@ -208,6 +205,10 @@ def test_experimental_report_growth_policy_rejects_unvalidated_promotion() -> No
         (
             "mutation-readiness-replay",
             "Validate a local mutation-readiness manifest for deterministic replay.",
+        ),
+        (
+            "mutation-materialize",
+            "Materialize one reviewed status-code mutation as a local Hurl artifact.",
         ),
     ),
 )
@@ -320,6 +321,8 @@ def test_report_design_partner_feedback_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "design-partner feedback path is unsafe" in result.output
+
+
 def test_report_pilot_metrics_writes_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1596,13 +1599,8 @@ def test_report_work_item_import_bundle_writes_json(
     result = CliRunner().invoke(app, ["report", "work-item-import-bundle"])
 
     assert result.exit_code == 0, result.output
-    assert (
-        "Wrote work item import bundle: reports/work-item-import-bundle.json"
-        in result.output
-    )
-    payload = json.loads(
-        Path("reports/work-item-import-bundle.json").read_text(encoding="utf-8")
-    )
+    assert "Wrote work item import bundle: reports/work-item-import-bundle.json" in result.output
+    payload = json.loads(Path("reports/work-item-import-bundle.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.work-item-import-bundle.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -1619,10 +1617,7 @@ def test_report_work_item_import_bundle_writes_csv(
     )
 
     assert result.exit_code == 0, result.output
-    assert (
-        "Wrote work item import bundle: reports/work-item-import-bundle.csv"
-        in result.output
-    )
+    assert "Wrote work item import bundle: reports/work-item-import-bundle.csv" in result.output
     csv_text = Path("reports/work-item-import-bundle.csv").read_text(encoding="utf-8")
     assert csv_text.startswith("record_type,tracker_family,external_id")
 
@@ -2188,9 +2183,7 @@ def test_report_observability_adapter_readiness_writes_markdown(
     assert result.exit_code == 0
     assert "Wrote observability adapter readiness" in result.output
     assert "reports/observability-adapter-readiness.md" in result.output
-    markdown = Path("reports/observability-adapter-readiness.md").read_text(
-        encoding="utf-8"
-    )
+    markdown = Path("reports/observability-adapter-readiness.md").read_text(encoding="utf-8")
     assert "# Entroping Observability Adapter Readiness" in markdown
     assert "| opentelemetry | OpenTelemetry | attention |" in markdown
 
@@ -2439,9 +2432,7 @@ def test_report_mutation_readiness_replay_wraps_core_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fail_mutation_readiness_replay(*args: object, **kwargs: object) -> object:
-        raise MutationReadinessReplayValidationError(
-            "mutation readiness replay path is unsafe"
-        )
+        raise MutationReadinessReplayValidationError("mutation readiness replay path is unsafe")
 
     monkeypatch.setattr(
         report_cli,
@@ -2470,6 +2461,40 @@ def test_report_mutation_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "mutation readiness path is unsafe" in result.output
+
+
+def test_report_mutation_materialize_requires_explicit_manifest() -> None:
+    result = CliRunner().invoke(app, ["report", "mutation-materialize"])
+
+    assert result.exit_code == 2
+    assert "Missing option '--manifest'" in result.output
+
+
+def test_report_mutation_materialize_passes_project_root_and_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, Path] = {}
+
+    def fake_materialize(*, project_root: Path, manifest_path: Path) -> Path:
+        observed["project_root"] = project_root
+        observed["manifest_path"] = manifest_path
+        return tmp_path / "tests" / "generated" / "mutations" / "mut-id.hurl"
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "entroping.cli.commands.report._experimental_qa.materialize_mutation_candidate",
+        fake_materialize,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "mutation-materialize", "--manifest", "manifest.json"],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {"project_root": tmp_path, "manifest_path": Path("manifest.json")}
+    assert "Wrote review-only mutation candidate" in result.output
 
 
 def test_report_evidence_index_writes_markdown(
@@ -3116,6 +3141,8 @@ def test_report_qa_brain_repair_plan_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "QA brain repair plan path is unsafe" in result.output
+
+
 def test_report_agent_bundle_writes_selected_role_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
