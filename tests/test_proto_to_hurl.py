@@ -502,10 +502,10 @@ def test_compile_proto_http_transcoding_to_hurl_field_parsing_scales_linearly() 
             )
         return perf_counter() - started
 
-    small = elapsed_for_field_count(2_000)
+    small = elapsed_for_field_count(10_000)
     large = elapsed_for_field_count(40_000)
 
-    assert large < small * 22
+    assert large < small * 8
 
 
 def test_compile_proto_http_transcoding_to_hurl_rejects_an_unsafe_generated_filename() -> None:
