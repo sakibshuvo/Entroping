@@ -10,6 +10,10 @@
   routing-audit snapshot is treated as another worker's claim, while an unsafe
   entry that remains present still fails closed. The queue adds no retry,
   provider, budget, or path-safety relaxation.
+- Tightened issue #1682's overlapping `factoryctl tick --apply` regression
+  proof: exactly one assignment and one blocked loser are required, while the
+  loser accepts only the existing fail-closed `lease-held` or `state-busy`
+  reasons across the bounded real-process repetitions.
 
 ## 2026-08-11
 

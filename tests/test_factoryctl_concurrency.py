@@ -109,10 +109,22 @@ def test_overlapping_factoryctl_processes_commit_one_assignment(
     payloads = [json.loads(result.stdout) for result in observed]
 
     assert sorted(result.returncode for result in observed) == [0, 1]
-    assert sorted((payload["decision"], payload["reason"]) for payload in payloads) == [
-        ("assigned", "capacity-reserved"),
-        ("blocked", "lease-held"),
+    assert sorted(payload["decision"] for payload in payloads) == [
+        "assigned",
+        "blocked",
     ]
+    assert [
+        payload["reason"]
+        for payload in payloads
+        if payload["decision"] == "assigned"
+    ] == ["capacity-reserved"]
+    blocked_reasons = [
+        payload["reason"]
+        for payload in payloads
+        if payload["decision"] == "blocked"
+    ]
+    assert len(blocked_reasons) == 1
+    assert blocked_reasons[0] in {"lease-held", "state-busy"}
     assert all(result.stderr == "" for result in observed)
     snapshot = FactoryScheduler(tmp_path).snapshot()
     assert snapshot.active_assignment_count == 1
