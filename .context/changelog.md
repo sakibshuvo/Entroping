@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-08-14
+
+- Fixed concurrent AI-job claims so a queued name that disappears after the
+  routing-audit snapshot is treated as another worker's claim, while an unsafe
+  entry that remains present still fails closed. The queue adds no retry,
+  provider, budget, or path-safety relaxation.
+
 ## 2026-08-11
 
 - Reconciled internal factory status after #1576 merged via PR #1608 at

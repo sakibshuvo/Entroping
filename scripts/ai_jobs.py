@@ -1306,10 +1306,7 @@ def _settle_paid_dispatch(
     return None
 
 
-def _factory_budget_project_root(
-    args: argparse.Namespace,
-    repo_root: Path,
-) -> Path:
+def _factory_budget_project_root(args: argparse.Namespace, repo_root: Path) -> Path:
     test_root = getattr(args, "test_factory_project_root", None)
     if test_root is None:
         return repo_root
@@ -1657,16 +1654,19 @@ def _audit_routing(job_root: Path) -> dict[str, object]:
     }
 
 
-def _queued_routing_violations(
-    queue: QueueStateHandles,
-) -> list[dict[str, object]]:
+def _queued_routing_violations(queue: QueueStateHandles) -> list[dict[str, object]]:
     violations: list[dict[str, object]] = []
     for name in queue.names("queued"):
         path = queue.path("queued", name)
         try:
             job = _decode_job_bytes(queue.read_bytes("queued", name))
         except ai_job_fs.SafeStateError:
-            violations.append(_unsafe_queued_job_payload(path, reason="unsafe-job-path"))
+            try:
+                entry_still_exists = ai_job_fs.entry_exists(queue.directories["queued"], name)
+            except ai_job_fs.SafeStateError:
+                entry_still_exists = True
+            if entry_still_exists:
+                violations.append(_unsafe_queued_job_payload(path, reason="unsafe-job-path"))
             continue
         except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError):
             continue
