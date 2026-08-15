@@ -187,6 +187,10 @@ from entroping.core.github_annotations import (
     render_github_annotation,
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.mutation_materializer import (
+    MutationMaterializerError,
+    materialize_mutation_candidate,
+)
 from entroping.core.plan.evidence_action_plan import (
     EvidenceActionPlanError,
     EvidenceActionPlanOutput,
@@ -305,21 +309,19 @@ from entroping.core.test_quality_report import (
 )
 from entroping.models.hurl import HurlMetadataSyntaxError
 
+# fmt: off
 __all__ = [
     "AGENT_BUNDLE_ROLES",
-    "AhaArtifactIndex",
-    "AhaArtifactIndexItem",
+    "AhaArtifactIndex", "AhaArtifactIndexItem",
     "AgentBundleError",
     "AgentBundleOutput",
     "ApiInventoryError",
     "ApiInventoryOutput",
     "BadgeReportError",
-    "CaptureSummaryError",
-    "CaptureSummaryOutput",
+    "CaptureSummaryError", "CaptureSummaryOutput",
     "ConnectorIntentError",
     "ConnectorIntentOutput",
-    "DesignPartnerFeedbackError",
-    "DevexReadinessError",
+    "DesignPartnerFeedbackError", "DevexReadinessError",
     "DevexReadinessOutput",
     "DriftReportError",
     "EffectivePolicyDiffError",
@@ -329,8 +331,7 @@ __all__ = [
     "EffectivePolicyReportError",
     "EvidenceActionPlanError",
     "EvidenceActionPlanOutput",
-    "EvidenceBundleError",
-    "EvidenceCloudDashboardError",
+    "EvidenceBundleError", "EvidenceCloudDashboardError",
     "EvidenceCloudDashboardOutput",
     "EvidenceCloudExportError",
     "EvidenceCloudExportOutput",
@@ -360,12 +361,10 @@ __all__ = [
     "HurlMetadataSyntaxError",
     "IntegrationReadinessError",
     "IntegrationReadinessOutput",
-    "MutationReadinessError",
-    "MutationReadinessOutput",
+    "MutationReadinessError", "MutationReadinessOutput",
     "MutationReadinessReplayValidationError",
-    "MutationReadinessReplayValidationResult",
-    "NotificationOutput",
-    "NotificationPacketError",
+    "MutationMaterializerError", "MutationReadinessReplayValidationResult",
+    "NotificationOutput", "NotificationPacketError",
     "ObservabilityAdapterReadinessError",
     "ObservabilityAdapterReadinessOutput",
     "ObservabilityOutput",
@@ -466,7 +465,7 @@ __all__ = [
     "run_integration_readiness_report",
     "run_mutation_readiness_report",
     "run_mutation_readiness_replay_validation",
-    "run_notification_packet_report",
+    "materialize_mutation_candidate", "run_notification_packet_report",
     "run_observability_adapter_readiness_report",
     "run_observability_packet_report",
     "run_otel_mapping_report",
@@ -499,6 +498,7 @@ __all__ = [
     "write_coverage_badges",
     "write_report_artifact_manifest",
 ]
+# fmt: on
 
 
 def report_dependency(name: str) -> Any:

@@ -12,6 +12,7 @@ from ._deps import (
     AGENT_BUNDLE_ROLES,
     AgentBundleError,
     AgentBundleOutput,
+    MutationMaterializerError,
     MutationReadinessReplayValidationError,
     QaBrainEvalPlanError,
     QaBrainEvalPlanOutput,
@@ -49,6 +50,7 @@ run_qa_brain_seed_report = report_dependency("run_qa_brain_seed_report")
 run_mutation_readiness_replay_validation = report_dependency(
     "run_mutation_readiness_replay_validation"
 )
+materialize_mutation_candidate = report_dependency("materialize_mutation_candidate")
 
 
 @app.command("qa-brain-seed", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
@@ -286,26 +288,13 @@ def report_agent_bundle(
 ) -> None:
     """Write a local multi-agent review bundle from sanitized manifests."""
 
-    normalized_output = output.strip().lower()
-    if normalized_output not in {"md", "json"}:
-        console.print(f"[yellow]Unsupported agent-bundle output: {output}[/yellow]")
-        raise typer.Exit(2)
-    selected_roles = tuple(role or ())
-    unsupported_roles = sorted(
-        selected_role for selected_role in selected_roles if selected_role not in AGENT_BUNDLE_ROLES
-    )
-    if unsupported_roles:
-        joined = ", ".join(unsupported_roles)
-        console.print(
-            "[yellow]Unsupported agent-bundle role "
-            f"{joined}; expected builder, breaker, or auditor.[/yellow]"
-        )
-        raise typer.Exit(2)
+    normalized_output = _agent_bundle_output(output)
+    selected_roles = _agent_bundle_roles(role)
 
     try:
         result = run_agent_bundle_report(
             project_root=Path.cwd(),
-            output=cast(AgentBundleOutput, normalized_output),
+            output=normalized_output,
             roles=selected_roles,
             scope=scope,
         )
@@ -315,6 +304,27 @@ def report_agent_bundle(
 
     console.print(f"Wrote agent review bundle: {display_cli_path(result.output_path)}")
     raise typer.Exit(0 if result.report.summary.status != "fail" else 1)
+
+
+def _agent_bundle_output(output: str) -> AgentBundleOutput:
+    normalized = output.strip().lower()
+    if normalized not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported agent-bundle output: {output}[/yellow]")
+        raise typer.Exit(2)
+    return cast(AgentBundleOutput, normalized)
+
+
+def _agent_bundle_roles(role: list[str] | None) -> tuple[str, ...]:
+    selected = tuple(role or ())
+    unsupported = sorted(name for name in selected if name not in AGENT_BUNDLE_ROLES)
+    if unsupported:
+        joined = ", ".join(unsupported)
+        console.print(
+            "[yellow]Unsupported agent-bundle role "
+            f"{joined}; expected builder, breaker, or auditor.[/yellow]"
+        )
+        raise typer.Exit(2)
+    return selected
 
 
 @app.command("mutation-readiness-replay", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
@@ -345,4 +355,26 @@ def report_mutation_readiness_replay(
     console.print(
         f"mutation-readiness replay manifest valid: {display_cli_path(result.manifest_path)}"
     )
+    raise typer.Exit(0)
+
+
+@app.command("mutation-materialize", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_mutation_materialize(
+    manifest: Annotated[
+        Path,
+        typer.Option(..., "--manifest", help="Path to the reviewed mutation manifest."),
+    ],
+) -> None:
+    """Write one reviewed status-code mutation as a local Hurl artifact."""
+
+    try:
+        output_path = materialize_mutation_candidate(
+            project_root=Path.cwd(),
+            manifest_path=manifest,
+        )
+    except MutationMaterializerError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote review-only mutation candidate: {display_cli_path(output_path)}")
     raise typer.Exit(0)

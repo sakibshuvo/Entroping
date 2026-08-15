@@ -559,14 +559,15 @@ A local-first QA loop for AI-generated changes follows this evidence sequence:
 
 1. `entroping report test-quality --output json` (generated-test quality)
 2. `entroping report mutation-readiness --output json` (mutation/readiness)
-3. `entroping report qa-brain-seed --output json` (seed contract)
-4. `entroping report qa-brain-eval-plan --output json`
-5. `entroping report qa-brain-retrieval-plan --output json`
-6. `entroping report qa-brain-prompt-plan --output json`
-7. `entroping report qa-brain-routing-plan --output json`
-8. `entroping report qa-brain-repair-plan --output json`
+3. `entroping report mutation-materialize --manifest <project-relative-json>` (review-only status candidate)
+4. `entroping report qa-brain-seed --output json` (seed contract)
+5. `entroping report qa-brain-eval-plan --output json`
+6. `entroping report qa-brain-retrieval-plan --output json`
+7. `entroping report qa-brain-prompt-plan --output json`
+8. `entroping report qa-brain-routing-plan --output json`
+9. `entroping report qa-brain-repair-plan --output json`
 
-Each packet is a read-only, deterministic evidence artifact. It does not auto-repair code or bypass Hurl enforcement. Human/Codex review is required before generated changes are accepted.
+The plan and readiness packets are read-only, deterministic evidence artifacts. The separate materialization step performs one create-only write at `tests/generated/mutations/<candidate_id>.hurl`; it never mutates the source, overwrites an existing output, executes Hurl, or makes a candidate authoritative. It does not auto-repair code or bypass Hurl enforcement. Human/Codex review is required before generated changes are accepted.
 
 Summarize local test/evidence layers from existing reports:
 
