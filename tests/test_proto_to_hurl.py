@@ -6,7 +6,6 @@ import pytest
 
 from entroping.bridge.proto_to_hurl import (
     ProtoHurlCompilationError,
-    _http_option_parts,
     compile_proto_http_transcoding_to_hurl,
 )
 from entroping.core.hurl_validator import validate_hurl_content
@@ -100,6 +99,367 @@ def test_compile_proto_http_transcoding_to_hurl_rejects_unsupported_option_token
             target_url="https://api.example.test",
             rpc_name="GetOrder",
         )
+
+
+def test_compile_proto_http_transcoding_to_hurl_rejects_a_non_adjacent_http_aggregate() -> None:
+    proto_text = """
+    service Orders {
+      rpc GetOrder(M) returns (R) {
+        option (google.api.http) = invalid;
+        option unrelated = { get: "/borrowed" };
+      }
+    }
+    """
+
+    with pytest.raises(ProtoHurlCompilationError, match="malformed") as error:
+        compile_proto_http_transcoding_to_hurl(
+            proto_text,
+            target_url="https://api.example.test",
+            rpc_name="GetOrder",
+        )
+
+    assert "/borrowed" not in str(error.value)
+
+
+@pytest.mark.parametrize("trailing_syntax", ["!!!", 'response_body: "x"'])
+def test_compile_proto_http_transcoding_to_hurl_rejects_trailing_rpc_syntax(
+    trailing_syntax: str,
+) -> None:
+    proto_text = f"""
+    service Orders {{
+      rpc GetOrder(M) returns (R) {{
+        option (google.api.http) = {{ get: "/v1/orders" }};
+        {trailing_syntax}
+      }}
+    }}
+    """
+
+    with pytest.raises(ProtoHurlCompilationError, match="malformed"):
+        compile_proto_http_transcoding_to_hurl(
+            proto_text,
+            target_url="https://api.example.test",
+            rpc_name="GetOrder",
+        )
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_adjacent_rpc_options() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option deprecated = false;
+            // Keep unrelated options around the selected aggregate.
+            option (google.api.http) = { get: "/v1/orders" };
+            option deprecated_after = false;
+            option unrelated = { note: "still allowed" };
+            option label = "still valid";
+            option numbers = [1, 2, { nested: "ok" }];
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_extension_rpc_options() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option (acme.foo) = false;
+            option (acme.nested.flag) = { nested: true };
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_official_extension_option_names() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option (acme.foo).bar = true;
+            option (.acme.foo) = true;
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_complete_option_names() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option foo.(acme.bar) = true;
+            option (acme.foo).(other.bar) = true;
+            option foo.bar = 0xF;
+            option foo.baz = "a" "b";
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_complete_constants() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option foo.decimal = -42;
+            option foo.octal = +077;
+            option foo.hex = 0xF;
+            option foo.fraction = .5;
+            option foo.trailing = 1.;
+            option foo.exponent = -1.2e+3;
+            option foo.neg_inf = -inf;
+            option foo.pos_nan = +nan;
+            option foo.message = < a: 1 >;
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_separated_unary_signs() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option foo.decimal = - 42;
+            option foo.hex = + 0xF;
+            option foo.neg_inf = - inf;
+            option foo.pos_nan = + nan;
+            option foo.comment = - /* comment */ inf;
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_nested_message_values() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option foo.message = { nested { a: 1 } };
+            option foo.angle = < nested < a: 1 > >;
+            option foo.list = { nested [{ a: 1 }, { a: 2 }] };
+            option foo.empty_brace = { nested [] };
+            option foo.empty_angle = < nested [] >;
+            option foo.brace_ext = { [acme.ext]: 1 };
+            option foo.brace_nested_ext = { [acme.ext] { a: 1 } };
+            option foo.angle_ext = < [acme.ext]: [1, 2] >;
+            option foo.type_url_ext = { [type.googleapis.com/acme.Message]: true };
+            option foo.bracket_cont = { [acme.one]: 1 [acme.two]: 2 };
+            option foo.mixed_cont = { field: 1 [acme.two]: 2 };
+            option foo.semicolon_brace = { field: 1; [acme.one]: 2; };
+            option foo.semicolon_angle = < field: 1; [acme.one]: 2; >;
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+def test_compile_proto_http_transcoding_allows_spacing_and_single_quotes() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        """
+        service Orders {
+          rpc GetOrder(M) returns (R) {
+            option (google.api.http) = { get: "/v1/orders" };
+            option unrelated = { nested: true values: "ok" };
+            option label = 'ok';
+            option quoted = { nested: 'ok' };
+            option escaped_double = "a\\a\\b\\f\\n\\r\\t\\v\\x41\\123\\u0042\\U0001F600";
+            option escaped_single = 'a\\a\\b\\f\\n\\r\\t\\v\\x41\\123\\u0042\\U0001F600';
+          }
+        }
+        """,
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
+
+
+@pytest.mark.parametrize(
+    ("sibling_name", "sibling_rhs"),
+    [
+        ("unrelated", "!!!"),
+        ("unrelated", "[!!!]"),
+        ("unrelated", ":"),
+        ("unrelated", "a +"),
+        ("foo..bar", "false"),
+        ("unrelated", "{ !!! }"),
+        ("unrelated", "{ note: [!!!] }"),
+        ("unrelated", "{}{}"),
+        ("café", "false"),
+        ("unrelated", "café"),
+        ("(acme..foo)", "false"),
+        ("(.acme..foo)", "false"),
+        ("(café.foo)", "false"),
+        ("(acme.foo)", "false !!!"),
+        ("(acme.foo)..bar", "false"),
+        ("(acme.foo).café", "false"),
+        ("foo.(acme..bar)", "false"),
+        ("foo.(café.bar)", "false"),
+        ("foo.(acme.bar)..tail", "false"),
+        ("foo.bar", '"a" !!!'),
+        ("foo.bar", "0x"),
+        ("foo.bar", '"a\nb"'),
+        ("foo.bar", "'a\nb'"),
+        ("foo.double", r'"bad\q"'),
+        ("foo.double", r'"bad\x"'),
+        ("foo.double", r'"bad\u12"'),
+        ("foo.single", r"'bad\q'"),
+        ("foo.single", r"'bad\x'"),
+        ("foo.single", r"'bad\u12'"),
+        ("foo.bar", '- "a"'),
+        ("foo.bar", "- { value: 1 }"),
+        ("foo.bar", "- ordinary"),
+        ("foo.message", "{ nested 1 }"),
+        ("foo.angle", "< nested 1 >"),
+        ("foo.list", "{ nested [1, 2] }"),
+        ("foo.brace_ext", "{ [café.ext]: 1 }"),
+        ("foo.brace_ext", "{ [acme..ext]: 1 }"),
+        ("foo.brace_ext", "{ [acme.ext: 1 }"),
+        ("unrelated", "{ nested: { value: !!! } }"),
+        ("unrelated", "{ : false }"),
+        ("unrelated", '{ "key": false }'),
+        ("unrelated", "{ key: false"),
+        ("unrelated", ""),
+    ],
+)
+def test_compile_proto_http_transcoding_to_hurl_rejects_invalid_sibling_option_rhs(
+    sibling_name: str,
+    sibling_rhs: str,
+) -> None:
+    proto_text = f"""
+    service Orders {{
+      rpc GetOrder(M) returns (R) {{
+        option (google.api.http) = {{ get: "/v1/orders" }};
+        option {sibling_name} = {sibling_rhs};
+      }}
+    }}
+    """
+
+    with pytest.raises(ProtoHurlCompilationError, match="malformed"):
+        compile_proto_http_transcoding_to_hurl(
+            proto_text,
+            target_url="https://api.example.test",
+            rpc_name="GetOrder",
+        )
+
+
+@pytest.mark.parametrize(
+    "sibling_option",
+    [
+        "option = false;",
+        "option unrelated false;",
+        "option unrelated = // missing value",
+        "option unrelated = { field: 1; [acme.one]: 2; }",
+    ],
+)
+def test_compile_proto_http_transcoding_rejects_malformed_sibling_declaration(
+    sibling_option: str,
+) -> None:
+    proto_text = f"""
+    service Orders {{
+      rpc GetOrder(M) returns (R) {{
+        option (google.api.http) = {{ get: "/v1/orders" }};
+        {sibling_option}
+      }}
+    }}
+    """
+
+    with pytest.raises(ProtoHurlCompilationError, match="malformed"):
+        compile_proto_http_transcoding_to_hurl(
+            proto_text,
+            target_url="https://api.example.test",
+            rpc_name="GetOrder",
+        )
+
+
+def test_compile_proto_http_transcoding_rejects_excessively_nested_sibling_value() -> None:
+    nested = "{ value: " * 65 + "false" + " }" * 65
+    proto_text = f"""
+    service Orders {{
+      rpc GetOrder(M) returns (R) {{
+        option (google.api.http) = {{ get: "/v1/orders" }};
+        option unrelated = {nested};
+      }}
+    }}
+    """
+
+    with pytest.raises(ProtoHurlCompilationError, match="malformed"):
+        compile_proto_http_transcoding_to_hurl(
+            proto_text,
+            target_url="https://api.example.test",
+            rpc_name="GetOrder",
+        )
+
+
+def test_compile_proto_http_transcoding_rejects_unclosed_sibling_object() -> None:
+    proto_text = """
+    service Orders {
+      rpc GetOrder(M) returns (R) {
+        option (google.api.http) = { get: "/v1/orders" };
+        option unrelated = [
+      }
+    }
+    """
+
+    with pytest.raises(ProtoHurlCompilationError, match="malformed"):
+        compile_proto_http_transcoding_to_hurl(
+            proto_text,
+            target_url="https://api.example.test",
+            rpc_name="GetOrder",
+        )
+
+
+def test_compile_proto_http_transcoding_to_hurl_allows_compact_option_terminator() -> None:
+    generated = compile_proto_http_transcoding_to_hurl(
+        "service Orders { rpc GetOrder(M) returns (R) { option (google.api.http) = "
+        '{ get: "/v1/orders" };}',
+        target_url="https://api.example.test",
+        rpc_name="GetOrder",
+    )
+
+    assert "GET https://api.example.test/v1/orders\n" in generated.content
 
 
 def test_compile_proto_http_transcoding_to_hurl_scans_large_option_linearly() -> None:
@@ -421,6 +781,38 @@ service Orders {
             """
             service Orders {
               rpc GetOrder(M) returns (R) {
+                option (google.api.http) = { get: "/v1/orders" }
+              }
+            }
+            """,
+            "malformed",
+        ),
+        (
+            """
+            service Orders {
+              rpc GetOrder(M) returns (R) {
+                option (google.api.http) = { get: "/v1/orders" };
+                option unrelated = { note: "missing terminator" }
+              }
+            }
+            """,
+            "malformed",
+        ),
+        (
+            """
+            service Orders {
+              rpc GetOrder(M) returns (R) {
+                option (google.api.http) = { get: "/v1/orders" };
+                option unrelated = { note: "bad"; }
+              }
+            }
+            """,
+            "malformed",
+        ),
+        (
+            """
+            service Orders {
+              rpc GetOrder(M) returns (R) {
                 option (google.api.http) = { get: "/v1/orders" };
                 option (google.api.http) = { get: "/v1/other" };
               }
@@ -470,11 +862,6 @@ def test_compile_proto_http_transcoding_to_hurl_rejects_malformed_selected_rules
             target_url="https://api.example.test/orders",
             rpc_name="GetOrder",
         )
-
-
-def test_http_option_parser_rejects_an_unclosed_option_body() -> None:
-    with pytest.raises(ProtoHurlCompilationError, match="malformed"):
-        _http_option_parts('option (google.api.http) = { get: "/v1/orders"')
 
 
 def test_compile_proto_http_transcoding_to_hurl_ignores_selected_comments() -> None:

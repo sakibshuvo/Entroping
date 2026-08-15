@@ -24,6 +24,24 @@ _PROTO_HTTP_RULE_RE: Final = re.compile(r"\boption\s*\(\s*google\.api\.http\s*\)
 _PROTO_HTTP_VERB_RE: Final = re.compile(r"\b(?P<verb>get|post|put|patch|delete)\s*:")
 _PROTO_HTTP_FIELD_RE: Final = re.compile(r"\b(?P<key>[_A-Za-z][_0-9A-Za-z]*)\s*:")
 _PROTO_HTTP_VALUE_RE: Final = re.compile(r'\s*"(?P<value>(?:\\.|[^"\\])*)"')
+_PROTO_IDENTIFIER_RE: Final = re.compile(
+    r"[_A-Za-z][_0-9A-Za-z]*(?:\.[_A-Za-z][_0-9A-Za-z]*)*\Z"
+)  # ASCII names
+_PROTO_FIELD_NAME_RE: Final = re.compile(r"(?:[_A-Za-z]\w*|\[[A-Za-z_]\w*[./\w]*\])\Z")
+_PROTO_DISALLOWED_CONTROL_RE: Final = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_PROTO_OPTION_TOKEN_RE: Final = re.compile(
+    r"""\s*(?:(?:"(?:\\(?:[abfnrtv\\'"]|x[0-9A-Fa-f]{1,2}|[0-7]{1,3}|u[0-9A-Fa-f]{4}|U(?:000[0-9A-Fa-f]{5}|0010[0-9A-Fa-f]{4}))|[^"\\\r\n])*"|'(?:\\(?:[abfnrtv\\'"]|x[0-9A-Fa-f]{1,2}|[0-7]{1,3}|u[0-9A-Fa-f]{4}|U(?:000[0-9A-Fa-f]{5}|0010[0-9A-Fa-f]{4}))|[^'\\\r\n])*')(?:\s*(?:"(?:\\(?:[abfnrtv\\'"]|x[0-9A-Fa-f]{1,2}|[0-7]{1,3}|u[0-9A-Fa-f]{4}|U(?:000[0-9A-Fa-f]{5}|0010[0-9A-Fa-f]{4}))|[^"\\\r\n])*"|'(?:\\(?:[abfnrtv\\'"]|x[0-9A-Fa-f]{1,2}|[0-7]{1,3}|u[0-9A-Fa-f]{4}|U(?:000[0-9A-Fa-f]{5}|0010[0-9A-Fa-f]{4}))|[^'\\\r\n])*'))*|\[[_A-Za-z][_0-9A-Za-z]*(?:[./][_A-Za-z][_0-9A-Za-z]*)*\]|(?:[_A-Za-z][_0-9A-Za-z]*|\(\.?[_A-Za-z][_0-9A-Za-z]*(?:\.[_A-Za-z][_0-9A-Za-z]*)*\))(?:\.(?:[_A-Za-z][_0-9A-Za-z]*|\(\.?[_A-Za-z][_0-9A-Za-z]*(?:\.[_A-Za-z][_0-9A-Za-z]*)*\)))*|[-+]?(?:(?:\d+\.\d*|\.\d+|\d+)[eE][+-]?\d+|\d+\.\d*|\.\d+|0[xX][0-9A-Fa-f]+|0[0-7]+|0|[1-9][0-9]*|inf|nan)|[{}\[\]():=,;<>+-]|\s*\Z)"""
+)
+_PROTO_COLLECTION_CLOSERS: Final = {"{": "};,", "[": "],", "<": ">;,"}  # bounded aggregates
+_MALFORMED_OPTION_ERROR: Final = "selected HTTP rule is malformed"  # content-free error
+_UNSUPPORTED_BINDING_ERROR: Final = (
+    "selected google.api.http rule has unsupported or duplicate bindings"
+)
+_UNKNOWN_FIELD_ERROR: Final = "selected google.api.http rule has unsupported or unknown fields"
+_DUPLICATE_BINDING_ERROR: Final = "selected google.api.http rule has duplicate bindings"
+_BODY_STAR_ERROR: Final = "selected google.api.http rule requires body star"
+_BODY_FORBID_ERROR: Final = "selected google.api.http rule forbids a body"
+_MSG: Final = frozenset({"{", "<"})  # message aggregate delimiters
 _RPC_NAME_RE: Final = re.compile(r"[_A-Za-z][_0-9A-Za-z]{0,127}\Z")
 _PATH_PLACEHOLDER_RE: Final = re.compile(
     r"\{[_A-Za-z][_0-9A-Za-z]*(?:\.[_A-Za-z][_0-9A-Za-z]*)*\}",
@@ -41,6 +59,10 @@ class ProtoHurlCompilationError(ValueError):
 
 def _fail(message: str) -> NoReturn:
     raise ProtoHurlCompilationError(message)
+
+
+def _require(condition: bool, message: str) -> None:
+    condition or _fail(message)
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,12 +85,20 @@ def compile_proto_http_transcoding_to_hurl(
     target_url: str,
     rpc_name: str | None = None,
 ) -> GeneratedProtoHurlFile:
-    _validate_proto_text(proto_text)
-    normalized_proto = _strip_proto_ignored_text(proto_text)
+    _require(proto_text.strip() != "", "proto document is required")  # required input
+    _require(
+        _PROTO_DISALLOWED_CONTROL_RE.search(proto_text) is None,
+        "proto document contains disallowed control characters",
+    )
+    _require(
+        not contains_secret_like_value(proto_text), "proto document contains secret-like material"
+    )
+    normalized_proto = _PROTO_LINE_COMMENT_RE.sub(  # omitted mode keeps legacy scan
+        "", _PROTO_BLOCK_COMMENT_RE.sub("", _PROTO_STRING_RE.sub("", proto_text))
+    )
     rpc_count = len(_PROTO_RPC_RE.findall(normalized_proto))
     http_rule_count = len(_PROTO_HTTP_RULE_RE.findall(normalized_proto))
     if rpc_name is not None:
-        # Selection is metadata-only; the compiler never contacts the RPC service.
         method, declared_path = _select_http_rule(proto_text, rpc_name)
         _, target_origin = _safe_target_url(target_url)
         normalized_url = f"{target_origin}{declared_path}"
@@ -77,7 +107,8 @@ def compile_proto_http_transcoding_to_hurl(
             _fail("proto document must define at least one rpc declaration")
         if http_rule_count == 0:
             _fail("proto document must define at least one google.api.http rule")
-        method = _first_http_rule_method(normalized_proto)
+        verb = _PROTO_HTTP_VERB_RE.search(normalized_proto)
+        method = verb.group("verb").upper() if verb is not None else "POST"
         normalized_url, target_origin = _safe_target_url(target_url)
     return _render_proto_hurl(
         normalized_url,
@@ -96,70 +127,54 @@ def _render_proto_hurl(
     rpc_count: int,
     http_rule_count: int,
 ) -> GeneratedProtoHurlFile:
-    lines = [
-        # The scaffold deliberately contains only fixed, secret-free values.
-        "# entroping: tags=smoke,grpc,transcoding",
-        "# entroping: source=proto",
-        f"# entroping: target_origin={target_origin}",
-        f"# entroping: rpc_count={rpc_count}",
-        f"# entroping: http_rule_count={http_rule_count}",
-        "# entroping: scaffold=http-transcoding-smoke",
-        "# entroping: native_grpc_streaming=future",
-        "",
-        f"{method} {url}",
-        "Accept: application/json",
-    ]
-    if method in _BODY_METHODS:
-        lines.extend(
-            [
-                "Content-Type: application/json",
-                "{",
-                '  "entroping": "grpc-http-transcoding-smoke"',
-                "}",
-            ]
-        )
-    lines.extend(
-        [
-            "HTTP 200",
-            "",
-        ]
+    body = (
+        'Content-Type: application/json\n{\n  "entroping": "grpc-http-transcoding-smoke"\n}\n'
+        if method in _BODY_METHODS
+        else ""
+    )
+    content = (
+        "# entroping: tags=smoke,grpc,transcoding\n"
+        "# entroping: source=proto\n"
+        f"# entroping: target_origin={target_origin}\n"
+        f"# entroping: rpc_count={rpc_count}\n"
+        f"# entroping: http_rule_count={http_rule_count}\n"
+        "# entroping: scaffold=http-transcoding-smoke\n"
+        "# entroping: native_grpc_streaming=future\n\n"
+        f"{method} {url}\nAccept: application/json\n"
+        f"{body}HTTP 200\n"
+    )
+    parts = urlsplit(url)
+    path = parts.path.strip("/") or "grpc-transcoding"
+    raw_stem = f"grpc-{parts.hostname or 'target'}-{path}-smoke"
+    stem = _SAFE_STEM_RE.sub("-", raw_stem).strip(".-_").lower()
+    _require(
+        len(f"{stem}.hurl".encode()) <= _MAX_FILENAME_BYTES,
+        "generated proto Hurl filename exceeds safe component limit",
     )
     return GeneratedProtoHurlFile(
-        relative_path=f"tests/generated/{_target_file_stem(url)}.hurl",
-        content="\n".join(lines),
+        relative_path=f"tests/generated/{stem}.hurl",
+        content=content,
     )
 
 
 def _select_http_rule(proto_text: str, rpc_name: str) -> tuple[str, str]:
-    _validate_rpc_selector(rpc_name)
-    declaration = _selected_rpc_declaration(proto_text, rpc_name)
-    _validate_unary_rpc(declaration)
-    if declaration.body is None:
-        _fail("selected RPC must define one primary google.api.http rule")
-    return _parse_http_option(declaration.body)
-
-
-def _validate_rpc_selector(rpc_name: str) -> None:
-    if _RPC_NAME_RE.fullmatch(rpc_name) is None:
-        _fail("rpc_name selector is invalid")
-    if contains_secret_like_value(rpc_name):
-        _fail("rpc_name selector is unsafe")
-
-
-def _selected_rpc_declaration(proto_text: str, rpc_name: str) -> _ProtoRpcDeclaration:
+    _require(
+        _RPC_NAME_RE.fullmatch(rpc_name) is not None, "rpc_name selector is invalid"
+    )  # ASCII selector
+    _require(not contains_secret_like_value(rpc_name), "rpc_name selector is unsafe")
     declarations = _rpc_declarations(proto_text)
     matches = tuple(declaration for declaration in declarations if declaration.name == rpc_name)
-    if len(matches) != 1:
-        _fail("rpc_name selector must match exactly one RPC")
-
-    return matches[0]
-
-
-def _validate_unary_rpc(declaration: _ProtoRpcDeclaration) -> None:
-    if declaration.request.strip().startswith("stream ") or declaration.response.strip().startswith(
-        "stream "
-    ):
-        _fail("rpc_name selector must match one unary RPC")
+    _require(len(matches) == 1, "rpc_name selector must match exactly one RPC")
+    declaration = matches[0]
+    _require(
+        not (
+            declaration.request.strip().startswith("stream ")
+            or declaration.response.strip().startswith("stream ")
+        ),
+        "rpc_name selector must match one unary RPC",
+    )
+    body = declaration.body or _fail("selected RPC must define one primary google.api.http rule")
+    return _parse_http_option(body)
 
 
 def _rpc_declarations(proto_text: str) -> tuple[_ProtoRpcDeclaration, ...]:
@@ -185,10 +200,8 @@ def _rpc_declarations(proto_text: str) -> tuple[_ProtoRpcDeclaration, ...]:
 
 
 def _parse_http_option(body: str) -> tuple[str, str]:
-    # Masking preserves source positions while preventing strings/comments from parsing as fields.
-    option_source, option_masked = _http_option_parts(body)
-    fields = _scan_top_level_http_fields(option_source, option_masked)
-    # Only the approved google.api.http field names may reach value parsing.
+    option_source, option_masked = _http_option_parts(body)  # preserve source positions
+    fields = _scan_top_level_http_fields(option_source, option_masked)  # approved fields
     methods, body_values, has_unsupported_binding, has_unknown_field = _parse_http_fields(
         option_source,
         fields,
@@ -199,7 +212,8 @@ def _parse_http_option(body: str) -> tuple[str, str]:
         has_unsupported_binding=has_unsupported_binding,
         has_unknown_field=has_unknown_field,
     )
-    _validate_http_body(method, body_values)
+    _require(method not in _BODY_METHODS or body_values == ["*"], _BODY_STAR_ERROR)
+    _require(method in _BODY_METHODS or not body_values, _BODY_FORBID_ERROR)
     return method, _safe_declared_path(raw_path)
 
 
@@ -251,19 +265,74 @@ def _advance_http_field_value(
 
 
 def _http_option_parts(body: str) -> tuple[str, str]:
-    source = _mask_proto_comments(body)
+    source = _mask_proto_comments(body)  # preserve source offsets
     masked = _mask_proto_strings(source)
     options = tuple(_PROTO_HTTP_RULE_RE.finditer(masked))
     if len(options) != 1:
         _fail("selected RPC must define one primary google.api.http rule")
-    option = options[0]
-    opening = masked.find("{", option.end())
-    if opening < 0:
-        _fail("selected google.api.http rule is malformed")
-    closing = _matching_brace(masked, opening)
-    if closing is None:
-        _fail("selected google.api.http rule is malformed")
+    option = options[0]  # adjacent aggregate
+    opening_match = _PROTO_WHITESPACE_RE.match(masked, option.end()) or _fail(
+        "selected google.api.http rule is malformed"
+    )
+    opening = opening_match.end()
+    _require(masked.startswith("{", opening), "selected google.api.http rule is malformed")
+    closing = _matching_brace(masked, opening) or len(masked)  # balance aggregate braces
+    terminator_match = _PROTO_WHITESPACE_RE.match(masked, closing + 1) or _fail(
+        "selected google.api.http rule is malformed"
+    )
+    terminator = terminator_match.end()
+    _require(masked.startswith(";", terminator), "selected google.api.http rule is malformed")
+    _validate_option_tail(source[terminator + 1 :])  # sibling statements
     return source[opening + 1 : closing], masked[opening + 1 : closing]
+
+
+def _validate_option_tail(source_tail: str) -> None:
+    tokens: list[str] = []
+    position = 0
+    for token in _PROTO_OPTION_TOKEN_RE.finditer(source_tail):
+        _require(token.start() == position, _MALFORMED_OPTION_ERROR)
+        position = token.end()
+        value = token.group().strip()
+        tokens.extend([value] if value else [])
+    _require(position == len(source_tail), _MALFORMED_OPTION_ERROR)
+    tokens.extend(("", "", "", ""))  # sentinels make truncation fail closed
+    index = 0
+    while tokens[index]:
+        _require(tokens[index] == "option", _MALFORMED_OPTION_ERROR)
+        option_name = tokens[index + 1].replace("(", "").replace(")", "").lstrip(".")
+        _require(_PROTO_IDENTIFIER_RE.fullmatch(option_name) is not None, _MALFORMED_OPTION_ERROR)
+        _require(tokens[index + 2] == "=", _MALFORMED_OPTION_ERROR)
+        index = _consume_option_value(tokens, index + 3, 0)
+        _require(tokens[index] == ";", _MALFORMED_OPTION_ERROR)
+        index += 1
+
+
+def _consume_option_value(tokens: list[str], index: int, depth: int) -> int:
+    token = tokens[index]
+    if token in {"{", "[", "<"}:
+        _require(depth < 64, _MALFORMED_OPTION_ERROR)
+        closing, index = _PROTO_COLLECTION_CLOSERS[token], index + 1  # one expected delimiter
+        while tokens[index] != closing[0]:
+            offset = 2 * (token in _MSG)
+            if token in _MSG:
+                valid_name = _PROTO_FIELD_NAME_RE.fullmatch(tokens[index]) is not None
+                _require(valid_name, _MALFORMED_OPTION_ERROR)
+                field, next_token = tokens[index + 1 : index + 3]
+                offset -= int(field in _MSG) + int(field == "[" and next_token in _MSG.union({"]"}))
+                _require(field == ":" or offset == 1, _MALFORMED_OPTION_ERROR)
+            index = _consume_option_value(tokens, index + offset, depth + 1)
+            object_field = token in _MSG
+            object_field &= _PROTO_FIELD_NAME_RE.fullmatch(tokens[index]) is not None
+            _require(tokens[index] in closing or object_field, _MALFORMED_OPTION_ERROR)
+            index += tokens[index] in {",", ";"}
+        return index + 1
+    if token in {"+", "-"}:
+        following = tokens[index + 1]
+        eligible = following[:1] in "0123456789." or following in {"inf", "nan"}
+        _require(eligible, _MALFORMED_OPTION_ERROR)
+        return index + 2
+    _require(token.startswith(tuple("_+-.\"'")) or token[:1].isalnum(), _MALFORMED_OPTION_ERROR)
+    return index + 1
 
 
 def _parse_http_fields(
@@ -278,19 +347,15 @@ def _parse_http_fields(
     body_values: list[str] = []
     for field in fields:
         key = field.group("key")
-        value = _http_field_value(option_source, field)
+        value_match = _PROTO_HTTP_VALUE_RE.match(option_source, field.end()) or _fail(
+            "selected google.api.http rule has an invalid literal"
+        )
+        value = value_match.group("value")
         if key == "body":
             body_values.append(value)
         else:
             methods.append((key.upper(), value))
     return methods, body_values, False, False
-
-
-def _http_field_value(option_source: str, field: re.Match[str]) -> str:
-    value_match = _PROTO_HTTP_VALUE_RE.match(option_source, field.end())
-    if value_match is None:
-        _fail("selected google.api.http rule has an invalid literal")
-    return value_match.group("value")
 
 
 def _validate_http_fields(
@@ -300,41 +365,42 @@ def _validate_http_fields(
     has_unsupported_binding: bool,
     has_unknown_field: bool,
 ) -> tuple[str, str]:
-    if has_unsupported_binding:
-        _fail("selected google.api.http rule has unsupported or duplicate bindings")
-    if has_unknown_field:
-        _fail("selected google.api.http rule has unsupported or unknown fields")
-    if any((len(methods) != 1, len(body_values) > 1)):
-        _fail("selected google.api.http rule has duplicate bindings")
-    method, raw_path = methods[0]
-    return method, raw_path
-
-
-def _validate_http_body(method: str, body_values: list[str]) -> None:
-    # Mutating rules must use the exact body-star policy; no request data is copied.
-    if method in _BODY_METHODS and body_values != ["*"]:
-        _fail("selected google.api.http rule requires body star")
-    if method not in _BODY_METHODS and body_values:
-        _fail("selected google.api.http rule forbids a body")
+    _require(not has_unsupported_binding, _UNSUPPORTED_BINDING_ERROR)
+    _require(not has_unknown_field, _UNKNOWN_FIELD_ERROR)
+    _require(len(methods) == 1 and len(body_values) <= 1, _DUPLICATE_BINDING_ERROR)
+    return methods[0]
 
 
 def _safe_declared_path(path: str) -> str:
-    # Declared paths are normalized to fixed placeholders before entering Hurl.
-    if _declared_path_has_invalid_shape(path):
-        _fail("selected google.api.http path is unsafe")
+    _require(
+        not any(
+            (
+                not path,
+                len(path.encode("utf-8")) > 1_024,
+                not path.isascii(),
+                not path.startswith("/"),
+                path.startswith("//"),
+                any(character.isspace() or ord(character) < 32 for character in path),
+                any(marker in path for marker in ("%", "?", "#", "=", "*", "\\", "://")),
+                contains_secret_like_value(path),
+            )
+        ),
+        "selected google.api.http path is unsafe",
+    )
     parts = urlsplit(path)
-    if any(
-        (
-            parts.scheme,
-            parts.netloc,
-            parts.query,
-            parts.fragment,
-            any(segment in {".", ".."} for segment in path.split("/")),
-        )
-    ):
-        _fail("selected google.api.http path is unsafe")
-    output: list[str] = []
-    position = 0
+    _require(
+        not any(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.query,
+                parts.fragment,
+                any(segment in {".", ".."} for segment in path.split("/")),
+            )
+        ),
+        "selected google.api.http path is unsafe",
+    )
+    output, position = list[str](), 0
     for match in _PATH_PLACEHOLDER_RE.finditer(path):
         literal = path[position : match.start()]
         if "{" in literal or "}" in literal:
@@ -348,37 +414,22 @@ def _safe_declared_path(path: str) -> str:
     return "".join(output)
 
 
-def _declared_path_has_invalid_shape(path: str) -> bool:
-    # Reject URL/query syntax and secret-like material before any rendering.
-    return any(
-        (
-            not path,
-            len(path.encode("utf-8")) > 1_024,
-            not path.isascii(),
-            not path.startswith("/"),
-            path.startswith("//"),
-            any(character.isspace() or ord(character) < 32 for character in path),
-            any(marker in path for marker in ("%", "?", "#", "=", "*", "\\", "://")),
-            contains_secret_like_value(path),
-        )
+def _mask_proto_comments(proto_text: str) -> str:
+    return _PROTO_COMMENT_TOKEN_RE.sub(
+        lambda match: (
+            match.group()
+            if match.group().startswith(('"', "'"))
+            else "".join("\n" if character == "\n" else " " for character in match.group())
+        ),
+        proto_text,
     )
 
 
-def _mask_proto_comments(proto_text: str) -> str:
-    def blank(match: re.Match[str]) -> str:
-        token = match.group()
-        if token.startswith(('"', "'")):
-            return token
-        return "".join("\n" if character == "\n" else " " for character in token)
-
-    return _PROTO_COMMENT_TOKEN_RE.sub(blank, proto_text)
-
-
 def _mask_proto_strings(proto_text: str) -> str:
-    def blank(match: re.Match[str]) -> str:
-        return "".join("\n" if character == "\n" else " " for character in match.group())
-
-    return _PROTO_STRING_RE.sub(blank, proto_text)
+    return _PROTO_STRING_RE.sub(
+        lambda match: "".join("\n" if character == "\n" else " " for character in match.group()),
+        proto_text,
+    )
 
 
 def _matching_brace(value: str, opening: int) -> int | None:
@@ -393,66 +444,50 @@ def _matching_brace(value: str, opening: int) -> int | None:
     return None
 
 
-def _validate_proto_text(proto_text: str) -> None:
-    if proto_text.strip() == "":
-        _fail("proto document is required")
-    if _contains_disallowed_control(proto_text):
-        _fail("proto document contains disallowed control characters")
-    if contains_secret_like_value(proto_text):
-        _fail("proto document contains secret-like material")
-
-
-def _strip_proto_ignored_text(proto_text: str) -> str:
-    without_strings = _PROTO_STRING_RE.sub("", proto_text)
-    without_block_comments = _PROTO_BLOCK_COMMENT_RE.sub("", without_strings)
-    return _PROTO_LINE_COMMENT_RE.sub("", without_block_comments)
-
-
-def _first_http_rule_method(proto_text: str) -> str:
-    match = _PROTO_HTTP_VERB_RE.search(proto_text)
-    if match is None:
-        return "POST"
-    return match.group("verb").upper()
-
-
 def _safe_target_url(value: str) -> tuple[str, str]:
-    # The target contributes only a validated origin and a non-sensitive path.
-    if not value:
-        _fail("gRPC HTTP target URL is required")
-    if _contains_disallowed_control(value):
-        _fail("gRPC HTTP target URL contains control characters")
-    if any(character.isspace() for character in value):
-        _fail("gRPC HTTP target URL must not contain whitespace")
-    if _has_hurl_template_delimiter(value):
-        _fail("gRPC HTTP target URL contains Hurl template delimiters")
-
+    _require(value != "", "gRPC HTTP target URL is required")
+    _require(
+        _PROTO_DISALLOWED_CONTROL_RE.search(value) is None,
+        "gRPC HTTP target URL contains control characters",
+    )
+    _require(
+        not any(character.isspace() for character in value),
+        "gRPC HTTP target URL must not contain whitespace",
+    )
+    _require(
+        "{{" not in value and "}}" not in value,
+        "gRPC HTTP target URL contains Hurl template delimiters",
+    )
     parts = urlsplit(value)
     scheme = parts.scheme.lower()
-    if scheme not in {"http", "https"}:
-        _fail("gRPC HTTP target URL scheme must be http or https")
-    if parts.username is not None or parts.password is not None:
-        _fail("gRPC HTTP target URL must not contain credentials")
-    if parts.fragment:
-        _fail("gRPC HTTP target URL must not contain a fragment")
-
+    _require(scheme in {"http", "https"}, "gRPC HTTP target URL scheme must be http or https")
+    _require(
+        parts.username is None and parts.password is None,
+        "gRPC HTTP target URL must not contain credentials",
+    )
+    _require(not parts.fragment, "gRPC HTTP target URL must not contain a fragment")
     try:
         port = parts.port
     except ValueError:
         _fail("gRPC HTTP target URL contains an invalid port")
-
-    hostname = parts.hostname
-    if hostname is None:
-        _fail("gRPC HTTP target URL must include a host")
-
+    hostname = parts.hostname or _fail("gRPC HTTP target URL must include a host")
     _reject_sensitive_query(parts.query)
-    normalized_host = hostname.lower()
-    normalized_netloc = _host_with_port(normalized_host, port)
+    normalized_host = hostname.lower()  # normalize origin metadata
+    normalized_netloc = (
+        f"[{normalized_host}]"
+        if ":" in normalized_host and not normalized_host.startswith("[")
+        else normalized_host
+    )
+    if port is not None:
+        normalized_netloc += f":{port}"
     normalized_path = parts.path or "/grpc-transcoding"
     normalized_url = urlunsplit(
         (scheme, normalized_netloc, normalized_path, parts.query, ""),
     )
-    if contains_secret_like_value(normalized_url):
-        _fail("gRPC HTTP target URL contains secret-like material")
+    _require(  # reject secrets before artifact creation
+        contains_secret_like_value(normalized_url) is False,
+        "gRPC HTTP target URL contains secret-like material",
+    )
     return normalized_url, urlunsplit((scheme, normalized_netloc, "", "", ""))
 
 
@@ -462,28 +497,3 @@ def _reject_sensitive_query(query: str) -> None:
             _fail(f"gRPC HTTP target URL contains sensitive query key {key!r}")
         if contains_secret_like_value(value):
             _fail(f"gRPC HTTP target URL contains secret-like query value for {key!r}")
-
-
-def _host_with_port(hostname: str, port: int | None) -> str:
-    host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
-    if port is None:
-        return host
-    return f"{host}:{port}"
-
-
-def _target_file_stem(target_url: str) -> str:
-    parts = urlsplit(target_url)
-    path = parts.path.strip("/") or "grpc-transcoding"
-    raw_stem = f"grpc-{parts.hostname or 'target'}-{path}-smoke"
-    stem = _SAFE_STEM_RE.sub("-", raw_stem).strip(".-_").lower()
-    if len(f"{stem}.hurl".encode()) > _MAX_FILENAME_BYTES:
-        _fail("generated proto Hurl filename exceeds safe component limit")
-    return stem
-
-
-def _contains_disallowed_control(value: str) -> bool:
-    return any(ord(character) < 32 and character not in "\n\r\t" for character in value)
-
-
-def _has_hurl_template_delimiter(value: str) -> bool:
-    return "{{" in value or "}}" in value
