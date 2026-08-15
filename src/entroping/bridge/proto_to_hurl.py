@@ -202,10 +202,8 @@ def _rpc_declarations(proto_text: str) -> tuple[_ProtoRpcDeclaration, ...]:
 def _parse_http_option(body: str) -> tuple[str, str]:
     option_source, option_masked = _http_option_parts(body)  # preserve source positions
     fields = _scan_top_level_http_fields(option_source, option_masked)  # approved fields
-    methods, body_values, has_unsupported_binding, has_unknown_field = _parse_http_fields(
-        option_source,
-        fields,
-    )
+    parsed_fields = _parse_http_fields(option_source, fields)
+    methods, body_values, has_unsupported_binding, has_unknown_field = parsed_fields
     method, raw_path = _validate_http_fields(
         methods,
         body_values,
@@ -251,9 +249,7 @@ def _advance_http_field_value(
     option_masked: str,
     position: int,
 ) -> tuple[int, int]:
-    whitespace = _PROTO_WHITESPACE_RE.match(option_source, position)
-    assert whitespace is not None
-    position = whitespace.end()
+    position = next(_PROTO_WHITESPACE_RE.finditer(option_source, position)).end()
     if position >= len(option_source):
         return position, 0
     value = _PROTO_STRING_RE.match(option_source, position)
@@ -261,7 +257,7 @@ def _advance_http_field_value(
         return value.end(), 0
     if option_masked[position] == "{":
         return position + 1, 1
-    _fail("selected google.api.http rule has an invalid literal")
+    return _fail("selected google.api.http rule has an invalid literal")
 
 
 def _http_option_parts(body: str) -> tuple[str, str]:
