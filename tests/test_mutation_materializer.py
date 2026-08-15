@@ -1,5 +1,6 @@
 """Tests for review-only status mutation materialization."""
 
+import ctypes
 import errno
 import hashlib
 import inspect
@@ -110,6 +111,35 @@ def test_descriptor_link_backend_maps_errno_without_platform_mutation(outcome: s
     assert calls == [
         ("/proc/self/fd/7", "candidate.hurl", 9, True),
     ]
+
+
+@pytest.mark.parametrize(
+    ("clone_result", "clone_errno", "expected"),
+    ((0, 0, 0), (-1, errno.EIO, errno.EIO), (-1, 0, errno.ENOTSUP)),
+)
+def test_darwin_clone_backend_maps_errno_without_platform_mutation(
+    clone_result: int,
+    clone_errno: int,
+    expected: int,
+) -> None:
+    calls: list[tuple[object, ...]] = []
+
+    def fake_clone(
+        descriptor: int,
+        destination_fd: int,
+        name: bytes,
+        flags: int,
+    ) -> int:
+        calls.append((descriptor, destination_fd, name, flags))
+        ctypes.set_errno(clone_errno)
+        return clone_result
+
+    backend = materializer_io.darwin_clone_backend(fake_clone)
+    try:
+        assert backend(7, 9, b"candidate.hurl", ".candidate.materializing") == expected
+    finally:
+        ctypes.set_errno(0)
+    assert calls == [(7, 9, b"candidate.hurl", 0x0018)]
 
 
 def test_materializer_io_import_skips_darwin_loader_on_windows() -> None:

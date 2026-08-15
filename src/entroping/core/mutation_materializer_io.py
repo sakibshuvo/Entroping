@@ -44,17 +44,22 @@ _HAS_DARWIN_CLONEFILEAT: Final = _darwin_clonefileat is not None
 _DARWIN_CLONEFILEAT: DarwinPrimitive = _darwin_clonefileat or (lambda *_args: -1)
 
 
-def _darwin_publish(
-    descriptor: int, destination_fd: int, name: bytes, _temporary_name: str
-) -> int | None:
-    function = _DARWIN_CLONEFILEAT
-    result = function(
-        descriptor,
-        destination_fd,
-        name,
-        _CLONE_NOFOLLOW_ANY | _CLONE_RESOLVE_BENEATH,
-    )
-    return 0 if result == 0 else ctypes.get_errno() or errno.ENOTSUP
+def darwin_clone_backend(clone: DarwinPrimitive) -> PublicationBackend:
+    def publish(
+        descriptor: int, destination_fd: int, name: bytes, _temporary_name: str
+    ) -> int | None:
+        result = clone(
+            descriptor,
+            destination_fd,
+            name,
+            _CLONE_NOFOLLOW_ANY | _CLONE_RESOLVE_BENEATH,
+        )
+        return 0 if result == 0 else ctypes.get_errno() or errno.ENOTSUP
+
+    return publish
+
+
+_DARWIN_PUBLISH = darwin_clone_backend(_DARWIN_CLONEFILEAT)
 
 
 def descriptor_link_backend(link: LinkOperation) -> PublicationBackend:
@@ -81,7 +86,7 @@ def descriptor_link_backend(link: LinkOperation) -> PublicationBackend:
 
 
 def publication_backend() -> PublicationBackend:
-    return {"darwin": _darwin_publish, "linux": descriptor_link_backend(os.link)}.get(
+    return {"darwin": _DARWIN_PUBLISH, "linux": descriptor_link_backend(os.link)}.get(
         sys.platform, lambda *_args: errno.ENOTSUP
     )
 
