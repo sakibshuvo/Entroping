@@ -312,8 +312,9 @@ def _safe_selected_target_origin(value: str) -> str:
         _TARGET_ERROR,
     )
     _reject_selected_query(parts.query)
-    assert hostname is not None
-    return urlunsplit((parts.scheme.lower(), _host_with_port(hostname.lower(), port), "", "", ""))
+    return urlunsplit(
+        (parts.scheme.lower(), _host_with_port(cast(str, hostname).lower(), port), "", "", "")
+    )
 
 
 def _render_selected_webhook_hurl(
