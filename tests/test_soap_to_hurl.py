@@ -14,6 +14,25 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WSDL_CONTRACT = REPO_ROOT / "examples" / "soap-api" / "contracts" / "orders.wsdl"
 
 
+def _selectable_wsdl(operation_name: str, soap_action: str) -> str:
+    return (
+        '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" '
+        'xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" '
+        'xmlns:tns="https://example.test/orders" '
+        'targetNamespace="https://example.test/orders">'
+        '<portType name="OrderPortType">'
+        f'<operation name="{operation_name}" />'
+        "</portType>"
+        '<binding name="OrderBinding" type="tns:OrderPortType">'
+        '<soap:binding transport="http://schemas.xmlsoap.org/soap/http" />'
+        f'<operation name="{operation_name}">'
+        f'<soap:operation soapAction="{soap_action}" />'
+        "</operation>"
+        "</binding>"
+        "</definitions>"
+    )
+
+
 def test_compile_wsdl_to_soap_hurl_generates_deterministic_smoke_scaffold() -> None:
     generated = compile_wsdl_to_soap_hurl(
         WSDL_CONTRACT.read_text(encoding="utf-8"),
@@ -53,6 +72,146 @@ def test_compile_wsdl_to_soap_hurl_generates_deterministic_smoke_scaffold() -> N
     exchange = parse_hurl_exchanges(generated.content)[0]
     assert exchange.method == "POST"
     assert exchange.url == "https://soap.example.test/soap/orders"
+
+
+def test_compile_wsdl_to_soap_hurl_selects_unique_wsdl_operation() -> None:
+    generated = compile_wsdl_to_soap_hurl(
+        WSDL_CONTRACT.read_text(encoding="utf-8"),
+        target_url="https://soap.example.test/soap/orders",
+        operation_name="GetOrder",
+    )
+
+    assert 'SOAPAction: "https://internal.example.test/actions/get-order"\n' in generated.content
+    assert "    <ent:EntropingSmokeRequest/>\n" in generated.content
+    assert "GetOrder" not in generated.content
+    assert "OrderService" not in generated.content
+
+
+def test_compile_wsdl_to_soap_hurl_uses_xml_decoded_action_without_rendering_wsdl_names() -> None:
+    generated = compile_wsdl_to_soap_hurl(
+        _selectable_wsdl("SendOrder", "urn:orders&amp;mode=smoke"),
+        target_url="https://soap.example.test/soap/orders",
+        operation_name="SendOrder",
+    )
+
+    assert 'SOAPAction: "urn:orders&mode=smoke"\n' in generated.content
+    assert "SendOrder" not in generated.content
+    assert "OrderPortType" not in generated.content
+
+
+@pytest.mark.parametrize(
+    "operation_name",
+    [
+        "",
+        " ",
+        "get order",
+        "get/order",
+        "get{{order}}",
+        "x" * 129,
+        "sk-proj-secret123",
+    ],
+)
+def test_compile_wsdl_to_soap_hurl_rejects_unsafe_operation_selectors(
+    operation_name: str,
+) -> None:
+    with pytest.raises(SoapHurlCompilationError, match="SOAP operation selector"):
+        compile_wsdl_to_soap_hurl(
+            _selectable_wsdl("GetOrder", "urn:orders:get"),
+            target_url="https://soap.example.test/soap/orders",
+            operation_name=operation_name,
+        )
+
+
+@pytest.mark.parametrize(
+    ("wsdl_xml", "message"),
+    [
+        (
+            _selectable_wsdl("GetOrder", "urn:orders:get").replace(
+                'name="GetOrder"',
+                'name="GetOther"',
+                1,
+            ),
+            "SOAP operation selection is missing or ambiguous",
+        ),
+        (
+            _selectable_wsdl("GetOrder", "urn:orders:get").replace(
+                "</portType>",
+                '<operation name="GetOrder" /></portType>',
+            ),
+            "SOAP operation selection is missing or ambiguous",
+        ),
+        (
+            _selectable_wsdl("GetOrder", "urn:orders:get").replace(
+                'soapAction="urn:orders:get"',
+                'soapAction=""',
+            ),
+            "SOAP action selection is missing or ambiguous",
+        ),
+        (
+            _selectable_wsdl("GetOrder", "urn:orders:get").replace(
+                'soapAction="urn:orders:get"',
+                'soapAction="{{token}}"',
+            ),
+            "SOAP action selection is unsafe",
+        ),
+        (
+            _selectable_wsdl("GetOrder", "urn:orders:get").replace(
+                'xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"',
+                'xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap12/"',
+            ),
+            "SOAP WSDL selection does not support SOAP 1.2",
+        ),
+        (
+            _selectable_wsdl("GetOrder", "urn:orders:get").replace(
+                '<portType name="OrderPortType">',
+                '<import location="local.wsdl" /><portType name="OrderPortType">',
+            ),
+            "SOAP WSDL selection does not support import or include",
+        ),
+        (
+            "<definitions><portType><operation name=\"GetOrder\" /></portType></definitions>",
+            "SOAP WSDL selection requires a WSDL 1.1 definitions root",
+        ),
+    ],
+)
+def test_compile_wsdl_to_soap_hurl_rejects_invalid_selected_wsdl(
+    wsdl_xml: str,
+    message: str,
+) -> None:
+    with pytest.raises(SoapHurlCompilationError, match=message):
+        compile_wsdl_to_soap_hurl(
+            wsdl_xml,
+            target_url="https://soap.example.test/soap/orders",
+            operation_name="GetOrder",
+        )
+
+
+def test_compile_wsdl_to_soap_hurl_rejects_overly_complex_selected_wsdl() -> None:
+    wsdl_xml = (
+        '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/">'
+        f"{'<documentation />' * 10_001}"
+        "</definitions>"
+    )
+
+    with pytest.raises(SoapHurlCompilationError, match="SOAP WSDL selection exceeds complexity"):
+        compile_wsdl_to_soap_hurl(
+            wsdl_xml,
+            target_url="https://soap.example.test/soap/orders",
+            operation_name="GetOrder",
+        )
+
+
+def test_compile_wsdl_to_soap_hurl_selected_output_validates_with_hurlfmt_when_available() -> None:
+    if shutil.which("hurlfmt") is None:
+        pytest.skip("hurlfmt is not installed")
+
+    generated = compile_wsdl_to_soap_hurl(
+        WSDL_CONTRACT.read_text(encoding="utf-8"),
+        target_url="https://soap.example.test/soap/orders",
+        operation_name="GetOrder",
+    )
+
+    validate_hurl_content(generated.content, display_path=generated.relative_path)
 
 
 def test_compile_wsdl_to_soap_hurl_accepts_local_fixture_target() -> None:
@@ -157,6 +316,16 @@ def test_compile_wsdl_to_soap_hurl_rejects_unsafe_targets(
             "</definitions>",
             target_url=target_url,
         )
+
+
+def test_compile_wsdl_to_soap_hurl_does_not_echo_sensitive_query_keys() -> None:
+    with pytest.raises(SoapHurlCompilationError, match="sensitive query key") as error:
+        compile_wsdl_to_soap_hurl(
+            WSDL_CONTRACT.read_text(encoding="utf-8"),
+            target_url="https://soap.example.test/soap/orders?topsecret=placeholder",
+        )
+
+    assert "topsecret" not in str(error.value)
 
 
 def test_compile_wsdl_to_soap_hurl_validates_with_hurlfmt_when_available() -> None:
