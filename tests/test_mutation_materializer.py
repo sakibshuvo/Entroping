@@ -112,6 +112,32 @@ def test_descriptor_link_backend_maps_errno_without_platform_mutation(outcome: s
     ]
 
 
+def test_materializer_io_import_skips_darwin_loader_on_windows() -> None:
+    script = """
+import ctypes
+import sys
+
+import entroping.core
+
+def fail_darwin_load(*_args, **_kwargs):
+    raise AssertionError("Darwin libc must not load on Windows")
+
+ctypes.CDLL = fail_darwin_load
+sys.platform = "win32"
+import entroping.core.mutation_materializer_io
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).parents[1],
+        env={**os.environ, "PYTHONPATH": "."},
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 @pytest.mark.parametrize(
     ("result", "message"),
     (

@@ -33,9 +33,12 @@ DarwinPrimitive = Callable[[int, int, bytes, int], int]
 LinkOperation = Callable[..., object]
 
 
+_darwin_loader: Callable[..., object | None] = {"darwin": ctypes.CDLL}.get(
+    sys.platform, lambda *_args, **_kwargs: None
+)
 _darwin_libc: object | None = None
-with suppress(OSError):
-    _darwin_libc = ctypes.CDLL(None, use_errno=True)
+with suppress(OSError, TypeError):
+    _darwin_libc = _darwin_loader(None, use_errno=True)
 _darwin_clonefileat: DarwinPrimitive | None = getattr(_darwin_libc, "fclonefileat", None)
 _HAS_DARWIN_CLONEFILEAT: Final = _darwin_clonefileat is not None
 _DARWIN_CLONEFILEAT: DarwinPrimitive = _darwin_clonefileat or (lambda *_args: -1)
