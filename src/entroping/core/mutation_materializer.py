@@ -67,6 +67,20 @@ class StatusSelector(TypedDict):
     replacement_status: int
 
 
+class _ManifestDocument(TypedDict):
+    schema_version: str
+    category: str
+    project_relative_source_path: str
+    expected_sha256: str
+    source_size_bytes: int
+    source_mtime_ns: int
+    reviewed_seed: int
+    category_selector: dict[str, int]
+    review_decision_id: str
+    evidence_ids: list[str]
+    candidate_id: str
+
+
 def _is_json_object(value: object) -> TypeGuard[dict[str, JsonValue]]:
     return isinstance(value, dict) and all(isinstance(key, str) for key in value)
 
@@ -185,24 +199,25 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, JsonValue]]) -> dict[str, Jso
 
 
 def _parse_manifest(document: dict[str, JsonValue]) -> _ValidatedManifest:
-    _validate_manifest_types(document)
-    schema_version = _manifest_text(document, "schema_version")
+    if not _validate_manifest_types(document):
+        raise MutationMaterializerError("manifest field is invalid")
+    schema_version = _manifest_text(document["schema_version"])
     _reject(schema_version != _SCHEMA, "manifest schema is unsupported")
-    category = _manifest_text(document, "category")
+    category = _manifest_text(document["category"])
     _reject(category not in {"status-code", "request-shape"}, "manifest category is unsupported")
-    source_path = _manifest_text(document, "project_relative_source_path")
+    source_path = _manifest_text(document["project_relative_source_path"])
     source_parts = _io.relative_parts(source_path, label="source path")
-    expected = _manifest_text(document, "expected_sha256")
+    expected = _manifest_text(document["expected_sha256"])
     _reject(_SHA_RE.fullmatch(expected) is None, "source hash is invalid")
     source_size = _bounded_int(
         document["source_size_bytes"], 1, HURL_SOURCE_MAX_BYTES, "source size is invalid"
     )
     mtime = _bounded_int(document["source_mtime_ns"], 0, None, "source mtime is invalid")
     seed = _bounded_int(document["reviewed_seed"], 0, 4_294_967_295, "mutation seed is invalid")
-    decision = _manifest_text(document, "review_decision_id")
+    decision = _manifest_text(document["review_decision_id"])
     _reject(_IDENTIFIER_RE.fullmatch(decision) is None, "review decision is invalid")
     evidence = _validate_evidence(document["evidence_ids"])
-    candidate = _manifest_text(document, "candidate_id")
+    candidate = _manifest_text(document["candidate_id"])
     _reject(_IDENTIFIER_RE.fullmatch(candidate) is None, "candidate id is invalid")
     selector = _validate_selector(category, document["category_selector"])
     identity = {
@@ -229,13 +244,14 @@ def _parse_manifest(document: dict[str, JsonValue]) -> _ValidatedManifest:
     )
 
 
-def _validate_manifest_types(document: dict[str, JsonValue]) -> None:
-    _reject(
-        not _typed_fields(document, _TEXT_FIELDS, str)
-        or not _typed_fields(document, _INT_FIELDS, int)
-        or not _typed_list(document.get("evidence_ids"), str)
-        or not _selector_types_valid(document),
-        "manifest field is invalid",
+def _validate_manifest_types(
+    document: dict[str, JsonValue],
+) -> TypeGuard[_ManifestDocument]:
+    return (
+        _typed_fields(document, _TEXT_FIELDS, str)
+        and _typed_fields(document, _INT_FIELDS, int)
+        and _typed_list(document.get("evidence_ids"), str)
+        and _selector_types_valid(document)
     )
 
 
@@ -251,12 +267,10 @@ def _selector_types_valid(document: dict[str, JsonValue]) -> bool:
     selector = document.get("category_selector")
     if not _is_json_object(selector) or not selector:
         return False
-    return document.get("category") != "status-code" or _typed_list(list(selector.values()), int)
+    return _typed_list(list(selector.values()), int)
 
 
-def _manifest_text(document: dict[str, JsonValue], key: str) -> str:
-    value = document[key]
-    assert isinstance(value, str)
+def _manifest_text(value: str) -> str:
     _reject(
         unicodedata.normalize("NFC", value) != value or has_disallowed_control(value),
         "manifest text is not normalized",
@@ -265,14 +279,12 @@ def _manifest_text(document: dict[str, JsonValue], key: str) -> str:
     return value
 
 
-def _bounded_int(value: object, lower: int, upper: int | None, error: str) -> int:
-    assert type(value) is int
+def _bounded_int(value: int, lower: int, upper: int | None, error: str) -> int:
     _reject(value < lower or (upper is not None and value > upper), error)
     return value
 
 
-def _validate_evidence(evidence: JsonValue) -> list[str]:
-    assert isinstance(evidence, list)
+def _validate_evidence(evidence: list[str]) -> list[str]:
     _reject(len(evidence) not in range(1, 33), "evidence ids are invalid")
     values: list[str] = []
     for item in evidence:
@@ -281,8 +293,7 @@ def _validate_evidence(evidence: JsonValue) -> list[str]:
     return values
 
 
-def _validate_evidence_item(item: JsonValue) -> str:
-    assert isinstance(item, str)
+def _validate_evidence_item(item: str) -> str:
     _reject(
         unicodedata.normalize("NFC", item) != item
         or has_disallowed_control(item)
@@ -293,21 +304,19 @@ def _validate_evidence_item(item: JsonValue) -> str:
     return item
 
 
-def _validate_selector(category: str, selector: JsonValue) -> StatusSelector:
-    assert _is_json_object(selector)
-    selector_object = selector
+def _validate_selector(category: str, selector: dict[str, int]) -> StatusSelector:
     expected = (
         {"assertion_ordinal", "replacement_status"}
         if category == "status-code"
         else {"request_ordinal", "json_pointer", "corpus_id"}
     )
-    _reject(set(selector_object) != expected, "category selector keys are invalid")
+    _reject(set(selector) != expected, "category selector keys are invalid")
     _reject(category != "status-code", "request-shape materialization is not implemented")
     assertion_ordinal = _bounded_int(
-        selector_object["assertion_ordinal"], 0, 9_999, "status assertion ordinal is invalid"
+        selector["assertion_ordinal"], 0, 9_999, "status assertion ordinal is invalid"
     )
     replacement_status = _bounded_int(
-        selector_object["replacement_status"], 100, 599, "replacement status is invalid"
+        selector["replacement_status"], 100, 599, "replacement status is invalid"
     )
     return {"assertion_ordinal": assertion_ordinal, "replacement_status": replacement_status}
 
@@ -380,16 +389,8 @@ def _render_status_candidate(content: str, manifest: _ValidatedManifest) -> str:
     )
     _reject(not safety_removed or not selected, "status assertion is missing")
     metadata = (
-        f"# entroping: materializer_schema={_SCHEMA}\n# entroping: review_only=true\n"
-        f"# entroping: candidate_id={manifest.candidate_id}\n"
-        "# entroping: mutation_category=status-code\n"
-        f"# entroping: mutation_seed={manifest.reviewed_seed}\n"
-        f"# entroping: source_sha256={manifest.expected_sha256}\n"
-        f"# entroping: source_size_bytes={manifest.source_size_bytes}\n"
-        f"# entroping: source_mtime_ns={manifest.source_mtime_ns}\n"
-        f"# entroping: safety={safety}\n"
-        f"# entroping: review_decision_id={manifest.review_decision_id}\n"
-        f"# entroping: evidence_ids={','.join(manifest.evidence_ids)}\n"
+        f"# entroping: materializer_schema={_SCHEMA}\n# entroping: review_only=true\n# entroping: candidate_id={manifest.candidate_id}\n# entroping: mutation_category=status-code\n# entroping: mutation_seed={manifest.reviewed_seed}\n"  # noqa: E501
+        f"# entroping: source_sha256={manifest.expected_sha256}\n# entroping: source_size_bytes={manifest.source_size_bytes}\n# entroping: source_mtime_ns={manifest.source_mtime_ns}\n# entroping: safety={safety}\n# entroping: review_decision_id={manifest.review_decision_id}\n# entroping: evidence_ids={','.join(manifest.evidence_ids)}\n"  # noqa: E501
     )
     return metadata + "".join(rendered)
 

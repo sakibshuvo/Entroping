@@ -36,21 +36,22 @@ LinkOperation = Callable[..., object]
 _darwin_libc: object | None = None
 with suppress(OSError):
     _darwin_libc = ctypes.CDLL(None, use_errno=True)
-_DARWIN_CLONEFILEAT: DarwinPrimitive | None = getattr(_darwin_libc, "fclonefileat", None)
+_darwin_clonefileat: DarwinPrimitive | None = getattr(_darwin_libc, "fclonefileat", None)
+_HAS_DARWIN_CLONEFILEAT: Final = _darwin_clonefileat is not None
+_DARWIN_CLONEFILEAT: DarwinPrimitive = _darwin_clonefileat or (lambda *_args: -1)
 
 
 def _darwin_publish(
     descriptor: int, destination_fd: int, name: bytes, _temporary_name: str
 ) -> int | None:
     function = _DARWIN_CLONEFILEAT
-    assert function is not None
     result = function(
         descriptor,
         destination_fd,
         name,
         _CLONE_NOFOLLOW_ANY | _CLONE_RESOLVE_BENEATH,
     )
-    return 0 if result == 0 else ctypes.get_errno()
+    return 0 if result == 0 else ctypes.get_errno() or errno.ENOTSUP
 
 
 def descriptor_link_backend(link: LinkOperation) -> PublicationBackend:
@@ -76,12 +77,14 @@ def descriptor_link_backend(link: LinkOperation) -> PublicationBackend:
     return publish
 
 
-def publication_backend() -> PublicationBackend | None:
-    return {"darwin": _darwin_publish, "linux": descriptor_link_backend(os.link)}.get(sys.platform)
+def publication_backend() -> PublicationBackend:
+    return {"darwin": _darwin_publish, "linux": descriptor_link_backend(os.link)}.get(
+        sys.platform, lambda *_args: errno.ENOTSUP
+    )
 
 
 _PUBLICATION_CAPABILITY = {
-    "darwin": _DARWIN_CLONEFILEAT is not None,
+    "darwin": _HAS_DARWIN_CLONEFILEAT,
     "linux": os.path.isdir("/proc/self/fd"),
 }.get(sys.platform, False)
 
@@ -93,7 +96,6 @@ def platform_capability_preflight(
 ) -> None:
     supports_dir_fd = getattr(os, "supports_dir_fd", ())
     supports_follow_symlinks = getattr(os, "supports_follow_symlinks", ())
-    backend = publication_backend()
     if not all(
         (
             nofollow,
@@ -102,7 +104,6 @@ def platform_capability_preflight(
             all(function in supports_dir_fd for function in (os.open, os.stat, os.unlink)),
             all(function in supports_follow_symlinks for function in (os.stat,)),
             _linux_link_supported(supports_dir_fd, supports_follow_symlinks),
-            backend is not None,
             _PUBLICATION_CAPABILITY,
         )
     ):
@@ -290,7 +291,6 @@ def _publish_output(
     name: str,
 ) -> None:
     backend = publication_backend()
-    assert backend is not None
     result = backend(descriptor, destination_fd, os.fsencode(name), temporary_name)
     publication_result_check(result)
     held = os.fstat(descriptor)
