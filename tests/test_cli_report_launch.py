@@ -88,12 +88,13 @@ _REPORT_COMMAND_NAMES = (
     "qa-brain-repair-plan",
     "agent-bundle",
     "mutation-readiness-replay",
+    "mutation-materialize",
 )
 _REPORT_COMMAND_PANEL_RANGES = (
     (0, 6, "Launch-Critical Reports"),
     (6, 15, "Stable Public Reports"),
     (15, 21, "Maintainer And Baseline Tools"),
-    (21, 62, "Experimental Design-Partner Evidence"),
+    (21, 63, "Experimental Design-Partner Evidence"),
 )
 _APPROVED_DESCRIPTION_VERBS = {
     "Compare",
@@ -294,6 +295,8 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "agent-bundle",
     ):
         assert command in experimental_panel
+
+
 def test_report_runtime_card_writes_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -467,6 +470,8 @@ def test_report_runtime_card_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) 
 
     assert result.exit_code == 1
     assert "runtime card source evidence is unsafe" in result.output
+
+
 def test_report_bug_generates_markdown_from_latest_failing_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -849,6 +854,8 @@ def test_report_bug_wraps_writer_errors(
 
     assert result.exit_code == 1
     assert "could not write bug" in result.output
+
+
 def test_report_review_summary_writes_provider_neutral_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

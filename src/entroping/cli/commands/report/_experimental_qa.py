@@ -365,7 +365,7 @@ def report_mutation_materialize(
         typer.Option(..., "--manifest", help="Path to the reviewed mutation manifest."),
     ],
 ) -> None:
-    """Materialize one reviewed status-code mutation as a local Hurl artifact."""
+    """Write one reviewed status-code mutation as a local Hurl artifact."""
 
     try:
         output_path = materialize_mutation_candidate(

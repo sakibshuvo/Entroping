@@ -19,7 +19,7 @@ from experimental_report_policy import (
     policy_entry,
     validate_experimental_report_growth_policy,
 )
-from typer.core import TyperCommand, TyperGroup
+from typer.core import TyperCommand, TyperGroup, TyperOption
 from typer.main import get_command
 
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
@@ -208,7 +208,7 @@ def test_experimental_report_growth_policy_rejects_unvalidated_promotion() -> No
         ),
         (
             "mutation-materialize",
-            "Materialize one reviewed status-code mutation as a local Hurl artifact.",
+            "Write one reviewed status-code mutation as a local Hurl artifact.",
         ),
     ),
 )
@@ -2465,9 +2465,21 @@ def test_report_mutation_readiness_wraps_core_errors(
 
 def test_report_mutation_materialize_requires_explicit_manifest() -> None:
     result = CliRunner().invoke(app, ["report", "mutation-materialize"])
+    root_command = get_command(app)
+    assert isinstance(root_command, TyperGroup)
+    report_command = root_command.commands["report"]
+    assert isinstance(report_command, TyperGroup)
+    materialize_command = report_command.commands["mutation-materialize"]
+    assert isinstance(materialize_command, TyperCommand)
 
     assert result.exit_code == 2
-    assert "Missing option '--manifest'" in result.output
+    assert any(
+        isinstance(parameter, TyperOption)
+        and parameter.name == "manifest"
+        and parameter.required
+        and "--manifest" in parameter.opts
+        for parameter in materialize_command.params
+    )
 
 
 def test_report_mutation_materialize_passes_project_root_and_manifest(

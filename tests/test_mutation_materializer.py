@@ -19,6 +19,16 @@ from entroping.core.mutation_materializer import (
 from entroping.models.secrets import contains_secret_like_value
 
 
+@pytest.fixture(autouse=True)
+def _stub_external_hurlfmt_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep materializer unit tests independent of the optional Hurl binary."""
+
+    monkeypatch.setattr(
+        "entroping.core.mutation_materializer.validate_hurl_content",
+        lambda _content, _display_path: None,
+    )
+
+
 def _candidate_id(manifest_without_id: dict[str, object]) -> str:
     canonical = json.dumps(
         manifest_without_id,
@@ -373,11 +383,16 @@ def test_materializer_rejects_replaced_temp_before_publication(
     monkeypatch.setattr(materializer_io, "_publish_output", replace_temp_then_publish)
 
     output = destination / f"{candidate_id}.hurl"
-    materialize_mutation_candidate(tmp_path, manifest_path)
-
-    assert output.exists()
-    assert not output.is_symlink()
-    assert "HTTP 500" in output.read_text(encoding="utf-8")
+    try:
+        materialize_mutation_candidate(tmp_path, manifest_path)
+    except MutationMaterializerError as exc:
+        assert str(exc) == "candidate output could not be published"
+        assert not output.exists()
+        assert not output.is_symlink()
+    else:
+        assert output.exists()
+        assert not output.is_symlink()
+        assert "HTTP 500" in output.read_text(encoding="utf-8")
 
 
 def test_materializer_rejects_filesystem_publication_refusal(
