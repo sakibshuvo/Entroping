@@ -782,3 +782,15 @@ decisions:
     related_issues: ["#1653", "#1668", "#1669"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0034
+    title: HTTP selectors
+    status: accepted
+    date: "2026-08-14"
+    summary: Internal GraphQL/SOAP/AsyncAPI/proto selectors preserve baseline; no public CLI/I/O.
+    tags: [http]
+    source_links: [{path: decisions/ADR-0034-http-api-breadth-selector-boundary.md, role: adr}]
+    related_docs: [docs/technical/TDS.md]
+    related_issues: ["#1654", "#1664", "#1665", "#1666", "#1667"]
+    supersedes: []
+    superseded_by: null
