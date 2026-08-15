@@ -405,8 +405,9 @@ def _safe_target_url(value: str) -> tuple[str, str]:
         raise GraphqlHurlCompilationError(msg) from exc
 
     hostname = parts.hostname
-    _raise_for_invalid(((hostname is None, "GraphQL target URL must include a host"),))
-    assert hostname is not None
+    if hostname is None:
+        msg = "GraphQL target URL must include a host"
+        raise GraphqlHurlCompilationError(msg)
 
     _reject_sensitive_query(parts.query)
     normalized_host = hostname.lower()
