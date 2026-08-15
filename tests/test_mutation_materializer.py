@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.mutation_materializer_io as materializer_io
 from entroping.core.mutation_materializer import (
     MutationMaterializerError,
     materialize_mutation_candidate,
@@ -102,9 +103,9 @@ def test_materializer_rejects_unsupported_platform_before_open(
         touched.append("root")
         return -1
 
-    monkeypatch.setattr(materializer._io, "open_root", fake_open_root)
+    monkeypatch.setattr(materializer_io, "open_root", fake_open_root)
     monkeypatch.setattr(
-        materializer._io,
+        materializer_io,
         "open_relative_directory",
         lambda _root: touched.append("destination"),
     )
@@ -114,7 +115,7 @@ def test_materializer_rejects_unsupported_platform_before_open(
         lambda _root, _fd, _manifest: touched.append("manifest"),
     )
     monkeypatch.setattr(
-        materializer._io,
+        materializer_io,
         "open_source",
         lambda _root, _parts: touched.append("source"),
     )
@@ -141,7 +142,7 @@ def test_materializer_rejects_missing_capability_set_before_io(
     supported.discard(required_function)
     monkeypatch.setattr(os, capability_set, supported)
     touched: list[str] = []
-    monkeypatch.setattr(materializer._io, "open_root", lambda _root: touched.append("root"))
+    monkeypatch.setattr(materializer_io, "open_root", lambda _root: touched.append("root"))
 
     with pytest.raises(MutationMaterializerError, match="platform capability"):
         materializer.materialize_mutation_candidate(tmp_path, tmp_path / "manifest.json")
@@ -156,8 +157,8 @@ def test_materializer_rejects_missing_publication_backend_before_io(
     import entroping.core.mutation_materializer as materializer
 
     touched: list[str] = []
-    monkeypatch.setattr(materializer._io, "_PUBLICATION_BACKEND", None)
-    monkeypatch.setattr(materializer._io, "open_root", lambda _root: touched.append("root"))
+    monkeypatch.setattr(materializer_io, "_PUBLICATION_BACKEND", None)
+    monkeypatch.setattr(materializer_io, "open_root", lambda _root: touched.append("root"))
 
     with pytest.raises(MutationMaterializerError, match="platform capability"):
         materializer.materialize_mutation_candidate(tmp_path, tmp_path / "manifest.json")
@@ -237,14 +238,12 @@ raise SystemExit(3)
 
 
 def test_bounded_read_rejects_limit_plus_one(tmp_path: Path) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     oversized = tmp_path / "oversized"
     oversized.write_bytes(b"123456789")
     descriptor = os.open(oversized, os.O_RDONLY)
     try:
         with pytest.raises(MutationMaterializerError, match="oversized"):
-            materializer._io.read_bounded_fd(descriptor, 8)
+            materializer_io.read_bounded_fd(descriptor, 8)
     finally:
         os.close(descriptor)
 
@@ -352,8 +351,6 @@ def test_materializer_rejects_replaced_temp_before_publication(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     _source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
     destination = tmp_path / "tests" / "generated" / "mutations"
     attacker_target = destination / "attacker-controlled.hurl"
@@ -361,7 +358,7 @@ def test_materializer_rejects_replaced_temp_before_publication(
     real_unlink = os.unlink
     real_symlink = os.symlink
 
-    real_publish = materializer._io._publish_output
+    real_publish = materializer_io._publish_output
 
     def replace_temp_then_publish(
         descriptor: int,
@@ -373,7 +370,7 @@ def test_materializer_rejects_replaced_temp_before_publication(
         real_symlink(attacker_target.name, temporary_name, dir_fd=destination_fd)
         real_publish(descriptor, destination_fd, temporary_name, name)
 
-    monkeypatch.setattr(materializer._io, "_publish_output", replace_temp_then_publish)
+    monkeypatch.setattr(materializer_io, "_publish_output", replace_temp_then_publish)
 
     output = destination / f"{candidate_id}.hurl"
     materialize_mutation_candidate(tmp_path, manifest_path)
@@ -387,14 +384,12 @@ def test_materializer_rejects_filesystem_publication_refusal(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
     source_before = source.read_bytes()
     destination = tmp_path / "tests" / "generated" / "mutations"
-    backend = materializer._io._PUBLICATION_BACKEND
+    backend = materializer_io._PUBLICATION_BACKEND
     assert backend is not None
-    monkeypatch.setattr(materializer._io, "_PUBLICATION_BACKEND", lambda *_args: errno.ENOTSUP)
+    monkeypatch.setattr(materializer_io, "_PUBLICATION_BACKEND", lambda *_args: errno.ENOTSUP)
 
     output = destination / f"{candidate_id}.hurl"
     temporary = destination / f".{output.name}.materializing"

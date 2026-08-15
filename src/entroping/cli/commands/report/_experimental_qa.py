@@ -294,7 +294,7 @@ def report_agent_bundle(
     try:
         result = run_agent_bundle_report(
             project_root=Path.cwd(),
-            output=cast(AgentBundleOutput, normalized_output),
+            output=normalized_output,
             roles=selected_roles,
             scope=scope,
         )
