@@ -1,5 +1,4 @@
 """Compile bounded AsyncAPI webhook metadata into deterministic Hurl.
-
 The compiler emits only deterministic request scaffolds after strict validation.
 It never probes a target or resolves provider/runtime state.
 """
@@ -206,14 +205,17 @@ def _validate_operation_http_binding(operation_item: Mapping[object, object]) ->
         _OPERATION_BINDING_ERROR,
     )
     http_binding = cast(Mapping[object, object], cast(Mapping[object, object], bindings)["http"])
-    method = http_binding.get("method")
-    binding_version = http_binding.get("bindingVersion")
-    for condition in (
-        not set(http_binding) - _HTTP_OPERATION_BINDING_KEYS,
-        isinstance(method, str) and method in _HTTP_WEBHOOK_METHODS,
-        binding_version is None or binding_version == "0.3.0",
-    ):
-        _require(condition, _OPERATION_BINDING_ERROR)
+    method, binding_version = http_binding.get("method"), http_binding.get("bindingVersion")
+    _require(
+        all(
+            (
+                not set(http_binding) - _HTTP_OPERATION_BINDING_KEYS,
+                isinstance(method, str) and method in _HTTP_WEBHOOK_METHODS,
+                binding_version is None or binding_version == "0.3.0",
+            )
+        ),
+        _OPERATION_BINDING_ERROR,
+    )
     return cast(str, method)
 
 
