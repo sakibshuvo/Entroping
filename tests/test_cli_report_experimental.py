@@ -48,6 +48,7 @@ from entroping.core.export.evidence_cloud_export import EvidenceCloudExportError
 from entroping.core.export.evidence_cloud_workspace import EvidenceCloudWorkspaceError
 from entroping.core.export.work_item_draft import WorkItemDraftError
 from entroping.core.export.work_item_import_bundle import WorkItemImportBundleError
+from entroping.core.mutation_materializer import MutationMaterializerError
 from entroping.core.plan.evidence_action_plan import EvidenceActionPlanError
 from entroping.core.plan.qa_brain_eval_plan import QaBrainEvalPlanError
 from entroping.core.plan.qa_brain_fine_tune_readiness import (
@@ -2507,6 +2508,28 @@ def test_report_mutation_materialize_passes_project_root_and_manifest(
     assert result.exit_code == 0
     assert observed == {"project_root": tmp_path, "manifest_path": Path("manifest.json")}
     assert "Wrote review-only mutation candidate" in result.output
+
+
+def test_report_mutation_materialize_reports_typed_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_materialize(*, project_root: Path, manifest_path: Path) -> Path:
+        del project_root, manifest_path
+        raise MutationMaterializerError("platform capability unsupported")
+
+    monkeypatch.setattr(
+        "entroping.cli.commands.report._experimental_qa.materialize_mutation_candidate",
+        fail_materialize,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "mutation-materialize", "--manifest", "manifest.json"],
+    )
+
+    assert result.exit_code == 1
+    assert "platform capability unsupported" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_report_evidence_index_writes_markdown(
