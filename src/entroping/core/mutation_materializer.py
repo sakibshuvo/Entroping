@@ -89,7 +89,10 @@ class _ValidatedManifest:
     candidate_id: str
 
 
-def materialize_mutation_candidate(project_root: Path, manifest_path: Path) -> Path:
+def materialize_mutation_candidate(
+    project_root: Path,
+    manifest_path: Path,
+) -> Path:
     _io.platform_capability_preflight(_NOFOLLOW, _DIRECTORY_FLAG, _NONBLOCK)
     root = project_root.expanduser()
     root_fd = _io.open_root(root)
@@ -105,7 +108,11 @@ def materialize_mutation_candidate(project_root: Path, manifest_path: Path) -> P
                 os.close(root_fd)
 
 
-def _materialize_with_root(root: Path, root_fd: int, manifest_path: Path) -> Path:
+def _materialize_with_root(
+    root: Path,
+    root_fd: int,
+    manifest_path: Path,
+) -> Path:
     destination_fd, destination_ids = _io.open_relative_directory(
         root_fd, ("tests", "generated", "mutations")
     )
@@ -122,7 +129,7 @@ def _materialize_with_root(root: Path, root_fd: int, manifest_path: Path) -> Pat
         _validate_source_content(content)
         output = _render_status_candidate(content, manifest)
         _validate_rendered_output(output)
-        _recheck_source(parent_fd, leaf, source_fd, first_stat, source_bytes, manifest)
+        _recheck_source(parent_fd, leaf, source_fd, first_stat, manifest)
         rechecked_fd, rechecked_ids = _io.open_relative_directory(
             root_fd, ("tests", "generated", "mutations")
         )
@@ -131,7 +138,7 @@ def _materialize_with_root(root: Path, root_fd: int, manifest_path: Path) -> Pat
             raise MutationMaterializerError("destination changed before publication")
         output_name = f"{manifest.candidate_id}.hurl"
         output_path = root / "tests" / "generated" / "mutations" / output_name
-        _create_output(destination_fd, output_name, output)
+        _io.create_output(destination_fd, output_name, output)
         return output_path
     finally:
         for descriptor in (source_fd, parent_fd, destination_fd):
@@ -247,9 +254,8 @@ def _selector_types_valid(document: dict[str, JsonValue]) -> bool:
 
 
 def _manifest_text(document: dict[str, JsonValue], key: str) -> str:
-    value = document.get(key)
-    if not isinstance(value, str):
-        raise MutationMaterializerError("manifest field is invalid")
+    value = document[key]
+    assert isinstance(value, str)
     _reject(
         unicodedata.normalize("NFC", value) != value or has_disallowed_control(value),
         "manifest text is not normalized",
@@ -259,15 +265,13 @@ def _manifest_text(document: dict[str, JsonValue], key: str) -> str:
 
 
 def _bounded_int(value: object, lower: int, upper: int | None, error: str) -> int:
-    if type(value) is not int:
-        raise MutationMaterializerError(error)
+    assert type(value) is int
     _reject(value < lower or (upper is not None and value > upper), error)
     return value
 
 
 def _validate_evidence(evidence: JsonValue) -> list[str]:
-    if not isinstance(evidence, list):
-        raise MutationMaterializerError("evidence ids are invalid")
+    assert isinstance(evidence, list)
     _reject(len(evidence) not in range(1, 33), "evidence ids are invalid")
     values: list[str] = []
     for item in evidence:
@@ -277,8 +281,7 @@ def _validate_evidence(evidence: JsonValue) -> list[str]:
 
 
 def _validate_evidence_item(item: JsonValue) -> str:
-    if not isinstance(item, str):
-        raise MutationMaterializerError("evidence ids are invalid")
+    assert isinstance(item, str)
     _reject(
         unicodedata.normalize("NFC", item) != item
         or has_disallowed_control(item)
@@ -290,8 +293,7 @@ def _validate_evidence_item(item: JsonValue) -> str:
 
 
 def _validate_selector(category: str, selector: JsonValue) -> StatusSelector:
-    if not _is_json_object(selector):
-        raise MutationMaterializerError("category selector is invalid")
+    assert _is_json_object(selector)
     selector_object = selector
     expected = (
         {"assertion_ordinal", "replacement_status"}
@@ -488,12 +490,7 @@ def _recheck_source(
     leaf: str,
     source_fd: int,
     first_stat: os.stat_result,
-    first_bytes: bytes,
     manifest: _ValidatedManifest,
 ) -> None:
-    second_stat, second_bytes = _read_source(source_fd, manifest)
-    _io.recheck_source(parent_fd, leaf, first_stat, first_bytes, second_stat, second_bytes)
-
-
-def _create_output(destination_fd: int, name: str, content: str) -> None:
-    _io.create_output(destination_fd, name, content)  # create-only publication
+    _read_source(source_fd, manifest)
+    _io.recheck_source(parent_fd, leaf, first_stat)

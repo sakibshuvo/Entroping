@@ -29,30 +29,23 @@ class MutationMaterializerError(ValueError):
     """Fixed content-free materialization failure."""
 
 
-PublicationBackend = Callable[[int, int, bytes], int | None]
+PublicationBackend = Callable[[int, int, bytes, str], int | None]
 DarwinPrimitive = Callable[[int, int, bytes, int], int]
+LinkOperation = Callable[..., object]
 
 
-def _load_darwin_clonefileat() -> DarwinPrimitive | None:
-    try:
-        libc = ctypes.CDLL(None, use_errno=True)
-        function = libc.fclonefileat
-    except (AttributeError, OSError):
-        return None
-    function.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
-    function.restype = ctypes.c_int
-    return function
+_darwin_libc: object | None = None
+with suppress(OSError):
+    _darwin_libc = ctypes.CDLL(None, use_errno=True)
+_DARWIN_CLONEFILEAT: DarwinPrimitive | None = getattr(_darwin_libc, "fclonefileat", None)
 
 
-_DARWIN_CLONEFILEAT: DarwinPrimitive | None = (
-    _load_darwin_clonefileat() if sys.platform == "darwin" else None
-)
-
-
-def _darwin_publish(descriptor: int, destination_fd: int, name: bytes) -> int | None:
-    if _DARWIN_CLONEFILEAT is None:
-        return None
-    result = _DARWIN_CLONEFILEAT(
+def _darwin_publish(
+    descriptor: int, destination_fd: int, name: bytes, _temporary_name: str
+) -> int | None:
+    function = _DARWIN_CLONEFILEAT
+    assert function is not None
+    result = function(
         descriptor,
         destination_fd,
         name,
@@ -61,30 +54,37 @@ def _darwin_publish(descriptor: int, destination_fd: int, name: bytes) -> int | 
     return 0 if result == 0 else ctypes.get_errno()
 
 
-def _linux_proc_fd_link(descriptor: int, destination_fd: int, name: bytes) -> int | None:
-    try:
-        os.link(
-            f"/proc/self/fd/{descriptor}",
-            os.fsdecode(name),
-            dst_dir_fd=destination_fd,
-            follow_symlinks=True,
-        )
-    except FileExistsError:
-        return errno.EEXIST
-    except OSError as exc:
-        return exc.errno
-    return 0
+def descriptor_link_backend(link: LinkOperation) -> PublicationBackend:
+    def publish(
+        descriptor: int,
+        destination_fd: int,
+        name: bytes,
+        _temporary_name: str,
+    ) -> int:
+        try:
+            link(
+                f"/proc/self/fd/{descriptor}",
+                os.fsdecode(name),
+                dst_dir_fd=destination_fd,
+                follow_symlinks=True,
+            )
+        except FileExistsError:
+            return errno.EEXIST
+        except OSError as exc:
+            return exc.errno or errno.EIO
+        return 0
+
+    return publish
 
 
-def _publication_backend() -> PublicationBackend | None:
-    if sys.platform == "darwin":
-        return _darwin_publish if _DARWIN_CLONEFILEAT is not None else None
-    if sys.platform == "linux" and os.path.isdir("/proc/self/fd"):
-        return _linux_proc_fd_link
-    return None
+def publication_backend() -> PublicationBackend | None:
+    return {"darwin": _darwin_publish, "linux": descriptor_link_backend(os.link)}.get(sys.platform)
 
 
-_PUBLICATION_BACKEND = _publication_backend()
+_PUBLICATION_CAPABILITY = {
+    "darwin": _DARWIN_CLONEFILEAT is not None,
+    "linux": os.path.isdir("/proc/self/fd"),
+}.get(sys.platform, False)
 
 
 def platform_capability_preflight(
@@ -94,6 +94,7 @@ def platform_capability_preflight(
 ) -> None:
     supports_dir_fd = getattr(os, "supports_dir_fd", ())
     supports_follow_symlinks = getattr(os, "supports_follow_symlinks", ())
+    backend = publication_backend()
     if not all(
         (
             nofollow,
@@ -102,7 +103,8 @@ def platform_capability_preflight(
             all(function in supports_dir_fd for function in (os.open, os.stat, os.unlink)),
             all(function in supports_follow_symlinks for function in (os.stat,)),
             _linux_link_supported(supports_dir_fd, supports_follow_symlinks),
-            _PUBLICATION_BACKEND is not None,
+            backend is not None,
+            _PUBLICATION_CAPABILITY,
         )
     ):
         raise MutationMaterializerError("platform capability unsupported")
@@ -123,9 +125,6 @@ def open_root(root: Path) -> int:
         descriptor = os.open(root, DIR_FLAGS)
     except OSError as exc:
         raise MutationMaterializerError("project root is unavailable") from exc
-    if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
-        os.close(descriptor)
-        raise MutationMaterializerError("project root is not a directory")
     return descriptor
 
 
@@ -150,8 +149,6 @@ def open_relative_directory(
             os.close(current)
             current = child
             metadata = os.fstat(current)
-            if not stat.S_ISDIR(metadata.st_mode):
-                raise MutationMaterializerError("destination ancestry is not a directory")
             identities.append((metadata.st_dev, metadata.st_ino))
         return current, tuple(identities)
     except (OSError, MutationMaterializerError):
@@ -183,8 +180,6 @@ def open_source(root_fd: int, parts: tuple[str, ...]) -> tuple[int, int, str]:
 
 
 def read_bounded_fd(descriptor: int, limit: int) -> bytes:
-    if limit < 0:
-        raise MutationMaterializerError("bounded input limit is invalid")
     chunks: list[bytes] = []
     total = 0
     while True:
@@ -201,23 +196,17 @@ def recheck_source(
     parent_fd: int,
     leaf: str,
     first_stat: os.stat_result,
-    first_bytes: bytes,
-    second_stat: os.stat_result,
-    second_bytes: bytes,
 ) -> None:
     current = os.stat(leaf, dir_fd=parent_fd, follow_symlinks=False)
     if (current.st_dev, current.st_ino) != (first_stat.st_dev, first_stat.st_ino):
         raise MutationMaterializerError("source changed before publication")
-    if (second_stat.st_dev, second_stat.st_ino, second_stat.st_size, second_stat.st_mtime_ns) != (
-        first_stat.st_dev,
-        first_stat.st_ino,
-        first_stat.st_size,
-        first_stat.st_mtime_ns,
-    ) or second_bytes != first_bytes:
-        raise MutationMaterializerError("source changed before publication")
 
 
-def create_output(destination_fd: int, name: str, content: str) -> None:
+def create_output(
+    destination_fd: int,
+    name: str,
+    content: str,
+) -> None:
     temporary_name = f".{name}{TEMP_SUFFIX}"
     try:
         descriptor = os.open(
@@ -244,16 +233,75 @@ def create_output(destination_fd: int, name: str, content: str) -> None:
         raise MutationMaterializerError("candidate output could not be written") from exc
 
 
-def _publish_output(descriptor: int, destination_fd: int, temporary_name: str, name: str) -> None:
-    if _PUBLICATION_BACKEND is None:
-        raise MutationMaterializerError("platform capability unsupported")
-    result = _PUBLICATION_BACKEND(descriptor, destination_fd, os.fsencode(name))
+def verify_published_output(
+    descriptor: int,
+    destination_fd: int,
+    name: str,
+    expected_identity: tuple[int, int] | None,
+) -> None:
+    try:
+        held = os.fstat(descriptor)
+        final_fd = os.open(
+            name,
+            os.O_RDONLY | NONBLOCK | NOFOLLOW,
+            dir_fd=destination_fd,
+        )
+    except OSError as exc:
+        raise MutationMaterializerError("candidate output verification failed") from exc
+    try:
+        final = os.fstat(final_fd)
+        if not stat.S_ISREG(final.st_mode) or final.st_size != held.st_size:
+            raise MutationMaterializerError("candidate output verification failed")
+        if (
+            expected_identity is not None
+            and (
+                final.st_dev,
+                final.st_ino,
+            )
+            != expected_identity
+        ):
+            raise MutationMaterializerError("candidate output verification failed")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        expected = read_bounded_fd(descriptor, HURL_SOURCE_MAX_BYTES)
+        os.lseek(final_fd, 0, os.SEEK_SET)
+        actual = read_bounded_fd(final_fd, HURL_SOURCE_MAX_BYTES)
+        current = os.stat(name, dir_fd=destination_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (final.st_dev, final.st_ino) or actual != expected:
+            raise MutationMaterializerError("candidate output verification failed")
+    except MutationMaterializerError:
+        raise
+    except OSError as exc:
+        raise MutationMaterializerError("candidate output verification failed") from exc
+    finally:
+        with suppress(OSError):
+            os.close(final_fd)
+
+
+def publication_result_check(result: int | None) -> None:
     if result == errno.EEXIST:
         raise MutationMaterializerError("candidate output already exists")
     if result in {errno.ENOTSUP, errno.EOPNOTSUPP}:
         raise MutationMaterializerError("candidate output publication unsupported")
     if result != 0:
         raise MutationMaterializerError("candidate output could not be published")
+
+
+def _publish_output(
+    descriptor: int,
+    destination_fd: int,
+    temporary_name: str,
+    name: str,
+) -> None:
+    backend = publication_backend()
+    assert backend is not None
+    result = backend(descriptor, destination_fd, os.fsencode(name), temporary_name)
+    publication_result_check(result)
+    held = os.fstat(descriptor)
+    expected_identity = {
+        "linux": (held.st_dev, held.st_ino),
+        "darwin": None,
+    }.get(sys.platform)
+    verify_published_output(descriptor, destination_fd, name, expected_identity)
     with suppress(OSError):
         os.unlink(temporary_name, dir_fd=destination_fd)
 
@@ -270,11 +318,10 @@ def _write_output(descriptor: int, content: str) -> None:
 
 def _cleanup_output(descriptor: int, destination_fd: int, name: str) -> None:
     failed = False
-    if descriptor >= 0:
-        try:
-            os.close(descriptor)
-        except OSError:
-            failed = True
+    try:
+        os.close(descriptor)
+    except OSError:
+        failed = True
     try:
         os.unlink(name, dir_fd=destination_fd)
     except OSError:
