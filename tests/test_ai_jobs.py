@@ -2761,6 +2761,49 @@ def test_ai_jobs_run_next_concurrent_invocations_process_distinct_jobs_once(tmp_
     assert len(set(terminal_job_ids)) == 2
 
 
+def test_ai_jobs_routing_audit_skips_job_claimed_after_name_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+
+    class InterleavedQueue:
+        job_root = tmp_path / "ai-jobs"
+        directories = {"queued": 17}
+
+        def __init__(self) -> None:
+            self.name_calls = 0
+
+        def names(self, state: str) -> list[str]:
+            assert state == "queued"
+            self.name_calls += 1
+            if self.name_calls == 1:
+                return ["claimed.json"]
+            return []
+
+        def path(self, state: str, name: str) -> Path:
+            return self.job_root / state / name
+
+        def read_bytes(self, state: str, name: str) -> bytes:
+            _ = state, name
+            raise ai_jobs.ai_job_fs.SafeStateError("state entry disappeared")
+
+    queue = InterleavedQueue()
+    entry_exists_calls: list[tuple[int, str]] = []
+
+    def vanished_entry_exists(directory_fd: int, name: str) -> bool:
+        entry_exists_calls.append((directory_fd, name))
+        return False
+
+    monkeypatch.setattr(ai_jobs.ai_job_fs, "entry_exists", vanished_entry_exists)
+
+    violations = ai_jobs._queued_routing_violations(queue)
+
+    assert violations == []
+    assert queue.name_calls == 1
+    assert entry_exists_calls == [(17, "claimed.json")]
+
+
 def test_ai_jobs_run_next_completes_oldest_job_and_records_worker_result(
     tmp_path: Path,
 ) -> None:
