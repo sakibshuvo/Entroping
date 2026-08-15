@@ -82,6 +82,93 @@ def test_compile_graphql_sdl_to_hurl_selects_field_from_query_extension() -> Non
     assert '"query": "query EntropingSmoke { health }"' in generated.content
 
 
+@pytest.mark.parametrize("query_field", ["viewer", None])
+def test_compile_graphql_sdl_to_hurl_rejects_query_header_without_its_own_body(
+    query_field: str | None,
+) -> None:
+    schema_sdl = "type Query implements Missing type Mutation { viewer: String }"
+
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field=query_field,
+        )
+
+    assert "Missing" not in str(error.value)
+    assert "viewer" not in str(error.value)
+    assert "Traceback" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "schema_sdl",
+    [
+        "type Query implements Node & Named { viewer: String }",
+        "type Query implements & Node & Named { viewer: String }",
+        "type Query @root { viewer: String }",
+        'type Query @root(label: "query") { viewer: String }',
+        'type Query implements Node @root(label: "query") { viewer: String }',
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_accepts_valid_query_header_neighbors(
+    schema_sdl: str,
+) -> None:
+    generated = compile_graphql_sdl_to_hurl(
+        schema_sdl,
+        target_url="https://api.example.test/graphql",
+        query_field="viewer",
+    )
+
+    assert '"query": "query EntropingSmoke { viewer }"' in generated.content
+
+
+@pytest.mark.parametrize(
+    "schema_sdl",
+    [
+        "type Query implements & { viewer: String }",
+        "type Query implements Node & { viewer: String }",
+        "type Query @ { viewer: String }",
+        "type Query implements Node implements Named { viewer: String }",
+        "type Query @root implements Node { viewer: String }",
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_rejects_malformed_query_header_grammar(
+    schema_sdl: str,
+) -> None:
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            schema_sdl,
+            target_url="https://api.example.test/graphql",
+            query_field="viewer",
+        )
+
+    assert "viewer" not in str(error.value)
+    assert "Traceback" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "field_definition",
+    [
+        "viewer: String extra",
+        "viewer: String !!",
+        "viewer: [String]!!",
+        "viewer: String ! extra",
+    ],
+)
+def test_compile_graphql_sdl_to_hurl_rejects_selected_field_trailing_syntax(
+    field_definition: str,
+) -> None:
+    with pytest.raises(GraphqlHurlCompilationError) as error:
+        _ = compile_graphql_sdl_to_hurl(
+            f"type Query {{ {field_definition} }}",
+            target_url="https://api.example.test/graphql",
+            query_field="viewer",
+        )
+
+    assert "viewer" not in str(error.value)
+    assert "Traceback" not in str(error.value)
+
+
 @pytest.mark.parametrize("directive_value", ["{ ghost: VALUE }", "[{ ghost: VALUE }]"])
 def test_compile_graphql_sdl_to_hurl_ignores_type_directive_object_literals(
     directive_value: str,

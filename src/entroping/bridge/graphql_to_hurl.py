@@ -129,34 +129,81 @@ def _operation_root_blocks(
     schema_sdl: str,
 ) -> list[tuple[str, list[tuple[str, str]], bool]]:
     tokens = [*_graphql_tokens(schema_sdl), ("punctuation", "")]
-    blocks: list[tuple[str, list[tuple[str, str]], bool]] = []
-    index = 0
-    limit = len(tokens) - 1
-    while index < limit:
-        value = tokens[index][1]
-        if (value, tokens[index + 1][1]) in _ROOT_OPERATION_TOKENS:
-            opening = index + 2
-            while opening < limit:
-                if tokens[opening][1] == "{":
-                    break
-                if tokens[opening][1] == "(":
-                    closing = _matching_token(tokens, opening, "(", ")")
-                    opening = limit if closing is None else closing + 1
-                else:
-                    opening += 1
-            opening = min(opening, limit - 1)
-            closing = _matching_token(tokens, opening, "{", "}")
-            if closing is not None:
-                is_extension = tokens[index - 1 : index] == [("name", "extend")]
-                blocks.append((tokens[index + 1][1], tokens[opening + 1 : closing], is_extension))
-                index = closing
-        elif value == "{":
-            closing = _matching_token(tokens, index, "{", "}")
-            if closing is None:
-                return []
-            index = closing
-        index += 1
-    return blocks
+    return [
+        block
+        for index in _top_level_indices(tokens)
+        if (block := _root_block(tokens, index)) is not None
+    ]
+
+
+def _root_block(
+    tokens: list[tuple[str, str]], index: int
+) -> tuple[str, list[tuple[str, str]], bool] | None:
+    if (tokens[index][1], tokens[index + 1][1]) not in _ROOT_OPERATION_TOKENS:
+        return None
+    opening = _type_body_opening(tokens, index + 2)
+    if opening is None:
+        return None
+    closing = _matching_token(tokens, opening, "{", "}")
+    return (
+        None
+        if closing is None
+        else (
+            tokens[index + 1][1],
+            tokens[opening + 1 : closing],
+            tokens[index - 1 : index] == [("name", "extend")],
+        )
+    )
+
+
+def _top_level_indices(tokens: list[tuple[str, str]]) -> list[int]:
+    depth = 0
+    indices: list[int] = []
+    for index, (_, value) in enumerate(tokens[:-1]):
+        if depth == 0:
+            indices.append(index)
+        depth += (value == "{") - (value == "}")
+    return indices
+
+
+# Only a complete canonical root header may lead the selector to a body.
+def _type_body_opening(tokens: list[tuple[str, str]], opening: int) -> int | None:
+    parsers = {"implements": _implements_end, "@": _directive_end}
+    while tokens[opening][1] != "{":
+        parser = parsers.get(tokens[opening][1])
+        if parser is None:
+            return None
+        next_opening = parser(tokens, opening)
+        if next_opening is None:
+            return None
+        opening = next_opening
+        _ = parsers.pop("implements", None)
+    return opening
+
+
+def _implements_end(tokens: list[tuple[str, str]], opening: int) -> int | None:
+    opening += 1 + (tokens[opening + 1][1] == "&")
+    if tokens[opening][0] != "name":
+        return None
+    opening += 1
+    while tokens[opening][1] == "&":
+        opening += 1
+        if tokens[opening][0] != "name":
+            return None
+        opening += 1
+    return opening
+
+
+def _directive_end(tokens: list[tuple[str, str]], opening: int) -> int | None:
+    if tokens[opening + 1][0] != "name":
+        return None
+    opening += 2
+    return _parenthesized_end(tokens, opening) if tokens[opening][1] == "(" else opening
+
+
+def _parenthesized_end(tokens: list[tuple[str, str]], opening: int) -> int | None:
+    closing = _matching_token(tokens, opening, "(", ")")
+    return None if closing is None else closing + 1
 
 
 def _graphql_tokens(schema_sdl: str) -> list[tuple[str, str]]:
@@ -182,6 +229,7 @@ def _matching_token(
     return None
 
 
+# A field candidate must consume its return type before another token can begin.
 def _query_fields(body: list[tuple[str, str]]) -> list[tuple[str, bool, bool]]:
     fields: list[tuple[str, bool, bool]] = []
     index = 0
@@ -200,23 +248,38 @@ def _query_fields(body: list[tuple[str, str]]) -> list[tuple[str, bool, bool]]:
         if tokens[colon][1] != ":":
             index = colon
             continue
-        return_type_is_invalid = {
-            "name": False,
-            "punctuation": tokens[colon + 1][1] != "[",
-        }[tokens[colon + 1][0]]
-        type_end = (
-            _matching_token(tokens, colon + 1, "[", "]")
-            if tokens[colon + 1][1] == "["
-            else colon + 1
-        )
-        if type_end is None:
+        tail = _field_tail(tokens, colon + 1)
+        if tail is None:
             return []
-        type_end += 1
-        type_end += tokens[type_end][1] == "!"
-        has_directive = {"@": True}.get(tokens[type_end][1], return_type_is_invalid)
+        type_end, has_directive = tail
         fields.append((value, has_arguments, has_directive))
         index = type_end
     return fields
+
+
+def _field_tail(tokens: list[tuple[str, str]], type_start: int) -> tuple[int, bool] | None:
+    type_end = _return_type_end(tokens, type_start)
+    if type_end is None:
+        return None
+    has_directive = {"@": True, "": False}.get(tokens[type_end][1])
+    if has_directive is not None:
+        return type_end, has_directive
+    return (
+        (type_end, False)
+        if (tokens[type_end][0], tokens[type_end + 1][1]) in {("name", ":"), ("name", "(")}
+        else None
+    )
+
+
+def _return_type_end(tokens: list[tuple[str, str]], type_start: int) -> int | None:
+    if {"name": False, "punctuation": tokens[type_start][1] != "["}[tokens[type_start][0]]:
+        return None
+    type_end = (
+        _matching_token(tokens, type_start, "[", "]")
+        if tokens[type_start][1] == "["
+        else type_start
+    )
+    return None if type_end is None else type_end + 1 + (tokens[type_end + 1][1] == "!")
 
 
 def _validate_schema_sdl(schema_sdl: str) -> None:
@@ -243,6 +306,11 @@ def _selected_operation_categories(schema_sdl: str) -> tuple[str, ...]:
 
 
 def _operation_categories(schema_sdl: str) -> tuple[str, ...]:
+    categories = _legacy_operation_categories(schema_sdl)
+    return _without_query(categories) if _has_invalid_query_header(schema_sdl) else categories
+
+
+def _legacy_operation_categories(schema_sdl: str) -> tuple[str, ...]:
     return tuple(
         sorted(
             {
@@ -256,28 +324,49 @@ def _operation_categories(schema_sdl: str) -> tuple[str, ...]:
     )
 
 
+def _without_query(categories: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(category for category in categories if category != "query")
+
+
+def _has_invalid_query_header(schema_sdl: str) -> bool:
+    blocks = _operation_root_blocks(schema_sdl)
+    tokens = [*_graphql_tokens(schema_sdl), ("punctuation", "")]
+    return any(
+        (tokens[index][1], tokens[index + 1][1]) == ("type", "Query")
+        for index in range(len(tokens) - 1)
+    ) and not any(root == "Query" for root, _, _ in blocks)
+
+
 def _strip_graphql_ignored_text(schema_sdl: str) -> str:
     return _GRAPHQL_LINE_COMMENT_RE.sub("", _strip_graphql_block_strings(schema_sdl))
 
 
+# Descriptions are removed before structural tokenization, never interpreted as SDL.
 def _strip_graphql_block_strings(schema_sdl: str) -> str:
     parts: list[str] = []
     start = index = 0
     while (marker := _GRAPHQL_IGNORED_LEXEME_RE.search(schema_sdl, index)) is not None:
-        if marker.group() != '"""':
-            index = marker.end()
-            continue
-        parts.append(schema_sdl[start : marker.start()])
-        index = marker.end()
-        while (closing := schema_sdl.find('"""', index)) != -1:
-            if schema_sdl[closing - 1] != "\\":
-                break
-            index = closing + 3
-        if closing == -1:
-            raise GraphqlHurlCompilationError("GraphQL SDL contains an unterminated block string")
-        start = index = closing + 3
+        start, index = _advance_ignored_segment(parts, schema_sdl, marker, start)
     parts.append(schema_sdl[start:])
     return "".join(parts)
+
+
+def _advance_ignored_segment(
+    parts: list[str], schema_sdl: str, marker: re.Match[str], start: int
+) -> tuple[int, int]:
+    if marker.group() != '"""':
+        return start, marker.end()
+    parts.append(schema_sdl[start : marker.start()])
+    closing = _block_string_end(schema_sdl, marker.end())
+    return closing + 3, closing + 3
+
+
+def _block_string_end(schema_sdl: str, index: int) -> int:
+    while (closing := schema_sdl.find('"""', index)) != -1:
+        if schema_sdl[closing - 1] != "\\":
+            return closing
+        index = closing + 3
+    raise GraphqlHurlCompilationError("GraphQL SDL contains an unterminated block string")
 
 
 def _safe_target_url(value: str) -> tuple[str, str]:
