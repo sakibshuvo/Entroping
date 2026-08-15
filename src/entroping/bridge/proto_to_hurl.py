@@ -339,10 +339,11 @@ def _parse_http_fields(
     option_source: str,
     fields: tuple[re.Match[str], ...],
 ) -> tuple[list[tuple[str, str]], list[str], bool, bool]:
-    if any(field.group("key") in {"additional_bindings", "custom"} for field in fields):
-        return [], [], True, False
-    if any(field.group("key") not in _SUPPORTED_HTTP_FIELDS for field in fields):
-        return [], [], False, True
+    keys = frozenset(field.group("key") for field in fields)
+    has_unsupported_binding = bool(keys & {"additional_bindings", "custom"})
+    has_unknown_field = bool(keys - _SUPPORTED_HTTP_FIELDS)
+    if any((has_unsupported_binding, has_unknown_field)):
+        return [], [], has_unsupported_binding, has_unknown_field
     methods: list[tuple[str, str]] = []
     body_values: list[str] = []
     for field in fields:
@@ -350,11 +351,10 @@ def _parse_http_fields(
         value_match = _PROTO_HTTP_VALUE_RE.match(option_source, field.end()) or _fail(
             "selected google.api.http rule has an invalid literal"
         )
-        value = value_match.group("value")
-        if key == "body":
-            body_values.append(value)
-        else:
-            methods.append((key.upper(), value))
+        method_field = (key.upper(), value := value_match.group("value"))
+        field_methods, field_bodies = {"body": ((), (value,))}.get(key, ((method_field,), ()))
+        methods.extend(field_methods)
+        body_values.extend(field_bodies)
     return methods, body_values, False, False
 
 
