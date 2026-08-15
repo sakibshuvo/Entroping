@@ -1,6 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
+from io import StringIO
 from typing import Any, Final
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
@@ -46,10 +47,11 @@ def compile_wsdl_to_soap_hurl(
     if operation_name is not None:
         _validate_operation_selector(operation_name)
         _validate_selected_wsdl_size(wsdl_xml)
-    root = _load_wsdl_document(wsdl_xml)
-    soap_action = (
-        _select_soap_action(root, operation_name) if operation_name is not None else None
-    )
+        root, namespace_scopes = _load_selected_wsdl_document(wsdl_xml)
+        soap_action = _select_soap_action(root, operation_name, namespace_scopes)
+    else:
+        root = _load_wsdl_document(wsdl_xml)
+        soap_action = None
     operation_count = _wsdl_port_type_operation_count(root)
     if operation_count == 0:
         msg = "WSDL document must define at least one WSDL portType operation"
@@ -116,6 +118,47 @@ def _load_wsdl_document(wsdl_xml: str) -> Any:
     return root
 
 
+def _load_selected_wsdl_document(wsdl_xml: str) -> tuple[Any, dict[int, dict[str, str]]]:
+    pending_namespaces: dict[str, str] = {}
+    namespace_scopes: dict[int, dict[str, str]] = {}
+    namespace_stack: list[dict[str, str]] = []
+    root: Any | None = None
+    try:
+        parse_events: Any = SafeElementTree.iterparse(
+            StringIO(wsdl_xml),
+            events=("start-ns", "start", "end"),
+        )
+        for event, value in parse_events:
+            if event == "start-ns":
+                prefix, namespace = value
+                pending_namespaces[prefix] = namespace
+                continue
+            if event == "start":
+                namespace_scope = namespace_stack[-1].copy() if namespace_stack else {}
+                namespace_scope.update(pending_namespaces)
+                pending_namespaces.clear()
+                namespace_scopes[id(value)] = namespace_scope
+                namespace_stack.append(namespace_scope)
+                if len(namespace_scopes) > _MAX_SELECTED_WSDL_ELEMENTS:
+                    msg = "SOAP WSDL selection exceeds complexity limits"
+                    raise SoapHurlCompilationError(msg)
+                if root is None:
+                    root = value
+                continue
+            namespace_stack.pop()
+    except DefusedXmlException as exc:
+        msg = "Unsafe WSDL XML construct"
+        raise SoapHurlCompilationError(msg) from exc
+    except SafeElementTree.ParseError as exc:
+        msg = "Invalid WSDL XML"
+        raise SoapHurlCompilationError(msg) from exc
+
+    if root is None:
+        msg = "Invalid WSDL XML"
+        raise SoapHurlCompilationError(msg)
+    return root, namespace_scopes
+
+
 def _validate_operation_selector(operation_name: str) -> None:
     if _OPERATION_NAME_RE.fullmatch(operation_name) is None:
         msg = "SOAP operation selector is invalid"
@@ -131,7 +174,11 @@ def _validate_selected_wsdl_size(wsdl_xml: str) -> None:
         raise SoapHurlCompilationError(msg)
 
 
-def _select_soap_action(root: Any, operation_name: str) -> str:
+def _select_soap_action(
+    root: Any,
+    operation_name: str,
+    namespace_scopes: dict[int, dict[str, str]],
+) -> str:
     if root.tag != f"{{{_WSDL_1_1_NAMESPACE}}}definitions":
         msg = "SOAP WSDL selection requires a WSDL 1.1 definitions root"
         raise SoapHurlCompilationError(msg)
@@ -152,11 +199,17 @@ def _select_soap_action(root: Any, operation_name: str) -> str:
     if port_type_name is None:
         msg = "SOAP operation selection is missing or ambiguous"
         raise SoapHurlCompilationError(msg)
+    target_namespace = root.attrib.get("targetNamespace")
+    if not isinstance(target_namespace, str) or target_namespace == "":
+        msg = "SOAP operation selection is missing or ambiguous"
+        raise SoapHurlCompilationError(msg)
 
     matching_binding_operations = _matching_binding_operations(
         root,
+        target_namespace,
         port_type_name,
         operation_name,
+        namespace_scopes,
     )
     if len(matching_binding_operations) != 1:
         msg = "SOAP binding operation selection is missing or ambiguous"
@@ -204,14 +257,17 @@ def _matching_port_type_operations(root: Any, operation_name: str) -> tuple[tupl
 
 def _matching_binding_operations(
     root: Any,
+    port_type_namespace: str,
     port_type_name: str,
     operation_name: str,
+    namespace_scopes: dict[int, dict[str, str]],
 ) -> tuple[Any, ...]:
     return tuple(
         operation
         for binding in list(root)
         if binding.tag == f"{{{_WSDL_1_1_NAMESPACE}}}binding"
-        and _qname_local_name(binding.attrib.get("type")) == port_type_name
+        and _resolve_qname(binding.attrib.get("type"), namespace_scopes.get(id(binding)))
+        == (port_type_namespace, port_type_name)
         if any(child.tag == f"{{{_SOAP_1_1_NAMESPACE}}}binding" for child in list(binding))
         for operation in list(binding)
         if operation.tag == f"{{{_WSDL_1_1_NAMESPACE}}}operation"
@@ -219,10 +275,22 @@ def _matching_binding_operations(
     )
 
 
-def _qname_local_name(value: str | None) -> str:
-    if value is None:
-        return ""
-    return value.rsplit(":", 1)[-1]
+def _resolve_qname(
+    value: str | None, namespace_scope: dict[str, str] | None
+) -> tuple[str, str] | None:
+    if value is None or namespace_scope is None:
+        return None
+    if ":" not in value:
+        return "", value
+    if value.count(":") != 1:
+        return None
+    prefix, local_name = value.split(":")
+    if prefix == "" or local_name == "":
+        return None
+    namespace = namespace_scope.get(prefix)
+    if namespace is None:
+        return None
+    return namespace, local_name
 
 
 def _is_safe_soap_action(value: str) -> bool:

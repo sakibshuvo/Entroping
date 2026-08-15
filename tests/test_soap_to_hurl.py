@@ -14,16 +14,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WSDL_CONTRACT = REPO_ROOT / "examples" / "soap-api" / "contracts" / "orders.wsdl"
 
 
-def _selectable_wsdl(operation_name: str, soap_action: str) -> str:
+def _selectable_wsdl(
+    operation_name: str,
+    soap_action: str,
+    *,
+    binding_type: str = "tns:OrderPortType",
+    extra_namespaces: str = "",
+) -> str:
     return (
         '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" '
         'xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" '
         'xmlns:tns="https://example.test/orders" '
+        f"{extra_namespaces}"
         'targetNamespace="https://example.test/orders">'
         '<portType name="OrderPortType">'
         f'<operation name="{operation_name}" />'
         "</portType>"
-        '<binding name="OrderBinding" type="tns:OrderPortType">'
+        f'<binding name="OrderBinding" type="{binding_type}">'
         '<soap:binding transport="http://schemas.xmlsoap.org/soap/http" />'
         f'<operation name="{operation_name}">'
         f'<soap:operation soapAction="{soap_action}" />'
@@ -100,6 +107,35 @@ def test_compile_wsdl_to_soap_hurl_uses_xml_decoded_action_without_rendering_wsd
 
 
 @pytest.mark.parametrize(
+    ("binding_type", "extra_namespaces"),
+    [
+        ("evil:OrderPortType", 'xmlns:evil="https://evil.example.test/wsdl" '),
+        ("evil:OrderPortType", ""),
+    ],
+)
+def test_compile_wsdl_to_soap_hurl_rejects_nonmatching_binding_type_qnames(
+    binding_type: str,
+    extra_namespaces: str,
+) -> None:
+    with pytest.raises(
+        SoapHurlCompilationError,
+        match="SOAP binding operation selection is missing or ambiguous",
+    ) as error:
+        compile_wsdl_to_soap_hurl(
+            _selectable_wsdl(
+                "GetOrder",
+                "urn:orders:get",
+                binding_type=binding_type,
+                extra_namespaces=extra_namespaces,
+            ),
+            target_url="https://soap.example.test/soap/orders",
+            operation_name="GetOrder",
+        )
+
+    assert "evil" not in str(error.value)
+
+
+@pytest.mark.parametrize(
     "operation_name",
     [
         "",
@@ -169,7 +205,7 @@ def test_compile_wsdl_to_soap_hurl_rejects_unsafe_operation_selectors(
             "SOAP WSDL selection does not support import or include",
         ),
         (
-            "<definitions><portType><operation name=\"GetOrder\" /></portType></definitions>",
+            '<definitions><portType><operation name="GetOrder" /></portType></definitions>',
             "SOAP WSDL selection requires a WSDL 1.1 definitions root",
         ),
     ],
