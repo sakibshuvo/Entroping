@@ -50,8 +50,9 @@ _STATUS_RE: Final = re.compile(r"^(HTTP\s+)(\d{3})(?=\s|$)")
 _REQUEST_RE: Final = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$"
 )
-_XML_OPEN_RE: Final = re.compile(r"^<([A-Za-z_][A-Za-z0-9_.:-]*)(?:\s[^>]*)?>$")
+_XML_OPEN_RE: Final = re.compile(r"^<([A-Za-z_][A-Za-z0-9_.:-]*)(?:\s[^>]*)?\s*/?>$")
 _XML_CLOSE_RE: Final = re.compile(r"^</([A-Za-z_][A-Za-z0-9_.:-]*)\s*>$")
+_XML_INLINE_RE = re.compile(r"^<([A-Za-z_][A-Za-z0-9_.:-]*)(?:\s[^>]*)?>.*</\1\s*>$")
 _SAFETY_RE: Final = re.compile(r"^# entroping:\s*safety=([^\r\n]+)\s*$")
 _NOFOLLOW: Final = _io.NOFOLLOW
 _DIRECTORY_FLAG: Final = _io.DIRECTORY_FLAG
@@ -469,11 +470,12 @@ def _advance_body_line(
 ) -> tuple[bool, tuple[bool, int, bool]]:
     if ambiguous:
         return True, (False, depth, ambiguous)
-    xml_line = bool(depth)
-    xml_line |= line.lstrip().startswith("<")
+    xml_line = bool(depth) or line.lstrip().startswith("<")
     if not xml_line:
         return False, (False, depth, ambiguous)
     stripped = line.strip()
+    if _XML_INLINE_RE.fullmatch(stripped) is not None:
+        return True, (False, 0, False)
     closing = _XML_CLOSE_RE.fullmatch(stripped) is not None
     opening = _XML_OPEN_RE.fullmatch(stripped)
     next_depth = depth + int(opening is not None) * int(not stripped.endswith("/>"))

@@ -90,8 +90,14 @@ def _install_linux_link(
 def test_descriptor_link_backend_maps_errno_without_platform_mutation(outcome: str) -> None:
     calls: list[tuple[object, ...]] = []
 
-    def fake_link(*args: object, **kwargs: object) -> None:
-        calls.append((*args, *kwargs.values()))
+    def fake_link(
+        source: str,
+        name: str,
+        *,
+        dst_dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> None:
+        calls.append((source, name, dst_dir_fd, follow_symlinks))
         if outcome == "exists":
             raise FileExistsError(errno.EEXIST, "injected")
         if outcome == "error":
@@ -355,8 +361,6 @@ def test_materialize_status_candidate_writes_deterministic_review_only_hurl(
 
 
 def test_materializer_rejects_non_utf8_source(tmp_path: Path) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
     source_bytes = b"# entroping: safety=read-only\n\nGET /health\nHTTP 200\n\xff"
     source.write_bytes(source_bytes)
@@ -375,7 +379,7 @@ def test_materializer_rejects_non_utf8_source(tmp_path: Path) -> None:
     manifest_path.write_text(json.dumps(document), encoding="utf-8")
 
     with pytest.raises(MutationMaterializerError, match="source is not UTF-8"):
-        materializer.materialize_mutation_candidate(tmp_path, manifest_path)
+        materialize_mutation_candidate(tmp_path, manifest_path)
 
 
 def test_materializer_rejects_malformed_source_metadata_without_output(tmp_path: Path) -> None:
@@ -428,25 +432,21 @@ def test_materializer_wraps_public_hurl_validation_error_without_output(
 
 
 def test_materializer_rejects_manifest_outside_root_and_duplicate_keys(tmp_path: Path) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     _write_status_fixture(tmp_path)
     outside = tmp_path.parent / "outside-manifest.json"
     with pytest.raises(MutationMaterializerError, match="project-relative"):
-        materializer.materialize_mutation_candidate(tmp_path, outside)
+        materialize_mutation_candidate(tmp_path, outside)
 
     duplicate = tmp_path / "duplicate.json"
     duplicate.write_text('{"schema_version": "one", "schema_version": "two"}', encoding="utf-8")
     with pytest.raises(MutationMaterializerError, match="duplicate keys"):
-        materializer.materialize_mutation_candidate(tmp_path, duplicate)
+        materialize_mutation_candidate(tmp_path, duplicate)
 
 
 def test_materializer_rejects_destination_identity_change(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     _source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
     real_open_relative = materializer_io.open_relative_directory
     destination_calls = 0
@@ -464,7 +464,7 @@ def test_materializer_rejects_destination_identity_change(
 
     monkeypatch.setattr(materializer_io, "open_relative_directory", changed_destination)
     with pytest.raises(MutationMaterializerError, match="destination changed"):
-        materializer.materialize_mutation_candidate(tmp_path, manifest_path)
+        materialize_mutation_candidate(tmp_path, manifest_path)
 
 
 def test_materializer_wraps_bounded_source_read_error(
@@ -570,10 +570,8 @@ def test_materializer_rejects_unsupported_platform_before_open(
     tmp_path: Path,
     capability: str,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     touched: list[str] = []
-    monkeypatch.setattr(materializer, capability, 0)
+    monkeypatch.setattr("entroping.core.mutation_materializer." + capability, 0)
 
     def fake_open_root(_root: Path) -> int:
         touched.append("root")
@@ -586,8 +584,7 @@ def test_materializer_rejects_unsupported_platform_before_open(
         lambda _root: touched.append("destination"),
     )
     monkeypatch.setattr(
-        materializer,
-        "_load_manifest",
+        "entroping.core.mutation_materializer._load_manifest",
         lambda _root, _fd, _manifest: touched.append("manifest"),
     )
     monkeypatch.setattr(
@@ -597,7 +594,7 @@ def test_materializer_rejects_unsupported_platform_before_open(
     )
 
     with pytest.raises(MutationMaterializerError, match="platform capability"):
-        materializer.materialize_mutation_candidate(tmp_path, tmp_path / "manifest.json")
+        materialize_mutation_candidate(tmp_path, tmp_path / "manifest.json")
 
     assert touched == []
 
@@ -612,8 +609,6 @@ def test_materializer_rejects_missing_capability_set_before_io(
     capability_set: str,
     required_function: object,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     supported = set(getattr(os, capability_set))
     supported.discard(required_function)
     monkeypatch.setattr(os, capability_set, supported)
@@ -621,7 +616,7 @@ def test_materializer_rejects_missing_capability_set_before_io(
     monkeypatch.setattr(materializer_io, "open_root", lambda _root: touched.append("root"))
 
     with pytest.raises(MutationMaterializerError, match="platform capability"):
-        materializer.materialize_mutation_candidate(tmp_path, tmp_path / "manifest.json")
+        materialize_mutation_candidate(tmp_path, tmp_path / "manifest.json")
 
     assert touched == []
 
@@ -630,8 +625,6 @@ def test_materializer_reconstructs_short_reads(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
     real_read = os.read
 
@@ -640,7 +633,7 @@ def test_materializer_reconstructs_short_reads(
 
     monkeypatch.setattr(os, "read", short_read)
 
-    output_path = materializer.materialize_mutation_candidate(tmp_path, manifest_path)
+    output_path = materialize_mutation_candidate(tmp_path, manifest_path)
 
     assert output_path.name == f"{candidate_id}.hurl"
     assert source.exists()
@@ -650,8 +643,6 @@ def test_materializer_rejects_nonregular_manifest_before_read(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     _source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
     manifest_path.unlink()
     manifest_path.mkdir()
@@ -662,7 +653,7 @@ def test_materializer_rejects_nonregular_manifest_before_read(
     monkeypatch.setattr(os, "read", read_must_not_run)
 
     with pytest.raises(MutationMaterializerError, match="manifest"):
-        materializer.materialize_mutation_candidate(tmp_path, manifest_path)
+        materialize_mutation_candidate(tmp_path, manifest_path)
 
 
 def test_materializer_rejects_fifo_source_without_blocking(tmp_path: Path) -> None:
@@ -712,13 +703,11 @@ def test_materializer_rejects_zero_progress_write_without_output(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import entroping.core.mutation_materializer as materializer
-
     _source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
     monkeypatch.setattr(os, "write", lambda _fd, _raw: 0)
 
     with pytest.raises(MutationMaterializerError, match="no progress"):
-        materializer.materialize_mutation_candidate(tmp_path, manifest_path)
+        materialize_mutation_candidate(tmp_path, manifest_path)
 
     assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
 
@@ -807,11 +796,12 @@ def test_materializer_commits_after_link_when_temp_cleanup_fails(
     assert output.with_name(f".{output.name}.materializing").exists()
 
 
-def test_materializer_ignores_replaced_temp_before_linux_publication(
+def test_materializer_rejects_replaced_temp_before_linux_publication(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    _source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
+    source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
+    source_before = source.read_bytes()
     destination = tmp_path / "tests" / "generated" / "mutations"
     attacker_target = destination / "attacker-controlled.hurl"
     attacker_target.write_text("attacker controlled", encoding="utf-8")
@@ -837,11 +827,13 @@ def test_materializer_ignores_replaced_temp_before_linux_publication(
 
     _install_linux_link(monkeypatch, replace_temp_then_link)
     output = destination / f"{candidate_id}.hurl"
-    materialize_mutation_candidate(tmp_path, manifest_path)
-    assert output.exists()
-    assert not output.is_symlink()
-    assert "HTTP 500" in output.read_text(encoding="utf-8")
+    with pytest.raises(MutationMaterializerError, match="could not be published") as caught:
+        materialize_mutation_candidate(tmp_path, manifest_path)
+    assert str(caught.value) == "candidate output could not be published"
+    assert not output.exists()
     assert not output.with_name(f".{output.name}.materializing").exists()
+    assert source.read_bytes() == source_before
+    assert attacker_target.exists()
 
 
 def test_materializer_rejects_filesystem_publication_refusal(
@@ -854,7 +846,13 @@ def test_materializer_rejects_filesystem_publication_refusal(
     output = destination / f"{candidate_id}.hurl"
     temporary = destination / f".{output.name}.materializing"
 
-    def refuse_link(*_args: object, **_kwargs: object) -> None:
+    def refuse_link(
+        _source: str,
+        _name: str,
+        *,
+        _dst_dir_fd: int | None = None,
+        _follow_symlinks: bool = True,
+    ) -> None:
         raise OSError(errno.ENOTSUP, "injected refusal")
 
     _install_linux_link(monkeypatch, refuse_link)
@@ -874,7 +872,13 @@ def test_materializer_rejects_generic_publication_error(
     source, manifest_path, candidate_id = _write_status_fixture(tmp_path)
     source_before = source.read_bytes()
 
-    def fail_link(*_args: object, **_kwargs: object) -> None:
+    def fail_link(
+        _source: str,
+        _name: str,
+        *,
+        _dst_dir_fd: int | None = None,
+        _follow_symlinks: bool = True,
+    ) -> None:
         raise OSError(errno.EIO, "injected publication error")
 
     _install_linux_link(monkeypatch, fail_link)
@@ -899,8 +903,14 @@ def test_materializer_rejects_noop_publication_without_artifact(
     output = destination / f"{candidate_id}.hurl"
     temporary = destination / f".{output.name}.materializing"
 
-    def noop_backend(*_args: object) -> int:
-        return 0
+    def noop_backend(
+        _source: str,
+        _name: str,
+        *,
+        _dst_dir_fd: int | None = None,
+        _follow_symlinks: bool = True,
+    ) -> None:
+        return None
 
     _install_linux_link(monkeypatch, noop_backend)
     with pytest.raises(MutationMaterializerError, match="verification failed") as caught:
@@ -925,13 +935,14 @@ def test_materializer_rejects_forged_final_without_trusting_symlink(
     temporary = destination / f".{output.name}.materializing"
 
     def forge_final(
-        _descriptor: int,
-        destination_fd: int,
-        name: bytes,
-        _temporary_name: str,
-    ) -> int:
-        os.symlink(attacker_target.name, os.fsdecode(name), dir_fd=destination_fd)
-        return 0
+        _source: str,
+        name: str,
+        *,
+        dst_dir_fd: int,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks
+        os.symlink(attacker_target.name, name, dir_fd=dst_dir_fd)
 
     _install_linux_link(monkeypatch, forge_final)
     with pytest.raises(MutationMaterializerError, match="verification failed") as caught:
@@ -954,19 +965,20 @@ def test_materializer_rejects_forged_empty_final(
     temporary = destination / f".{output.name}.materializing"
 
     def forge_empty_final(
-        _descriptor: int,
-        destination_fd: int,
-        name: bytes,
-        _temporary_name: str,
-    ) -> int:
+        _source: str,
+        name: str,
+        *,
+        dst_dir_fd: int,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks
         final_fd = os.open(
-            os.fsdecode(name),
+            name,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL,
             0o600,
-            dir_fd=destination_fd,
+            dir_fd=dst_dir_fd,
         )
         os.close(final_fd)
-        return 0
 
     _install_linux_link(monkeypatch, forge_empty_final)
     with pytest.raises(MutationMaterializerError, match="verification failed"):
@@ -987,24 +999,25 @@ def test_materializer_rejects_same_size_forged_final(
     temporary = destination / f".{output.name}.materializing"
 
     def forge_same_size_final(
-        descriptor: int,
-        destination_fd: int,
-        name: bytes,
-        _temporary_name: str,
-    ) -> int:
-        expected = os.pread(descriptor, os.fstat(descriptor).st_size, 0)
+        source: str,
+        name: str,
+        *,
+        dst_dir_fd: int,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks
+        expected = Path(source).read_bytes()
         replacement = bytes((expected[0] ^ 1,)) + expected[1:]
         final_fd = os.open(
-            os.fsdecode(name),
+            name,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL,
             0o600,
-            dir_fd=destination_fd,
+            dir_fd=dst_dir_fd,
         )
         try:
             os.write(final_fd, replacement)
         finally:
             os.close(final_fd)
-        return 0
 
     _install_linux_link(monkeypatch, forge_same_size_final)
     with pytest.raises(MutationMaterializerError, match="verification failed"):
@@ -1118,10 +1131,9 @@ def test_materializer_failed_partial_write_cannot_claim_candidate(
 
 
 def test_materializer_imports_secret_checks_from_models() -> None:
-    import entroping.core.mutation_materializer as materializer
-
     assert contains_secret_like_value.__module__ == "entroping.models.secrets"
-    assert "from entroping.models.secrets import" in inspect.getsource(materializer)
+    source = inspect.getsource(sys.modules[materialize_mutation_candidate.__module__])
+    assert "from entroping.models.secrets import" in source
 
 
 @pytest.mark.parametrize(
@@ -1279,6 +1291,10 @@ def test_status_ordinal_never_mutates_triple_backtick_body_status(tmp_path: Path
             b"<request>\n<inner>\nHTTP 201\n</inner>\n</request>\n",
             b"<request>\n<inner>\nHTTP 201\n</inner>\n</request>",
         ),
+        (
+            b"<request><x>HTTP 201</x></request>\n",
+            b"<request><x>HTTP 201</x></request>",
+        ),
     ),
 )
 def test_status_ordinal_never_mutates_typed_or_xml_body_status(
@@ -1311,6 +1327,33 @@ def test_status_ordinal_never_mutates_typed_or_xml_body_status(
     assert body_status in output
     assert body_status.replace(b"201", b"500") not in output
     assert output.endswith(b"HTTP 500\n")
+
+
+def test_status_ordinal_handles_self_closing_xml_body(tmp_path: Path) -> None:
+    source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
+    source_bytes = (
+        b"# entroping: safety=read-only\n\nPOST {{base_url}}/health\n<request/>\nHTTP 200\n"
+    )
+    source.write_bytes(source_bytes)
+    document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    document["expected_sha256"] = hashlib.sha256(source_bytes).hexdigest()
+    document["source_size_bytes"] = len(source_bytes)
+    document["source_mtime_ns"] = source.stat().st_mtime_ns
+    document["category_selector"] = {"assertion_ordinal": 0, "replacement_status": 500}
+    identity = {
+        "category": document["category"],
+        "project_relative_source_path": document["project_relative_source_path"],
+        "expected_sha256": document["expected_sha256"],
+        "reviewed_seed": document["reviewed_seed"],
+        "category_selector": document["category_selector"],
+    }
+    document["candidate_id"] = _candidate_id(identity)
+    manifest_path.write_text(json.dumps(document), encoding="utf-8")
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path).read_bytes()
+
+    assert b"<request/>\nHTTP 500\n" in output
+    assert b"<request/>\nHTTP 200\n" not in output
 
 
 def test_status_ordinal_rejects_ambiguous_body_status_without_output(tmp_path: Path) -> None:

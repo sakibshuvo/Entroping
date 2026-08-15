@@ -22,7 +22,6 @@ DIR_FLAGS: Final = os.O_RDONLY | DIRECTORY_FLAG | NOFOLLOW
 TEMP_SUFFIX: Final = ".materializing"
 _CLONE_NOFOLLOW_ANY: Final = 0x0008
 _CLONE_RESOLVE_BENEATH: Final = 0x0010
-_AT_EMPTY_PATH: Final = 0x1000
 
 
 class MutationMaterializerError(ValueError):
@@ -217,19 +216,17 @@ def create_output(
         )
     except FileExistsError as exc:
         raise MutationMaterializerError("candidate output is already being materialized") from exc
-    descriptor_open = descriptor
     try:
         _write_output(descriptor, content)
         os.fsync(descriptor)
         _publish_output(descriptor, destination_fd, temporary_name, name)
         with suppress(OSError):
             os.close(descriptor)
-        descriptor_open = -1
     except MutationMaterializerError:
-        _cleanup_output(descriptor_open, destination_fd, temporary_name)
+        _cleanup_output(descriptor, destination_fd, temporary_name)
         raise
     except OSError as exc:
-        _cleanup_output(descriptor_open, destination_fd, temporary_name)
+        _cleanup_output(descriptor, destination_fd, temporary_name)
         raise MutationMaterializerError("candidate output could not be written") from exc
 
 
