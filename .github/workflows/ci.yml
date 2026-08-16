@@ -24,7 +24,7 @@ jobs:
           - "3.13"
     steps:
       - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -82,7 +82,7 @@ jobs:
     needs: checks
     steps:
       - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -129,7 +129,7 @@ jobs:
     needs: checks
     steps:
       - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -193,7 +193,7 @@ jobs:
       HURL_SHA256: "cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
     steps:
       - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -288,7 +288,7 @@ jobs:
           - "3.13"
     steps:
       - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -314,7 +314,7 @@ jobs:
       HURL_SHA256: "cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
     steps:
       - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
