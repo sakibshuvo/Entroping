@@ -1008,28 +1008,13 @@ Implementation order:
 
 ## 12. Dependency Map Design
 
-`entroping map --export <fmt>` reads traffic records and emits dependency graphs.
-
-Supported exports:
-
-- `mermaid`
-- `dot`
-- `md`
-- `png` where Graphviz or a renderer is available
-
-The map should show services, routes, methods, call counts, failures, and latency summaries where available.
-
-MVP map output is host-level. Service-level inference and external system labels
-are follow-up layers after the Mermaid/Markdown/DOT/PNG compiler path is stable
-and escaped.
-
-Current implementation note: Mermaid, DOT, Markdown, and PNG exports are implemented
-through a pure `bridge.traffic_to_graph` compiler and `core.dependency_mapper`
-adapter. PNG export renders through local Graphviz `dot` when available and fails
-with an actionable missing-renderer message otherwise. The same capture filters
-used by `freeze` can narrow map exports before graph compilation. PNG exports
-also write `reports/approvals/dependency-map-png.json` with the same
-value-free traffic artifact approval schema used by `freeze`.
+`entroping map --export <fmt>` reads redacted traffic; emits mermaid/dot/md/png:
+services/routes/methods/counts/failures/latency. MVP host-level; future
+ADR-governed stable escaped service/external label compilation. Pure
+`bridge.traffic_to_graph`/`core.dependency_mapper`; local Graphviz `dot`; absent
+renderer fails actionably. Freeze filters; PNG writes
+`reports/approvals/dependency-map-png.json`, same Freeze value-free approval schema.
+ADR-0035: P06/P11/P12 own normalization/collision/order/renderer/no-fetch.
 
 ## 13. Reporting Design
 
