@@ -6,6 +6,7 @@ import hashlib
 import inspect
 import json
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -14,7 +15,9 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.mutation_materializer_hurl_requests as hurl_requests
 import entroping.core.mutation_materializer_io as materializer_io
+import entroping.core.mutation_materializer_request_shape as request_shape
 from entroping.core.mutation_materializer import (
     MutationMaterializerError,
     materialize_mutation_candidate,
@@ -44,8 +47,8 @@ def _candidate_id(manifest_without_id: dict[str, object]) -> str:
 
 def _write_status_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
     source = tmp_path / "tests" / "source.hurl"
-    source.parent.mkdir()
-    (tmp_path / "tests" / "generated" / "mutations").mkdir(parents=True)
+    source.parent.mkdir(exist_ok=True)
+    (tmp_path / "tests" / "generated" / "mutations").mkdir(parents=True, exist_ok=True)
     source_bytes = b"# entroping: safety=read-only\n\nGET {{base_url}}/health\nHTTP 200\n"
     source.write_bytes(source_bytes)
     source_stat = source.stat()
@@ -70,6 +73,643 @@ def _write_status_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     return source, manifest_path, candidate_id
+
+
+def _write_status_xml_fixture(tmp_path: Path, preamble: str) -> tuple[Path, Path]:
+    return _write_status_xml_body_fixture(
+        tmp_path,
+        f"{preamble}<Envelope>\nHTTP 599\n</Envelope>\n",
+    )
+
+
+def _write_status_xml_body_fixture(tmp_path: Path, body: str) -> tuple[Path, Path]:
+    source = tmp_path / "tests" / "source.hurl"
+    source.parent.mkdir(exist_ok=True)
+    (tmp_path / "tests" / "generated" / "mutations").mkdir(parents=True, exist_ok=True)
+    source_bytes = (
+        "# entroping: safety=read-only\n\n"
+        "POST {{base_url}}/xml\n"
+        "Content-Type: application/xml\n\n"
+        f"{body}"
+        "HTTP 200\n"
+    ).encode()
+    source.write_bytes(source_bytes)
+    source_stat = source.stat()
+    manifest_core: dict[str, object] = {
+        "category": "status-code",
+        "project_relative_source_path": "tests/source.hurl",
+        "expected_sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "reviewed_seed": 7,
+        "category_selector": {"assertion_ordinal": 0, "replacement_status": 201},
+    }
+    candidate_id = _candidate_id(manifest_core)
+    manifest = {
+        "schema_version": "entroping.mutation-materialization.v1",
+        **manifest_core,
+        "source_size_bytes": len(source_bytes),
+        "source_mtime_ns": source_stat.st_mtime_ns,
+        "review_decision_id": "decision-1",
+        "evidence_ids": ["evidence-1"],
+        "candidate_id": candidate_id,
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return source, manifest_path
+
+
+def _write_request_shape_fixture(
+    tmp_path: Path,
+    body: str,
+    *,
+    pointer: str = "/value",
+    request_ordinal: int = 0,
+    reviewed_seed: int = 0,
+    fenced: bool = False,
+    request_prefix: str = "",
+    header_separator: str = "\n\n",
+) -> tuple[Path, Path, str]:
+    source = tmp_path / "tests" / "source.hurl"
+    source.parent.mkdir(exist_ok=True)
+    (tmp_path / "tests" / "generated" / "mutations").mkdir(parents=True, exist_ok=True)
+    request_body = f"```json\n{body}\n```" if fenced else body
+    source_bytes = (
+        "# entroping: safety=read-only\n\n"
+        f"{request_prefix}"
+        "POST {{base_url}}/users\n"
+        f"Content-Type: application/json{header_separator}"
+        f"{request_body}\n"
+        "HTTP 201\n"
+    ).encode()
+    source.write_bytes(source_bytes)
+    source_stat = source.stat()
+    manifest_core: dict[str, object] = {
+        "category": "request-shape",
+        "project_relative_source_path": "tests/source.hurl",
+        "expected_sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "reviewed_seed": reviewed_seed,
+        "category_selector": {
+            "request_ordinal": request_ordinal,
+            "json_pointer": pointer,
+            "corpus_id": "request-shape-v1",
+        },
+    }
+    candidate_id = _candidate_id(manifest_core)
+    manifest = {
+        "schema_version": "entroping.mutation-materialization.v1",
+        **manifest_core,
+        "source_size_bytes": len(source_bytes),
+        "source_mtime_ns": source_stat.st_mtime_ns,
+        "review_decision_id": "decision-1",
+        "evidence_ids": ["evidence-1"],
+        "candidate_id": candidate_id,
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return source, manifest_path, candidate_id
+
+
+def _assert_real_hurlfmt(source: Path) -> None:
+    hurlfmt = shutil.which("hurlfmt")
+    if hurlfmt is None:
+        pytest.skip("hurlfmt is not installed")
+    result = subprocess.run(
+        [hurlfmt, "--check", str(source)],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_materialize_request_shape_replaces_one_json_scalar_with_destructive_safety(
+    tmp_path: Path,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"name":"alice","active":true}',
+        pointer="/name",
+        fenced=True,
+    )
+    source_before = source.read_bytes()
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "# entroping: mutation_category=request-shape\n" in rendered
+    assert "# entroping: mutation_seed=0\n" in rendered
+    assert "# entroping: safety=destructive\n" in rendered
+    assert '{"name":"","active":true}' in rendered
+    assert "alice" not in rendered
+    assert source.read_bytes() == source_before
+
+
+@pytest.mark.parametrize(
+    ("body", "pointer", "expected"),
+    (
+        ('{"value":-1}', "/value", '{"value":0}'),
+        ('{"value":0}', "/value", '{"value":-1}'),
+        ('{"value":true}', "/value", '{"value":false}'),
+        ('{"value":null}', "/value", '{"value":""}'),
+        ('{"a/b":"original"}', "/a~1b", '{"a/b":""}'),
+        ('{"items":["first","second"]}', "/items/1", '{"items":["first",""]}'),
+    ),
+)
+def test_request_shape_uses_type_strict_seeded_corpus(
+    tmp_path: Path,
+    body: str,
+    pointer: str,
+    expected: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        body,
+        pointer=pointer,
+    )
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert expected in output.read_text(encoding="utf-8")
+    assert source.read_text(encoding="utf-8").count(body) == 1
+
+
+def test_request_shape_seed_changes_only_selected_scalar_and_is_deterministic(
+    tmp_path: Path,
+) -> None:
+    source, first_manifest, first_candidate = _write_request_shape_fixture(
+        tmp_path,
+        '{"profile":{"name":"alice","active":true},"untouched":7}',
+        pointer="/profile/name",
+        reviewed_seed=0,
+        fenced=True,
+    )
+    source_before = source.read_bytes()
+    first = materialize_mutation_candidate(tmp_path, first_manifest).read_text(encoding="utf-8")
+
+    _source, second_manifest, second_candidate = _write_request_shape_fixture(
+        tmp_path,
+        '{"profile":{"name":"alice","active":true},"untouched":7}',
+        pointer="/profile/name",
+        reviewed_seed=1,
+        fenced=True,
+    )
+    second = materialize_mutation_candidate(tmp_path, second_manifest).read_text(encoding="utf-8")
+
+    assert first_candidate != second_candidate
+    assert '"name":""' in first
+    assert '"name":" "' in second
+    assert '"active":true' in first and '"active":true' in second
+    assert '"untouched":7' in first and '"untouched":7' in second
+    assert source.read_bytes() == source_before
+
+
+def test_request_shape_handles_exact_1024_byte_pointer_iteratively(
+    tmp_path: Path,
+) -> None:
+    depth = 512
+    pointer = "/a" * depth
+    body = '{"a":' * depth + '"target"' + "}" * depth
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        body,
+        pointer=pointer,
+    )
+    source_before = source.read_bytes()
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    expected_body = '{"a":' * depth + '""' + "}" * depth
+    rendered = output.read_text(encoding="utf-8")
+    assert expected_body in rendered
+    assert '"target"' not in rendered
+    assert source.read_bytes() == source_before
+
+
+def test_request_shape_bounds_json_decoder_span_work_at_nested_depth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    depth = 128
+    body = '{"a":' * depth + '"target"' + "}" * depth
+    spans: list[int] = []
+
+    class CountingDecoder(json.JSONDecoder):
+        def raw_decode(self, s: str, idx: int = 0) -> tuple[object, int]:
+            value, end = super().raw_decode(s, idx)
+            spans.append(end - idx)
+            return value, end
+
+    def counting_decoder() -> json.JSONDecoder:
+        return CountingDecoder(
+            object_pairs_hook=request_shape._reject_duplicate_pairs,
+            parse_constant=request_shape._reject_json_constant,
+        )
+
+    monkeypatch.setattr(request_shape, "_new_json_decoder", counting_decoder)
+
+    scalar = request_shape._find_json_scalar_span(body, ("a",) * depth)
+
+    assert scalar.value == "target"
+    assert sum(spans) <= 2 * len(body)
+
+
+def test_request_shape_tracks_escaped_multibyte_lexical_scalar_span() -> None:
+    body = ' \n{\n  "prefix": "界",\n  "caf\\u00e9" : "pré\\u00e9post"\n}\n'
+
+    scalar = request_shape._find_json_scalar_span(body, ("café",))
+
+    assert scalar.value == "préépost"
+    assert body[scalar.start : scalar.end] == '"pré\\u00e9post"'
+    assert body[: scalar.start] == ' \n{\n  "prefix": "界",\n  "caf\\u00e9" : '
+    assert body[scalar.end :] == "\n}\n"
+
+
+@pytest.mark.parametrize(
+    ("fenced", "expected_body"),
+    (
+        (False, '{"value":""\n\n}'),
+        (True, '```json\n{"value":""\n\n}\n```'),
+    ),
+)
+def test_request_shape_locates_body_before_internal_blank_line(
+    tmp_path: Path,
+    fenced: bool,
+    expected_body: str,
+) -> None:
+    body = '{"value":"selected"\n\n}'
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        body,
+        fenced=fenced,
+        header_separator="\n",
+    )
+    source_before = source.read_bytes()
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert expected_body in rendered
+    assert body not in rendered
+    assert source.read_bytes() == source_before
+    _assert_real_hurlfmt(output)
+
+
+@pytest.mark.parametrize(
+    "section",
+    ("[Options]", "[Asserts]", "[Captures]", "[QueryStringParams]", "[MultipartFormData]"),
+)
+def test_request_shape_does_not_treat_hurl_section_as_json_array(section: str) -> None:
+    with pytest.raises(MutationMaterializerError, match="request JSON body is missing"):
+        hurl_requests._locate_json_in_exchange(f"Content-Type: application/json\n{section}\n")
+
+
+@pytest.mark.parametrize("header_separator", ("\n", "\n\n"))
+def test_request_shape_skips_options_section_before_unfenced_json_body(
+    tmp_path: Path,
+    header_separator: str,
+) -> None:
+    body = '[Options]\nretry: 1\n{"value":"selected"\n\n}'
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        body,
+        header_separator=header_separator,
+    )
+    source_before = source.read_bytes()
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert '[Options]\nretry: 1\n{"value":""\n\n}' in rendered
+    assert body not in rendered
+    assert source.read_bytes() == source_before
+    _assert_real_hurlfmt(output)
+
+
+@pytest.mark.parametrize(
+    "request_prefix",
+    (
+        'GET {{base_url}}/health\nHTTP 200\n"GET https://body.example"\n\n',
+        "GET {{base_url}}/health\nHTTP 200\n```text\nGET https://body.example\n```\n\n",
+        "GET {{base_url}}/health\nHTTP 200\n<root>\n<child>GET https://body.example</child>\n</root>\n\n",
+        "GET {{base_url}}/health\nHTTP 200\n<root><child>\nGET https://body.example\n</child>\n</root>\n\n",
+    ),
+)
+def test_request_shape_uses_declared_request_ordinal_and_ignores_response_body_lines(
+    tmp_path: Path,
+    request_prefix: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix=request_prefix,
+    )
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "GET {{base_url}}/health\nHTTP 200" in rendered
+    assert '{"value":""}' in rendered
+    assert source.read_text(encoding="utf-8").count('{"value":"selected"}') == 1
+
+
+def test_request_shape_accepts_adjacent_hurl_entries_without_blank_line(
+    tmp_path: Path,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix="GET {{base_url}}/health\nHTTP 200\n",
+    )
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "GET {{base_url}}/health\nHTTP 200\nPOST {{base_url}}/users" in rendered
+    assert '{"value":""}' in rendered
+    assert source.read_text(encoding="utf-8").count('{"value":"selected"}') == 1
+
+
+@pytest.mark.parametrize("separator", ("", "\n"))
+def test_request_shape_scans_xml_preambles_before_json_entry(
+    tmp_path: Path,
+    separator: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix=(
+            "POST {{base_url}}/xml\n"
+            "Content-Type: application/xml\n\n"
+            '<?xml version="1.0"?>\n'
+            "<!-- comment -->\n"
+            "<?process?>\n"
+            "<!DOCTYPE root>\n"
+            "<root>value</root>\n"
+            f"HTTP 200\n{separator}"
+        ),
+    )
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert '<?xml version="1.0"?>\n<!-- comment -->\n<?process?>\n<!DOCTYPE root>' in rendered
+    assert '{"value":""}' in rendered
+    assert source.read_text(encoding="utf-8").count('{"value":"selected"}') == 1
+
+
+@pytest.mark.parametrize(
+    "xml_body",
+    (
+        '<?xml version="1.0"?>\n<!--\nHTTP 599\n-->\n<root>value</root>\n',
+        '<?xml version="1.0"?>\n<!DOCTYPE Envelope [\n'
+        "<!ELEMENT Envelope ANY>\n]>\n<Envelope>value</Envelope>\n",
+    ),
+)
+@pytest.mark.parametrize("separator", ("", "\n"))
+def test_request_shape_scans_multiline_xml_preambles_before_json_entry(
+    tmp_path: Path,
+    xml_body: str,
+    separator: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix=(
+            "POST {{base_url}}/xml\n"
+            "Content-Type: application/xml\n\n"
+            f"{xml_body}"
+            f"HTTP 200\n{separator}"
+        ),
+    )
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert xml_body in rendered
+    assert '{"value":""}' in rendered
+    assert source.read_text(encoding="utf-8").count('{"value":"selected"}') == 1
+
+
+@pytest.mark.parametrize(
+    "preamble",
+    (
+        '<?xml version="1.0"?>',
+        "<!--comment-->",
+        "<!--\ncomment\n-->",
+        "<?process?>",
+        "<!DOCTYPE Envelope>",
+        "<!DOCTYPE Envelope [\n<!ELEMENT Envelope ANY>\n]>",
+    ),
+)
+def test_request_shape_preserves_xml_body_status_after_inline_preamble_root(
+    tmp_path: Path,
+    preamble: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix=(
+            "POST {{base_url}}/xml\n"
+            "Content-Type: application/xml\n\n"
+            f"{preamble}<Envelope>\n"
+            "HTTP 599\n"
+            "</Envelope>\n"
+            "HTTP 200\n"
+        ),
+    )
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "HTTP 599\n</Envelope>\nHTTP 200\nPOST" in rendered
+    assert '{"value":""}' in rendered
+    assert source.read_text(encoding="utf-8").count('{"value":"selected"}') == 1
+
+
+@pytest.mark.parametrize(
+    "preamble",
+    (
+        '<?xml version="1.0"?>',
+        "<!--comment-->",
+        "<!--\ncomment\n-->",
+        "<?process?>",
+        "<!DOCTYPE Envelope>",
+        "<!DOCTYPE Envelope [\n<!ELEMENT Envelope ANY>\n]>",
+    ),
+)
+def test_status_materialization_ignores_xml_body_status_after_inline_preamble_root(
+    tmp_path: Path,
+    preamble: str,
+) -> None:
+    source, manifest_path = _write_status_xml_fixture(tmp_path, preamble)
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "HTTP 599\n</Envelope>\nHTTP 201\n" in rendered
+    assert source.read_text(encoding="utf-8").count("HTTP 200") == 1
+
+
+@pytest.mark.parametrize(
+    "xml_body",
+    (
+        '<?xml version="1.0"?><!--c--><?p x?><!DOCTYPE Envelope>'
+        "<Envelope><Body>\nHTTP 599\n</Body></Envelope>\n",
+        "<Envelope><Body>\nHTTP 599\n</Body></Envelope>\n",
+        '<Envelope note="a > b"><Body>\nHTTP 599\n</Body></Envelope>\n',
+        "<Envelope><Body><![CDATA[\nHTTP 599\n]]></Body></Envelope>\n",
+        "<Envelope><Body><!--\nHTTP 599\n--></Body></Envelope>\n",
+    ),
+)
+def test_request_shape_scans_lexical_xml_body_before_later_json_entry(
+    tmp_path: Path,
+    xml_body: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix=(
+            f"POST {{{{base_url}}}}/xml\nContent-Type: application/xml\n\n{xml_body}HTTP 200\n"
+        ),
+    )
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "HTTP 599" in rendered
+    assert "HTTP 200\nPOST {{base_url}}/users" in rendered
+    assert '{"value":""}' in rendered
+    assert source.read_text(encoding="utf-8").count('{"value":"selected"}') == 1
+
+
+@pytest.mark.parametrize(
+    "xml_body",
+    (
+        '<Envelope note="line\nHTTP 599\nvalue"><Body>HTTP 598</Body></Envelope>\n',
+        '<?xml version="1.0"?><?process\nHTTP 599\n?>'
+        "<!DOCTYPE Envelope [\n"
+        '<!ENTITY label "HTTP 598">\n]>'
+        "<Envelope><Body>HTTP 597</Body></Envelope>\n",
+        "<!DOCTYPE Envelope [<!-- [ HTTP 599 > -->\n"
+        "<!ELEMENT Envelope ANY>\n]><Envelope><Body>HTTP 596</Body></Envelope>\n",
+        "<Envelope><Body><![CDATA[]]]></Body></Envelope>\n",
+    ),
+)
+def test_request_shape_lexes_xml_boundaries_without_parsing_xml(
+    tmp_path: Path,
+    xml_body: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+        request_prefix=(
+            f"POST {{{{base_url}}}}/xml\nContent-Type: application/xml\n\n{xml_body}HTTP 200\n"
+        ),
+    )
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    assert "HTTP 200\nPOST {{base_url}}/users" in rendered
+    assert '{"value":"selected"}' not in rendered
+
+
+@pytest.mark.parametrize(
+    "xml_body",
+    (
+        '<?xml version="1.0"?><!--c--><?p x?><!DOCTYPE Envelope>'
+        "<Envelope><Body>\nHTTP 599\n</Body></Envelope>\n",
+        "<Envelope><Body>\nHTTP 599\n</Body></Envelope>\n",
+        '<Envelope note="a > b"><Body>\nHTTP 599\n</Body></Envelope>\n',
+        "<Envelope><Body><![CDATA[\nHTTP 599\n]]></Body></Envelope>\n",
+        "<Envelope><Body><![CDATA[]]]></Body></Envelope>\n",
+        "<Envelope><Body><!--\nHTTP 599\n--></Body></Envelope>\n",
+    ),
+)
+def test_status_materialization_selects_response_after_lexical_xml_body(
+    tmp_path: Path,
+    xml_body: str,
+) -> None:
+    source, manifest_path = _write_status_xml_body_fixture(tmp_path, xml_body)
+    _assert_real_hurlfmt(source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    rendered = output.read_text(encoding="utf-8")
+    if "HTTP 599" in xml_body:
+        assert "HTTP 599" in rendered
+    assert "HTTP 201\n" in rendered
+    assert xml_body in rendered
+    assert source.read_text(encoding="utf-8").count("HTTP 200") == 1
+
+
+@pytest.mark.parametrize(
+    ("body", "pointer", "match"),
+    (
+        ('{"value":{}}', "/value", "target must be a JSON scalar"),
+        ('{"value":[]}', "/value", "target must be a JSON scalar"),
+        ('{"other":1}', "/value", "target is missing"),
+        ('{"value":1} {"value":2}', "/value", "multiple JSON values"),
+        ("not-json", "/value", "not valid JSON"),
+        ('{"value":1,"value":2}', "/value", "duplicate keys"),
+    ),
+)
+def test_request_shape_rejects_unsafe_or_ambiguous_targets(
+    tmp_path: Path,
+    body: str,
+    pointer: str,
+    match: str,
+) -> None:
+    source, manifest_path, candidate_id = _write_request_shape_fixture(
+        tmp_path,
+        body,
+        pointer=pointer,
+    )
+    source_before = source.read_bytes()
+
+    with pytest.raises(MutationMaterializerError, match=match):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.read_bytes() == source_before
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+@pytest.mark.parametrize(
+    "pointer",
+    (
+        "value",
+        "/value~2",
+        "/" + ("x" * 1_024),
+    ),
+)
+def test_request_shape_rejects_invalid_pointer_before_output(
+    tmp_path: Path,
+    pointer: str,
+) -> None:
+    source, manifest_path, candidate_id = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":1}',
+        pointer=pointer,
+    )
+
+    with pytest.raises(MutationMaterializerError, match="JSON pointer"):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.exists()
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
 
 
 def _install_linux_link(

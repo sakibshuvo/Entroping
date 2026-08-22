@@ -559,7 +559,7 @@ A local-first QA loop for AI-generated changes follows this evidence sequence:
 
 1. `entroping report test-quality --output json` (generated-test quality)
 2. `entroping report mutation-readiness --output json` (mutation/readiness)
-3. `entroping report mutation-materialize --manifest <project-relative-json>` (review-only status candidate)
+3. `entroping report mutation-materialize --manifest <project-relative-json>` (review-only status or seeded request-shape candidate)
 4. `entroping report qa-brain-seed --output json` (seed contract)
 5. `entroping report qa-brain-eval-plan --output json`
 6. `entroping report qa-brain-retrieval-plan --output json`
@@ -568,6 +568,7 @@ A local-first QA loop for AI-generated changes follows this evidence sequence:
 9. `entroping report qa-brain-repair-plan --output json`
 
 The plan and readiness packets are read-only, deterministic evidence artifacts. The separate materialization step performs one create-only write at `tests/generated/mutations/<candidate_id>.hurl`; it never mutates the source, overwrites an existing output, executes Hurl, or makes a candidate authoritative. It does not auto-repair code or bypass Hurl enforcement. Human/Codex review is required before generated changes are accepted.
+For `request-shape`, the reviewed seed selects one replacement from the fixed, type-strict `request-shape-v1` corpus at the declared JSON pointer. These candidates always carry `safety=destructive`, so protected-run safety refuses them before Hurl execution regardless of request method.
 
 Summarize local test/evidence layers from existing reports:
 
