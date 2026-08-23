@@ -11,8 +11,7 @@ from typing import Any, cast
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session, SQLModel, col, create_engine, select
+from sqlmodel import Session, col, create_engine, select
 
 from entroping.core import traffic_store
 from entroping.core.traffic_redactor import redact_traffic_exchange
@@ -94,43 +93,54 @@ def _create_traffic_fixture(
     traffic_ddl: str | None = None,
 ) -> None:
     with sqlite3.connect(db_path) as connection:
-        if metadata_version is not None:
-            connection.execute(metadata_ddl or _CREATE_METADATA)
+        _create_traffic_metadata(connection, metadata_version, metadata_ddl)
         connection.execute(
             traffic_ddl or (_CREATE_TRAFFIC_IMPLICIT if implicit_id else _CREATE_TRAFFIC_EXPLICIT)
         )
         if indexes:
-            connection.execute(
-                "CREATE INDEX idx_traffic_events_captured_at ON traffic_events (captured_at)"
-            )
-            connection.execute(
-                "CREATE INDEX idx_traffic_events_host_path ON traffic_events (host, path)"
-            )
-        if metadata_version is not None:
-            connection.execute(
-                "INSERT INTO traffic_store_metadata(key, value) VALUES ('schema_version', ?)",
-                (metadata_version,),
-            )
-        if event_id is not None:
-            connection.execute(
-                """
-                INSERT INTO traffic_events(
-                    id, captured_at, method, url, host, path, status_code, duration_ms,
-                    exchange_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    event_id,
-                    "2026-05-30T12:00:00+00:00",
-                    "GET",
-                    "https://api.example.test/health",
-                    "api.example.test",
-                    "/health",
-                    200,
-                    11,
-                    '{"redacted":true}',
-                ),
-            )
+            _create_traffic_indexes(connection)
+        _insert_traffic_event(connection, event_id)
+
+
+def _create_traffic_metadata(
+    connection: sqlite3.Connection, version: str | None, ddl: str | None
+) -> None:
+    if version is not None:
+        connection.execute(ddl or _CREATE_METADATA)
+        connection.execute(
+            "INSERT INTO traffic_store_metadata(key, value) VALUES ('schema_version', ?)",
+            (version,),
+        )
+
+
+def _create_traffic_indexes(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE INDEX idx_traffic_events_captured_at ON traffic_events (captured_at)"
+    )
+    connection.execute("CREATE INDEX idx_traffic_events_host_path ON traffic_events (host, path)")
+
+
+def _insert_traffic_event(connection: sqlite3.Connection, event_id: int | None) -> None:
+    if event_id is not None:
+        connection.execute(
+            """
+            INSERT INTO traffic_events(
+                id, captured_at, method, url, host, path, status_code, duration_ms,
+                exchange_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                "2026-05-30T12:00:00+00:00",
+                "GET",
+                "https://api.example.test/health",
+                "api.example.test",
+                "/health",
+                200,
+                11,
+                '{"redacted":true}',
+            ),
+        )
 
 
 _VALID_HISTORY_ROW = (
@@ -151,6 +161,38 @@ def _create_v2_fixture(tmp_path: Path) -> Path:
     store = TrafficStore.open_project(tmp_path)
     store._engine.dispose()
     return store.db_path
+
+
+def _create_custom_v2_fixture(
+    tmp_path: Path,
+    *,
+    traffic_ddl: str = _CREATE_TRAFFIC_EXPLICIT,
+    history_ddl: str = _CREATE_HISTORY,
+    traffic_indexes: tuple[str, ...] = (
+        "CREATE INDEX idx_traffic_events_captured_at ON traffic_events (captured_at)",
+        "CREATE INDEX idx_traffic_events_host_path ON traffic_events (host, path)",
+    ),
+    history_indexes: tuple[str, ...] = (
+        "CREATE INDEX idx_run_history_generated_at_id ON run_history (generated_at, id)",
+        "CREATE INDEX idx_run_history_project_environment_generated_at_id "
+        "ON run_history (project, environment, generated_at, id)",
+    ),
+) -> Path:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(_CREATE_METADATA)
+        connection.execute(traffic_ddl)
+        for statement in traffic_indexes:
+            connection.execute(statement)
+        connection.execute(" ".join(history_ddl.split()).replace("( ", "(").replace(" )", ")"))
+        for statement in history_indexes:
+            connection.execute(statement)
+        connection.execute(
+            "INSERT INTO traffic_store_metadata(key, value) VALUES ('schema_version', '2')"
+        )
+    return state_path
 
 
 def _insert_history_row(db_path: Path, row: tuple[object, ...]) -> None:
@@ -242,7 +284,7 @@ def test_store_wraps_schema_initialization_errors(
 ) -> None:
     def fail_schema_version(engine: object) -> None:
         _ = engine
-        raise SQLAlchemyError("metadata unavailable")
+        raise sqlite3.DatabaseError("metadata unavailable")
 
     monkeypatch.setattr(traffic_store, "_ensure_schema_version", fail_schema_version)
 
@@ -254,17 +296,9 @@ def test_store_rejects_future_schema_version(tmp_path: Path) -> None:
     state_dir = tmp_path / ".entroping"
     state_dir.mkdir()
     db_path = state_dir / "state.db"
-    engine = create_engine(f"sqlite:///{db_path}")
-    SQLModel.metadata.create_all(engine)
-
-    with Session(engine) as session:
-        session.add(
-            TrafficStoreMetadataRow(
-                key="schema_version",
-                value=str(TRAFFIC_STORE_SCHEMA_VERSION + 1),
-            )
-        )
-        session.commit()
+    _create_traffic_fixture(
+        db_path, metadata_version=str(TRAFFIC_STORE_SCHEMA_VERSION + 1), event_id=None
+    )
 
     with pytest.raises(TrafficStoreError, match="newer than supported"):
         TrafficStore.open_project(tmp_path)
@@ -285,12 +319,7 @@ def test_store_rejects_invalid_or_unsupported_schema_versions(
     state_dir = tmp_path / ".entroping"
     state_dir.mkdir()
     db_path = state_dir / "state.db"
-    engine = create_engine(f"sqlite:///{db_path}")
-    SQLModel.metadata.create_all(engine)
-
-    with Session(engine) as session:
-        session.add(TrafficStoreMetadataRow(key="schema_version", value=schema_version))
-        session.commit()
+    _create_traffic_fixture(db_path, metadata_version=schema_version, event_id=None)
 
     with pytest.raises(TrafficStoreError, match=message):
         TrafficStore.open_project(tmp_path)
@@ -327,11 +356,7 @@ def test_store_persists_redacted_exchange_without_plaintext_secrets(tmp_path: Pa
     event_id = store.record_exchange(redacted)
     loaded = store.list_exchanges()
 
-    assert event_id == 1
-    assert len(loaded) == 1
-    assert loaded[0].redacted is True
-    assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
-    assert "live-secret" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+    assert (event_id, len(loaded), loaded[0].redacted, loaded[0].request.headers["Authorization"], "live-secret" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")) == (1, 1, True, "[REDACTED]", True)  # fmt: skip  # noqa: E501
 
 
 def test_store_list_exchanges_rejects_non_positive_limit(tmp_path: Path) -> None:
@@ -423,65 +448,11 @@ def test_readonly_project_exchange_listing_wraps_schema_version_read_errors(
     state_dir.mkdir()
     TrafficStore.open_project(tmp_path)
 
-    class FailingSchemaSession:
-        def __init__(self, engine: object) -> None:
-            _ = engine
-
-        def __enter__(self) -> "FailingSchemaSession":
-            return self
-
-        def __exit__(
-            self,
-            exc_type: object,
-            exc_value: object,
-            traceback: object,
-        ) -> None:
-            _ = (exc_type, exc_value, traceback)
-
-        def exec(self, statement: object) -> object:
-            _ = statement
-            raise SQLAlchemyError("schema read failed")
-
-    monkeypatch.setattr(traffic_store, "Session", FailingSchemaSession)
     monkeypatch.setattr(
         traffic_store,
-        "_validate_existing_schema_version",
-        lambda connection: (_ for _ in ()).throw(SQLAlchemyError("schema read failed")),
+        "_classify_schema",
+        lambda connection: (_ for _ in ()).throw(sqlite3.DatabaseError("schema read failed")),
     )
-
-    with pytest.raises(TrafficStoreError, match="could not read traffic store schema version"):
-        list_project_exchanges_readonly(tmp_path)
-
-
-def test_readonly_project_exchange_listing_wraps_sqlalchemy_read_errors(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    state_dir = tmp_path / ".entroping"
-    state_dir.mkdir()
-    TrafficStore.open_project(tmp_path)
-
-    class FailingReadSession:
-        def __init__(self, engine: object) -> None:
-            _ = engine
-
-        def __enter__(self) -> "FailingReadSession":
-            return self
-
-        def __exit__(
-            self,
-            exc_type: object,
-            exc_value: object,
-            traceback: object,
-        ) -> None:
-            _ = (exc_type, exc_value, traceback)
-
-        def exec(self, statement: object) -> object:
-            _ = statement
-            raise SQLAlchemyError("read failed")
-
-    monkeypatch.setattr(traffic_store, "_validate_existing_schema_version", lambda engine: None)
-    monkeypatch.setattr(traffic_store, "Session", FailingReadSession)
 
     with pytest.raises(TrafficStoreError, match="could not read traffic state"):
         list_project_exchanges_readonly(tmp_path)
@@ -501,6 +472,33 @@ def test_readonly_project_exchange_listing_applies_limit(tmp_path: Path) -> None
     assert loaded[0].captured_at.minute == 0
 
 
+def test_readonly_validation_and_select_share_the_same_connection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store.record_exchange(redact_traffic_exchange(_exchange(secret="readonly-original")))
+    state_path = store.db_path
+    real_classify = traffic_store._classify_schema
+
+    def replace_after_validation(
+        connection: sqlite3.Connection,
+    ) -> traffic_store._SchemaState:
+        state = real_classify(connection)
+        state_path.unlink()
+        with sqlite3.connect(state_path) as replacement:
+            replacement.execute(_CREATE_TRAFFIC_EXPLICIT)
+            replacement.execute("CREATE TABLE unknown_user_table (value VARCHAR)")
+        return state
+
+    monkeypatch.setattr(traffic_store, "_classify_schema", replace_after_validation)
+
+    loaded = list_project_exchanges_readonly(tmp_path)
+
+    assert len(loaded) == 1
+    assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
+
+
 def test_store_persists_events_through_sqlmodel_mapping(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
     redacted = redact_traffic_exchange(_exchange(secret="live-secret"))
@@ -510,12 +508,7 @@ def test_store_persists_events_through_sqlmodel_mapping(tmp_path: Path) -> None:
     with Session(engine) as session:
         rows = session.exec(select(TrafficEventRow)).all()
 
-    assert len(rows) == 1
-    assert rows[0].id == event_id
-    assert rows[0].method == "GET"
-    assert rows[0].host == "api.example.test"
-    assert rows[0].status_code == 200
-    assert "live-secret" not in rows[0].exchange_json
+    assert (len(rows), rows[0].id, rows[0].method, rows[0].host, rows[0].status_code, "live-secret" not in rows[0].exchange_json) == (1, event_id, "GET", "api.example.test", 200, True)  # fmt: skip  # noqa: E501
 
 
 def test_store_retention_keeps_latest_redacted_events_with_sql_delete(
@@ -545,10 +538,7 @@ def test_store_retention_keeps_latest_redacted_events_with_sql_delete(
             select(TrafficEventRow).order_by(col(TrafficEventRow.id))
         ).all()
 
-    assert len(loaded) == 2
-    assert [item.captured_at.minute for item in loaded] == [1, 2]
-    assert [row.id for row in retained_rows] == [2, 3]
-    assert "secret-" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+    assert (len(loaded), [item.captured_at.minute for item in loaded], [row.id for row in retained_rows], "secret-" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")) == (2, [1, 2], [2, 3], True)  # fmt: skip  # noqa: E501
 
 
 def test_store_wraps_missing_inserted_row_id(
@@ -630,21 +620,23 @@ def test_fresh_open_creates_empty_schema_v2_and_reopen_is_idempotent(
         history_rows = tuple(connection.execute("SELECT * FROM run_history").fetchall())
         history_indexes = tuple(connection.execute("PRAGMA index_list('run_history')").fetchall())
 
-    assert objects == (
-        ("index", "idx_run_history_generated_at_id"),
-        ("index", "idx_run_history_project_environment_generated_at_id"),
-        ("index", "idx_traffic_events_captured_at"),
-        ("index", "idx_traffic_events_host_path"),
-        ("table", "run_history"),
-        ("table", "traffic_events"),
-        ("table", "traffic_store_metadata"),
+    assert (objects, metadata, history_rows, {row[1] for row in history_indexes}) == (
+        (
+            ("index", "idx_run_history_generated_at_id"),
+            ("index", "idx_run_history_project_environment_generated_at_id"),
+            ("index", "idx_traffic_events_captured_at"),
+            ("index", "idx_traffic_events_host_path"),
+            ("table", "run_history"),
+            ("table", "traffic_events"),
+            ("table", "traffic_store_metadata"),
+        ),
+        (("schema_version", "2"),),
+        (),
+        {
+            "idx_run_history_generated_at_id",
+            "idx_run_history_project_environment_generated_at_id",
+        },
     )
-    assert metadata == (("schema_version", "2"),)
-    assert history_rows == ()
-    assert {row[1] for row in history_indexes} == {
-        "idx_run_history_generated_at_id",
-        "idx_run_history_project_environment_generated_at_id",
-    }
 
     before = _schema_snapshot(state_path)
     TrafficStore.open_project(tmp_path)
@@ -676,11 +668,7 @@ def test_metadata_v1_migration_preserves_rows_indexes_and_is_idempotent(
             row[1] for row in connection.execute("PRAGMA index_list('traffic_events')").fetchall()
         }
 
-    assert metadata == (("schema_version", "2"),)
-    assert rows == before_rows
-    assert history_rows == ()
-    assert {"idx_traffic_events_captured_at", "idx_traffic_events_host_path"} <= indexes
-    assert "extra_traffic_index" in indexes
+    assert (metadata, rows, history_rows, {"idx_traffic_events_captured_at", "idx_traffic_events_host_path"} <= indexes, "extra_traffic_index" in indexes) == ((("schema_version", "2"),), before_rows, (), True, True)  # fmt: skip  # noqa: E501
 
     before = _schema_snapshot(state_path)
     TrafficStore.open_project(tmp_path)
@@ -714,10 +702,7 @@ def test_legacy_implicit_primary_key_migrates_without_rewriting_rows(
             row[1] for row in connection.execute("PRAGMA index_list('traffic_events')").fetchall()
         }
 
-    assert before_traffic_info[0][2:6] == ("INTEGER", 0, None, 1)
-    assert after_traffic_info == before_traffic_info
-    assert metadata == (("schema_version", "2"),)
-    assert {"idx_traffic_events_captured_at", "idx_traffic_events_host_path"} <= indexes
+    assert (before_traffic_info[0][2:6], after_traffic_info, metadata, {"idx_traffic_events_captured_at", "idx_traffic_events_host_path"} <= indexes) == (("INTEGER", 0, None, 1), before_traffic_info, (("schema_version", "2"),), True)  # fmt: skip  # noqa: E501
 
     before = _schema_snapshot(state_path)
     TrafficStore.open_project(tmp_path)
@@ -729,6 +714,14 @@ def test_readonly_listing_accepts_legacy_and_v2_without_mutation(
     tmp_path: Path,
     metadata_version: str,
 ) -> None:
+    state_dir, state_path = _create_readonly_fixture(tmp_path, metadata_version)
+
+    before = _schema_snapshot(state_path)
+    before_entries = tuple(sorted(item.name for item in state_dir.iterdir()))
+    assert (list_project_exchanges_readonly(tmp_path), _schema_snapshot(state_path), tuple(sorted(item.name for item in state_dir.iterdir())), not (state_dir / "state.db-wal").exists(), not (state_dir / "state.db-shm").exists()) == ((), before, before_entries, True, True)  # fmt: skip  # noqa: E501
+
+
+def _create_readonly_fixture(tmp_path: Path, metadata_version: str) -> tuple[Path, Path]:
     state_dir = tmp_path / ".entroping"
     state_dir.mkdir()
     state_path = state_dir / "state.db"
@@ -736,14 +729,7 @@ def test_readonly_listing_accepts_legacy_and_v2_without_mutation(
         _create_traffic_fixture(state_path, metadata_version="1", event_id=None)
     else:
         TrafficStore.open_project(tmp_path)
-
-    before = _schema_snapshot(state_path)
-    before_entries = tuple(sorted(item.name for item in state_dir.iterdir()))
-    assert list_project_exchanges_readonly(tmp_path) == ()
-    assert _schema_snapshot(state_path) == before
-    assert tuple(sorted(item.name for item in state_dir.iterdir())) == before_entries
-    assert not (state_dir / "state.db-wal").exists()
-    assert not (state_dir / "state.db-shm").exists()
+    return state_dir, state_path
 
 
 def test_readonly_listing_accepts_no_metadata_legacy_without_adding_v2_objects(
@@ -976,6 +962,64 @@ def test_metadata_constraint_drift_is_rejected_before_mutation(
     assert _schema_snapshot(state_path) == before
 
 
+@pytest.mark.parametrize("status_literal", ("'PASSED'", "'pAsSeD'"))
+def test_history_literal_case_drift_is_rejected_before_mutation(
+    tmp_path: Path, status_literal: str
+) -> None:
+    state_path = _create_custom_v2_fixture(
+        tmp_path,
+        history_ddl=_CREATE_HISTORY.replace("'passed'", status_literal, 1),
+    )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_traffic_primary_key_desc_drift_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_path = _create_custom_v2_fixture(
+        tmp_path,
+        traffic_ddl=_CREATE_TRAFFIC_EXPLICIT.replace(
+            "id INTEGER NOT NULL PRIMARY KEY", "id INTEGER NOT NULL PRIMARY KEY DESC"
+        ),
+    )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+@pytest.mark.parametrize(
+    "index_sql",
+    (
+        "CREATE INDEX idx_traffic_events_captured_at ON traffic_events (captured_at DESC)",
+        "CREATE INDEX idx_traffic_events_captured_at ON traffic_events "
+        "(captured_at COLLATE NOCASE)",
+        "CREATE INDEX idx_traffic_events_captured_at ON traffic_events (substr(captured_at, 1))",
+    ),
+)
+def test_required_index_semantic_drift_is_rejected_before_mutation(
+    tmp_path: Path, index_sql: str
+) -> None:
+    state_path = _create_custom_v2_fixture(
+        tmp_path,
+        traffic_indexes=(
+            index_sql,
+            "CREATE INDEX idx_traffic_events_host_path ON traffic_events (host, path)",
+        ),
+    )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
 def test_implicit_unique_autoindex_is_rejected_by_index_validator(tmp_path: Path) -> None:
     state_path = tmp_path / "state.db"
     with sqlite3.connect(state_path) as connection:
@@ -1001,6 +1045,36 @@ def test_runtime_engine_uses_disk_file_pool(tmp_path: Path) -> None:
     finally:
         normal_disk_engine.dispose()
         store._engine.dispose()
+
+
+def test_runtime_creator_closes_connection_on_configuration_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    real_open = traffic_store._open_sqlite_connection
+    opened: list[sqlite3.Connection] = []
+
+    def track_open(
+        db_path: Path, *, readonly: bool, require_existing: bool = False
+    ) -> sqlite3.Connection:
+        connection = real_open(db_path, readonly=readonly, require_existing=require_existing)
+        opened.append(connection)
+        return connection
+
+    def fail_configuration(connection: sqlite3.Connection, *, readonly: bool) -> None:
+        _ = connection, readonly
+        raise TrafficStoreError("injected runtime configuration failure")
+
+    monkeypatch.setattr(traffic_store, "_open_sqlite_connection", track_open)
+    monkeypatch.setattr(traffic_store, "_configure_sqlite_connection", fail_configuration)
+
+    with pytest.raises(TrafficStoreError, match="injected runtime configuration failure"):
+        traffic_store._create_runtime_connection(state_path, readonly=False)
+
+    assert opened
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        opened[0].execute("SELECT 1")
 
 
 def test_runtime_pool_connection_can_be_reused_across_threads(tmp_path: Path) -> None:
@@ -1190,6 +1264,25 @@ def test_existing_valid_history_row_is_accepted_without_mutation(tmp_path: Path)
     assert _schema_snapshot(state_path) == before
 
 
+def test_oversized_history_identifier_is_rejected_before_row_fetch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    _insert_history_row(
+        state_path,
+        (*_VALID_HISTORY_ROW[:2], "x" * 1_000_000, *_VALID_HISTORY_ROW[3:]),
+    )
+
+    def fail_row_validation(row: tuple[object, ...]) -> bool:
+        _ = row
+        raise AssertionError("oversized history text reached Python validation")
+
+    monkeypatch.setattr(traffic_store, "_valid_history_row", fail_row_validation)
+    with pytest.raises(TrafficStoreError, match="history"):
+        TrafficStore.open_project(tmp_path)
+
+
 def test_existing_history_timestamp_shape_is_validated(tmp_path: Path) -> None:
     row = (*_VALID_HISTORY_ROW[:1], "2026-05-30T12:00:00Z", *_VALID_HISTORY_ROW[2:])
     _assert_invalid_history_row(tmp_path, row)
@@ -1335,26 +1428,29 @@ def test_wal_header_and_sidecars_are_rejected_before_connection(
         raise AssertionError("pre-connect rejection must avoid sqlite connect")
 
     monkeypatch.setattr(traffic_store, "_open_sqlite_connection", fail_open, raising=False)
-    with pytest.raises(TrafficStoreError, match="sidecar"):
-        TrafficStore.open_project(tmp_path)
-    with pytest.raises(TrafficStoreError, match="sidecar"):
-        list_project_exchanges_readonly(tmp_path)
+    _assert_both_openers_reject(tmp_path, "sidecar")
 
-    assert not opened
-    assert state_path.read_bytes() == original
-    assert wal_path.read_bytes() == b"wal-sidecar"
-    assert shm_path.read_bytes() == b"shm-sidecar"
+    assert (not opened, state_path.read_bytes(), wal_path.read_bytes(), shm_path.read_bytes()) == (
+        True,
+        original,
+        b"wal-sidecar",
+        b"shm-sidecar",
+    )
 
     wal_path.unlink()
     shm_path.unlink()
     corrupted = bytearray(original)
     corrupted[18:20] = b"\x02\x02"
     state_path.write_bytes(corrupted)
-    with pytest.raises(TrafficStoreError, match="header"):
-        TrafficStore.open_project(tmp_path)
-    with pytest.raises(TrafficStoreError, match="header"):
-        list_project_exchanges_readonly(tmp_path)
+    _assert_both_openers_reject(tmp_path, "header")
     assert state_path.read_bytes() == bytes(corrupted)
+
+
+def _assert_both_openers_reject(tmp_path: Path, match: str) -> None:
+    with pytest.raises(TrafficStoreError, match=match):
+        TrafficStore.open_project(tmp_path)
+    with pytest.raises(TrafficStoreError, match=match):
+        list_project_exchanges_readonly(tmp_path)
 
 
 def test_migration_ddl_failure_rolls_back_to_original_schema(
@@ -1505,14 +1601,20 @@ def test_concurrent_openers_leave_one_complete_v2_store(
     def open_store() -> str:
         try:
             TrafficStore.open_project(tmp_path)
-        except TrafficStoreError:
-            return "error"
+        except TrafficStoreError as exc:
+            return str(exc)
         return "ok"
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         results = tuple(executor.map(lambda _: open_store(), range(2)))
 
-    assert set(results) <= {"ok", "error"}
+    assert set(results) <= {
+        "ok",
+        "traffic state is busy",
+        "traffic state migration failed",
+        "traffic state migration commit failed",
+        "traffic state migration outcome is uncertain",
+    }
     with sqlite3.connect(tmp_path / ".entroping" / "state.db") as connection:
         tables = {
             row[0]
