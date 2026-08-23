@@ -325,6 +325,33 @@ def test_store_rejects_invalid_or_unsupported_schema_versions(
         TrafficStore.open_project(tmp_path)
 
 
+@pytest.mark.parametrize(
+    ("schema_version", "message"),
+    [
+        ("3", "newer than supported"),
+        ("0", "older than supported"),
+        ("not-an-integer", "schema version is invalid"),
+    ],
+)
+def test_schema_version_diagnostic_precedes_supported_ddl_validation(
+    tmp_path: Path,
+    schema_version: str,
+    message: str,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    metadata_ddl = "CREATE TABLE traffic_store_metadata (key VARCHAR NOT NULL, value VARCHAR NOT NULL, PRIMARY KEY (key))"  # noqa: E501
+    _create_traffic_fixture(
+        state_dir / "state.db",
+        metadata_version=schema_version,
+        event_id=None,
+        metadata_ddl=metadata_ddl,
+    )
+
+    with pytest.raises(TrafficStoreError, match=message):
+        TrafficStore.open_project(tmp_path)
+
+
 def test_store_rejects_non_positive_retention_limit(tmp_path: Path) -> None:
     with pytest.raises(TrafficStoreError, match="max_events must be positive"):
         TrafficStore.open_project(tmp_path, max_events=0)

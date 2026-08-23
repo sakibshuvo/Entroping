@@ -95,10 +95,7 @@ class TrafficStore:
             _ensure_schema_version(self.db_path)
         except (OSError, sqlite3.DatabaseError) as exc:
             raise TrafficStoreError("could not initialize traffic state") from exc
-        self._engine = create_engine(
-            f"sqlite:///{self.db_path}",
-            creator=lambda: _create_runtime_connection(self.db_path, readonly=False),
-        )
+        self._engine = create_engine(f"sqlite:///{self.db_path}", creator=lambda: _create_runtime_connection(self.db_path, readonly=False))  # fmt: skip  # noqa: E501
 
     @classmethod
     def open_project(cls, project_root: Path, *, max_events: int = 1_000) -> "TrafficStore":
@@ -343,11 +340,12 @@ def _valid_history_identifier(value: object) -> bool:
 
 
 def _metadata_version(connection: sqlite3.Connection) -> str:
-    _validate_shape(connection, "traffic_store_metadata", _METADATA_COLUMNS, (_CREATE_METADATA,))
-    _validate_indexes(connection, "traffic_store_metadata", (), required=False)
     rows = tuple(connection.execute("SELECT CASE WHEN length(key) <= 64 THEN key END, CASE WHEN length(value) <= 64 THEN value END FROM traffic_store_metadata ORDER BY key LIMIT 2").fetchall())  # fmt: skip  # noqa: E501
     if len(rows) != 1 or rows[0][0] != _SCHEMA_VERSION_KEY or not isinstance(rows[0][1], str):
         raise TrafficStoreError("traffic store schema is invalid")
+    _validate_schema_version(rows[0][1])
+    _validate_shape(connection, "traffic_store_metadata", _METADATA_COLUMNS, (_CREATE_METADATA,))
+    _validate_indexes(connection, "traffic_store_metadata", (), required=False)
     return rows[0][1]
 
 
