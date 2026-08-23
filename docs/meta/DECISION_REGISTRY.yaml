@@ -806,3 +806,21 @@ decisions:
     related_issues: ["#1657", "#1662", "#1663"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0036
+    title: Traffic store v2 run history
+    status: accepted
+    date: "2026-08-22"
+    summary: >
+      Freeze a value-free run_history projection, 100-row retention, canonical
+      outcome, and fail-closed migration/read/journal/order semantics.
+    tags: [traffic, sqlite, run-history, reports, security, reliability]
+    source_links:
+      - path: decisions/ADR-0036-traffic-store-v2-run-history.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs: [docs/technical/QANSTITUTION_REFERENCE.md]
+    related_issues: ["#1655", "#1660", "#1661"]
+    supersedes: []
+    superseded_by: null
