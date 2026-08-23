@@ -1652,6 +1652,38 @@ def test_migration_ddl_failure_rolls_back_to_original_schema(
     assert _schema_snapshot(state_path) == before
 
 
+def test_migration_state_after_begin_rolls_back_valid_v2_transaction(
+    tmp_path: Path,
+) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute("BEGIN")
+        assert traffic_store._migration_state_after_begin(connection) is None
+        assert not connection.in_transaction
+
+
+def test_schema_ensure_returns_when_locked_state_is_already_v2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="1", event_id=None)
+    before = _schema_snapshot(state_path)
+
+    monkeypatch.setattr(traffic_store, "_migration_state_after_begin", lambda connection: None)
+
+    def fail_apply(connection: sqlite3.Connection, state: traffic_store._SchemaState) -> None:
+        _ = connection, state
+        raise AssertionError("migration must not run after locked state is complete")
+
+    monkeypatch.setattr(traffic_store, "_apply_migration", fail_apply)
+    traffic_store._ensure_schema_version(state_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
 def test_migration_validation_failure_rolls_back_to_original_schema(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
