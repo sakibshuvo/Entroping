@@ -6,7 +6,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import Barrier, Lock
+from threading import Barrier, Event, Lock, Thread
 from typing import Any, cast
 
 import pytest
@@ -1001,6 +1001,37 @@ def test_runtime_engine_uses_disk_file_pool(tmp_path: Path) -> None:
     finally:
         normal_disk_engine.dispose()
         store._engine.dispose()
+
+
+def test_runtime_pool_connection_can_be_reused_across_threads(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    first_errors: list[Exception] = []
+    second_errors: list[Exception] = []
+    first_returned = Event()
+    release_first = Event()
+
+    def list_in_thread(errors: list[Exception]) -> None:
+        try:
+            assert store.list_exchanges() == ()
+        except Exception as exc:
+            errors.append(exc)
+
+    def list_first_thread() -> None:
+        list_in_thread(first_errors)
+        first_returned.set()
+        release_first.wait(timeout=5)
+
+    first = Thread(target=list_first_thread)
+    first.start()
+    assert first_returned.wait(timeout=5)
+    assert first_errors == []
+
+    second = Thread(target=list_in_thread, args=(second_errors,))
+    second.start()
+    second.join()
+    release_first.set()
+    first.join()
+    assert second_errors == []
 
 
 def test_runtime_writer_rejects_late_sidecar_before_underlying_connect(

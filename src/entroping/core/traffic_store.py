@@ -446,7 +446,7 @@ def _open_sqlite_connection(
 ) -> sqlite3.Connection:
     _preflight_database_path(db_path, readonly=readonly or require_existing)
     mode = "ro" if readonly else ("rw" if require_existing else "rwc")
-    return sqlite3.connect(f"file:{quote(db_path.as_posix(), safe='/')}?mode={mode}", uri=True, timeout=_BUSY_TIMEOUT_MILLISECONDS / 1_000)  # fmt: skip  # noqa: E501
+    return sqlite3.connect(f"file:{quote(db_path.as_posix(), safe='/')}?mode={mode}", uri=True, timeout=_BUSY_TIMEOUT_MILLISECONDS / 1_000, check_same_thread=False)  # fmt: skip  # noqa: E501
 
 
 def _configure_sqlite_connection(connection: sqlite3.Connection, *, readonly: bool) -> None:
