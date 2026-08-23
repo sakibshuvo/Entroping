@@ -1,5 +1,6 @@
 """SQLite persistence for redacted Eye traffic state."""
 
+import re
 import sqlite3
 import unicodedata
 from contextlib import suppress
@@ -37,7 +38,7 @@ _TRAFFIC_COLUMNS: Final = (("captured_at", "VARCHAR", 1, None, 0), ("method", "V
 _HISTORY_COLUMNS: Final = (("generated_at", "VARCHAR", 1, None, 0), ("project", "VARCHAR", 1, None, 0), ("environment", "VARCHAR", 1, None, 0), ("status", "VARCHAR", 1, None, 0), ("exit_code", "INTEGER", 1, None, 0), ("duration_ms", "INTEGER", 1, None, 0), ("total", "INTEGER", 1, None, 0), ("passed", "INTEGER", 1, None, 0), ("failed", "INTEGER", 1, None, 0))  # fmt: skip  # noqa: E501
 _TRAFFIC_COLUMNS_EXPLICIT: Final = (("id", "INTEGER", 1, None, 1), *_TRAFFIC_COLUMNS)
 _TRAFFIC_COLUMNS_LEGACY: Final = (("id", "INTEGER", 0, None, 1), *_TRAFFIC_COLUMNS)
-_SCHEMA_MARKERS: Final = (" CHECK ", " UNIQUE ", " REFERENCES ", " DEFAULT ", " AUTOINCREMENT", " WITHOUT ROWID", " STRICT", " COLLATE ", " GENERATED ", " ON CONFLICT ")  # fmt: skip  # noqa: E501
+_FORBIDDEN_SCHEMA_CONSTRAINTS: Final = re.compile(r"\b(?:CHECK|UNIQUE|REFERENCES|DEFAULT|AUTOINCREMENT|STRICT|COLLATE|GENERATED)\b|WITHOUT\s+ROWID|ON\s+CONFLICT", re.IGNORECASE)  # fmt: skip  # noqa: E501
 type _HistoryValue = str | int | float | bytes | None
 
 
@@ -381,8 +382,7 @@ def _validate_shape(
         raise TrafficStoreError("traffic store schema is invalid")
     normalised_ddl = " ".join(row[0].replace('"', "").replace("`", "").split()).rstrip(";").upper()
     expected_ddl = " ".join(ddl.replace('"', "").replace("`", "").split()).rstrip(";").upper() if ddl is not None else None  # fmt: skip  # noqa: E501
-    sql = f" {normalised_ddl} "
-    if (expected_ddl is not None and normalised_ddl != expected_ddl) or (markers and any(marker in sql for marker in _SCHEMA_MARKERS)):  # fmt: skip  # noqa: E501
+    if (expected_ddl is not None and normalised_ddl != expected_ddl) or (markers and _FORBIDDEN_SCHEMA_CONSTRAINTS.search(normalised_ddl) is not None):  # fmt: skip  # noqa: E501
         raise TrafficStoreError("traffic store schema is invalid")
 
 
@@ -396,7 +396,7 @@ def _validate_indexes(
     indexes = {row[0]: row[1] for row in connection.execute("SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'").fetchall()}  # fmt: skip  # noqa: E501
     listed = {row[1]: row for row in connection.execute(f"PRAGMA index_list('{table}')").fetchall()}
     required_names = frozenset(spec[0] for spec in expected)
-    if any(not name.startswith("sqlite_") and name not in required_names and (row[2] != 0 or (len(row) > 4 and row[4] != 0)) for name, row in listed.items()):  # fmt: skip  # noqa: E501
+    if any((name.startswith("sqlite_") and (len(row) < 4 or row[3] != "pk" or row[2] != 1 or (len(row) > 4 and row[4] != 0))) or (not name.startswith("sqlite_") and name not in required_names and (row[2] != 0 or (len(row) > 4 and row[4] != 0))) for name, row in listed.items()):  # fmt: skip  # noqa: E501
         raise TrafficStoreError("traffic store schema is invalid")
     for name, columns, _ in expected:
         if name not in indexes:
@@ -463,7 +463,7 @@ def _configure_sqlite_connection(connection: sqlite3.Connection, *, readonly: bo
 
 
 def _create_runtime_engine(db_path: Path, *, readonly: bool = False) -> Engine:
-    return create_engine("sqlite://", creator=lambda: _create_runtime_connection(db_path, readonly=readonly))  # fmt: skip  # noqa: E501
+    return create_engine(f"sqlite:///{db_path}", creator=lambda: _create_runtime_connection(db_path, readonly=readonly))  # fmt: skip  # noqa: E501
 
 
 def _create_runtime_connection(db_path: Path, *, readonly: bool) -> sqlite3.Connection:

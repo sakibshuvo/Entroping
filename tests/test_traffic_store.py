@@ -941,13 +941,27 @@ def test_malformed_traffic_constraint_is_rejected_before_mutation(tmp_path: Path
     assert _schema_snapshot(state_path) == before
 
 
-def test_metadata_extra_check_constraint_is_rejected_before_mutation(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "metadata_constraint",
+    (
+        "CHECK(value IN ('1','2'))",
+        "UNIQUE(value)",
+        "CHECK(\n        \"value\" IN ('1', '2')\n    )",
+    ),
+)
+def test_metadata_constraint_drift_is_rejected_before_mutation(
+    tmp_path: Path, metadata_constraint: str
+) -> None:
     state_dir = tmp_path / ".entroping"
     state_dir.mkdir()
     state_path = state_dir / "state.db"
-    metadata_ddl = _CREATE_METADATA.replace(
-        "value VARCHAR NOT NULL", "value VARCHAR NOT NULL CHECK (length(value) > 0)"
+    metadata_ddl = f"""
+    CREATE TABLE traffic_store_metadata (
+        key VARCHAR NOT NULL PRIMARY KEY,
+        value VARCHAR NOT NULL,
+        {metadata_constraint}
     )
+    """
     _create_traffic_fixture(
         state_path,
         metadata_version="1",
@@ -960,6 +974,33 @@ def test_metadata_extra_check_constraint_is_rejected_before_mutation(tmp_path: P
         TrafficStore.open_project(tmp_path)
 
     assert _schema_snapshot(state_path) == before
+
+
+def test_implicit_unique_autoindex_is_rejected_by_index_validator(tmp_path: Path) -> None:
+    state_path = tmp_path / "state.db"
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(
+            "CREATE TABLE target (key VARCHAR NOT NULL, value VARCHAR NOT NULL, UNIQUE(value))"
+        )
+        autoindexes = connection.execute("PRAGMA index_list('target')").fetchall()
+        assert any(row[3] == "u" and row[2] == 1 for row in autoindexes)
+        before = tuple(connection.execute("SELECT sql FROM sqlite_master ORDER BY name"))
+
+        with pytest.raises(TrafficStoreError, match="schema"):
+            traffic_store._validate_indexes(connection, "target", (), required=False)
+
+        assert tuple(connection.execute("SELECT sql FROM sqlite_master ORDER BY name")) == before
+
+
+def test_runtime_engine_uses_disk_file_pool(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    normal_disk_engine = create_engine(f"sqlite:///{store.db_path}")
+    try:
+        assert type(store._engine.pool) is type(normal_disk_engine.pool)
+        assert type(store._engine.pool).__name__ != "SingletonThreadPool"
+    finally:
+        normal_disk_engine.dispose()
+        store._engine.dispose()
 
 
 def test_runtime_writer_rejects_late_sidecar_before_underlying_connect(
