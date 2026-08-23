@@ -7,12 +7,15 @@ import json
 import os
 import re
 import unicodedata
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, TypedDict, TypeGuard
+from typing import Final, Literal, TypedDict, TypeGuard
 
+from entroping.core import mutation_materializer_hurl_requests as _hurl_requests
 from entroping.core import mutation_materializer_io as _io
+from entroping.core import mutation_materializer_request_shape as _request_shape
 from entroping.core.hurl_validator import HurlValidationError, validate_hurl_content
 from entroping.models.hurl import (
     HurlMetadata,
@@ -46,20 +49,23 @@ _RESERVED_SOURCE_KEYS: Final = _tokens(
 _SAFETY_VALUES: Final = frozenset({"read-only", "idempotent", "teardown-backed", "destructive"})
 _IDENTIFIER_RE: Final = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _SHA_RE: Final = re.compile(r"^[0-9a-f]{64}$")
-_STATUS_RE: Final = re.compile(r"^(HTTP\s+)(\d{3})(?=\s|$)")
-_REQUEST_RE: Final = re.compile(
-    r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$"
-)
-_XML_OPEN_RE: Final = re.compile(r"^<([A-Za-z_][A-Za-z0-9_.:-]*)(?:\s[^>]*)?\s*/?>$")
-_XML_CLOSE_RE: Final = re.compile(r"^</([A-Za-z_][A-Za-z0-9_.:-]*)\s*>$")
-_XML_INLINE_RE = re.compile(r"^<([A-Za-z_][A-Za-z0-9_.:-]*)(?:\s[^>]*)?>.*</\1\s*>$")
 _SAFETY_RE: Final = re.compile(r"^# entroping:\s*safety=([^\r\n]+)\s*$")
+_STATUS_ORDINAL_ERROR: Final = "status assertion ordinal is invalid"
+_REPLACEMENT_STATUS_ERROR: Final = "replacement status is invalid"
 _NOFOLLOW: Final = _io.NOFOLLOW
 _DIRECTORY_FLAG: Final = _io.DIRECTORY_FLAG
 _NONBLOCK: Final = _io.NONBLOCK
 
 
-JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
+MutationCategory = Literal["status-code", "request-shape"]
+JsonScalar = None | bool | int | float | str
+JsonValue = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
+type SelectorMap = Mapping[str, object]
+type RequestSelector = _request_shape.RequestShapeSelector
+
+_STATUS_SELECTOR_KEYS: Final = frozenset({"assertion_ordinal", "replacement_status"})
+_REQUEST_SELECTOR_INT_KEYS: Final = frozenset({"request_ordinal"})
+_REQUEST_SELECTOR_TEXT_KEYS: Final = frozenset({"json_pointer", "corpus_id"})
 
 
 class StatusSelector(TypedDict):
@@ -75,7 +81,7 @@ class _ManifestDocument(TypedDict):
     source_size_bytes: int
     source_mtime_ns: int
     reviewed_seed: int
-    category_selector: dict[str, int]
+    category_selector: dict[str, JsonValue]
     review_decision_id: str
     evidence_ids: list[str]
     candidate_id: str
@@ -92,13 +98,13 @@ def _reject(condition: bool, error: str) -> None:
 
 @dataclass(frozen=True, slots=True)
 class _ValidatedManifest:
-    category: str
+    category: MutationCategory
     source_parts: tuple[str, ...]
     expected_sha256: str
     source_size_bytes: int
     source_mtime_ns: int
     reviewed_seed: int
-    selector: StatusSelector
+    selector: SelectorMap
     review_decision_id: str
     evidence_ids: tuple[str, ...]
     candidate_id: str
@@ -115,7 +121,7 @@ def materialize_mutation_candidate(
         return _materialize_with_root(root, root_fd, manifest_path)
     except MutationMaterializerError:
         raise
-    except (OSError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise MutationMaterializerError("mutation materialization rejected") from exc
     finally:
         if root_fd >= 0:
@@ -134,15 +140,17 @@ def _materialize_with_root(
     source_fd = parent_fd = -1
     try:
         manifest = _load_manifest(root, root_fd, manifest_path)
-        _reject(manifest.category != "status-code", "only status-code materialization is supported")
         source_fd, parent_fd, leaf = _io.open_source(root_fd, manifest.source_parts)
         first_stat, source_bytes = _read_source(source_fd, manifest)
         try:
             content = source_bytes.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise MutationMaterializerError("source is not UTF-8") from exc
-        _validate_source_content(content)
-        output = _render_status_candidate(content, manifest)
+        safety = _validate_source_content(content)
+        if manifest.category == "status-code":
+            output = _render_status_candidate(content, manifest, safety)
+        else:
+            output = _render_request_shape_candidate(content, manifest)
         _validate_rendered_output(output)
         _recheck_source(parent_fd, leaf, source_fd, first_stat, manifest)
         rechecked_fd, rechecked_ids = _io.open_relative_directory(
@@ -203,8 +211,10 @@ def _parse_manifest(document: dict[str, JsonValue]) -> _ValidatedManifest:
         raise MutationMaterializerError("manifest field is invalid")
     schema_version = _manifest_text(document["schema_version"])
     _reject(schema_version != _SCHEMA, "manifest schema is unsupported")
-    category = _manifest_text(document["category"])
-    _reject(category not in {"status-code", "request-shape"}, "manifest category is unsupported")
+    category_value = _manifest_text(document["category"])
+    category: MutationCategory = (
+        "status-code" if category_value == "status-code" else "request-shape"
+    )
     source_path = _manifest_text(document["project_relative_source_path"])
     source_parts = _io.relative_parts(source_path, label="source path")
     expected = _manifest_text(document["expected_sha256"])
@@ -255,8 +265,8 @@ def _validate_manifest_types(
     )
 
 
-def _typed_fields(doc: dict[str, JsonValue], keys: frozenset[str], expected: type[object]) -> bool:
-    return all(type(doc.get(key)) is expected for key in keys)
+def _typed_fields(doc: SelectorMap, keys: frozenset[str], expected: type[object]) -> bool:
+    return all(key in doc and type(doc[key]) is expected for key in keys)
 
 
 def _typed_list(value: JsonValue, expected: type[object]) -> bool:
@@ -267,7 +277,17 @@ def _selector_types_valid(document: dict[str, JsonValue]) -> bool:
     selector = document.get("category_selector")
     if not _is_json_object(selector) or not selector:
         return False
-    return _typed_list(list(selector.values()), int)
+    return _selector_types_for_category(document.get("category"), selector)
+
+
+def _selector_types_for_category(category: JsonValue, selector: dict[str, JsonValue]) -> bool:
+    if category == "status-code":
+        return all(type(value) is int for value in selector.values())
+    if category != "request-shape":
+        return False
+    return _request_shape.selector_types_valid(
+        {"request_ordinal": 0, "json_pointer": "", "corpus_id": "", **selector}
+    )
 
 
 def _manifest_text(value: str) -> str:
@@ -304,21 +324,47 @@ def _validate_evidence_item(item: str) -> str:
     return item
 
 
-def _validate_selector(category: str, selector: dict[str, int]) -> StatusSelector:
-    expected = (
-        {"assertion_ordinal", "replacement_status"}
-        if category == "status-code"
-        else {"request_ordinal", "json_pointer", "corpus_id"}
+def _is_status_selector(selector: SelectorMap) -> TypeGuard[StatusSelector]:
+    return _typed_fields(selector, _STATUS_SELECTOR_KEYS, int)
+
+
+def _is_request_shape_selector(selector: SelectorMap) -> TypeGuard[RequestSelector]:
+    return _typed_fields(selector, _REQUEST_SELECTOR_INT_KEYS, int) and _typed_fields(
+        selector, _REQUEST_SELECTOR_TEXT_KEYS, str
     )
-    _reject(set(selector) != expected, "category selector keys are invalid")
-    _reject(category != "status-code", "request-shape materialization is not implemented")
-    assertion_ordinal = _bounded_int(
-        selector["assertion_ordinal"], 0, 9_999, "status assertion ordinal is invalid"
-    )
-    replacement_status = _bounded_int(
-        selector["replacement_status"], 100, 599, "replacement status is invalid"
-    )
-    return {"assertion_ordinal": assertion_ordinal, "replacement_status": replacement_status}
+
+
+def _require_status_selector(selector: SelectorMap, error: str) -> StatusSelector:
+    if _is_status_selector(selector):
+        return selector
+    raise MutationMaterializerError(error)
+
+
+def _require_request_shape_selector(selector: SelectorMap, error: str) -> RequestSelector:
+    if _is_request_shape_selector(selector):
+        return selector
+    raise MutationMaterializerError(error)
+
+
+def _validate_selector(category: MutationCategory, selector: SelectorMap) -> SelectorMap:
+    if category == "status-code":
+        status = _require_status_selector(selector, "category selector keys are invalid")
+        _reject(
+            set(status) != _STATUS_SELECTOR_KEYS,
+            "category selector keys are invalid",
+        )
+        assertion = _bounded_int(status["assertion_ordinal"], 0, 9_999, _STATUS_ORDINAL_ERROR)
+        replacement = _bounded_int(
+            status["replacement_status"], 100, 599, _REPLACEMENT_STATUS_ERROR
+        )
+        return {"assertion_ordinal": assertion, "replacement_status": replacement}
+
+    selector_value = _require_request_shape_selector(selector, "request-shape selector is invalid")
+    return _request_shape.validate_selector(selector_value)
+
+
+def _render_metadata(manifest: _ValidatedManifest, safety: str) -> str:
+    return f"# entroping: materializer_schema={_SCHEMA}\n# entroping: review_only=true\n# entroping: candidate_id={manifest.candidate_id}\n# entroping: mutation_category={manifest.category}\n# entroping: mutation_seed={manifest.reviewed_seed}\n# entroping: source_sha256={manifest.expected_sha256}\n# entroping: source_size_bytes={manifest.source_size_bytes}\n# entroping: source_mtime_ns={manifest.source_mtime_ns}\n# entroping: safety={safety}\n# entroping: review_decision_id={manifest.review_decision_id}\n# entroping: evidence_ids={','.join(manifest.evidence_ids)}\n"  # noqa: E501
 
 
 def _read_source(source_fd: int, manifest: _ValidatedManifest) -> tuple[os.stat_result, bytes]:
@@ -341,19 +387,20 @@ def _read_source(source_fd: int, manifest: _ValidatedManifest) -> tuple[os.stat_
     return metadata, raw  # identity is checked before the second read
 
 
-def _validate_source_content(content: str) -> None:
+def _validate_source_content(content: str) -> str:
     _reject(
         has_disallowed_control(content) or contains_secret_like_value(content),
         "source contains unsafe content",
     )
-    metadata = _parse_source_metadata(content)
+    metadata, safety = _parse_source_metadata(content)
     _reject(
         bool(_RESERVED_SOURCE_KEYS.intersection(metadata.meta)),
         "source contains reserved materializer metadata",
     )
+    return safety
 
 
-def _parse_source_metadata(content: str) -> HurlMetadata:
+def _parse_source_metadata(content: str) -> tuple[HurlMetadata, str]:
     try:
         metadata = parse_hurl_metadata(content)
     except HurlMetadataSyntaxError as exc:
@@ -363,7 +410,7 @@ def _parse_source_metadata(content: str) -> HurlMetadata:
         len(safety_lines) != 1 or safety_lines[0].split("=", 1)[1] not in _SAFETY_VALUES,
         "source safety metadata is invalid",
     )
-    return metadata
+    return metadata, safety_lines[0].split("=", 1)[1].strip()
 
 
 def _validate_rendered_output(output: str) -> None:
@@ -379,20 +426,36 @@ def _validate_rendered_output(output: str) -> None:
     )
 
 
-def _render_status_candidate(content: str, manifest: _ValidatedManifest) -> str:
+def _remove_source_safety_line(content: str) -> str:
     lines = content.splitlines(keepends=True)
-    safety = next(
-        line.split("=", 1)[1].strip() for line in lines if _SAFETY_RE.fullmatch(line.rstrip("\r\n"))
-    )  # noqa: E501
+    rendered: list[str] = []
+    removed = False
+    for line in lines:
+        if _SAFETY_RE.fullmatch(line.rstrip("\r\n")):
+            _reject(removed, "source safety metadata is invalid")
+            removed = True
+            continue
+        rendered.append(line)
+    _reject(not removed, "source safety metadata is invalid")
+    return "".join(rendered)
+
+
+def _render_status_candidate(content: str, manifest: _ValidatedManifest, safety: str) -> str:
+    lines = content.splitlines(keepends=True)
+    selector = _require_status_selector(manifest.selector, "status-code selector is invalid")
     rendered, safety_removed, selected = _render_lines(
-        lines, manifest.selector["assertion_ordinal"], manifest.selector["replacement_status"]
+        lines, selector["assertion_ordinal"], selector["replacement_status"]
     )
     _reject(not safety_removed or not selected, "status assertion is missing")
-    metadata = (
-        f"# entroping: materializer_schema={_SCHEMA}\n# entroping: review_only=true\n# entroping: candidate_id={manifest.candidate_id}\n# entroping: mutation_category=status-code\n# entroping: mutation_seed={manifest.reviewed_seed}\n"  # noqa: E501
-        f"# entroping: source_sha256={manifest.expected_sha256}\n# entroping: source_size_bytes={manifest.source_size_bytes}\n# entroping: source_mtime_ns={manifest.source_mtime_ns}\n# entroping: safety={safety}\n# entroping: review_decision_id={manifest.review_decision_id}\n# entroping: evidence_ids={','.join(manifest.evidence_ids)}\n"  # noqa: E501
+    return _render_metadata(manifest, safety) + "".join(rendered)
+
+
+def _render_request_shape_candidate(content: str, manifest: _ValidatedManifest) -> str:
+    selector = _require_request_shape_selector(
+        manifest.selector, "request-shape selector is invalid"
     )
-    return metadata + "".join(rendered)
+    mutated = _request_shape.materialize_request_shape(content, selector, manifest.reviewed_seed)
+    return _render_metadata(manifest, "destructive") + _remove_source_safety_line(mutated)
 
 
 def _render_lines(lines: list[str], ordinal: int, replacement: int) -> tuple[list[str], bool, bool]:
@@ -400,7 +463,7 @@ def _render_lines(lines: list[str], ordinal: int, replacement: int) -> tuple[lis
     rendered: list[str] = []
     safety_removed = False
     selected = False
-    response_statuses = _response_statuses(lines)
+    response_statuses = _hurl_requests.response_statuses(lines)
     for line_number, line in enumerate(lines):
         if _SAFETY_RE.fullmatch(line.rstrip("\r\n")):
             safety_removed = True
@@ -420,72 +483,6 @@ def _render_lines(lines: list[str], ordinal: int, replacement: int) -> tuple[lis
             status_seen += 1
         rendered.append(line)
     return rendered, safety_removed, selected
-
-
-def _response_statuses(lines: list[str]) -> dict[int, re.Match[str]]:
-    awaiting_response = False
-    body_state = (False, 0, False)
-    statuses: dict[int, re.Match[str]] = {}
-    for line_number, line in enumerate(lines):
-        stripped = line.rstrip("\r\n")
-        consumed, body_state, awaiting_response, match = _response_step(
-            stripped, awaiting_response, body_state
-        )
-        if match is not None:
-            statuses[line_number] = match
-        if consumed:
-            continue
-    return statuses
-
-
-def _response_step(
-    line: str, awaiting_response: bool, state: tuple[bool, int, bool]
-) -> tuple[bool, tuple[bool, int, bool], bool, re.Match[str] | None]:
-    consumed, next_state = _advance_body_state(line, awaiting_response, state)
-    if consumed:
-        return True, next_state, awaiting_response, None
-    request = _REQUEST_RE.fullmatch(line)
-    if request is not None:
-        return True, (False, 0, False), True, None
-    match = _STATUS_RE.match(line) if awaiting_response else None
-    if match is not None:
-        return False, (False, 0, False), False, match
-    return False, next_state, awaiting_response, None
-
-
-def _advance_body_state(
-    line: str, awaiting_response: bool, state: tuple[bool, int, bool]
-) -> tuple[bool, tuple[bool, int, bool]]:  # noqa: E501
-    fenced, depth, ambiguous = state
-    if not awaiting_response:
-        return fenced, state
-    if line.startswith("```"):
-        return True, (not fenced, depth, ambiguous)
-    if fenced:
-        return fenced, state
-    return _advance_body_line(line, depth, ambiguous)
-
-
-def _advance_body_line(
-    line: str, depth: int, ambiguous: bool
-) -> tuple[bool, tuple[bool, int, bool]]:
-    if ambiguous:
-        return True, (False, depth, ambiguous)
-    xml_line = bool(depth) or line.lstrip().startswith("<")
-    if not xml_line:
-        return False, (False, depth, ambiguous)
-    stripped = line.strip()
-    if _XML_INLINE_RE.fullmatch(stripped) is not None:
-        return True, (False, 0, False)
-    closing = _XML_CLOSE_RE.fullmatch(stripped) is not None
-    opening = _XML_OPEN_RE.fullmatch(stripped)
-    next_depth = depth + int(opening is not None) * int(not stripped.endswith("/>"))
-    next_depth -= int(closing) * int(bool(depth))
-    return True, (
-        False,
-        next_depth,
-        bool((not closing) * (opening is None) * ("<" in stripped)),
-    )
 
 
 def _recheck_source(

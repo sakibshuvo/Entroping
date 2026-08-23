@@ -164,8 +164,7 @@ def test_evaluate_run_safety_blocks_read_only_metadata_on_mutating_methods() -> 
     assert evidence.safety_source == "test metadata"
     assert evidence.methods == ("DELETE",)
     assert evidence.blocked_reason == (
-        "read-only safety metadata conflicts with mutating method DELETE "
-        "in protected environments"
+        "read-only safety metadata conflicts with mutating method DELETE in protected environments"
     )
     multiple_evidence = multiple.blocks[0].evidence
     assert multiple_evidence.methods == ("DELETE", "POST")
@@ -230,3 +229,22 @@ def test_is_protected_environment_rejects_malformed_policy_names(
             "prod",
             protected_environments=protected_environments,
         )
+
+
+@pytest.mark.parametrize("method", ("GET", "HEAD", "OPTIONS"))
+def test_evaluate_run_safety_blocks_destructive_read_only_methods_in_protected_environment(
+    method: str,
+) -> None:
+    result = evaluate_run_safety(
+        [_hurl_test(methods=(method,), meta={"safety": "destructive"})],
+        environment="prod",
+        protected_run=False,
+        suite_safety=None,
+        protected_environments=("prod",),
+    )
+
+    assert len(result.blocks) == 1
+    evidence = result.blocks[0].evidence
+    assert evidence.methods == ()
+    assert evidence.safety == "destructive"
+    assert evidence.blocked_reason == "destructive tests are blocked in protected environments"
