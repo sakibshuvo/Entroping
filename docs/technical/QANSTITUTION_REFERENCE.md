@@ -313,6 +313,27 @@ Rules:
 - Dependency specs must be read-only inputs. Entroping should not write into another service repo unless the user explicitly runs there.
 - If dependency specs cannot be loaded, Architect commands should warn or fail depending on whether the task needs that dependency.
 
+### Dependency-map naming
+
+Dependency-map naming is a display-label contract, not a new QAnstitution
+field. The map may use `dependencies[].name` only when `spec` is an absolute,
+credential-free HTTP(S) URL whose safely normalized hostname (non-transitional
+UTS #46 with STD3 rules and IDNA2008 validity; reject invalid labels or mapping
+errors; lowercase and trailing-dot normalization) matches exactly one observed
+traffic host. Omit ports 80/443 for either scheme and retain every other valid
+port. HTTP and HTTPS entries for the same normalized host are one identity and
+duplicate entries are ambiguous; the map never chooses one by list order.
+
+Local paths, malformed or ambiguous URLs, credential-bearing URLs, and unsafe
+names cannot claim a traffic host. They are not read or fetched by `map`; the
+resolver falls through to bounded P11/#1662 service-label inference and then
+the escaped normalized host, as defined by
+[ADR-0035](../../decisions/ADR-0035-dependency-map-naming-precedence.md). The
+same resolved label and deterministic collision/order rules feed Mermaid,
+Markdown, DOT, and PNG. The map path performs no network request, DNS lookup,
+registry lookup, or dependency-spec fetch, and it never exposes raw spec URLs,
+credentials, query strings, or bodies in labels, errors, or approval metadata.
+
 ## 7. Imports
 
 Imports allow federated governance:
