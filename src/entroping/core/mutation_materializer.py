@@ -7,6 +7,7 @@ import json
 import os
 import re
 import unicodedata
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,8 @@ _SAFETY_VALUES: Final = frozenset({"read-only", "idempotent", "teardown-backed",
 _IDENTIFIER_RE: Final = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _SHA_RE: Final = re.compile(r"^[0-9a-f]{64}$")
 _SAFETY_RE: Final = re.compile(r"^# entroping:\s*safety=([^\r\n]+)\s*$")
+_STATUS_ORDINAL_ERROR: Final = "status assertion ordinal is invalid"
+_REPLACEMENT_STATUS_ERROR: Final = "replacement status is invalid"
 _NOFOLLOW: Final = _io.NOFOLLOW
 _DIRECTORY_FLAG: Final = _io.DIRECTORY_FLAG
 _NONBLOCK: Final = _io.NONBLOCK
@@ -57,6 +60,12 @@ _NONBLOCK: Final = _io.NONBLOCK
 MutationCategory = Literal["status-code", "request-shape"]
 JsonScalar = None | bool | int | float | str
 JsonValue = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
+type SelectorMap = Mapping[str, object]
+type RequestSelector = _request_shape.RequestShapeSelector
+
+_STATUS_SELECTOR_KEYS: Final = frozenset({"assertion_ordinal", "replacement_status"})
+_REQUEST_SELECTOR_INT_KEYS: Final = frozenset({"request_ordinal"})
+_REQUEST_SELECTOR_TEXT_KEYS: Final = frozenset({"json_pointer", "corpus_id"})
 
 
 class StatusSelector(TypedDict):
@@ -72,7 +81,7 @@ class _ManifestDocument(TypedDict):
     source_size_bytes: int
     source_mtime_ns: int
     reviewed_seed: int
-    category_selector: StatusSelector | _request_shape.RequestShapeSelector
+    category_selector: dict[str, JsonValue]
     review_decision_id: str
     evidence_ids: list[str]
     candidate_id: str
@@ -95,7 +104,7 @@ class _ValidatedManifest:
     source_size_bytes: int
     source_mtime_ns: int
     reviewed_seed: int
-    selector: StatusSelector | _request_shape.RequestShapeSelector
+    selector: SelectorMap
     review_decision_id: str
     evidence_ids: tuple[str, ...]
     candidate_id: str
@@ -202,7 +211,10 @@ def _parse_manifest(document: dict[str, JsonValue]) -> _ValidatedManifest:
         raise MutationMaterializerError("manifest field is invalid")
     schema_version = _manifest_text(document["schema_version"])
     _reject(schema_version != _SCHEMA, "manifest schema is unsupported")
-    category = _parse_category(_manifest_text(document["category"]))
+    category_value = _manifest_text(document["category"])
+    category: MutationCategory = (
+        "status-code" if category_value == "status-code" else "request-shape"
+    )
     source_path = _manifest_text(document["project_relative_source_path"])
     source_parts = _io.relative_parts(source_path, label="source path")
     expected = _manifest_text(document["expected_sha256"])
@@ -253,8 +265,8 @@ def _validate_manifest_types(
     )
 
 
-def _typed_fields(doc: dict[str, JsonValue], keys: frozenset[str], expected: type[object]) -> bool:
-    return all(type(doc.get(key)) is expected for key in keys)
+def _typed_fields(doc: SelectorMap, keys: frozenset[str], expected: type[object]) -> bool:
+    return all(key in doc and type(doc[key]) is expected for key in keys)
 
 
 def _typed_list(value: JsonValue, expected: type[object]) -> bool:
@@ -273,15 +285,9 @@ def _selector_types_for_category(category: JsonValue, selector: dict[str, JsonVa
         return all(type(value) is int for value in selector.values())
     if category != "request-shape":
         return False
-    return _request_shape.selector_types_valid(selector)
-
-
-def _parse_category(value: str) -> MutationCategory:
-    if value == "status-code":
-        return "status-code"
-    if value == "request-shape":
-        return "request-shape"
-    raise MutationMaterializerError("manifest category is unsupported")
+    return _request_shape.selector_types_valid(
+        {"request_ordinal": 0, "json_pointer": "", "corpus_id": "", **selector}
+    )
 
 
 def _manifest_text(value: str) -> str:
@@ -318,41 +324,43 @@ def _validate_evidence_item(item: str) -> str:
     return item
 
 
-def _is_status_selector(
-    selector: StatusSelector | _request_shape.RequestShapeSelector,
-) -> TypeGuard[StatusSelector]:
-    return "assertion_ordinal" in selector and "replacement_status" in selector
+def _is_status_selector(selector: SelectorMap) -> TypeGuard[StatusSelector]:
+    return _typed_fields(selector, _STATUS_SELECTOR_KEYS, int)
 
 
-def _is_request_shape_selector(
-    selector: StatusSelector | _request_shape.RequestShapeSelector,
-) -> TypeGuard[_request_shape.RequestShapeSelector]:
-    return "request_ordinal" in selector and "json_pointer" in selector and "corpus_id" in selector
+def _is_request_shape_selector(selector: SelectorMap) -> TypeGuard[RequestSelector]:
+    return _typed_fields(selector, _REQUEST_SELECTOR_INT_KEYS, int) and _typed_fields(
+        selector, _REQUEST_SELECTOR_TEXT_KEYS, str
+    )
 
 
-def _validate_selector(
-    category: MutationCategory,
-    selector: StatusSelector | _request_shape.RequestShapeSelector,
-) -> StatusSelector | _request_shape.RequestShapeSelector:
+def _require_status_selector(selector: SelectorMap, error: str) -> StatusSelector:
+    if _is_status_selector(selector):
+        return selector
+    raise MutationMaterializerError(error)
+
+
+def _require_request_shape_selector(selector: SelectorMap, error: str) -> RequestSelector:
+    if _is_request_shape_selector(selector):
+        return selector
+    raise MutationMaterializerError(error)
+
+
+def _validate_selector(category: MutationCategory, selector: SelectorMap) -> SelectorMap:
     if category == "status-code":
-        if not _is_status_selector(selector):
-            raise MutationMaterializerError("category selector keys are invalid")
+        status = _require_status_selector(selector, "category selector keys are invalid")
         _reject(
-            set(selector) != {"assertion_ordinal", "replacement_status"},
+            set(status) != _STATUS_SELECTOR_KEYS,
             "category selector keys are invalid",
         )
-        return {
-            "assertion_ordinal": _bounded_int(
-                selector["assertion_ordinal"], 0, 9_999, "status assertion ordinal is invalid"
-            ),
-            "replacement_status": _bounded_int(
-                selector["replacement_status"], 100, 599, "replacement status is invalid"
-            ),
-        }
+        assertion = _bounded_int(status["assertion_ordinal"], 0, 9_999, _STATUS_ORDINAL_ERROR)
+        replacement = _bounded_int(
+            status["replacement_status"], 100, 599, _REPLACEMENT_STATUS_ERROR
+        )
+        return {"assertion_ordinal": assertion, "replacement_status": replacement}
 
-    if not _is_request_shape_selector(selector):
-        raise MutationMaterializerError("request-shape selector is invalid")
-    return _request_shape.validate_selector(selector)
+    selector_value = _require_request_shape_selector(selector, "request-shape selector is invalid")
+    return _request_shape.validate_selector(selector_value)
 
 
 def _render_metadata(manifest: _ValidatedManifest, safety: str) -> str:
@@ -434,9 +442,7 @@ def _remove_source_safety_line(content: str) -> str:
 
 def _render_status_candidate(content: str, manifest: _ValidatedManifest, safety: str) -> str:
     lines = content.splitlines(keepends=True)
-    selector = manifest.selector
-    if not _is_status_selector(selector):
-        raise MutationMaterializerError("status-code selector is invalid")
+    selector = _require_status_selector(manifest.selector, "status-code selector is invalid")
     rendered, safety_removed, selected = _render_lines(
         lines, selector["assertion_ordinal"], selector["replacement_status"]
     )
@@ -445,9 +451,9 @@ def _render_status_candidate(content: str, manifest: _ValidatedManifest, safety:
 
 
 def _render_request_shape_candidate(content: str, manifest: _ValidatedManifest) -> str:
-    selector = manifest.selector
-    if not _is_request_shape_selector(selector):
-        raise MutationMaterializerError("request-shape selector is invalid")
+    selector = _require_request_shape_selector(
+        manifest.selector, "request-shape selector is invalid"
+    )
     mutated = _request_shape.materialize_request_shape(content, selector, manifest.reviewed_seed)
     return _render_metadata(manifest, "destructive") + _remove_source_safety_line(mutated)
 

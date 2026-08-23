@@ -160,9 +160,7 @@ def _json_scalar_kind(value: JsonScalar) -> str:
         return "boolean"
     if type(value) in {int, float}:
         return "number"
-    if type(value) is str:
-        return "string"
-    raise MutationMaterializerError("request-shape target is not a JSON scalar")
+    return "string"  # JsonScalar's remaining variant is str.
 
 
 def _scalar_replacement(value: JsonScalar, reviewed_seed: int) -> str:
@@ -181,11 +179,6 @@ def _find_json_scalar_span(content: str, pointer: tuple[str, ...]) -> _JsonScala
     start = _skip_json_whitespace(content, 0)
     root, end = _decode_json_value(content, start)
     _reject(content[end:].strip() != "", "request body contains multiple JSON values")
-    if not pointer:
-        if isinstance(root, (dict, list)):
-            raise MutationMaterializerError("request-shape target must be a JSON scalar")
-        _, scalar_end = _decode_json_value(content, start)
-        return _JsonScalarSpan(root, start, scalar_end)
     current_start = start
     current_value = root
     for segment in pointer:
@@ -217,12 +210,6 @@ def _json_container_start(content: str, start: int, opening: str) -> int:
     return _skip_json_whitespace(content, cursor + 1)
 
 
-def _json_object_key(value: JsonValue) -> str:
-    if not isinstance(value, str):
-        raise MutationMaterializerError("request body is not valid JSON")
-    return value
-
-
 def _find_json_object_child(
     content: str,
     start: int,
@@ -233,7 +220,7 @@ def _find_json_object_child(
     decoder = _new_json_decoder()
     while cursor < len(content) and content[cursor] != "}":
         raw_key, key_end = _decode_json_value(content, cursor, decoder)
-        key = _json_object_key(raw_key)
+        key = raw_key  # JSONDecoder object hooks emit string keys.
         cursor = _skip_json_whitespace(content, key_end)
         _reject(
             cursor >= len(content) or content[cursor] != ":",

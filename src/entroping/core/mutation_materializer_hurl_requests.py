@@ -1,11 +1,8 @@
 """Bounded Hurl exchange and request-body location for mutation materialization.
-
-The XML lexer moves between text, quote-aware tags, declarations, and terminated
-comment/CDATA/PI markers; marker modes resume their saved declaration or text mode.
-Depth counts open elements, subset depth defers DOCTYPE closing, and a closed root
-allows only trailing whitespace. The Hurl scanner accepts HTTP status lines only at
-request-body boundaries, preserves adjacent entries, and treats malformed state as
-body data or a rejected target. It retains neither XML body text nor a parsed tree.
+The linear lexer is quote-aware across text, tags, declarations, comments, CDATA,
+and PIs; DOCTYPE subsets defer `>` until balanced. Depth tracks one root, malformed
+input fails closed, and status lines are accepted only at body boundaries; adjacent
+entries remain distinct. It retains no XML body text or parsed tree.
 """
 
 from __future__ import annotations
@@ -32,7 +29,6 @@ _XML_CONSTRUCTS: Final = (
     ("<!DOCTYPE", _XML_DECLARATION, 9, False),
     ("<!", _XML_DECLARATION, 2, False),
     ("</", _XML_TAG, 2, True),
-    ("<", _XML_TAG, 1, False),
 )
 
 
@@ -156,6 +152,8 @@ def _start_xml_construct(line: str, index: int, state: _XmlLexState) -> int:
                 state.tag_self_closing = False
                 state.tag_name_seen = False
             return index + width
+    state.mode, state.resume_mode = _XML_TAG, _XML_TEXT
+    state.tag_closing = state.tag_self_closing = state.tag_name_seen = False
     return index + 1
 
 
@@ -192,7 +190,7 @@ def _advance_xml_line(line: str, state: _XmlLexState) -> bool:
 
     index = 0
     while index < len(line):
-        if state.mode in _XML_MARKERS:  # Comment, CDATA, and PI consume only their marker.
+        if state.mode in _XML_MARKERS:
             _advance_marker(state, line[index], _XML_MARKERS[state.mode])
             index += 1
         else:
@@ -346,9 +344,7 @@ def _response_start(scan: _ExchangeScanState, line: str) -> tuple[str, int]:
 
 def _response_xml_start(scan: _ExchangeScanState, line: str) -> tuple[str, int]:
     scan.response_xml = _XmlLexState(started=True)
-    if not _advance_xml_line(
-        line, scan.response_xml
-    ):  # Malformed responses become opaque raw data.
+    if not _advance_xml_line(line, scan.response_xml):
         return "raw", 0
     return ("boundary", 0) if scan.response_xml.complete else ("xml", 0)
 

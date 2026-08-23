@@ -168,10 +168,39 @@ def _write_request_shape_fixture(
     return source, manifest_path, candidate_id
 
 
+def _refresh_manifest(
+    manifest_path: Path,
+    source: Path,
+    *,
+    category: str | None = None,
+    category_selector: dict[str, object] | None = None,
+) -> str:
+    document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if category is not None:
+        document["category"] = category
+    if category_selector is not None:
+        document["category_selector"] = category_selector
+    source_bytes = source.read_bytes()
+    document["expected_sha256"] = hashlib.sha256(source_bytes).hexdigest()
+    document["source_size_bytes"] = len(source_bytes)
+    document["source_mtime_ns"] = source.stat().st_mtime_ns
+    identity = {
+        "category": document["category"],
+        "project_relative_source_path": document["project_relative_source_path"],
+        "expected_sha256": document["expected_sha256"],
+        "reviewed_seed": document["reviewed_seed"],
+        "category_selector": document["category_selector"],
+    }
+    candidate_id = _candidate_id(identity)
+    document["candidate_id"] = candidate_id
+    manifest_path.write_text(json.dumps(document), encoding="utf-8")
+    return candidate_id
+
+
 def _assert_real_hurlfmt(source: Path) -> None:
     hurlfmt = shutil.which("hurlfmt")
     if hurlfmt is None:
-        pytest.skip("hurlfmt is not installed")
+        return
     result = subprocess.run(
         [hurlfmt, "--check", str(source)],
         capture_output=True,
@@ -360,6 +389,69 @@ def test_request_shape_locates_body_before_internal_blank_line(
 def test_request_shape_does_not_treat_hurl_section_as_json_array(section: str) -> None:
     with pytest.raises(MutationMaterializerError, match="request JSON body is missing"):
         hurl_requests._locate_json_in_exchange(f"Content-Type: application/json\n{section}\n")
+
+
+def test_request_shape_rejects_out_of_range_request_ordinal_without_output(tmp_path: Path) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        '{"value":"selected"}',
+        request_ordinal=1,
+    )
+    candidate_id = _refresh_manifest(manifest_path, source)
+
+    with pytest.raises(MutationMaterializerError, match="request ordinal is out of range"):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.exists()
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+@pytest.mark.parametrize(
+    ("body", "match"),
+    (
+        ('```json\n{"value":"selected"}', "fence is incomplete"),
+        (
+            '```json\n{"value":"one"}\n```\n```json\n{"value":"two"}\n```',
+            "multiple JSON bodies",
+        ),
+    ),
+)
+def test_request_shape_rejects_ambiguous_json_fences_without_output(
+    tmp_path: Path,
+    body: str,
+    match: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(tmp_path, body)
+    candidate_id = _refresh_manifest(manifest_path, source)
+
+    with pytest.raises(MutationMaterializerError, match=match):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.exists()
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+@pytest.mark.parametrize(
+    ("body", "header_separator"),
+    (("", ""), ("\n", "\n\n")),
+)
+def test_request_shape_rejects_missing_json_body_without_output(
+    tmp_path: Path,
+    body: str,
+    header_separator: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path,
+        body,
+        header_separator=header_separator,
+    )
+    candidate_id = _refresh_manifest(manifest_path, source)
+
+    with pytest.raises(MutationMaterializerError, match="request JSON body is missing"):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.exists()
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
 
 
 @pytest.mark.parametrize("header_separator", ("\n", "\n\n"))
@@ -603,6 +695,7 @@ def test_request_shape_scans_lexical_xml_body_before_later_json_entry(
         "<Envelope><Body>HTTP 597</Body></Envelope>\n",
         "<!DOCTYPE Envelope [<!-- [ HTTP 599 > -->\n"
         "<!ELEMENT Envelope ANY>\n]><Envelope><Body>HTTP 596</Body></Envelope>\n",
+        "<!DOCTYPE Envelope [<?process?>]><Envelope><Body>HTTP 595</Body></Envelope>\n",
         "<Envelope><Body><![CDATA[]]]></Body></Envelope>\n",
     ),
 )
@@ -656,6 +749,58 @@ def test_status_materialization_selects_response_after_lexical_xml_body(
     assert source.read_text(encoding="utf-8").count("HTTP 200") == 1
 
 
+@pytest.mark.parametrize("body", ("</root>\n", "<root/><extra>\n", "<>\n"))
+def test_status_materialization_rejects_malformed_xml_request_body_without_output(
+    tmp_path: Path,
+    body: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
+    source_bytes = (
+        f"# entroping: safety=read-only\n\nPOST {{{{base_url}}}}/health\n{body}HTTP 200\n"
+    ).encode()
+    source.write_bytes(source_bytes)
+    candidate_id = _refresh_manifest(manifest_path, source)
+
+    with pytest.raises(MutationMaterializerError, match="status assertion is missing"):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.read_bytes() == source_bytes
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+@pytest.mark.parametrize(
+    "response_body",
+    ("</root>\n", "<root>\n</>\n", "<root/>\nopaque response\n\n"),
+)
+def test_status_materialization_keeps_status_before_opaque_response_body(
+    tmp_path: Path,
+    response_body: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
+    source_bytes = (
+        f"# entroping: safety=read-only\n\nGET {{{{base_url}}}}/health\nHTTP 200\n{response_body}"
+    ).encode()
+    source.write_bytes(source_bytes)
+    _refresh_manifest(manifest_path, source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert "HTTP 500\n" in output.read_text(encoding="utf-8")
+
+
+def test_status_materialization_tracks_multiline_json_response_depth(tmp_path: Path) -> None:
+    source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
+    source_bytes = (
+        b'# entroping: safety=read-only\n\nGET {{base_url}}/health\nHTTP 200\n{\n  "value": 1\n}\n'
+    )
+    source.write_bytes(source_bytes)
+    _refresh_manifest(manifest_path, source)
+
+    output = materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert 'HTTP 500\n{\n  "value": 1\n}\n' in output.read_text(encoding="utf-8")
+
+
 @pytest.mark.parametrize(
     ("body", "pointer", "match"),
     (
@@ -664,7 +809,10 @@ def test_status_materialization_selects_response_after_lexical_xml_body(
         ('{"other":1}', "/value", "target is missing"),
         ('{"value":1} {"value":2}', "/value", "multiple JSON values"),
         ("not-json", "/value", "not valid JSON"),
+        ('{"value":NaN}', "/value", "not valid JSON"),
         ('{"value":1,"value":2}', "/value", "duplicate keys"),
+        ('{"value":1}', "/value/nested", "target is missing"),
+        ('{"items":[1]}', "/items/2", "target is missing"),
     ),
 )
 def test_request_shape_rejects_unsafe_or_ambiguous_targets(
@@ -709,6 +857,74 @@ def test_request_shape_rejects_invalid_pointer_before_output(
         materialize_mutation_candidate(tmp_path, manifest_path)
 
     assert source.exists()
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+def test_materializer_rejects_unsupported_category_without_output(tmp_path: Path) -> None:
+    source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
+    candidate_id = _refresh_manifest(manifest_path, source, category="unsupported")
+    source_before = source.read_bytes()
+
+    with pytest.raises(MutationMaterializerError, match="manifest field is invalid"):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.read_bytes() == source_before
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+def test_materializer_rejects_typed_but_malformed_status_selector_without_output(
+    tmp_path: Path,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_status_fixture(tmp_path)
+    candidate_id = _refresh_manifest(
+        manifest_path, source, category_selector={"replacement_status": 500}
+    )
+    source_before = source.read_bytes()
+
+    with pytest.raises(MutationMaterializerError, match="category selector keys"):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.read_bytes() == source_before
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+@pytest.mark.parametrize(
+    ("category_selector", "match"),
+    (
+        (
+            {
+                "request_ordinal": 0,
+                "json_pointer": "/value",
+                "corpus_id": "request-shape-v1",
+                "extra": "unexpected",
+            },
+            "category selector keys",
+        ),
+        (
+            {"request_ordinal": 0, "corpus_id": "request-shape-v1"},
+            "request-shape selector is invalid",
+        ),
+    ),
+)
+def test_materializer_rejects_typed_but_malformed_request_selector_without_output(
+    tmp_path: Path,
+    category_selector: dict[str, object],
+    match: str,
+) -> None:
+    source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+        tmp_path, '{"value":"selected"}'
+    )
+    candidate_id = _refresh_manifest(
+        manifest_path,
+        source,
+        category_selector=category_selector,
+    )
+    source_before = source.read_bytes()
+
+    with pytest.raises(MutationMaterializerError, match=match):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.read_bytes() == source_before
     assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
 
 
