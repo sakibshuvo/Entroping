@@ -352,6 +352,48 @@ def test_schema_version_diagnostic_precedes_supported_ddl_validation(
         TrafficStore.open_project(tmp_path)
 
 
+def test_schema_classification_rejects_non_table_index_objects() -> None:
+    with sqlite3.connect(":memory:") as connection:
+        connection.execute("CREATE TABLE events (id INTEGER)")
+        connection.execute(
+            "CREATE TRIGGER rogue_trigger AFTER INSERT ON events BEGIN SELECT 1; END"
+        )
+
+        with pytest.raises(TrafficStoreError, match="schema is invalid"):
+            traffic_store._classify_schema(connection)
+
+
+def test_metadata_v1_layout_rejects_v2_version(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    _create_traffic_fixture(state_dir / "state.db", metadata_version="2", event_id=None)
+
+    with pytest.raises(TrafficStoreError, match="schema is invalid"):
+        TrafficStore.open_project(tmp_path)
+
+
+def test_v2_layout_rejects_v1_version(tmp_path: Path) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(
+            "UPDATE traffic_store_metadata SET value = '1' WHERE key = 'schema_version'"
+        )
+
+    with pytest.raises(TrafficStoreError, match="schema is invalid"):
+        TrafficStore.open_project(tmp_path)
+
+
+def test_v2_validator_rejects_missing_traffic_table() -> None:
+    with sqlite3.connect(":memory:") as connection:
+        connection.execute(_CREATE_METADATA)
+        connection.execute(
+            "INSERT INTO traffic_store_metadata(key, value) VALUES ('schema_version', '2')"
+        )
+
+        with pytest.raises(TrafficStoreError, match="schema is invalid"):
+            traffic_store._validate_v2_schema(connection)
+
+
 def test_store_rejects_non_positive_retention_limit(tmp_path: Path) -> None:
     with pytest.raises(TrafficStoreError, match="max_events must be positive"):
         TrafficStore.open_project(tmp_path, max_events=0)
@@ -465,6 +507,17 @@ def test_readonly_project_exchange_listing_accepts_legacy_store_without_metadata
         )
 
     assert list_project_exchanges_readonly(tmp_path) == ()
+
+
+def test_readonly_project_exchange_listing_rejects_empty_schema(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    with sqlite3.connect(state_dir / "state.db") as connection:
+        connection.execute("CREATE TABLE transient (id INTEGER)")
+        connection.execute("DROP TABLE transient")
+
+    with pytest.raises(TrafficStoreError, match="schema is invalid"):
+        list_project_exchanges_readonly(tmp_path)
 
 
 def test_readonly_project_exchange_listing_wraps_schema_version_read_errors(
@@ -786,6 +839,21 @@ def test_missing_required_traffic_index_is_rejected_before_mutation(tmp_path: Pa
         TrafficStore.open_project(tmp_path)
 
     assert _schema_snapshot(state_path) == before
+
+
+def test_required_traffic_index_on_wrong_table_is_rejected(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="1", event_id=None)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute("DROP INDEX idx_traffic_events_host_path")
+        connection.execute("CREATE TABLE other_events (path VARCHAR NOT NULL)")
+        connection.execute("CREATE INDEX idx_traffic_events_host_path ON other_events (path)")
+        with pytest.raises(TrafficStoreError, match="schema is invalid"):
+            traffic_store._validate_indexes(
+                connection, "traffic_events", traffic_store._TRAFFIC_INDEXES, required=True
+            )
 
 
 def test_unknown_user_table_is_rejected_before_mutation(tmp_path: Path) -> None:
@@ -1281,6 +1349,24 @@ def test_preflight_permission_errors_are_bounded_for_write_and_readonly(
         assert "/private/state-secret" not in str(exc.value)
 
 
+def test_preflight_rejects_state_directory(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    state_path.mkdir()
+
+    with pytest.raises(TrafficStoreError, match="state file is invalid"):
+        traffic_store._preflight_database_path(state_path, readonly=False)
+
+
+def test_sqlite_configuration_rejects_non_delete_journal_mode() -> None:
+    with (
+        sqlite3.connect(":memory:") as connection,
+        pytest.raises(TrafficStoreError, match="journal mode is unsupported"),
+    ):
+        traffic_store._configure_sqlite_connection(connection, readonly=False)
+
+
 def test_existing_valid_history_row_is_accepted_without_mutation(tmp_path: Path) -> None:
     state_path = _create_v2_fixture(tmp_path)
     _insert_history_row(state_path, _VALID_HISTORY_ROW)
@@ -1313,6 +1399,13 @@ def test_oversized_history_identifier_is_rejected_before_row_fetch(
 def test_existing_history_timestamp_shape_is_validated(tmp_path: Path) -> None:
     row = (*_VALID_HISTORY_ROW[:1], "2026-05-30T12:00:00Z", *_VALID_HISTORY_ROW[2:])
     _assert_invalid_history_row(tmp_path, row)
+
+
+def test_history_scalar_validators_reject_malformed_values() -> None:
+    assert not traffic_store._valid_history_timestamp("not-a-timestamp")
+    assert not traffic_store._valid_history_timestamp("2026-02-30T12:00:00.000000Z")
+    assert not traffic_store._valid_history_identifier(None)
+    assert not traffic_store._valid_history_identifier("\ud800")
 
 
 def test_existing_history_identifiers_require_nfc(tmp_path: Path) -> None:
@@ -1401,6 +1494,50 @@ def test_partial_extra_history_index_is_rejected(tmp_path: Path) -> None:
         TrafficStore.open_project(tmp_path)
 
     assert _schema_snapshot(state_path) == before
+
+
+def test_private_migration_guards_and_quick_check_failure() -> None:
+    with (
+        sqlite3.connect(":memory:") as connection,
+        pytest.raises(TrafficStoreError, match="schema is invalid"),
+    ):
+        traffic_store._apply_migration(connection, traffic_store._SchemaState.V2)
+
+    class BrokenQuickCheck:
+        def execute(self, statement: str) -> "BrokenQuickCheck":
+            assert statement == "PRAGMA quick_check(1)"
+            return self
+
+        def fetchone(self) -> tuple[str]:
+            return ("not ok",)
+
+    with pytest.raises(TrafficStoreError, match="integrity check failed"):
+        traffic_store._migration_quick_check(cast(sqlite3.Connection, BrokenQuickCheck()))
+
+
+def test_migration_outcome_reports_busy_and_uncertain_states(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="1", event_id=None)
+
+    with pytest.raises(TrafficStoreError, match="traffic state is busy"):
+        traffic_store._migration_outcome(
+            state_path,
+            sqlite3.connect(":memory:"),
+            "begin",
+            sqlite3.OperationalError("busy"),
+        )
+
+    missing_path = state_dir / "missing.db"
+    assert traffic_store._classify_after_failed_commit(missing_path) is None
+    with pytest.raises(TrafficStoreError, match="outcome is uncertain"):
+        traffic_store._migration_outcome(
+            missing_path,
+            sqlite3.connect(":memory:"),
+            "commit",
+            sqlite3.OperationalError("commit uncertain"),
+        )
 
 
 def test_final_quick_check_failure_rolls_back_migration(
