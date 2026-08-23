@@ -1396,8 +1396,12 @@ def test_oversized_history_identifier_is_rejected_before_row_fetch(
         TrafficStore.open_project(tmp_path)
 
 
-def test_existing_history_timestamp_shape_is_validated(tmp_path: Path) -> None:
-    row = (*_VALID_HISTORY_ROW[:1], "2026-05-30T12:00:00Z", *_VALID_HISTORY_ROW[2:])
+@pytest.mark.parametrize(
+    "timestamp",
+    ("2026-05-30T12:00:00Z", "2026-05- 3T12:00:00.000000Z"),
+)
+def test_existing_history_timestamp_shape_is_validated(tmp_path: Path, timestamp: str) -> None:
+    row = (*_VALID_HISTORY_ROW[:1], timestamp, *_VALID_HISTORY_ROW[2:])
     _assert_invalid_history_row(tmp_path, row)
 
 

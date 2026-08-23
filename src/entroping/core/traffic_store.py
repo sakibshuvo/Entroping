@@ -23,6 +23,7 @@ _SCHEMA_VERSION_KEY: Final = "schema_version"
 _BUSY_TIMEOUT_MILLISECONDS: Final = 5_000
 _SQLITE_HEADER: Final = b"SQLite format 3\x00"
 _SIDECAR_SUFFIXES: Final = ("-wal", "-shm")
+_HISTORY_TIMESTAMP_PATTERN: Final = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z")  # fmt: skip  # noqa: E501
 _CREATE_METADATA: Final = (
     "CREATE TABLE traffic_store_metadata (key VARCHAR NOT NULL PRIMARY KEY, value VARCHAR NOT NULL)"
 )
@@ -320,7 +321,7 @@ def _valid_history_row(row: tuple[object, ...]) -> bool:
 
 
 def _valid_history_timestamp(value: object) -> bool:
-    if not isinstance(value, str) or len(value) != 27 or not value.endswith("Z"):
+    if not isinstance(value, str) or _HISTORY_TIMESTAMP_PATTERN.fullmatch(value) is None:
         return False
     with suppress(ValueError):
         datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
