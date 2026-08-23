@@ -2,10 +2,12 @@
 
 import hashlib
 import sqlite3
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Barrier, Lock
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import text
@@ -88,11 +90,15 @@ def _create_traffic_fixture(
     implicit_id: bool = False,
     indexes: bool = True,
     event_id: int | None = 7,
+    metadata_ddl: str | None = None,
+    traffic_ddl: str | None = None,
 ) -> None:
     with sqlite3.connect(db_path) as connection:
         if metadata_version is not None:
-            connection.execute(_CREATE_METADATA)
-        connection.execute(_CREATE_TRAFFIC_IMPLICIT if implicit_id else _CREATE_TRAFFIC_EXPLICIT)
+            connection.execute(metadata_ddl or _CREATE_METADATA)
+        connection.execute(
+            traffic_ddl or (_CREATE_TRAFFIC_IMPLICIT if implicit_id else _CREATE_TRAFFIC_EXPLICIT)
+        )
         if indexes:
             connection.execute(
                 "CREATE INDEX idx_traffic_events_captured_at ON traffic_events (captured_at)"
@@ -125,6 +131,63 @@ def _create_traffic_fixture(
                     '{"redacted":true}',
                 ),
             )
+
+
+_VALID_HISTORY_ROW = (
+    1,
+    "2026-05-30T12:00:00.000000Z",
+    "project",
+    "environment",
+    "passed",
+    0,
+    1,
+    1,
+    1,
+    0,
+)
+
+
+def _create_v2_fixture(tmp_path: Path) -> Path:
+    store = TrafficStore.open_project(tmp_path)
+    store._engine.dispose()
+    return store.db_path
+
+
+def _insert_history_row(db_path: Path, row: tuple[object, ...]) -> None:
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("PRAGMA ignore_check_constraints = ON")
+        connection.execute("INSERT INTO run_history VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", row)
+
+
+def _create_history_indexes(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE INDEX idx_run_history_generated_at_id ON run_history (generated_at, id)"
+    )
+    connection.execute(
+        "CREATE INDEX idx_run_history_project_environment_generated_at_id "
+        "ON run_history (project, environment, generated_at, id)"
+    )
+
+
+def _assert_invalid_history_row(tmp_path: Path, row: tuple[object, ...]) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    _insert_history_row(state_path, row)
+    before = _schema_snapshot(state_path)
+
+    real_connect = cast(Callable[..., sqlite3.Connection], sqlite3.connect)
+
+    def connect_with_checks_ignored(*args: object, **kwargs: object) -> sqlite3.Connection:
+        connection = real_connect(*args, **kwargs)
+        connection.execute("PRAGMA ignore_check_constraints = ON")
+        return connection
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(sqlite3, "connect", connect_with_checks_ignored)
+        with pytest.raises(TrafficStoreError, match="history") as exc:
+            TrafficStore.open_project(tmp_path)
+
+    assert str(exc.value) == "traffic store history is invalid"
+    assert _schema_snapshot(state_path) == before
 
 
 def _schema_snapshot(db_path: Path) -> tuple[bytes, int, tuple[tuple[str, str, str | None], ...]]:
@@ -697,15 +760,27 @@ def test_readonly_listing_accepts_no_metadata_legacy_without_adding_v2_objects(
     assert _user_objects(state_path) == before[2]
 
 
-def test_schema_rejections_are_before_mutation(
-    tmp_path: Path,
-) -> None:
+def test_missing_required_traffic_index_is_rejected_before_mutation(tmp_path: Path) -> None:
     state_dir = tmp_path / ".entroping"
     state_dir.mkdir()
     state_path = state_dir / "state.db"
     _create_traffic_fixture(state_path, metadata_version="1", event_id=None)
     with sqlite3.connect(state_path) as connection:
         connection.execute("DROP INDEX idx_traffic_events_host_path")
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_unknown_user_table_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="1", event_id=None)
+    with sqlite3.connect(state_path) as connection:
         connection.execute("CREATE TABLE unknown_user_table (value VARCHAR)")
     before = _schema_snapshot(state_path)
 
@@ -732,13 +807,33 @@ def test_invalid_metadata_versions_fail_closed_without_mutation(
     assert _schema_snapshot(state_path) == before
 
 
-def test_malformed_history_and_required_index_fail_before_mutation(tmp_path: Path) -> None:
+def test_malformed_history_constraint_is_rejected_before_mutation(tmp_path: Path) -> None:
     state_dir = tmp_path / ".entroping"
     state_dir.mkdir()
     state_path = state_dir / "state.db"
     _create_traffic_fixture(state_path, metadata_version="2", event_id=None)
     with sqlite3.connect(state_path) as connection:
         connection.execute(_CREATE_HISTORY.replace("failed INTEGER NOT NULL", "failed INTEGER"))
+        _create_history_indexes(connection)
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_wrong_required_history_index_order_is_rejected_before_mutation(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="2", event_id=None)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(_CREATE_HISTORY)
+        _create_history_indexes(connection)
+        connection.execute("DROP INDEX idx_run_history_generated_at_id")
         connection.execute(
             "CREATE INDEX idx_run_history_generated_at_id ON run_history (id, generated_at)"
         )
@@ -747,6 +842,405 @@ def test_malformed_history_and_required_index_fail_before_mutation(tmp_path: Pat
     with pytest.raises(TrafficStoreError, match="schema"):
         TrafficStore.open_project(tmp_path)
 
+    assert _schema_snapshot(state_path) == before
+
+
+def test_empty_metadata_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version=None, event_id=None)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(_CREATE_METADATA)
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_unknown_traffic_column_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    traffic_ddl = _CREATE_TRAFFIC_EXPLICIT.replace(
+        "exchange_json VARCHAR NOT NULL", "exchange_json VARCHAR NOT NULL, extra VARCHAR"
+    )
+    _create_traffic_fixture(
+        state_path,
+        metadata_version="1",
+        event_id=None,
+        traffic_ddl=traffic_ddl,
+    )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_partial_history_table_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="2", event_id=None)
+    partial_history = _CREATE_HISTORY.replace(
+        ",\n    failed INTEGER NOT NULL CHECK (failed >= 0)", ""
+    )
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(partial_history)
+        _create_history_indexes(connection)
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_extra_history_column_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="2", event_id=None)
+    extra_history = _CREATE_HISTORY.replace(
+        "failed INTEGER NOT NULL", "failed INTEGER NOT NULL, extra VARCHAR NOT NULL"
+    )
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(extra_history)
+        _create_history_indexes(connection)
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_malformed_traffic_constraint_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    traffic_ddl = _CREATE_TRAFFIC_EXPLICIT.replace(
+        "exchange_json VARCHAR NOT NULL",
+        "exchange_json VARCHAR NOT NULL CHECK (length(exchange_json) > 0)",
+    )
+    _create_traffic_fixture(
+        state_path,
+        metadata_version="1",
+        event_id=None,
+        traffic_ddl=traffic_ddl,
+    )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_metadata_extra_check_constraint_is_rejected_before_mutation(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    metadata_ddl = _CREATE_METADATA.replace(
+        "value VARCHAR NOT NULL", "value VARCHAR NOT NULL CHECK (length(value) > 0)"
+    )
+    _create_traffic_fixture(
+        state_path,
+        metadata_version="1",
+        event_id=None,
+        metadata_ddl=metadata_ddl,
+    )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_runtime_writer_rejects_late_sidecar_before_underlying_connect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store._engine.dispose()
+    sidecar = store.db_path.with_name("state.db-wal")
+    sidecar.write_bytes(b"late-sidecar")
+    calls = 0
+
+    def fail_connect(*args: object, **kwargs: object) -> sqlite3.Connection:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("late sidecar must be rejected before sqlite connect")
+
+    monkeypatch.setattr(sqlite3, "connect", fail_connect)
+    with pytest.raises(TrafficStoreError, match="sidecar"):
+        store.list_exchanges()
+
+    assert calls == 0
+    assert sidecar.read_bytes() == b"late-sidecar"
+
+
+def test_runtime_writer_rejects_late_header_before_underlying_connect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store._engine.dispose()
+    corrupted = bytearray(store.db_path.read_bytes())
+    corrupted[18:20] = b"\x02\x02"
+    store.db_path.write_bytes(corrupted)
+    calls = 0
+
+    def fail_connect(*args: object, **kwargs: object) -> sqlite3.Connection:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("late header must be rejected before sqlite connect")
+
+    monkeypatch.setattr(sqlite3, "connect", fail_connect)
+    with pytest.raises(TrafficStoreError, match="header"):
+        store.list_exchanges()
+
+    assert calls == 0
+    assert store.db_path.read_bytes() == bytes(corrupted)
+
+
+def test_runtime_writer_does_not_recreate_deleted_state_before_connect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store._engine.dispose()
+    store.db_path.unlink()
+    calls = 0
+
+    def fail_connect(*args: object, **kwargs: object) -> sqlite3.Connection:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("deleted state must not be recreated")
+
+    monkeypatch.setattr(sqlite3, "connect", fail_connect)
+    with pytest.raises(TrafficStoreError, match="not found"):
+        store.list_exchanges()
+
+    assert calls == 0
+    assert not store.db_path.exists()
+
+
+def test_readonly_second_open_rechecks_late_sidecar_before_connect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    state_path = store.db_path
+    sidecar = state_path.with_name("state.db-wal")
+    real_open = traffic_store._open_sqlite_connection
+    real_connect = cast(Callable[..., sqlite3.Connection], sqlite3.connect)
+    connect_calls = 0
+    injected = False
+
+    def track_connect(*args: object, **kwargs: object) -> sqlite3.Connection:
+        nonlocal connect_calls
+        connect_calls += 1
+        return real_connect(*args, **kwargs)
+
+    def inject_sidecar(
+        db_path: Path,
+        *,
+        readonly: bool,
+        require_existing: bool = False,
+    ) -> sqlite3.Connection:
+        nonlocal injected
+        connection = real_open(db_path, readonly=readonly, require_existing=require_existing)
+        if readonly and not injected:
+            injected = True
+            sidecar.write_bytes(b"late-sidecar")
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", track_connect)
+    monkeypatch.setattr(traffic_store, "_open_sqlite_connection", inject_sidecar)
+    with pytest.raises(TrafficStoreError, match="sidecar"):
+        list_project_exchanges_readonly(tmp_path)
+
+    assert injected
+    assert connect_calls == 1
+    assert sidecar.read_bytes() == b"late-sidecar"
+
+
+def test_preflight_uses_bounded_prefix_read_not_read_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store._engine.dispose()
+
+    def fail_read_bytes(*args: object, **kwargs: object) -> bytes:
+        raise AssertionError("preflight must not load the entire database")
+
+    monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
+    TrafficStore.open_project(tmp_path)
+
+
+def test_preflight_permission_errors_are_bounded_for_write_and_readonly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    state_path = store.db_path
+    real_open = Path.open
+
+    def fail_state_open(self: Path, *args: Any, **kwargs: Any) -> Any:
+        if self == state_path:
+            raise PermissionError("permission denied /private/state-secret")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_state_open)
+    for operation in (
+        lambda: TrafficStore.open_project(tmp_path),
+        lambda: list_project_exchanges_readonly(tmp_path),
+    ):
+        with pytest.raises(TrafficStoreError, match="preflight") as exc:
+            operation()
+        assert "/private/state-secret" not in str(exc.value)
+
+
+def test_existing_valid_history_row_is_accepted_without_mutation(tmp_path: Path) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    _insert_history_row(state_path, _VALID_HISTORY_ROW)
+    before = _schema_snapshot(state_path)
+
+    TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_existing_history_timestamp_shape_is_validated(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:1], "2026-05-30T12:00:00Z", *_VALID_HISTORY_ROW[2:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_identifiers_require_nfc(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:2], "e\u0301", *_VALID_HISTORY_ROW[3:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_identifiers_have_bounded_utf8_size(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:2], "x" * 257, *_VALID_HISTORY_ROW[3:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_identifiers_reject_controls(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:3], "prod\n", *_VALID_HISTORY_ROW[4:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_identifiers_reject_secret_like_tokens(tmp_path: Path) -> None:
+    row = (
+        *_VALID_HISTORY_ROW[:2],
+        "sk-proj-aaaaaaaaaaaaaaaaaaaaaaaa",
+        *_VALID_HISTORY_ROW[3:],
+    )
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_status_is_allowlisted(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:4], "running", *_VALID_HISTORY_ROW[5:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_integer_columns_reject_text(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:5], "zero", *_VALID_HISTORY_ROW[6:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_exit_code_range_is_bounded(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:5], float(2**63), *_VALID_HISTORY_ROW[6:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_duration_is_nonnegative(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:6], -1, *_VALID_HISTORY_ROW[7:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_existing_history_counters_are_nonnegative(tmp_path: Path) -> None:
+    row = (*_VALID_HISTORY_ROW[:7], -1, *_VALID_HISTORY_ROW[8:])
+    _assert_invalid_history_row(tmp_path, row)
+
+
+def test_harmless_extra_history_index_is_preserved(tmp_path: Path) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute("CREATE INDEX extra_history_index ON run_history (project)")
+
+    TrafficStore.open_project(tmp_path)
+
+    with sqlite3.connect(state_path) as connection:
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'extra_history_index'"
+        ).fetchone() == ("extra_history_index",)
+
+
+def test_unique_extra_history_index_is_rejected(tmp_path: Path) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute("CREATE UNIQUE INDEX extra_unique_history ON run_history (project)")
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_partial_extra_history_index_is_rejected(tmp_path: Path) -> None:
+    state_path = _create_v2_fixture(tmp_path)
+    with sqlite3.connect(state_path) as connection:
+        connection.execute(
+            "CREATE INDEX extra_partial_history ON run_history (project) WHERE status = 'passed'"
+        )
+    before = _schema_snapshot(state_path)
+
+    with pytest.raises(TrafficStoreError, match="schema"):
+        TrafficStore.open_project(tmp_path)
+
+    assert _schema_snapshot(state_path) == before
+
+
+def test_final_quick_check_failure_rolls_back_migration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    state_path = state_dir / "state.db"
+    _create_traffic_fixture(state_path, metadata_version="1")
+    before = _schema_snapshot(state_path)
+    real_quick_check = getattr(traffic_store, "_migration_quick_check", None)
+    calls = 0
+
+    def fail_final_quick_check(connection: sqlite3.Connection) -> bool:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise TrafficStoreError("injected final quick check failure")
+        assert real_quick_check is not None
+        return cast(bool, real_quick_check(connection))
+
+    monkeypatch.setattr(
+        traffic_store,
+        "_migration_quick_check",
+        fail_final_quick_check,
+        raising=False,
+    )
+    with pytest.raises(TrafficStoreError, match="migration"):
+        TrafficStore.open_project(tmp_path)
+
+    assert calls >= 3
     assert _schema_snapshot(state_path) == before
 
 

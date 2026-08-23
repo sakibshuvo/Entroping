@@ -1,18 +1,21 @@
 """SQLite persistence for redacted Eye traffic state."""
 
 import sqlite3
+import unicodedata
 from contextlib import suppress
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Final, assert_never
 from urllib.parse import quote
 
-from sqlalchemy import delete, event
+from sqlalchemy import delete
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
 
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.models.secrets import contains_secret_like_value
 from entroping.models.traffic import TrafficExchange
 from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
@@ -34,7 +37,8 @@ _TRAFFIC_COLUMNS: Final = (("captured_at", "VARCHAR", 1, None, 0), ("method", "V
 _HISTORY_COLUMNS: Final = (("generated_at", "VARCHAR", 1, None, 0), ("project", "VARCHAR", 1, None, 0), ("environment", "VARCHAR", 1, None, 0), ("status", "VARCHAR", 1, None, 0), ("exit_code", "INTEGER", 1, None, 0), ("duration_ms", "INTEGER", 1, None, 0), ("total", "INTEGER", 1, None, 0), ("passed", "INTEGER", 1, None, 0), ("failed", "INTEGER", 1, None, 0))  # fmt: skip  # noqa: E501
 _TRAFFIC_COLUMNS_EXPLICIT: Final = (("id", "INTEGER", 1, None, 1), *_TRAFFIC_COLUMNS)
 _TRAFFIC_COLUMNS_LEGACY: Final = (("id", "INTEGER", 0, None, 1), *_TRAFFIC_COLUMNS)
-_SCHEMA_MARKERS: Final = (" CHECK ", " UNIQUE ", " REFERENCES ", " DEFAULT ", " AUTOINCREMENT", " WITHOUT ROWID", " STRICT", " COLLATE ", " GENERATED ")  # fmt: skip  # noqa: E501
+_SCHEMA_MARKERS: Final = (" CHECK ", " UNIQUE ", " REFERENCES ", " DEFAULT ", " AUTOINCREMENT", " WITHOUT ROWID", " STRICT", " COLLATE ", " GENERATED ", " ON CONFLICT ")  # fmt: skip  # noqa: E501
+type _HistoryValue = str | int | float | bytes | None
 
 
 class TrafficStoreError(ValueError):
@@ -200,6 +204,7 @@ def _ensure_schema_version(db_path: Path) -> None:
             return
         _apply_migration(connection, state)
         _validate_v2_schema(connection)
+        _migration_quick_check(connection)
         phase = "commit"
         _migration_commit(connection)
     except TrafficStoreError as exc:
@@ -243,65 +248,42 @@ def _migration_error(
 def _apply_migration(connection: sqlite3.Connection, state: _SchemaState) -> None:
     match state:
         case _SchemaState.EMPTY:
-            statements = (
-                _CREATE_METADATA,
-                _CREATE_TRAFFIC,
-                *(spec[2] for spec in _TRAFFIC_INDEXES),
-                _CREATE_HISTORY,
-                *(spec[2] for spec in _HISTORY_INDEXES),
-            )
-            for statement in statements:
-                _migration_execute(connection, statement)
-            _migration_execute(
-                connection,
-                "INSERT INTO traffic_store_metadata(key, value) VALUES (?, ?)",
-                (_SCHEMA_VERSION_KEY, str(TRAFFIC_STORE_SCHEMA_VERSION)),
-            )
+            statements = (_CREATE_METADATA, _CREATE_TRAFFIC, *(spec[2] for spec in _TRAFFIC_INDEXES), _CREATE_HISTORY, *(spec[2] for spec in _HISTORY_INDEXES))  # fmt: skip  # noqa: E501
+            _migration_execute_many(connection, statements)
+            _migration_execute(connection, "INSERT INTO traffic_store_metadata(key, value) VALUES (?, ?)", (_SCHEMA_VERSION_KEY, str(TRAFFIC_STORE_SCHEMA_VERSION)))  # fmt: skip  # noqa: E501
         case _SchemaState.METADATA_V1:
-            for statement in (_CREATE_HISTORY, *(spec[2] for spec in _HISTORY_INDEXES)):
-                _migration_execute(connection, statement)
-            _migration_execute(
-                connection,
-                "UPDATE traffic_store_metadata SET value = ? WHERE key = ?",
-                (str(TRAFFIC_STORE_SCHEMA_VERSION), _SCHEMA_VERSION_KEY),
-            )
+            _migration_execute_many(connection, (_CREATE_HISTORY, *(spec[2] for spec in _HISTORY_INDEXES)))  # fmt: skip  # noqa: E501
+            _migration_execute(connection, "UPDATE traffic_store_metadata SET value = ? WHERE key = ?", (str(TRAFFIC_STORE_SCHEMA_VERSION), _SCHEMA_VERSION_KEY))  # fmt: skip  # noqa: E501
         case _SchemaState.LEGACY:
             _migration_execute(connection, _CREATE_METADATA)
-            existing = frozenset(
-                row[0]
-                for row in connection.execute(
-                    "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'"  # noqa: E501
-                ).fetchall()
-            )
+            existing = frozenset(row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'").fetchall())  # fmt: skip  # noqa: E501
             for name, _, statement in _TRAFFIC_INDEXES:
                 if name not in existing:
                     _migration_execute(connection, statement)
-            for statement in (_CREATE_HISTORY, *(spec[2] for spec in _HISTORY_INDEXES)):
-                _migration_execute(connection, statement)
-            _migration_execute(
-                connection,
-                "INSERT INTO traffic_store_metadata(key, value) VALUES (?, ?)",
-                (_SCHEMA_VERSION_KEY, str(TRAFFIC_STORE_SCHEMA_VERSION)),
-            )
+            _migration_execute_many(connection, (_CREATE_HISTORY, *(spec[2] for spec in _HISTORY_INDEXES)))  # fmt: skip  # noqa: E501
+            _migration_execute(connection, "INSERT INTO traffic_store_metadata(key, value) VALUES (?, ?)", (_SCHEMA_VERSION_KEY, str(TRAFFIC_STORE_SCHEMA_VERSION)))  # fmt: skip  # noqa: E501
         case _SchemaState.V2:
             raise TrafficStoreError("traffic store schema is invalid")
         case unreachable:
             assert_never(unreachable)
 
 
+def _migration_execute_many(connection: sqlite3.Connection, statements: tuple[str, ...]) -> None:
+    for statement in statements:
+        _migration_execute(connection, statement)
+
+
 def _validate_existing_schema_version(connection: sqlite3.Connection) -> None:
-    if _classify_schema(connection) is _SchemaState.EMPTY:
-        raise TrafficStoreError("traffic store schema is invalid")
+    if _classify_schema(connection) is _SchemaState.EMPTY: raise TrafficStoreError("traffic store schema is invalid")  # fmt: skip  # noqa: E501, E701
+
+
+def _migration_quick_check(connection: sqlite3.Connection) -> None:
+    if connection.execute("PRAGMA quick_check(1)").fetchone() != ("ok",): raise TrafficStoreError("traffic state integrity check failed")  # fmt: skip  # noqa: E501, E701
 
 
 def _classify_schema(connection: sqlite3.Connection) -> _SchemaState:
-    if connection.execute("PRAGMA quick_check(1)").fetchone() != ("ok",):
-        raise TrafficStoreError("traffic state integrity check failed")
-    objects = tuple(
-        connection.execute(
-            "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
-        ).fetchall()
-    )  # noqa: E501
+    _migration_quick_check(connection)
+    objects = tuple(connection.execute("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").fetchall())  # fmt: skip  # noqa: E501
     if any(row[0] not in {"table", "index"} for row in objects):
         raise TrafficStoreError("traffic store schema is invalid")
     tables = frozenset(row[1] for row in objects if row[0] == "table")
@@ -337,15 +319,47 @@ def _validate_v2_schema(connection: sqlite3.Connection) -> None:
     _validate_indexes(connection, "traffic_events", _TRAFFIC_INDEXES, required=True)
     _validate_shape(connection, "run_history", (("id", "INTEGER", 1, None, 1), *_HISTORY_COLUMNS), ddl=_CREATE_HISTORY)  # fmt: skip  # noqa: E501
     _validate_indexes(connection, "run_history", _HISTORY_INDEXES, required=True)
+    _validate_history_rows(connection)
+
+
+def _validate_history_rows(connection: sqlite3.Connection) -> None:
+    rows = connection.execute("SELECT id, generated_at, project, environment, status, exit_code, duration_ms, total, passed, failed FROM run_history ORDER BY id").fetchall()  # fmt: skip  # noqa: E501
+    for row in rows:
+        if not _valid_history_row(row):
+            raise TrafficStoreError("traffic store history is invalid")
+
+
+def _valid_history_row(row: tuple[_HistoryValue, ...]) -> bool:
+    return len(row) == 10 and _valid_history_integer(row[0]) and _valid_history_timestamp(row[1]) and _valid_history_identifier(row[2]) and _valid_history_identifier(row[3]) and isinstance(row[4], str) and row[4] in {"passed", "failed", "blocked"} and _valid_history_integer(row[5]) and all(_valid_history_integer(value, nonnegative=True) for value in row[6:])  # fmt: skip  # noqa: E501
+
+
+def _valid_history_timestamp(value: _HistoryValue) -> bool:
+    if not isinstance(value, str) or len(value) != 27 or not value.endswith("Z"):
+        return False
+    with suppress(ValueError):
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return True
+    return False
+
+
+def _valid_history_identifier(value: _HistoryValue) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return 1 <= len(encoded) <= 256 and unicodedata.normalize("NFC", value) == value and not any(unicodedata.category(char) == "Cc" for char in value) and not contains_secret_like_value(value)  # fmt: skip  # noqa: E501
+
+
+def _valid_history_integer(value: _HistoryValue, *, nonnegative: bool = False) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and -(1 << 63) <= value <= (1 << 63) - 1 and (not nonnegative or value >= 0)  # fmt: skip  # noqa: E501
 
 
 def _metadata_version(connection: sqlite3.Connection) -> str:
-    columns = tuple((row[1], row[2], row[3], row[4], row[5]) for row in connection.execute("PRAGMA table_info('traffic_store_metadata')").fetchall() if len(row) >= 6)  # fmt: skip  # noqa: E501
-    if columns != _METADATA_COLUMNS:
-        raise TrafficStoreError("traffic store schema is invalid")
-    rows = tuple(
-        connection.execute("SELECT key, value FROM traffic_store_metadata ORDER BY key").fetchall()
-    )  # noqa: E501
+    _validate_shape(connection, "traffic_store_metadata", _METADATA_COLUMNS, markers=True)
+    _validate_indexes(connection, "traffic_store_metadata", (), required=False)
+    rows = tuple(connection.execute("SELECT key, value FROM traffic_store_metadata ORDER BY key").fetchall())  # fmt: skip  # noqa: E501
     if len(rows) != 1 or rows[0][0] != _SCHEMA_VERSION_KEY or not isinstance(rows[0][1], str):
         raise TrafficStoreError("traffic store schema is invalid")
     return rows[0][1]
@@ -362,21 +376,13 @@ def _validate_shape(
     rows = connection.execute(f"PRAGMA table_info('{table}')").fetchall()
     if tuple((row[1], row[2], row[3], row[4], row[5]) for row in rows if len(row) >= 6) != expected:
         raise TrafficStoreError("traffic store schema is invalid")
-    row = connection.execute(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
-    ).fetchone()
+    row = connection.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone()  # fmt: skip  # noqa: E501
     if row is None or not isinstance(row[0], str):
         raise TrafficStoreError("traffic store schema is invalid")
     normalised_ddl = " ".join(row[0].replace('"', "").replace("`", "").split()).rstrip(";").upper()
-    expected_ddl = (
-        " ".join(ddl.replace('"', "").replace("`", "").split()).rstrip(";").upper()
-        if ddl is not None
-        else None
-    )
+    expected_ddl = " ".join(ddl.replace('"', "").replace("`", "").split()).rstrip(";").upper() if ddl is not None else None  # fmt: skip  # noqa: E501
     sql = f" {normalised_ddl} "
-    if (expected_ddl is not None and normalised_ddl != expected_ddl) or (
-        markers and any(marker in sql for marker in _SCHEMA_MARKERS)
-    ):
+    if (expected_ddl is not None and normalised_ddl != expected_ddl) or (markers and any(marker in sql for marker in _SCHEMA_MARKERS)):  # fmt: skip  # noqa: E501
         raise TrafficStoreError("traffic store schema is invalid")
 
 
@@ -387,28 +393,19 @@ def _validate_indexes(
     *,
     required: bool,
 ) -> None:
-    indexes = {
-        row[0]: row[1]
-        for row in connection.execute(
-            "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'"  # noqa: E501
-        ).fetchall()
-    }
+    indexes = {row[0]: row[1] for row in connection.execute("SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'").fetchall()}  # fmt: skip  # noqa: E501
     listed = {row[1]: row for row in connection.execute(f"PRAGMA index_list('{table}')").fetchall()}
+    required_names = frozenset(spec[0] for spec in expected)
+    if any(not name.startswith("sqlite_") and name not in required_names and (row[2] != 0 or (len(row) > 4 and row[4] != 0)) for name, row in listed.items()):  # fmt: skip  # noqa: E501
+        raise TrafficStoreError("traffic store schema is invalid")
     for name, columns, _ in expected:
         if name not in indexes:
             if required:
                 raise TrafficStoreError("traffic store schema is invalid")
             continue
-        if (
-            indexes[name] != table
-            or name not in listed
-            or listed[name][2] != 0
-            or (len(listed[name]) > 4 and listed[name][4] != 0)
-        ):
+        if indexes[name] != table or name not in listed or listed[name][2] != 0 or (len(listed[name]) > 4 and listed[name][4] != 0):  # fmt: skip  # noqa: E501
             raise TrafficStoreError("traffic store schema is invalid")
-        actual = tuple(
-            row[2] for row in connection.execute(f"PRAGMA index_info('{name}')").fetchall()
-        )
+        actual = tuple(row[2] for row in connection.execute(f"PRAGMA index_info('{name}')").fetchall())  # fmt: skip  # noqa: E501
         if actual != columns:
             raise TrafficStoreError("traffic store schema is invalid")
 
@@ -426,26 +423,29 @@ def _validate_schema_version(raw_value: str) -> None:
 
 
 def _preflight_database_path(db_path: Path, *, readonly: bool) -> None:
-    if any(
-        db_path.with_name(db_path.name + suffix).exists()
-        or db_path.with_name(db_path.name + suffix).is_symlink()
-        for suffix in _SIDECAR_SUFFIXES
-    ):
-        raise TrafficStoreError("traffic state sidecar is present")
-    if not db_path.exists():
-        if readonly:
-            raise TrafficStoreError("traffic state not found")
-        return
-    if not db_path.is_file():
-        raise TrafficStoreError("traffic state file is invalid")
-    header = db_path.read_bytes()[:100]
-    if len(header) < 100 or header[:16] != _SQLITE_HEADER or header[18:20] != b"\x01\x01":
+    try:
+        _reject_symlink_path_components(db_path)
+        if any(db_path.with_name(db_path.name + suffix).exists() or db_path.with_name(db_path.name + suffix).is_symlink() for suffix in _SIDECAR_SUFFIXES):  # fmt: skip  # noqa: E501
+            raise TrafficStoreError("traffic state sidecar is present")
+        if not db_path.exists():
+            if readonly:
+                raise TrafficStoreError("traffic state not found")
+            return
+        if not db_path.is_file():
+            raise TrafficStoreError("traffic state file is invalid")
+        with db_path.open("rb") as stream:
+            header = stream.read(100)
+    except OSError as exc:
+        raise TrafficStoreError("traffic state preflight failed") from exc
+    if len(header) < 100 or header[:16] != _SQLITE_HEADER or header[18:20] != b"\x01\x01":  # fmt: skip  # noqa: E501
         raise TrafficStoreError("traffic state header is invalid")
 
 
-def _open_sqlite_connection(db_path: Path, *, readonly: bool) -> sqlite3.Connection:
-    _preflight_database_path(db_path, readonly=readonly)
-    mode = "ro" if readonly else "rwc"
+def _open_sqlite_connection(
+    db_path: Path, *, readonly: bool, require_existing: bool = False
+) -> sqlite3.Connection:
+    _preflight_database_path(db_path, readonly=readonly or require_existing)
+    mode = "ro" if readonly else ("rw" if require_existing else "rwc")
     return sqlite3.connect(f"file:{quote(db_path.as_posix(), safe='/')}?mode={mode}", uri=True, timeout=_BUSY_TIMEOUT_MILLISECONDS / 1_000)  # fmt: skip  # noqa: E501
 
 
@@ -463,9 +463,13 @@ def _configure_sqlite_connection(connection: sqlite3.Connection, *, readonly: bo
 
 
 def _create_runtime_engine(db_path: Path, *, readonly: bool = False) -> Engine:
-    engine = create_engine(f"sqlite:///file:{quote(db_path.as_posix(), safe='/')}?mode=ro&uri=true" if readonly else f"sqlite:///{db_path}")  # fmt: skip  # noqa: E501
-    event.listen(engine, "connect", lambda connection, _: _configure_sqlite_connection(connection, readonly=readonly))  # fmt: skip  # noqa: E501
-    return engine
+    return create_engine("sqlite://", creator=lambda: _create_runtime_connection(db_path, readonly=readonly))  # fmt: skip  # noqa: E501
+
+
+def _create_runtime_connection(db_path: Path, *, readonly: bool) -> sqlite3.Connection:
+    connection = _open_sqlite_connection(db_path, readonly=readonly, require_existing=True)
+    _configure_sqlite_connection(connection, readonly=readonly)
+    return connection
 
 
 def _migration_execute(connection: sqlite3.Connection, statement: str, parameters: tuple[str, ...] = ()) -> sqlite3.Cursor:  # fmt: skip  # noqa: E501
