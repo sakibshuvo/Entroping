@@ -768,6 +768,100 @@ def test_status_materialization_rejects_malformed_xml_request_body_without_outpu
     assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
 
 
+@pytest.mark.parametrize("category", ("status-code", "request-shape"))
+def test_materializer_rejects_mismatched_xml_request_body_without_output(
+    tmp_path: Path,
+    category: str,
+) -> None:
+    body = "<root></other>\nHTTP 599\n"
+    if category == "status-code":
+        source, manifest_path = _write_status_xml_body_fixture(tmp_path, body)
+    else:
+        source, manifest_path, _candidate_id_value = _write_request_shape_fixture(tmp_path, body)
+    candidate_id = json.loads(manifest_path.read_text(encoding="utf-8"))["candidate_id"]
+    source_before = source.read_bytes()
+
+    with pytest.raises(MutationMaterializerError):
+        materialize_mutation_candidate(tmp_path, manifest_path)
+
+    assert source.read_bytes() == source_before
+    assert not (tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl").exists()
+
+
+@pytest.mark.parametrize("category", ("status-code", "request-shape"))
+@pytest.mark.parametrize("depth_delta", (0, 1))
+def test_materializer_bounds_xml_nesting_without_partial_output(
+    tmp_path: Path,
+    category: str,
+    depth_delta: int,
+) -> None:
+    depth = 64 + depth_delta
+    body = "<node>" * depth + "\nHTTP 599\n" + "</node>" * depth + "\n"
+    if category == "status-code":
+        source, manifest_path = _write_status_xml_body_fixture(tmp_path, body)
+    else:
+        prefix = f"POST {{{{base_url}}}}/xml\nContent-Type: application/xml\n\n{body}HTTP 200\n"
+        source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+            tmp_path,
+            '{"value":"selected"}',
+            request_ordinal=1,
+            request_prefix=prefix,
+        )
+    _assert_real_hurlfmt(source)
+    source_before = source.read_bytes()
+    candidate_id = json.loads(manifest_path.read_text(encoding="utf-8"))["candidate_id"]
+    output_path = tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl"
+
+    if depth_delta == 0:
+        output = materialize_mutation_candidate(tmp_path, manifest_path)
+        rendered = output.read_text(encoding="utf-8")
+        expected = "HTTP 201" if category == "status-code" else '{"value":""}'
+        assert expected in rendered
+        assert output == output_path
+    else:
+        with pytest.raises(MutationMaterializerError):
+            materialize_mutation_candidate(tmp_path, manifest_path)
+        assert not output_path.exists()
+    assert source.read_bytes() == source_before
+
+
+@pytest.mark.parametrize("category", ("status-code", "request-shape"))
+@pytest.mark.parametrize("name_delta", (0, 1))
+def test_materializer_bounds_xml_tag_name_without_partial_output(
+    tmp_path: Path,
+    category: str,
+    name_delta: int,
+) -> None:
+    name = "n" * (64 + name_delta)
+    body = f"<{name}>\nHTTP 599\n</{name}>\n"
+    if category == "status-code":
+        source, manifest_path = _write_status_xml_body_fixture(tmp_path, body)
+    else:
+        prefix = f"POST {{{{base_url}}}}/xml\nContent-Type: application/xml\n\n{body}HTTP 200\n"
+        source, manifest_path, _candidate_id_value = _write_request_shape_fixture(
+            tmp_path,
+            '{"value":"selected"}',
+            request_ordinal=1,
+            request_prefix=prefix,
+        )
+    _assert_real_hurlfmt(source)
+    source_before = source.read_bytes()
+    candidate_id = json.loads(manifest_path.read_text(encoding="utf-8"))["candidate_id"]
+    output_path = tmp_path / "tests" / "generated" / "mutations" / f"{candidate_id}.hurl"
+
+    if name_delta == 0:
+        output = materialize_mutation_candidate(tmp_path, manifest_path)
+        rendered = output.read_text(encoding="utf-8")
+        expected = "HTTP 201" if category == "status-code" else '{"value":""}'
+        assert expected in rendered
+        assert output == output_path
+    else:
+        with pytest.raises(MutationMaterializerError):
+            materialize_mutation_candidate(tmp_path, manifest_path)
+        assert not output_path.exists()
+    assert source.read_bytes() == source_before
+
+
 @pytest.mark.parametrize(
     "response_body",
     ("</root>\n", "<root>\n</>\n", "<root/>\nopaque response\n\n"),

@@ -1,8 +1,8 @@
 """Bounded Hurl exchange and request-body location for mutation materialization.
 The linear lexer is quote-aware across text, tags, declarations, comments, CDATA,
-and PIs; DOCTYPE subsets defer `>` until balanced. Depth tracks one root, malformed
-input fails closed, and status lines are accepted only at body boundaries; adjacent
-entries remain distinct. It retains no XML body text or parsed tree.
+and PIs; DOCTYPE subsets defer `>`; 64-depth/name bounds keep one root, malformed
+input fails closed; status lines are body-boundary only.
+Adjacent entries remain distinct; no XML body/tree is retained.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ _JSON_STRING_RE: Final = re.compile(r'"(?:\\.|[^"\\])*"')
 _XML_TEXT, _XML_TAG, _XML_COMMENT = "text", "tag", "comment"
 _XML_CDATA, _XML_PI, _XML_DECLARATION = "cdata", "pi", "declaration"
 _XML_MARKERS: Final = {_XML_COMMENT: "-->", _XML_CDATA: "]]>", _XML_PI: "?>"}
+_MAX_XML_NESTING_DEPTH, _MAX_XML_TAG_NAME_LENGTH = 64, 64
 _XML_CONSTRUCTS: Final = (
     ("<!--", _XML_COMMENT, 4, False),
     ("<![CDATA[", _XML_CDATA, 9, False),
@@ -39,14 +40,15 @@ class _XmlLexState:
     quote: str = ""  # Quoted delimiters are inert in tags and declarations.
     marker_window: str = ""  # Bounded partial comment/CDATA/PI terminator.
     subset_depth: int = 0  # Internal-subset brackets defer declaration closing.
-    depth: int = 0  # Open-element count; the root closes only at zero.
+    tag_stack: list[str] = field(default_factory=list)  # Open-element names.
     started: bool = False  # Request body committed to XML lexical scanning.
     root_seen: bool = False  # At least one opening or self-closing element exists.
     root_closed: bool = False  # Complete root permits only trailing whitespace.
     malformed: bool = False  # Stray text or underflow fails closed.
     tag_closing: bool = False  # Current tag is an element close.
     tag_self_closing: bool = False  # Slash survives trailing tag whitespace.
-    tag_name_seen: bool = False  # Empty tags are rejected at the terminator.
+    tag_name: str = ""  # Current element name; attributes are ignored after whitespace.
+    tag_name_complete: bool = False
 
     @property
     def complete(self) -> bool:
@@ -85,42 +87,44 @@ def _advance_xml_declaration_char(state: _XmlLexState, char: str) -> None:
 
 
 def _finish_xml_closing_tag(state: _XmlLexState) -> None:
-    if state.depth == 0:
+    if not state.tag_stack or state.tag_stack[-1] != state.tag_name:
         state.malformed = True
     else:
-        state.depth -= 1
-        state.root_closed = state.depth == 0
+        state.tag_stack.pop()
+        state.root_closed = not state.tag_stack
 
 
 def _finish_xml_opening_tag(state: _XmlLexState) -> None:
+    state.root_seen = True
     if state.root_closed:
         state.malformed = True
+    elif state.tag_self_closing:
+        state.root_closed = not state.tag_stack
     else:
-        state.root_seen = True
-        if not state.tag_self_closing:
-            state.depth += 1
-        elif state.depth == 0:
-            state.root_closed = True
+        state.malformed |= len(state.tag_stack) >= _MAX_XML_NESTING_DEPTH
+        if not state.malformed:
+            state.tag_stack.append(state.tag_name)
 
 
 def _finish_xml_tag(state: _XmlLexState) -> None:
-    if not state.tag_name_seen:
+    if not state.tag_name:
         state.malformed = True
     elif state.tag_closing:
         _finish_xml_closing_tag(state)
     else:
         _finish_xml_opening_tag(state)
-    state.mode = _XML_TEXT
-    state.tag_closing = False
-    state.tag_self_closing = False
-    state.tag_name_seen = False
+    state.mode, state.tag_closing, state.tag_self_closing = _XML_TEXT, False, False
+    state.tag_name, state.tag_name_complete = "", False
 
 
 def _advance_xml_tag_boundary(state: _XmlLexState, char: str) -> None:
     if char == ">":
         _finish_xml_tag(state)
         return
-    state.tag_name_seen |= not state.tag_name_seen and not char.isspace() and char != "/"
+    state.tag_name_complete |= char.isspace() or char == "/"
+    overflow = len(state.tag_name) >= _MAX_XML_TAG_NAME_LENGTH
+    state.malformed |= bool((not state.tag_name_complete) * overflow)
+    state.tag_name += char * (not state.tag_name_complete) * (not state.malformed)
     if char == "/":
         state.tag_self_closing = True
         return
@@ -144,22 +148,20 @@ def _start_xml_construct(line: str, index: int, state: _XmlLexState) -> int:
     for prefix, mode, width, closing in _XML_CONSTRUCTS:
         if line.startswith(prefix, index):
             state.mode = mode
-            state.resume_mode = _XML_TEXT
             if mode == _XML_DECLARATION:
                 state.subset_depth = 0
             if mode == _XML_TAG:
-                state.tag_closing = closing
-                state.tag_self_closing = False
-                state.tag_name_seen = False
+                state.tag_closing, state.tag_self_closing = closing, False
+                state.tag_name, state.tag_name_complete = "", False
             return index + width
-    state.mode, state.resume_mode = _XML_TAG, _XML_TEXT
-    state.tag_closing = state.tag_self_closing = state.tag_name_seen = False
+    state.mode, state.tag_closing, state.tag_self_closing = _XML_TAG, False, False
+    state.tag_name_complete, state.tag_name = False, ""
     return index + 1
 
 
 def _advance_xml_text(line: str, index: int, state: _XmlLexState) -> int:
     char = line[index]
-    outside_root = state.depth == 0 and (not state.root_seen or state.root_closed)
+    outside_root = not state.tag_stack and (not state.root_seen or state.root_closed)
     if char != "<":
         state.malformed |= outside_root and not char.isspace()
         return index + 1
@@ -186,8 +188,6 @@ _XML_MODE_HANDLERS: Final = {
 
 
 def _advance_xml_line(line: str, state: _XmlLexState) -> bool:
-    """Lex one line of XML without building a tree or retaining body text."""
-
     index = 0
     while index < len(line):
         if state.mode in _XML_MARKERS:
@@ -198,11 +198,12 @@ def _advance_xml_line(line: str, state: _XmlLexState) -> bool:
             index = handler(line, index, state)
         if state.malformed:  # Never infer boundaries from malformed lexical state.
             return False
+    state.tag_name_complete |= state.mode == _XML_TAG and bool(state.tag_name)
     return not state.malformed
 
 
 def _xml_status_boundary(line: str, state: _XmlLexState) -> bool:
-    return state.mode == _XML_TEXT and state.depth == 0 and _STATUS_RE.match(line) is not None
+    return state.mode == _XML_TEXT and not state.tag_stack and _STATUS_RE.match(line) is not None
 
 
 def _reject(condition: bool, error: str) -> None:
