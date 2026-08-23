@@ -905,47 +905,35 @@ Users can extend redaction rules in QAnstitution or local config.
 
 ### State Store
 
-The SQLite database under `.entroping/state.db` should be treated as local runtime state, not a product database. The implementation uses SQLModel as the typed persistence layer while preserving SQLite as the local on-disk store.
+`.entroping/state.db` is local SQLite/SQLModel runtime state. v1
+`TrafficStore` stores redacted `TrafficEventRow` traffic with `max_events`;
+read-only access does not create or migrate state.
 
-Current foundation:
+ADR-0036 freezes v2 as v1 plus one `run_history` table: nine non-id allowlisted
+values (`generated_at`, `project`, `environment`, `status`, `exit_code`,
+`duration_ms`, `total`, `passed`, `failed`), ten columns including `id`, and
+two named indexes. Raw report/Hurl/traffic/provider data, paths, scheduling
+counters such as `selected` and `not_scheduled`, digests, and run IDs are
+forbidden; the frozen `total`, `passed`, and `failed` outcome counters are
+required. Retention defaults to 100, independent of `max_events`.
+`.entroping/latest-run.json` remains canonical
+`entroping.run-report.v1`; history accepts only a prevalidated noncanonical
+projection. Rejection/failure/uncertainty emits bounded value-free diagnostics,
+never a row/value leak or canonical/outcome change; eligible terminals retain
+passed/failed/blocked mapping.
 
-- `TrafficStore.open_project(<root>)` opens `.entroping/state.db`.
-- `traffic_store_metadata` stores `schema_version=1` through
-  `TrafficStoreMetadataRow`.
-- `TrafficEventRow` maps the `traffic_events` table through SQLModel.
-- `traffic_events` stores only redacted `TrafficExchange` JSON plus indexed method, URL, host, path, status, duration, and capture time.
-- Persistence refuses any exchange whose `redacted` flag is false.
-- Retention keeps local growth bounded by a configurable event count.
-- Traffic state modules are covered by import-boundary tests so they do not call Brain/LiteLLM providers.
-- Proxy capture modules are adapter-only and should not send captured traffic to Brain/LiteLLM providers.
+Every SQLite open first validates the header and rejects WAL headers/`-wal`/`-shm`;
+write paths validate before DDL,
+and migrate recognized v1/no-metadata in one bounded `BEGIN EXCLUSIVE`
+transaction; malformed/unknown/old/future states fail closed. Append/retention
+uses one `BEGIN IMMEDIATE`. Read-only opens use existing-file
+`mode=ro`/`query_only=ON`; they never mkdir/migrate/prune/create sidecars, and
+legacy stores return empty history. `limit=N` selects newest by
+`generated_at DESC,id DESC`, then returns that selection `generated_at ASC,id ASC`;
+`None` returns all chronologically. No v2-to-v1 downgrade; see ADR-0036.
 
-Traffic-store schema policy:
-
-- Current schema version is `1`.
-- Write-capable opens create missing metadata for pre-version alpha stores.
-- Read-only Studio/status paths validate existing metadata without creating or
-  migrating `.entroping/state.db`; older alpha stores with no metadata are
-  treated as version 1 for read compatibility.
-- A store with a future schema version fails closed with an upgrade-required
-  error before traffic rows are read or written.
-- Explicit older schema versions fail until a reviewed migration is added. Do
-  not silently rewrite state with an unknown schema contract.
-
-Suggested future tables:
-
-| Table | Purpose |
-| --- | --- |
-| `traffic_log` | Redacted request/response records |
-| `traffic_session` | User-flow grouping for freeze operations |
-| `run_history` | Last run summary used by reports and bug templates |
-| `ai_edit_audit` | AI generation/refactor metadata, prompts, file paths, and validation status |
-| `agent_run_manifest` | Value-free AI-assisted Architect run evidence |
-| `baseline_snapshot` | Drift and golden-master comparison metadata |
-
-Traffic artifact approval evidence is already implemented as value-free JSON
-manifests under `reports/approvals/*.json` rather than as a SQLite table.
-
-Retention must be configurable. A safe default is bounded local growth, such as size-based rotation around 1 GB or age-based cleanup, with explicit export commands later if needed.
+Traffic artifact approval evidence remains value-free JSON under
+`reports/approvals/*.json`, not a SQLite table.
 
 ## 11. Freeze and Mock Design
 
